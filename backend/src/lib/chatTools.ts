@@ -24,6 +24,7 @@ import {
     type LlmMessage,
     type OpenAIToolSchema,
 } from "./llm";
+import { getMcpTools, isMcpTool, runMcpTool } from "./mcp";
 
 const STANDARD_FONT_DATA_URL = (() => {
     try {
@@ -2745,9 +2746,10 @@ export async function runLLMStream(params: {
         apiKeys,
         projectId,
     } = params;
+    const mcpTools = await getMcpTools();
     const activeTools = extraTools?.length
-        ? [...TOOLS, ...WORKFLOW_TOOLS, ...extraTools]
-        : [...TOOLS, ...WORKFLOW_TOOLS];
+        ? [...TOOLS, ...WORKFLOW_TOOLS, ...extraTools, ...mcpTools]
+        : [...TOOLS, ...WORKFLOW_TOOLS, ...mcpTools];
 
     // Extract system prompt; pass remaining turns to the adapter as
     // plain user/assistant messages.
@@ -2970,6 +2972,27 @@ export async function runLLMStream(params: {
                 const row = r as { tool_call_id: string; content?: unknown };
                 resultByCallId.set(row.tool_call_id, String(row.content ?? ""));
             }
+
+            // Dispatch MCP tools for any calls not handled by built-in tools.
+            await Promise.all(
+                toolCalls
+                    .filter(
+                        (c) =>
+                            !resultByCallId.has(c.id) &&
+                            isMcpTool(c.function.name),
+                    )
+                    .map(async (c) => {
+                        let args: Record<string, unknown> = {};
+                        try {
+                            args = JSON.parse(c.function.arguments || "{}");
+                        } catch {
+                            /* ignore */
+                        }
+                        const content = await runMcpTool(c.function.name, args);
+                        resultByCallId.set(c.id, content);
+                    }),
+            );
+
             return toolCalls.map((c) => ({
                 tool_use_id: c.id,
                 content:

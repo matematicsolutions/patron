@@ -1,0 +1,17 @@
+[
+  {
+    "_comment": "Copy this file to mcp-servers.json and adjust to your setup.",
+    "_comment2": "mcp-servers.json is gitignored (local config, may contain credentials).",
+    "name": "saos",
+    "transport": "stdio",
+    "command": "node",
+    "args": ["/path/to/saos-mcp-server/dist/index.js"],
+    "enabled": false
+  },
+  {
+    "name": "example-http",
+    "transport": "http",
+    "url": "http://localhost:3100/mcp",
+    "enabled": false
+  }
+]
