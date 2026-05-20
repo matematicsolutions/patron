@@ -18,18 +18,19 @@ import type {
 import { EditCard, applyOptimisticResolution } from "./EditCard";
 import { PreResponseWrapper } from "../shared/PreResponseWrapper";
 import { supabase } from "@/lib/supabase";
+import { t } from "@/i18n";
 
 function toolCallLabel(name: string): string {
-    if (name === "generate_docx") return "Creating document...";
-    if (name === "edit_document") return "Editing document...";
-    if (name === "read_document") return "Reading document...";
-    if (name === "fetch_documents") return "Reading documents...";
-    if (name === "find_in_document") return "Searching document...";
-    if (name === "replicate_document") return "Copying document...";
-    if (name === "read_workflow") return "Loading workflow...";
-    if (name === "list_workflows") return "Loading workflows...";
-    if (name === "list_documents") return "Loading documents...";
-    return name ? `Running ${name}...` : "Working...";
+    if (name === "generate_docx") return t("chat.toolCreatingDocument");
+    if (name === "edit_document") return t("chat.toolEditingDocument");
+    if (name === "read_document") return t("chat.toolReadingDocument");
+    if (name === "fetch_documents") return t("chat.toolReadingDocuments");
+    if (name === "find_in_document") return t("chat.toolSearchingDocument");
+    if (name === "replicate_document") return t("chat.toolReplicatingDocument");
+    if (name === "read_workflow") return t("chat.toolReadingWorkflow");
+    if (name === "list_workflows") return t("chat.toolListingWorkflows");
+    if (name === "list_documents") return t("chat.toolListingDocuments");
+    return name ? `${t("chat.toolRunning")} ${name}…` : t("chat.toolWorking");
 }
 
 /**
@@ -747,7 +748,7 @@ function WorkflowAppliedBlock({
             )}
             <div className="mt-2 w-1.5 h-1.5 rounded-full bg-green-400 shrink-0" />
             <div className="ml-2 min-w-0 flex-1 whitespace-normal break-words">
-                <span className="font-medium">Applied Workflow</span>{" "}
+                <span className="font-medium">{t("chat.appliedWorkflow")}</span>{" "}
                 {onClick ? (
                     <button
                         onClick={onClick}
@@ -1512,7 +1513,7 @@ export function AssistantMessage({
                 {isError && (
                     <div className="mt-2 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-serif text-red-700">
                         <span className="leading-snug">
-                            {errorMessage ?? "Sorry, something went wrong."}
+                            {errorMessage ?? t("chat.sorryError")}
                         </span>
                     </div>
                 )}

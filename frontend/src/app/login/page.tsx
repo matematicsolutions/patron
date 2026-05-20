@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { SiteLogo } from "@/components/site-logo";
 import { useAuth } from "@/contexts/AuthContext";
+import { t } from "@/i18n";
 export default function LoginPage() {
     const router = useRouter();
     const { isAuthenticated, authLoading } = useAuth();
@@ -57,13 +58,13 @@ export default function LoginPage() {
                         </h2>
                         <div className="bg-gray-100 p-1 rounded-md flex text-xs font-medium">
                             <span className="text-gray-600 px-3 py-1 bg-white rounded-sm shadow-sm">
-                                Log in
+                                {t("auth.signInLink")}
                             </span>
                             <Link
                                 href="/signup"
                                 className="px-3 py-1 text-gray-500 hover:text-gray-900"
                             >
-                                Sign up
+                                {t("auth.signUpLink")}
                             </Link>
                         </div>
                     </div>
@@ -73,14 +74,14 @@ export default function LoginPage() {
                                 htmlFor="email"
                                 className="block text-sm font-medium text-gray-700 mb-2"
                             >
-                                Email
+                                {t("auth.emailLabel")}
                             </label>
                             <Input
                                 id="email"
                                 type="email"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
-                                placeholder="Enter your email"
+                                placeholder={t("auth.emailPlaceholder")}
                                 required
                                 className="w-full"
                             />
@@ -91,14 +92,14 @@ export default function LoginPage() {
                                 htmlFor="password"
                                 className="block text-sm font-medium text-gray-700 mb-2"
                             >
-                                Password
+                                {t("auth.passwordLabel")}
                             </label>
                             <Input
                                 id="password"
                                 type="password"
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                placeholder="Enter your password"
+                                placeholder={t("auth.passwordPlaceholder")}
                                 required
                                 className="w-full"
                             />
@@ -115,15 +116,16 @@ export default function LoginPage() {
                             disabled={loading}
                             className="w-full mt-5 bg-black hover:bg-gray-900 text-white"
                         >
-                            {loading ? "Logging in..." : "Log in"}
+                            {loading
+                                ? `${t("auth.signInButton")}…`
+                                : t("auth.signInButton")}
                         </Button>
                     </form>
                 </div>
                 <p className="text-center text-xs text-gray-500 leading-relaxed px-2">
-                    Mike hosted on MikeOSS.com is currently a demo service.
-                    Please do not upload, submit, or store sensitive,
-                    confidential, privileged, client, or personally
-                    identifiable documents.
+                    Patron pracuje na infrastrukturze Twojej kancelarii.
+                    Dokumenty klientów przetwarzane są lokalnie zgodnie
+                    z RODO. Tajemnica zawodowa pozostaje chroniona.
                 </p>
             </div>
         </div>

@@ -25,7 +25,7 @@ export function InitialView({ onSubmit }: InitialViewProps) {
     const textRef = useRef<HTMLHeadingElement>(null);
 
     const username =
-        profile?.displayName?.trim() || user?.email?.split("@")[0] || "there";
+        profile?.displayName?.trim() || user?.email?.split("@")[0] || "Pani / Panie Mecenasie";
 
     useLayoutEffect(() => {
         if (!profile || !textRef.current) return;
@@ -71,7 +71,7 @@ export function InitialView({ onSubmit }: InitialViewProps) {
                                     "transform 900ms cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 800ms ease-in-out 300ms",
                             }}
                         >
-                            Hi, {username}
+                            Witaj, {username}
                         </h1>
                     </div>
 

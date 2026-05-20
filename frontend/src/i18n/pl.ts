@@ -95,6 +95,27 @@ export const pl = {
         deleteChat: "Usuń czat",
         deleteChatConfirm:
             "Usunąć ten czat? Treść zostanie skasowana, ale ślad w audit log zostaje (compliance).",
+        sorryError: "Przepraszamy, wystąpił błąd.",
+        // Tool call activity labels (podczas streamingu narzedzi)
+        toolCreatingDocument: "Tworzę dokument…",
+        toolEditingDocument: "Edytuję dokument…",
+        toolReadingDocument: "Czytam dokument…",
+        toolReadingDocuments: "Czytam dokumenty…",
+        toolSearchingDocument: "Przeszukuję dokument…",
+        toolReplicatingDocument: "Kopiuję dokument…",
+        toolReadingWorkflow: "Wczytuję workflow…",
+        toolListingWorkflows: "Wczytuję listę workflowów…",
+        toolListingDocuments: "Wczytuję listę dokumentów…",
+        toolRunning: "Uruchamiam:",
+        toolWorking: "Pracuję…",
+        // Doc activity past/present
+        reading: "Czytam",
+        readActivity: "Przeczytano",
+        creating: "Tworzę",
+        createdActivity: "Utworzono",
+        editing: "Edytuję",
+        editedActivity: "Zedytowano",
+        appliedWorkflow: "Zastosowany workflow",
     },
 
     // ---------------------------------------------------------------------
@@ -149,6 +170,12 @@ export const pl = {
         provider: "Dostawca",
         apiKey: "Klucz API",
         apiKeyMissing: "Brakuje klucza API dla tego modelu.",
+        apiKeyRequired: "Klucz API wymagany",
+        apiKeyMissingBodyPrefix: "Nie dodałeś jeszcze klucza API dostawcy",
+        apiKeyMissingBodySuffix:
+            ". Dodaj go w ustawieniach konta, aby użyć tego modelu.",
+        apiKeyThisProvider: "tego dostawcy",
+        goToAccount: "Przejdź do ustawień konta",
         configuredByAdmin: "Skonfigurowane przez administratora",
         addKey: "Dodaj klucz",
         removeKey: "Usuń klucz",
@@ -161,10 +188,21 @@ export const pl = {
     auth: {
         signInTitle: "Zaloguj się do Patrona",
         signUpTitle: "Załóż konto w Patronie",
+        createAccount: "Załóż konto",
+        accountCreated: "Konto utworzone",
+        redirectingHome: "Przekierowujemy Cię do strony głównej…",
         emailLabel: "Email",
         emailPlaceholder: "imie@kancelaria.pl",
         passwordLabel: "Hasło",
         passwordPlaceholder: "Twoje hasło",
+        passwordPlaceholderCreate: "Stwórz hasło (min. 6 znaków)",
+        confirmPasswordLabel: "Powtórz hasło",
+        confirmPasswordPlaceholder: "Wpisz hasło ponownie",
+        nameLabel: "Imię",
+        nameOptional: "(opcjonalnie)",
+        namePlaceholder: "Twoje imię",
+        organisationLabel: "Kancelaria / organizacja",
+        organisationPlaceholder: "Nazwa kancelarii",
         signInButton: "Zaloguj się",
         signUpButton: "Zarejestruj się",
         haveAccount: "Masz już konto?",
@@ -175,6 +213,10 @@ export const pl = {
             "Sprawdź skrzynkę pocztową. Wysłaliśmy link potwierdzający.",
         signInError: "Logowanie nie powiodło się.",
         signUpError: "Rejestracja nie powiodła się.",
+        passwordsDoNotMatch: "Hasła nie są zgodne",
+        passwordTooShort: "Hasło musi mieć co najmniej 6 znaków",
+        rodoNote:
+            "Patron pracuje na infrastrukturze Twojej kancelarii. Dokumenty klientów przetwarzane są lokalnie zgodnie z RODO. Tajemnica zawodowa pozostaje chroniona.",
     },
 
     // ---------------------------------------------------------------------
