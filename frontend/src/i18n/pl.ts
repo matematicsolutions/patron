@@ -88,13 +88,13 @@ export const pl = {
         thinking: "Myślę…",
         loadingCitations: "Pobieram cytaty…",
         streamError: "Błąd strumienia. Odśwież stronę.",
-        modelMissing: "Brak skonfigurowanego modelu LLM.",
+        modelMissing: "Nie ustawiono modelu LLM.",
         modelMissingAction: "Przejdź do Konto → Modele i klucze API",
         emptyState: "Zacznij od pytania. Możesz załączyć .docx lub .pdf.",
         renameTitle: "Zmień tytuł czatu",
         deleteChat: "Usuń czat",
         deleteChatConfirm:
-            "Usunąć ten czat? Treść zostanie skasowana, ale ślad w audit log zostaje (compliance).",
+            "Usunąć ten czat? Treść zniknie, ale wpis w dzienniku audytu zostaje.",
         sorryError: "Przepraszamy, wystąpił błąd.",
         // Tool call activity labels (podczas streamingu narzedzi)
         toolCreatingDocument: "Tworzę dokument…",
@@ -153,9 +153,9 @@ export const pl = {
         noCitations: "Brak cytatów dla tej odpowiedzi.",
         // MCP server labels - odpowiadaja `mcpServerLabel` z AssistantMessage.tsx
         saos: "Orzeczenia z SAOS (sądy powszechne, SN, TK, KIO)",
-        nsa: "Orzeczenia z CBOSA (NSA / WSA — sądy administracyjne)",
-        isap: "Akty prawa polskiego (Dz.U. / M.P. — Sejm ELI)",
-        krs: "Krajowy Rejestr Sądowy (KRS — MS)",
+        nsa: "Orzeczenia z CBOSA (NSA / WSA - sądy administracyjne)",
+        isap: "Akty prawa polskiego (Dz.U. / M.P. - Sejm ELI)",
+        krs: "Krajowy Rejestr Sądowy (KRS - MS)",
         euSparql: "Akty prawa UE (EUR-Lex / CJEU)",
     },
 
@@ -216,7 +216,7 @@ export const pl = {
         passwordsDoNotMatch: "Hasła nie są zgodne",
         passwordTooShort: "Hasło musi mieć co najmniej 6 znaków",
         rodoNote:
-            "Patron pracuje na infrastrukturze Twojej kancelarii. Dokumenty klientów przetwarzane są lokalnie zgodnie z RODO. Tajemnica zawodowa pozostaje chroniona.",
+            "Patron pracuje na infrastrukturze Twojej kancelarii. Dokumenty klientów przetwarzamy lokalnie zgodnie z RODO. Chronimy tajemnicę zawodową.",
     },
 
     // ---------------------------------------------------------------------
@@ -236,8 +236,18 @@ export const pl = {
         openProjects: "Otwórz projekty",
         addByEmail: "Dodaj przez email…",
         allowEditingByShareRecipients:
-            "Pozwól osobom z dostępem edytować",
+            "Pozwól na edycję osobom z dostępem",
         dismissWarning: "Zamknij ostrzeżenie",
+        // Lista projektow
+        searchPlaceholder: "Szukaj projektów…",
+        nameColumn: "Nazwa",
+        filesColumn: "Pliki",
+        chatsColumn: "Czaty",
+        tabularReviewsColumn: "Przeglądy tabelaryczne",
+        createdColumn: "Utworzono",
+        cmShort: "Sygnatura",
+        cmShortPlaceholder: "Sygn.",
+        noProjects: "Brak projektów. Utwórz pierwszy.",
     },
 
     // ---------------------------------------------------------------------

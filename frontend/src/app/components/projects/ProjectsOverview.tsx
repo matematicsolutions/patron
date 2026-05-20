@@ -11,6 +11,7 @@ import type { MikeProject } from "@/app/components/shared/types";
 import { NewProjectModal } from "./NewProjectModal";
 import { ToolbarTabs } from "@/app/components/shared/ToolbarTabs";
 import { RowActions } from "@/app/components/shared/RowActions";
+import { t } from "@/i18n";
 
 function formatDate(iso: string) {
     return new Date(iso).toLocaleDateString(undefined, {
@@ -213,7 +214,7 @@ export function ProjectsOverview() {
                     <HeaderSearchBtn
                         value={search}
                         onChange={setSearch}
-                        placeholder="Search projects…"
+                        placeholder={t("projects.searchPlaceholder")}
                     />
                     <button
                         onClick={() => setModalOpen(true)}
@@ -250,15 +251,23 @@ export function ProjectsOverview() {
                         )}
                     </div>
                     <div className={`sticky left-8 z-[60] ${NAME_COL_W} bg-white pl-2 text-left`}>
-                        Name
+                        {t("projects.nameColumn")}
                     </div>
-                    <div className="ml-auto w-32 shrink-0 text-left">CM</div>
-                    <div className="w-24 shrink-0 text-left">Files</div>
-                    <div className="w-24 shrink-0 text-left">Chats</div>
+                    <div className="ml-auto w-32 shrink-0 text-left">
+                        {t("projects.cmShort")}
+                    </div>
+                    <div className="w-24 shrink-0 text-left">
+                        {t("projects.filesColumn")}
+                    </div>
+                    <div className="w-24 shrink-0 text-left">
+                        {t("projects.chatsColumn")}
+                    </div>
                     <div className="w-36 shrink-0 text-left">
-                        Tabular Reviews
+                        {t("projects.tabularReviewsColumn")}
                     </div>
-                    <div className="w-32 shrink-0 text-left">Created</div>
+                    <div className="w-32 shrink-0 text-left">
+                        {t("projects.createdColumn")}
+                    </div>
                     <div className="w-8 shrink-0" />
                 </div>
 
@@ -407,7 +416,7 @@ export function ProjectsOverview() {
                                             onBlur={() =>
                                                 handleCmSubmit(project.id)
                                             }
-                                            placeholder="CM #"
+                                            placeholder={t("projects.cmShortPlaceholder")}
                                             className="w-full text-sm text-gray-800 bg-transparent outline-none"
                                         />
                                     ) : (
