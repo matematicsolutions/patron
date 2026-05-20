@@ -1,7 +1,7 @@
 # Patron - podręcznik użytkownika
 
 Przewodnik dla prawnika z kancelarii, która ma już postawioną instancję
-Patrona. Jeśli jeszcze nie ma, operator znajdzie instrukcję w
+Patrona. Jeśli jeszcze nie ma, Administrator znajdzie instrukcję w
 [`deploy/README.md`](./README.md).
 
 > Patron wspomaga pracę, ale nie zastępuje prawnika. Każde pismo, opinia
@@ -14,7 +14,7 @@ Patrona. Jeśli jeszcze nie ma, operator znajdzie instrukcję w
 2. [Wybór modelu LLM](#2-wybór-modelu-llm)
 3. [Praca z dokumentami](#3-praca-z-dokumentami)
 4. [Czat: jak rozmawiać z Patronem](#4-czat-jak-rozmawiać-z-patronem)
-5. [Konektory polskiego prawa](#5-konektory-polskiego-prawa)
+5. [Źródła polskiego prawa](#5-źródła-polskiego-prawa)
 6. [Panel cytatów](#6-panel-cytatów)
 7. [Audyt - co Patron zapisuje](#7-audyt---co-patron-zapisuje)
 8. [FAQ](#8-faq)
@@ -24,7 +24,7 @@ Patrona. Jeśli jeszcze nie ma, operator znajdzie instrukcję w
 
 ## 1. Pierwsze logowanie
 
-1. Otwórz adres podany przez operatora (np. `https://patron.kancelaria.pl`).
+1. Otwórz adres podany przez Administratora (np. `https://patron.kancelaria.pl`).
 2. Zarejestruj się przez Supabase Auth (email + hasło) lub zaloguj się
    przez SSO, jeśli kancelaria ma to skonfigurowane.
 3. Po zalogowaniu zobaczysz pustą skrzynkę czatów.
@@ -43,7 +43,7 @@ wybiera model. Trzy ścieżki:
 Klucz API wpiszesz w menu **Konto → Modele i klucze API**. Patron
 szyfruje go przed zapisem (sekretem `USER_API_KEYS_ENCRYPTION_SECRET`).
 
-> Operator może wpisać klucz globalnie dla całej kancelarii (jeden klucz
+> Administrator może wpisać klucz globalnie dla całej kancelarii (jeden klucz
 > = jedna faktura). Wtedy w **Modele i klucze API** zobaczysz „Provider
 > configured by admin" i nie musisz nic wpisywać.
 
@@ -89,7 +89,7 @@ placeholder (`[Podpis - imię, nazwisko, tytuł zawodowy, nr wpisu]`).
 ### Co Patron umie
 
 - Analizować załączone dokumenty (z cytatami i numerami stron).
-- Wywoływać 5 konektorów MCP polskiego prawa (patrz § 5).
+- Wywoływać 5 źródeł polskiego prawa (patrz § 5).
 - Generować i edytować `.docx` z tracked changes.
 - Stosować workflow, jeśli kancelaria ma zdefiniowane szablony.
 
@@ -114,12 +114,12 @@ przeszedł w orzecznictwie z 2024-2025"* Patron wywoła `nsa__search`.
 - Nie zapamięta hasła klienta ani innych sekretów (nie wklejaj haseł
   i numerów kart do treści czatu).
 
-## 5. Konektory polskiego prawa
+## 5. Źródła polskiego prawa
 
-Patron ma 5 konektorów MCP wpiętych w czat. Wywołasz je naturalnym
-pytaniem - model sam zdecyduje, który pasuje:
+Patron ma 5 źródeł polskiego prawa wpiętych w czat. Wywołasz je
+naturalnym pytaniem - model sam zdecyduje, które pasuje:
 
-| Konektor | Co zwraca | Przykład pytania |
+| Źródło | Co zwraca | Przykład pytania |
 |---|---|---|
 | mcp-saos | orzeczenia sądów powszechnych, SN, TK, KIO | *„Wyroki SN o niezgodności umowy z zasadami współżycia społecznego"* |
 | mcp-nsa | orzeczenia NSA i 16 WSA (sądy administracyjne) | *„Orzecznictwo NSA o art. 6 ust. 1 lit. f RODO z 2025 r."* |
@@ -127,7 +127,7 @@ pytaniem - model sam zdecyduje, który pasuje:
 | mcp-krs | rejestr przedsiębiorców (oficjalne API MS) | *„Zarząd i sposób reprezentacji ORLEN SA"* |
 | mcp-eu-sparql | akty UE i orzeczenia CJEU (EUR-Lex) | *„Polskie tłumaczenie RODO, CELEX 32016R0679"* |
 
-### Kiedy Patron wywoła kilka konektorów naraz
+### Kiedy Patron wywoła kilka źródeł naraz
 
 Gdy pytanie obejmuje kilka domen. Przykład:
 
@@ -155,7 +155,7 @@ cytatów podzielony na sekcje:
 - Krajowy Rejestr Sądowy (link do wyszukiwarki MS).
 - Akty prawa UE (EUR-Lex i CJEU).
 
-Każdy cytat z konektora ma link do oryginału - kliknięcie otwiera go
+Każdy cytat ze źródła ma link do oryginału - kliknięcie otwiera go
 w nowej karcie. Zweryfikuj cytat, zanim wstawisz go do pisma.
 
 ## 7. Audyt - co Patron zapisuje
@@ -166,13 +166,13 @@ Każda Twoja interakcja zapisuje się w `audit_log` z hash-chain SHA-256
 - Twój prompt: tylko długość, liczba załączników i wybrany workflow
   (bez pełnej treści).
 - Odpowiedź Patrona: model, liczba tokenów, liczba cytatów i lista
-  wywołanych konektorów (np. `["saos__search", "isap__get_act"]`).
+  wywołanych źródeł (np. `["saos__search", "isap__get_act"]`).
 - Operacje na dokumentach: które dokumenty czytałeś i edytowałeś
   (tylko identyfikatory, bez treści).
 
 W praktyce:
 - IOD kancelarii widzi historię użycia (kto, kiedy, jakim modelem,
-  jakie konektory).
+  jakie źródła).
 - Modyfikacja audit log po zapisie psuje łańcuch - wykrywa to
   weryfikator (`npm run audit:verify`).
 - W razie sporu z klientem masz dowód, czego Patron użył.
@@ -188,7 +188,7 @@ na AI Act. Pełen tekst w `governance/CONSTITUTION.md`.
 **Czy treść mojego czatu trafia do dostawcy LLM?**
 Tak, jeśli używasz Gemini, Claude lub OpenAI w chmurze. Patrz § 2.
 Jeśli kancelaria nie chce wypuszczać danych na zewnątrz, wybierz
-Ollama lokalnie. Politykę dla całej kancelarii ustala operator.
+Ollama lokalnie. Politykę dla całej kancelarii ustala Administrator.
 
 **Czy Patron uczy się z moich dokumentów?**
 Nie. Patron nie trenuje modeli na danych kancelarii. Treść trafia do
@@ -196,7 +196,7 @@ LLM tylko przy konkretnym wywołaniu i nie staje się częścią wag.
 
 **Co robić, gdy Patron poda błędny cytat?**
 Otwórz panel cytatów, kliknij link do oryginału i sprawdź. Jeśli
-Patron wymyślił cytat (halucynacja), zgłoś to administratorowi
+Patron wymyślił cytat (halucynacja), zgłoś to Administratorowi
 (Konstytucja AI Art. 2 i Art. 6).
 
 **Czy mogę używać Patrona z telefonu?**
@@ -209,45 +209,45 @@ Tak. Każda edycja tworzy nową wersję w `document_versions`. W panelu
 dokumentu znajdziesz historię wersji i możesz wrócić do poprzedniej.
 
 **Co jeśli mój klient prosi o usunięcie wszystkich danych (RODO art. 17)?**
-Zgłoś to IOD-owi. Operator uruchomi `npm run rodo:delete --user <id>
+Zgłoś to IOD-owi. Administrator uruchomi `npm run rodo:delete --user <id>
 --confirm`. Patron usunie dane klienta z bazy i z plików. W audit log
 zostaje wpis z anonimowym `actor_user_id` (compliance ma pierwszeństwo
 nad prawem do usunięcia - RODO art. 17 ust. 3 lit. b).
 
 **Co jeśli klient prosi o eksport danych (RODO art. 20)?**
-Operator uruchomi `npm run rodo:export --user <id> --out plik.json`
+Administrator uruchomi `npm run rodo:export --user <id> --out plik.json`
 i przekaże Ci JSON do przekazania klientowi.
 
 ## 9. Co robić, gdy coś nie działa
 
 **Patron nie odpowiada albo widzę błąd „Provider not configured"**
 Otwórz **Konto → Modele i klucze API** i sprawdź, czy masz wpisany
-klucz LLM. Jeśli klucz globalny ustawiał administrator, zgłoś problem
+klucz LLM. Jeśli klucz globalny ustawiał Administrator, zgłoś problem
 do IT.
 
-**Konektor MCP nie zwraca wyników**
+**Źródło polskiego prawa nie zwraca wyników**
 Sprawdź sformułowanie zapytania. Dla SAOS użyj polskich słów
 kluczowych. Dla KRS - 10-cyfrowego numeru. Dla EUR-Lex - numeru CELEX
 (np. `32016R0679`).
 
 **Wygenerowany `.docx` nie otwiera się w Wordzie**
-Zgłoś operatorowi. Patron używa biblioteki `docx`, która czasem nie
-radzi sobie z bardzo skomplikowaną strukturą tabeli. Operator ma logi
+Zgłoś Administratorowi. Patron używa biblioteki `docx`, która czasem nie
+radzi sobie z bardzo skomplikowaną strukturą tabeli. Administrator ma logi
 i może to poprawić.
 
 **Frontend pokazuje „Stream error"**
-Odśwież stronę. Jeśli błąd wraca, operator sprawdzi backend
+Odśwież stronę. Jeśli błąd wraca, Administrator sprawdzi backend
 (`docker compose logs backend`).
 
 **Mam pomysł na ulepszenie**
 Otwórz feature request: <https://github.com/matematicsolutions/patron/issues/new/choose>.
-Możesz też zgłosić pomysł przez administratora kancelarii.
+Możesz też zgłosić pomysł przez Administratora kancelarii.
 
 ---
 
 ## Kontakt
 
-- Operator kancelarii (osoba z IT, która postawiła Patrona).
+- Administrator kancelarii (osoba z IT, która postawiła Patrona).
 - MateMatic (vendor): <https://matematic.co>, [kontakt@matematic.co](mailto:kontakt@matematic.co).
 - Konstytucja AI: pełen tekst w `governance/CONSTITUTION.md` w repozytorium.
 
