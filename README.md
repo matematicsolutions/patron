@@ -64,7 +64,7 @@ Wymaga osobno postawionego Supabase + MinIO (osobne stack). Patrz runbook.
 
 ## Governance (przed wdrożeniem)
 
-- [**Konstytucja AI Patrona v1.1.0**](./governance/CONSTITUTION.md) -
+- [**Konstytucja AI Patrona v1.1.1**](./governance/CONSTITUTION.md) -
   9 zasad, granice produktu, role (Administrator / Operator / Inspektor),
   audyt, ewolucja. Mapowanie na AI Act art. 12, RODO art. 5/25/30
   i etykę zawodową.
@@ -74,7 +74,7 @@ Wymaga osobno postawionego Supabase + MinIO (osobne stack). Patrz runbook.
   ([0001 hash-chain](./governance/adr/0001-hash-chain-audit-trail.md),
   [0002 dual-license](./governance/adr/0002-dual-license-agpl-shell-mit-connectors.md)).
 
-Kancelaria przed wdrożeniem czyta i podpisuje **Konstytucję v1.1.0**
+Kancelaria przed wdrożeniem czyta i podpisuje **Konstytucję v1.1.1**
 (sekcja podpisów na końcu pliku).
 
 ## Licencja

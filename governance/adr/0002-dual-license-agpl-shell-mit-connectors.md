@@ -2,7 +2,7 @@
 
 **Status**: Przyjęty
 **Data**: 2026-05-20
-**Powiązane**: Konstytucja AI Patrona, Art. 4 (vendor neutrality) i Art. 9
+**Powiązane**: Konstytucja AI Patrona, Art. 4 (neutralność wobec dostawców) i Art. 9
 (dostępność wiedzy); fork attribution w `NOTICE`.
 
 ## Decyzja
@@ -97,7 +97,7 @@ sieciowy.
 - Kancelarie self-host nie czują obciążenia AGPL.
 - Konektory mogą żyć własnym życiem w polskim legal-techu.
 - Zgodne z Art. 9 Konstytucji (dostępność wiedzy) - kod otwarty.
-- Zgodne z Art. 4 Konstytucji (vendor neutrality) - kancelaria
+- Zgodne z Art. 4 Konstytucji (neutralność wobec dostawców) - kancelaria
   zawsze może zrobić fork i prowadzić go sama.
 
 **Minusy / ograniczenia**:

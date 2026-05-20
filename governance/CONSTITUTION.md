@@ -1,6 +1,6 @@
 # Konstytucja AI Patrona
 
-Wersja: 1.1.0
+Wersja: 1.1.1
 Data: 2026-05-20
 Status: obowiązująca
 Wydawca: MateMatic / Wiesław Mazur
@@ -80,7 +80,7 @@ to w sekundy.
 Retencja audit log: 5 lat (zgodnie ze standardową retencją
 dokumentów kancelarii). Eksport: pełny dump JSON z weryfikacją hash.
 
-### Art. 4 - Vendor neutrality (zasada przewidywalności)
+### Art. 4 - Neutralność wobec dostawców (zasada przewidywalności)
 
 Patron nie zamyka kancelarii w jednym dostawcy modelu. Wymiana
 Gemini ↔ Claude ↔ Ollama to zmiana 1 wartości w `.env`, bez
@@ -205,7 +205,7 @@ Odpowiada za:
 - Zgłaszanie nieprawidłowości (halucynacje, błędne cytaty)
   do Administratora.
 
-### 4.5. Vendor (MateMatic)
+### 4.5. Dostawca (MateMatic)
 
 Odpowiada za:
 - Bezpieczeństwo kodu (`npm audit`, security review przed release).
@@ -298,6 +298,7 @@ Consequences: <co się zmienia>
 
 | Wersja | Data | Zmiana |
 |---|---|---|
+| 1.1.1 | 2026-05-20 | Art. 4 przemianowany z „Vendor neutrality" na „Neutralność wobec dostawców", rola 4.5 z „Vendor" na „Dostawca". PATCH (doprecyzowanie terminologii PL, korpus zasady i wszystkie kontrakty bez zmian; zgodnie z § 6.1 wystarcza commit i changelog). |
 | 1.1.0 | 2026-05-20 | Art. 9 doprecyzowany o dual-license: AGPL-3.0 shell + MIT connectors (ADR-0002). MINOR bump (rozszerzenie zasady, brak łamania kontraktów). |
 | 1.0.0 | 2026-05-20 | Pierwsza wersja konstytucji Patrona. |
 
@@ -310,7 +311,7 @@ Consequences: <co się zmienia>
 | Art. 1 (lokalność) | art. 10 (data governance) | art. 25 (privacy by design) | Pr.Adw. art. 6 ust. 3 |
 | Art. 2 (weryfikowalność) | art. 13 (transparentność) | - | Pr.Adw. art. 8 (sumienność) |
 | Art. 3 (audytowalność) | art. 12 (record-keeping) | art. 30 (rejestr czynności) | - |
-| Art. 4 (vendor neutrality) | - | art. 28 ust. 3 (umowa powierzenia) | - |
+| Art. 4 (neutralność wobec dostawców) | - | art. 28 ust. 3 (umowa powierzenia) | - |
 | Art. 5 (tajemnica) | - | art. 9 (szczególne kategorie) | Pr.Adw. art. 6, Pr.RP art. 3 |
 | Art. 6 (human in the loop) | art. 14 (nadzór człowieka) | art. 22 (zautomatyzowane decyzje) | Pr.Adw. art. 8 ust. 1 |
 | Art. 7 (minimalność) | - | art. 5 ust. 1 lit. c | - |

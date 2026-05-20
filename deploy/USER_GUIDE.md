@@ -182,7 +182,7 @@ W praktyce:
 **Czy Patron jest zgodny z RODO?**
 Tak, przy poprawnym wdrożeniu. Patron działa w infrastrukturze
 kancelarii (self-host), a kancelaria jest administratorem danych.
-Konstytucja AI v1.1.0 mapuje 9 zasad na art. 5, 25, 30 i 32 RODO oraz
+Konstytucja AI v1.1.1 mapuje 9 zasad na art. 5, 25, 30 i 32 RODO oraz
 na AI Act. Pełen tekst w `governance/CONSTITUTION.md`.
 
 **Czy treść mojego czatu trafia do dostawcy LLM?**

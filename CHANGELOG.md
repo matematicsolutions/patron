@@ -7,13 +7,32 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ## [Unreleased]
 
-- Phase 2.1 - Polish locale `pl` in the frontend UI (Next.js strings,
-  date/number formats).
 - Phase 2.7 - Schema for law firm domain (`matter` / `client` / docs
   per matter).
 - Phase 4.2 - additional event types in audit log (`doc.read`,
   `doc.export`) + RODO endpoint exposed via API (not only CLI).
+- Phase 4.5 - PII pseudonymization layer (skeleton in
+  `backend/src/lib/pseudonim/`, 24 Vitest cases green, not wired into
+  `streamChatWithTools` yet - ADR-0003 pending Owner sign-off).
 - Phase 6.1 - branding + landing page on matematic.co.
+
+## [Unreleased - Constitution AI v1.1.1 - 2026-05-20]
+
+Polish-only terminology patch for AI Constitution.
+
+### Changed - Constitution AI v1.1.0 → v1.1.1 (PATCH, terminology)
+
+- Art. 4 renamed from "Vendor neutrality" to "Neutralność wobec
+  dostawców" (article body and contracts unchanged).
+- Role 4.5 renamed from "Vendor (MateMatic)" to "Dostawca (MateMatic)".
+- All cross-refs synced: `governance/adr/0002-*.md`, `README.md`,
+  `deploy/USER_GUIDE.md`.
+- Why: align the last English anglicism in Constitution with the rest
+  of the PL client-grade documentation (Marko-PL round 2 rollout).
+  Article semantics, signatories, and external contracts (AI Act,
+  GDPR mapping in App. A) unchanged - PATCH per § 6.1 of the
+  Constitution. Version 1.2.0 reserved for the PII pseudonymization
+  layer (ADR-0003) once it is wired into `streamChatWithTools`.
 
 ## [1.1.0] - 2026-05-20
 
