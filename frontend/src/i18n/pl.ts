@@ -76,6 +76,12 @@ export const pl = {
         newChat: "Nowy czat",
         newProject: "Nowy projekt",
         newReview: "Nowy przegląd",
+        // Panele boczne - sekcje
+        recentProjects: "Ostatnie projekty",
+        noProjectsYet: "Brak projektów",
+        noChatsYet: "Brak czatów",
+        loadMore: "Załaduj więcej",
+        accountSettings: "Ustawienia konta",
     },
 
     // ---------------------------------------------------------------------
@@ -233,6 +239,66 @@ export const pl = {
         addKey: "Dodaj klucz",
         removeKey: "Usuń klucz",
         keyEncrypted: "Klucz jest szyfrowany przed zapisem.",
+        // Strona Konto - profil
+        displayName: "Imię i nazwisko",
+        displayNamePlaceholder: "Wpisz swoje imię",
+        organisation: "Kancelaria / organizacja",
+        organisationPlaceholder: "Wpisz nazwę kancelarii",
+        saved: "Zapisano",
+        saving: "Zapisuję…",
+        failedUpdateDisplayName:
+            "Nie udało się zapisać imienia. Spróbuj ponownie.",
+        failedUpdateOrganisation:
+            "Nie udało się zapisać kancelarii. Spróbuj ponownie.",
+        // Strona Konto - plan
+        usagePlan: "Plan użytkowania",
+        planFree: "Darmowy",
+        // Strona Konto - akcje
+        actions: "Akcje",
+        // Strona Konto - strefa zagrozenia
+        dangerZone: "Strefa zagrożenia",
+        dangerZoneNote:
+            "Trwale usuń konto i wszystkie powiązane dane. Operacja jest nieodwracalna.",
+        deleteAccount: "Usuń konto",
+        deleting: "Usuwanie…",
+        deleteAccountConfirm:
+            "Na pewno? Twoje konto zostanie trwale usunięte.",
+        failedDeleteAccount:
+            "Nie udało się usunąć konta. Spróbuj ponownie.",
+    },
+
+    // ---------------------------------------------------------------------
+    // Strona Modele i klucze API
+    // ---------------------------------------------------------------------
+    models: {
+        title: "Modele i klucze API",
+        modelPreferences: "Preferencje modelu",
+        tabularModel: "Model przeglądów tabelarycznych",
+        tabularModelHint:
+            "Dla przeglądów tabelarycznych zalecamy mniejszy model, by ograniczyć koszt tokenów.",
+        selectModel: "Wybierz model",
+        keysTitle: "Klucze API",
+        keysNote:
+            "Aby aplikacja działała, podaj własne klucze API albo dodaj je w pliku .env, jeżeli uruchamiasz własną instancję Patrona.",
+        keysTitleGenHint:
+            "Tytuły czatów generujemy automatycznie - używamy do tego najtańszego dostępnego modelu.",
+        anthropicKeyLabel: "Anthropic (Claude) - klucz API",
+        googleKeyLabel: "Google (Gemini) - klucz API",
+        openaiKeyLabel: "OpenAI - klucz API",
+        serverKeyConfigured:
+            "Klucz po stronie serwera jest skonfigurowany. Edycja klucza w przeglądarce jest wyłączona.",
+        serverKeyWillBeUsed: "Patron użyje klucza z serwera.",
+        serverKeyPlaceholder: "Klucz po stronie serwera",
+        savedKeyHidden: "Zapisany klucz ukryty",
+        pasteNewKeyToReplace:
+            "Klucz jest zapisany. Wklej nowy, aby go zastąpić.",
+        hideKey: "Ukryj klucz",
+        showKey: "Pokaż klucz",
+        addKeyToUseHint:
+            "Dodaj klucz API tego dostawcy, by skorzystać z modelu.",
+        remove: "Usuń",
+        failedSaveKey: "Nie udało się zapisać klucza.",
+        failedRemoveKey: "Nie udało się usunąć klucza.",
     },
 
     // ---------------------------------------------------------------------
@@ -336,6 +402,21 @@ export const pl = {
         noWorkflowsFound: "Brak workflowów asystenta",
         builtIn: "Wbudowany",
         custom: "Niestandardowy",
+        // Detal workflow (strona /workflows/[id])
+        notFound: "Nie znaleziono workflow.",
+        savingStatus: "Zapisuję…",
+        savedStatus: "Zapisano",
+        people: "Osoby",
+        readOnly: "Tylko do odczytu",
+        actions: "Akcje",
+        addColumn: "Dodaj kolumnę",
+        addColumnPlus: "+ Dodaj kolumnę",
+        columnTitle: "Tytuł kolumny",
+        format: "Format",
+        prompt: "Polecenie",
+        columnsEmptyTitle: "Kolumny",
+        columnsEmptyBody:
+            "Dodaj kolumny, by określić, co ten workflow przeglądu tabelarycznego ma wyciągać z każdego dokumentu.",
     },
 
     // ---------------------------------------------------------------------
@@ -447,6 +528,79 @@ export const pl = {
         editColumn: "Edytuj kolumnę",
         format: "Format",
         created: "Utworzono",
+        // Lista przegladow (strona /tabular-reviews)
+        listTitle: "Przeglądy tabelaryczne",
+        searchPlaceholder: "Szukaj przeglądów…",
+        tabAll: "Wszystkie",
+        tabInProject: "W projektach",
+        tabStandalone: "Samodzielne",
+        filterByProject: "Filtruj po projekcie",
+        allProjects: "Wszystkie projekty",
+        actions: "Akcje",
+        delete: "Usuń",
+        nameColumn: "Nazwa",
+        columnsColumn: "Kolumny",
+        documentsColumn: "Dokumenty",
+        projectColumn: "Projekt",
+        createdColumn: "Utworzono",
+        emptyBody: "Wyciągaj dane z dokumentów do tabel za pomocą AI.",
+        emptyCta: "+ Utwórz nowy",
+        noResults: "Nie znaleziono przeglądów",
+        untitledReview: "Bez tytułu",
+    },
+
+    // ---------------------------------------------------------------------
+    // Project chat - strona /projects/[id]/assistant/chat/[chatId]
+    // ---------------------------------------------------------------------
+    projectChat: {
+        // Breadcrumby (wspoldzielimy z projects.* i nav.* gdzie mozliwe)
+        untitledNewChat: "Nowy czat bez tytułu",
+        newChatTooltip: "Nowy czat",
+        deleteChatTooltip: "Usuń czat",
+        // Lewy panel - eksplorator
+        explorer: "Eksplorator",
+        uploadDocuments: "Wczytaj dokumenty",
+        collapseExplorer: "Zwiń eksplorator",
+        expandExplorer: "Rozwiń eksplorator",
+        dropToUpload: "Upuść, aby wczytać",
+        // Srodkowy panel - dokumenty
+        documentViewer: "Podgląd dokumentu",
+        emptyDocumentTitle: "Kliknij dokument, by wyświetlić go tutaj.",
+        emptyDocumentHint:
+            "Przeciągnij dokument z eksploratora do asystenta, by go wczytać lub edytować.",
+        // Prawy panel - asystent
+        projectAssistant: "Asystent projektu",
+        // Powitanie - fallback gdy brak imienia
+        greetingFallbackHandle: "Mecenasie",
+    },
+
+    // ---------------------------------------------------------------------
+    // OwnerOnlyModal - akcja zarezerwowana dla wlasciciela
+    // ---------------------------------------------------------------------
+    ownerOnly: {
+        title: "Akcja zarezerwowana dla właściciela",
+        bodyWithAction: "Tylko właściciel może",
+        bodyGeneric: "Tylko właściciel może wykonać tę akcję.",
+        askForAccess: "Poproś",
+        ifNeedAccess: ", jeżeli potrzebujesz dostępu.",
+        // Akcje (infinitive po "moze")
+        actionRenameReview: "zmienić nazwę tego przeglądu",
+        actionDeleteReview: "usunąć ten przegląd",
+        actionRenameProject: "zmienić nazwę tego projektu",
+        actionDeleteDocument: "usunąć ten dokument",
+        actionDeleteChat: "usunąć ten czat",
+        actionRenameChat: "zmienić nazwę tego czatu",
+        actionDeleteReviewsBulkPrefix: "usunąć",
+        actionDeleteReviewsBulkSuffix:
+            "z zaznaczonych przeglądów - usunąć przegląd może tylko jego twórca",
+        actionDeleteDocumentsBulkSuffix:
+            "z zaznaczonych dokumentów - usunąć dokument może tylko jego twórca",
+        actionDeleteChatsBulkSuffix:
+            "z zaznaczonych czatów - usunąć czat może tylko jego twórca",
+        actionDeleteProjectsBulkSuffix:
+            "z zaznaczonych projektów - usunąć projekt może tylko jego właściciel",
+        actionDeleteDocumentsMany:
+            "usunąć te dokumenty - dokument może usunąć tylko jego twórca",
     },
 } as const;
 

@@ -219,7 +219,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                                 shouldAnimate ? "sidebar-fade-in" : ""
                             }`}
                         >
-                            <span>Ostatnie projekty</span>
+                            <span>{t("nav.recentProjects")}</span>
                             <ChevronDown
                                 className={`h-3.5 w-3.5 transition-transform ${
                                     projectsCollapsed ? "-rotate-90" : ""
@@ -250,7 +250,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                                                 : ""
                                         }`}
                                     >
-                                        No projects yet
+                                        {t("nav.noProjectsYet")}
                                     </div>
                                 ) : (
                                     <div
@@ -335,7 +335,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                                         shouldAnimate ? "sidebar-fade-in-2" : ""
                                     }`}
                                 >
-                                    No chats yet
+                                    {t("nav.noChatsYet")}
                                 </div>
                             ) : (
                                 <>
@@ -377,7 +377,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                                                 onClick={loadMoreChats}
                                                 className="flex h-8 w-full items-center justify-start rounded-md px-3 text-left text-xs font-medium text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700"
                                             >
-                                                Load more
+                                                {t("nav.loadMore")}
                                             </button>
                                         </div>
                                     )}
@@ -435,7 +435,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                                     className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 rounded-md"
                                 >
                                     <User className="h-4 w-4" />
-                                    Account Settings
+                                    {t("nav.accountSettings")}
                                 </button>
                             </div>
                         )}

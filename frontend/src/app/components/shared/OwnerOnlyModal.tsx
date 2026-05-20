@@ -2,41 +2,47 @@
 
 import { createPortal } from "react-dom";
 import { Lock, X } from "lucide-react";
+import { t } from "@/i18n";
 
 interface Props {
     open: boolean;
     onClose: () => void;
-    /** Short headline above the body, e.g. "Owner-only action". */
+    /** Naglowek modala, np. "Akcja zarezerwowana dla właściciela". */
     title?: string;
-    /** Sentence describing what the user tried to do. */
+    /**
+     * Akcja w bezokoliczniku po polsku (np. "usunąć ten czat"), wstawiana
+     * po "Tylko właściciel może ...". Powinna byc juz zlokalizowana - patrz
+     * `ownerOnly.action*` w pl.ts.
+     */
     action?: string;
-    /** Email of the project/resource owner, shown so the user knows who to ask. */
+    /** Email wlasciciela zasobu - pokazany, by uzytkownik wiedzial kogo prosic. */
     ownerEmail?: string | null;
-    /** Override the default message entirely. */
+    /** Pelne nadpisanie tresci modala. */
     message?: string;
 }
 
 /**
- * Lightweight "you don't have permission" modal shown when a non-owner
- * attempts an owner-only action (manage people, rename, delete, …) on a
- * shared project. Replaces the silent 404 the backend would otherwise
- * return so the user understands why the action didn't go through.
+ * Lekki modal "nie masz uprawnien" pokazywany gdy uzytkownik nie bedacy
+ * wlascicielem probuje wykonac akcje owner-only (manage people, zmiana
+ * nazwy, usuniecie, …) na wspoldzielonym zasobie. Zastepuje cisze 404
+ * z backendu - dzieki temu uzytkownik wie, czemu akcja nie przeszla.
  */
 export function OwnerOnlyModal({
     open,
     onClose,
-    title = "Owner-only action",
+    title,
     action,
     ownerEmail,
     message,
 }: Props) {
     if (!open) return null;
 
+    const resolvedTitle = title ?? t("ownerOnly.title");
     const body =
         message ??
         (action
-            ? `Only the project owner can ${action}.`
-            : "Only the project owner can perform this action.");
+            ? `${t("ownerOnly.bodyWithAction")} ${action}.`
+            : t("ownerOnly.bodyGeneric"));
 
     return createPortal(
         <div
@@ -52,7 +58,7 @@ export function OwnerOnlyModal({
                     <div className="flex items-center gap-2">
                         <Lock className="h-4 w-4 text-amber-600" />
                         <h2 className="text-base font-medium text-gray-900">
-                            {title}
+                            {resolvedTitle}
                         </h2>
                     </div>
                     <button
@@ -70,9 +76,9 @@ export function OwnerOnlyModal({
                     </p>
                     {ownerEmail && (
                         <p className="mt-2 text-xs text-gray-400">
-                            Ask{" "}
-                            <span className="text-gray-600">{ownerEmail}</span>{" "}
-                            if you need access.
+                            {t("ownerOnly.askForAccess")}{" "}
+                            <span className="text-gray-600">{ownerEmail}</span>
+                            {t("ownerOnly.ifNeedAccess")}
                         </p>
                     )}
                 </div>
