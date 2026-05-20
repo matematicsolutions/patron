@@ -1,0 +1,70 @@
+name: 🐛 Bug report
+description: Something broke in the Patron shell (chat, audit trail, document tools, deployment).
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. **Before submitting**: search existing issues
+        and check `SECURITY.md` for the responsible disclosure flow if this
+        is a security vulnerability.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: One paragraph. What did Patron do, what did you expect?
+      placeholder: "Started a chat, attached a .docx, asked for RODO clause review, got..."
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Minimal commands / clicks. Include `docker compose` versions if relevant.
+      placeholder: |
+        1. `docker compose up -d`
+        2. Log in as user X
+        3. Upload nda_v1.docx
+        4. Send message: "..."
+        5. Observe: ...
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Patron version
+      description: From CHANGELOG.md or `git rev-parse HEAD`.
+      placeholder: "1.0.0 (or commit hash)"
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where does it break?
+      multiple: true
+      options:
+        - Backend (Express + MCP dispatch)
+        - Frontend (Next.js chat UI)
+        - Audit trail (npm run audit:verify fails)
+        - Docker deployment (docker compose up)
+        - Document tools (read / edit / generate .docx)
+        - MCP connector (specify which in description)
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment
+      description: Node version, OS, browser (if frontend), Supabase / MinIO versions.
+      placeholder: |
+        Node: v20.x
+        OS: Ubuntu 22.04 LTS (Docker host)
+        Supabase: self-hosted v...
+        MinIO: ...
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs (with sensitive data redacted!)
+      description: Backend or frontend logs from around the bug. **Strip any client documents, names, NIPs, KRS numbers.**
+      render: text

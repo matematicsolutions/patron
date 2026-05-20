@@ -1,0 +1,44 @@
+name: ✨ Feature request
+description: Propose a new feature or enhancement to the Patron shell.
+labels: ["enhancement", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        For new **MCP connectors** (e.g. UODO decisions, BIK, GUS),
+        please open the proposal in a separate new repo or in
+        Discussions, not here — connectors live in their own MIT repos.
+
+        For **Constitution AI / governance** topics, open a Discussion.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Who feels the pain today? Specific scenario from a Polish law firm helps.
+      placeholder: |
+        Lawyer at firm X wanted to ... but Patron currently ...
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: One paragraph. Sketch the UX and the backend changes if relevant.
+    validations:
+      required: true
+  - type: textarea
+    id: constitution
+    attributes:
+      label: Constitution AI impact (governance/CONSTITUTION.md)
+      description: |
+        Does this touch any of the 9 articles? (locality, verifiability,
+        auditability, vendor neutrality, tajemnica, human-in-the-loop,
+        minimality, contract stability, knowledge accessibility).
+
+        If yes — describe and propose ADR.
+      placeholder: "No / Article X: ..."
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: What did you reject and why?
