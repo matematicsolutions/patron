@@ -38,14 +38,14 @@ wybiera model. Trzy ścieżki:
 |---|---|---|
 | Gemini (Google) | Chmura Google | Szybko, tanio, dobrze radzi sobie z polskim. Treść promptu trafia do Google. |
 | Claude (Anthropic) | Chmura Anthropic | Najlepszy do długich dokumentów (200k+ kontekstu). Treść promptu trafia do Anthropic. |
-| Ollama lokalny | Twój serwer | Model nie opuszcza kancelarii (tajemnica zawodowa bez kompromisów). Wolniejszy, wymaga GPU. |
+| Ollama lokalny | Twój serwer | Treść promptu nie opuszcza kancelarii - wybór dla spraw objętych tajemnicą zawodową. Wolniejszy, wymaga GPU. |
 
 Klucz API wpiszesz w menu **Konto → Modele i klucze API**. Patron
 szyfruje go przed zapisem (sekretem `USER_API_KEYS_ENCRYPTION_SECRET`).
 
 > Administrator może wpisać klucz globalnie dla całej kancelarii (jeden klucz
-> = jedna faktura). Wtedy w **Modele i klucze API** zobaczysz „Provider
-> configured by admin" i nie musisz nic wpisywać.
+> = jedna faktura). Wtedy w **Modele i klucze API** zobaczysz komunikat
+> o kluczu skonfigurowanym po stronie serwera i nie musisz nic wpisywać.
 
 ## 3. Praca z dokumentami
 
@@ -79,8 +79,8 @@ placeholder (`[Podpis - imię, nazwisko, tytuł zawodowy, nr wpisu]`).
 1. Załącz `.docx` do czatu.
 2. Napisz np. *„W klauzuli 5 zmień termin z 14 na 30 dni i dodaj prawo do
    odstąpienia"*.
-3. Patron zaproponuje edycje jako tracked changes. Każda zmiana ma kartę
-   z przyciskami **Akceptuj / Odrzuć**.
+3. Patron zaproponuje edycje jako zmiany śledzone (każda widoczna obok
+   oryginału). Każda zmiana ma kartę z przyciskami **Akceptuj / Odrzuć**.
 4. Po Twojej decyzji zmiana trafia do nowej wersji dokumentu (historia
    wersji w `document_versions`).
 
@@ -90,10 +90,10 @@ placeholder (`[Podpis - imię, nazwisko, tytuł zawodowy, nr wpisu]`).
 
 - Analizować załączone dokumenty (z cytatami i numerami stron).
 - Wywoływać 5 źródeł polskiego prawa (patrz § 5).
-- Generować i edytować `.docx` z tracked changes.
+- Generować i edytować `.docx` ze zmianami śledzonymi.
 - Stosować workflow, jeśli kancelaria ma zdefiniowane szablony.
 
-### Jak pytać, żeby dostać dobrą odpowiedź
+### Jak formułować pytania, żeby dostać odpowiedź z konkretem i cytatami
 
 Bądź konkretny. Zamiast „przygotuj umowę", napisz: „NDA dwustronna,
 Polska, między spółką X (jako Ujawniający) a osobą fizyczną Y, termin
@@ -116,7 +116,7 @@ przeszedł w orzecznictwie z 2024-2025"* Patron wywoła `nsa__search`.
 
 ## 5. Źródła polskiego prawa
 
-Patron ma 5 źródeł polskiego prawa wpiętych w czat. Wywołasz je
+Patron ma 5 źródeł polskiego prawa zintegrowanych z czatem. Wywołasz je
 naturalnym pytaniem - model sam zdecyduje, które pasuje:
 
 | Źródło | Co zwraca | Przykład pytania |
@@ -180,15 +180,15 @@ W praktyce:
 ## 8. FAQ
 
 **Czy Patron jest zgodny z RODO?**
-Tak, przy poprawnym wdrożeniu. Patron stoi w infrastrukturze
+Tak, przy poprawnym wdrożeniu. Patron działa w infrastrukturze
 kancelarii (self-host), a kancelaria jest administratorem danych.
 Konstytucja AI v1.1.0 mapuje 9 zasad na art. 5, 25, 30 i 32 RODO oraz
 na AI Act. Pełen tekst w `governance/CONSTITUTION.md`.
 
 **Czy treść mojego czatu trafia do dostawcy LLM?**
 Tak, jeśli używasz Gemini, Claude lub OpenAI w chmurze. Patrz § 2.
-Jeśli kancelaria nie chce wypuszczać danych na zewnątrz, wybierz
-Ollama lokalnie. Politykę dla całej kancelarii ustala Administrator.
+Jeśli kancelaria nie chce przekazywać danych poza swoją infrastrukturę,
+wybierz Ollama lokalnie. Politykę dla całej kancelarii ustala Administrator.
 
 **Czy Patron uczy się z moich dokumentów?**
 Nie. Patron nie trenuje modeli na danych kancelarii. Treść trafia do
@@ -196,8 +196,8 @@ LLM tylko przy konkretnym wywołaniu i nie staje się częścią wag.
 
 **Co robić, gdy Patron poda błędny cytat?**
 Otwórz panel cytatów, kliknij link do oryginału i sprawdź. Jeśli
-Patron wymyślił cytat (halucynacja), zgłoś to Administratorowi
-(Konstytucja AI Art. 2 i Art. 6).
+cytat nie istnieje w źródle (halucynacja modelu), zgłoś to
+Administratorowi (Konstytucja AI Art. 2 i Art. 6).
 
 **Czy mogę używać Patrona z telefonu?**
 Tak, frontend jest responsywny. Czat i załączanie dokumentów działają
@@ -248,7 +248,7 @@ Możesz też zgłosić pomysł przez Administratora kancelarii.
 ## Kontakt
 
 - Administrator kancelarii (osoba z IT, która postawiła Patrona).
-- MateMatic (vendor): <https://matematic.co>, [kontakt@matematic.co](mailto:kontakt@matematic.co).
+- MateMatic (dostawca Patrona): <https://matematic.co>, [kontakt@matematic.co](mailto:kontakt@matematic.co).
 - Konstytucja AI: pełen tekst w `governance/CONSTITUTION.md` w repozytorium.
 
 *Wersja: 1.0 / 2026-05-20 / pasująca do Patrona v1.0.0.*
