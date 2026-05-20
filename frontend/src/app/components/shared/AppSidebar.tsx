@@ -19,13 +19,18 @@ import Link from "next/link";
 import { MikeIcon } from "@/components/chat/mike-icon";
 import { SidebarChatItem } from "@/app/components/shared/SidebarChatItem";
 import { listProjects } from "@/app/lib/mikeApi";
+import { t } from "@/i18n";
 import type { MikeProject } from "@/app/components/shared/types";
 
 const NAV_ITEMS = [
-    { href: "/assistant", label: "Assistant", icon: MessageSquare },
-    { href: "/projects", label: "Projects", icon: FolderOpen },
-    { href: "/tabular-reviews", label: "Tabular Review", icon: Table2 },
-    { href: "/workflows", label: "Workflows", icon: Library },
+    { href: "/assistant", label: t("nav.assistant"), icon: MessageSquare },
+    { href: "/projects", label: t("nav.projects"), icon: FolderOpen },
+    {
+        href: "/tabular-reviews",
+        label: t("nav.tabularReviews"),
+        icon: Table2,
+    },
+    { href: "/workflows", label: t("nav.workflows"), icon: Library },
 ];
 
 interface AppSidebarProps {
@@ -164,7 +169,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                 <button
                     onClick={onToggle}
                     className="h-9 w-9 p-2.5 items-center flex hover:bg-gray-100 rounded-md transition-colors"
-                    title={isOpen ? "Close sidebar" : "Open sidebar"}
+                    title={isOpen ? t("nav.closeSidebar") : t("nav.openSidebar")}
                 >
                     <PanelLeft className="h-4 w-4" />
                 </button>
@@ -214,7 +219,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                                 shouldAnimate ? "sidebar-fade-in" : ""
                             }`}
                         >
-                            <span>Recent Projects</span>
+                            <span>Ostatnie projekty</span>
                             <ChevronDown
                                 className={`h-3.5 w-3.5 transition-transform ${
                                     projectsCollapsed ? "-rotate-90" : ""
@@ -298,7 +303,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                                 shouldAnimate ? "sidebar-fade-in" : ""
                             }`}
                         >
-                            <span>Assistant History</span>
+                            <span>{t("nav.assistantHistory")}</span>
                             <ChevronDown
                                 className={`h-3.5 w-3.5 transition-transform ${
                                     historyCollapsed ? "-rotate-90" : ""

@@ -30,6 +30,7 @@ import {
     type ModelProvider,
 } from "@/app/lib/modelAvailability";
 import type { MikeDocument, MikeMessage } from "../shared/types";
+import { t } from "@/i18n";
 
 export interface ChatInputHandle {
     addDoc: (doc: MikeDocument) => void;
@@ -218,7 +219,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
                         <textarea
                             ref={textareaRef}
                             rows={1}
-                            placeholder="Ask a question about your documents..."
+                            placeholder={t("chat.placeholder")}
                             value={value}
                             onChange={handleChange}
                             onKeyDown={handleKeyDown}
