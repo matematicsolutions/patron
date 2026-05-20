@@ -26,6 +26,42 @@ describe("SYSTEM_PROMPT", () => {
         // Sprawdza tylko ze pelna polska sekcja zostala dodana.
         expect(SYSTEM_PROMPT.length).toBeGreaterThan(2000);
     });
+
+    describe("DRAFTING PISM PL (Phase 2.2)", () => {
+        it("zawiera sekcje DRAFTING PISM PL", () => {
+            expect(SYSTEM_PROMPT).toContain("DRAFTING PISM PL");
+        });
+
+        it("rozroznia odwolanie (kpa) od skargi (WSA)", () => {
+            expect(SYSTEM_PROMPT).toContain("Odwołanie");
+            expect(SYSTEM_PROMPT).toContain("Skarga");
+            expect(SYSTEM_PROMPT).toContain("WSA");
+        });
+
+        it("rozroznia pozew/wniosek + apelacja/skarga kasacyjna", () => {
+            expect(SYSTEM_PROMPT).toContain("Pozew");
+            expect(SYSTEM_PROMPT).toContain("Apelacja");
+            expect(SYSTEM_PROMPT).toContain("Skarga kasacyjna");
+        });
+
+        it("zawiera format daty polski (DD.MM.RRRR)", () => {
+            expect(SYSTEM_PROMPT).toContain("DD.MM.RRRR");
+        });
+
+        it("zawiera konwencje cytowania ELI / Dz.U.", () => {
+            expect(SYSTEM_PROMPT).toContain("Dz.U.");
+            expect(SYSTEM_PROMPT).toContain("ELI");
+        });
+
+        it("zawiera zasade drafu (nie podpisuj sie za prawnika)", () => {
+            expect(SYSTEM_PROMPT).toContain("ZASADA DRAFTU");
+            expect(SYSTEM_PROMPT).toMatch(/Podpis.*imi[ęe]/i);
+        });
+
+        it("zawiera formul Wysoki Sad", () => {
+            expect(SYSTEM_PROMPT).toContain("Wysoki Sąd");
+        });
+    });
 });
 
 describe("citationReminder", () => {

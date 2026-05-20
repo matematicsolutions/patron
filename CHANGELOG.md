@@ -9,15 +9,44 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 - Phase 2.1 — Polish locale `pl` in the frontend UI (Next.js strings,
   date/number formats).
-- Phase 2.2 — Polish drafting extension for SYSTEM_PROMPT
-  (struktury wniosków / odpowiedzi / apelacji, terminologia,
-  citing acts with ELI).
 - Phase 2.7 — Schema for law firm domain (`matter` / `client` / docs
   per matter).
 - Phase 4.2 — additional event types in audit log (`doc.read`,
   `doc.export`) + RODO endpoint exposed via API (not only CLI).
-- Phase 5.5 — Polish user guide for lawyers (`deploy/USER_GUIDE.md`).
 - Phase 6.1 — branding + landing page on matematic.co.
+
+## [1.1.0] — 2026-05-20
+
+Drafting extension + user-facing documentation.
+
+### Added — Phase 2.2 (drafting pism PL)
+
+- SYSTEM_PROMPT extended (`backend/src/lib/chat/prompts.ts`) with a
+  Polish drafting section: structure of procedural filings (pozew /
+  odpowiedź / apelacja / skarga kasacyjna / zażalenie), administrative
+  complaints to WSA, appeals under KPA art. 127-141.
+- Terminology guard — odwołanie vs skarga, pozew vs wniosek, wyrok vs
+  postanowienie vs nakaz zapłaty, apelacja vs skarga kasacyjna.
+- Citation conventions — Dz.U. + ELI for statutes, sygnatura akt +
+  data + court for case law, CELEX for EU acts. Date format always
+  `DD.MM.RRRR` in document text.
+- Polite forms — Wysoki Sąd, Szanowny Organie.
+- Drafting rule — never sign as the lawyer; output placeholder
+  `[Podpis - imię, nazwisko, tytuł zawodowy, nr wpisu]` for the
+  human to fill in.
+- Added 7 unit tests for drafting section coverage
+  (`prompts.test.ts`).
+
+### Added — Phase 5.5 (user-facing documentation)
+
+- `deploy/USER_GUIDE.md` — 9-section Polish manual for the lawyer
+  end-user: first login, model selection, document workflow, chat
+  best practices, 5 connectors, citation panel, audit transparency,
+  FAQ, troubleshooting.
+
+### Tests
+
+- **76 / 76 passing** (up from 69 / 69 in v1.0.0).
 
 ---
 
