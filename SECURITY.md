@@ -44,6 +44,40 @@ For email contact (if GitHub reporting is unavailable):
   Patron codepath. Reporting tools like Snyk / Dependabot occasionally
   flag transitive deps that we don't actually call.
 
+## PII Pseudonymization Layer (Faza 4.5, status: skeleton)
+
+Patron is growing a **pre-LLM PII pseudonymization layer** that
+substitutes Polish identifiers (PESEL, NIP, REGON, KRS) plus names
+and organization names with deterministic tokens (`[PERSON_1]`,
+`[PESEL_1]`, `[ORG_2]`) **before** the prompt leaves the law firm's
+perimeter, then reverses the substitution on the LLM response. The
+mapping table never leaves the firm's Postgres.
+
+**Current status (2026-05-20)**: skeleton in `backend/src/lib/pseudonim/`
+(7 files, 24 Vitest cases green). NOT wired into
+`streamChatWithTools` yet - that's an architectural decision pending
+the Owner's sign-off (Postgres vs Redis backing store, SSE streaming
+compatibility, latency budget +200-400ms per request).
+
+**Rationale**: Constitution Art. 1 (data locality), Art. 5 (legal
+professional privilege), and Art. 7 (data minimization, GDPR art. 5.1.c)
+move from *configuration-based* (switch to Ollama if you care about
+leaks) to *technical-mechanism-based* (pseudonymization default-on,
+regardless of which cloud LLM the firm picks).
+
+**Reference**:
+[ADR-0003](governance/adr/0003-pseudonimizacja-pii-pre-llm.md) -
+includes the 6-week migration plan from skeleton to default-on for
+pilot firms, the rejected alternatives (Hey Jude as docker service /
+from-scratch implementation), and the risk register (false-positive
+detection = PII leak, mapping table = same retention class as
+audit_log).
+
+**Cherry-picked from**: [sure-scale/hey-jude](https://github.com/sure-scale/hey-jude)
+(AGPL-3.0). Skeleton inherits AGPL-3.0 from `patron`. Future fork
+`matematicsolutions/pseudonim-pl` will keep AGPL-3.0 (Hey Jude's
+network copyleft is preserved, not relicensed to MIT).
+
 ## Known acceptable risks
 
 | Risk | Mitigation | Accepted because |

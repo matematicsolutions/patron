@@ -70,6 +70,18 @@ AI Act). To rozni Patrona od zwyklego czatu.
       ZAMKNIETE 2026-05-20.
 - [ ] 4.4 Hardening - przeglad bezpieczenstwa (skill security-and-hardening),
       sekrety, uprawnienia, izolacja
+- [~] 4.5 Pseudonim PII PL (Hey Jude cherry-pick + polonizacja forku) - SKELETON ZAKODOWANY 2026-05-20.
+      backend/src/lib/pseudonim/ (7 plikow, 24/24 testy Vitest zielone): detect (regex PESEL/NIP/REGON/KRS
+      + checksumy + email + telefon +48), map (in-memory + interfejs PseudonimStore na Postgres),
+      wrap/unwrap (orchestrator z deduplikacja), prompts.pl (polski prompt LLM-fallback PERSON/ORG/ADDRESS).
+      AGPL-3.0 dziedziczone po patron. NIE WPIETE w streamChatWithTools - decyzja architektoniczna
+      (Postgres vs Redis, kompatybilnosc SSE, koszt latency +200-400ms) wymaga osobnego ADR i zgody.
+      Plan migracji 6-tygodniowy w governance/adr/0003-pseudonimizacja-pii-pre-llm.md, 6 faz:
+      (1) regression set 20+ przypadkow PL, (2) LLM-fallback w Ollama dla zlozonej fleksji,
+      (3) wrapper na streamChatWithTools za flaga PSEUDONIM_ENABLED, (4) shadow mode na pierwszej
+      kancelarii pilotazowej, (5) fork matematicsolutions/pseudonim-pl jako osobne AGPL repo,
+      (6) PSEUDONIM_MODE=on jako default dla pilotazu.
+      Konstytucja Art. 1/5/7 - bump 1.1 -> 1.2 PO wpieciu produkcyjnym.
 
 Brama: audyt bezpieczenstwa + checklista legal-ai-plugin-governance przechodza.
 
