@@ -18,7 +18,7 @@ For email contact (if GitHub reporting is unavailable):
   guarantee (Konstytucja AI Art. 3).
 - **Tajemnica zawodowa leak.** Any path that surfaces document content,
   chat messages, or user metadata to an unauthorized party (cross-user,
-  cross-tenant, public unauthenticated). Patron is built for law firms —
+  cross-tenant, public unauthenticated). Patron is built for law firms -
   this is the heaviest single concern.
 - **Authentication / Authorization bypass.** Any flow that lets a user
   reach data of another user without an explicit grant.
@@ -34,10 +34,10 @@ For email contact (if GitHub reporting is unavailable):
 
 ## Out-of-scope
 
-- Supabase, MinIO, LibreOffice — report upstream.
+- Supabase, MinIO, LibreOffice - report upstream.
 - Vulnerabilities in user-supplied LLM providers (Anthropic / Google /
-  OpenAI) — report to provider.
-- DoS via expensive queries — Patron has rate limiting; we treat
+  OpenAI) - report to provider.
+- DoS via expensive queries - Patron has rate limiting; we treat
   rate-limit bypass as in-scope but pure traffic flooding is not a
   Patron bug.
 - Vulnerabilities in dependencies that are not exploitable in the
@@ -57,7 +57,7 @@ For email contact (if GitHub reporting is unavailable):
 | Version | Supported |
 |---|---|
 | 1.x (Konstytucja AI v1.0 / v1.1) | ✅ |
-| pre-fork (Mike upstream) | ❌ — report to https://github.com/willchen96/mike |
+| pre-fork (Mike upstream) | ❌ - report to https://github.com/willchen96/mike |
 
 ## How we run security
 
@@ -100,5 +100,5 @@ Po raportowaniu:
 
 ## Credits
 
-W przyszłości — Hall of Fame dla zgłaszających, gdy będziemy mieli
+W przyszłości - Hall of Fame dla zgłaszających, gdy będziemy mieli
 pierwsze raporty.

@@ -2,7 +2,7 @@
 /**
  * Bundler serwerow MCP do obrazu Docker'a Patrona.
  *
- * Kazdy konektor MCP (mcp-saos, mcp-nsa, mcp-isap, mcp-eu-sparql) zyje w
+ * Kazdy konektor MCP (mcp-saos, mcp-nsa, mcp-isap, mcp-krs, mcp-eu-sparql) zyje w
  * osobnym repozytorium. Aby zbudowac jeden self-contained kontener backendu,
  * przed `docker build` kopiujemy ich pre-zbudowane `dist/` + odpowiednie
  * fragmenty `node_modules/` do `backend/mcp-bundled/<name>/`.

@@ -13,19 +13,19 @@
 > (SAOS / NSA / ISAP / KRS / EUR-Lex), audit trail z hash-chain (AI Act art. 12),
 > bring-your-own-model (Gemini / Claude / Ollama lokalny).
 
-Patron jest forkiem [Mike](https://github.com/willchen96/mike) (legalny dokumentowy
-asystent, MIT) z polonizacją, polskim legal stackiem i compliance
-wymaganym przez kancelarie. Patrz [governance/CONSTITUTION.md](./governance/CONSTITUTION.md)
-po pełne zasady.
+Patron jest forkiem [Mike](https://github.com/willchen96/mike) (dokumentowy
+asystent prawny, MIT). Dodaje polonizację, polski legal stack i wymogi
+compliance, których potrzebuje kancelaria. Pełne zasady opisuje
+[governance/CONSTITUTION.md](./governance/CONSTITUTION.md).
 
 ## Zawartość
 
-- `frontend/` — aplikacja Next.js
-- `backend/` — Express API, klient MCP, audit trail, dispatch narzędzi
-- `backend/schema.sql` — schemat Postgresa (Supabase-compatible)
-- `governance/` — **Konstytucja AI Patrona** + Implementation Playbook + ADR
-- `deploy/` — runbook wdrożeniowy (`docker-compose`)
-- `scripts/bundle-mcp.cjs` — bundler 4 serwerów MCP do obrazu backendu
+- `frontend/` - aplikacja Next.js
+- `backend/` - Express API, klient MCP, audit trail, dispatch narzędzi
+- `backend/schema.sql` - schemat Postgresa (Supabase-compatible)
+- `governance/` - **Konstytucja AI Patrona** + Implementation Playbook + ADR
+- `deploy/` - runbook wdrożeniowy (`docker-compose`)
+- `scripts/bundle-mcp.cjs` - bundler 5 serwerów MCP do obrazu backendu
 
 ## Konektory MCP polskiego prawa (osobne repo)
 
@@ -64,30 +64,29 @@ Wymaga osobno postawionego Supabase + MinIO (osobne stack). Patrz runbook.
 
 ## Governance (przed wdrożeniem)
 
-- [**Konstytucja AI Patrona v1.1.0**](./governance/CONSTITUTION.md) —
+- [**Konstytucja AI Patrona v1.1.0**](./governance/CONSTITUTION.md) -
   9 zasad, granice produktu, role (Administrator / Operator / Inspektor),
-  audyt, ewolucja. Mapa do AI Act art. 12, RODO art. 5/25/30, Etyki
-  zawodowej.
-- [**Implementation Playbook**](./governance/IMPLEMENTATION_PLAYBOOK.md) —
-  6-8 tygodni wdrożenia krok po kroku z macierzą RACI.
-- [**ADR**](./governance/adr/) — Architecture Decision Records
+  audyt, ewolucja. Mapowanie na AI Act art. 12, RODO art. 5/25/30
+  i etykę zawodową.
+- [**Implementation Playbook**](./governance/IMPLEMENTATION_PLAYBOOK.md) -
+  6-8 tygodni wdrożenia krok po kroku, z macierzą RACI.
+- [**ADR**](./governance/adr/) - Architecture Decision Records
   ([0001 hash-chain](./governance/adr/0001-hash-chain-audit-trail.md),
   [0002 dual-license](./governance/adr/0002-dual-license-agpl-shell-mit-connectors.md)).
 
-Każda kancelaria przed wdrożeniem powinna **przeczytać i podpisać
-Konstytucję v1.1.0** (sekcja podpisów na końcu pliku).
+Kancelaria przed wdrożeniem czyta i podpisuje **Konstytucję v1.1.0**
+(sekcja podpisów na końcu pliku).
 
 ## Licencja
 
 Stack jest **dual-license** (zob. [ADR-0002](./governance/adr/0002-dual-license-agpl-shell-mit-connectors.md)):
 
-- `patron` (ten repo, powłoka) — **AGPL-3.0-only** ([LICENSE](./LICENSE) + [NOTICE](./NOTICE))
-- `mcp-saos`, `mcp-nsa`, `mcp-isap`, `mcp-krs`, `mcp-eu-sparql` — **MIT**
+- `patron` (ten repo, powłoka) - **AGPL-3.0-only** ([LICENSE](./LICENSE) + [NOTICE](./NOTICE))
+- `mcp-saos`, `mcp-nsa`, `mcp-isap`, `mcp-krs`, `mcp-eu-sparql` - **MIT**
 
-Kancelaria self-host nie ma żadnych dodatkowych obowiązków poza
-prawem do używania, modyfikacji i dystrybucji wewnątrz organizacji.
-Konkurent oferujący Patrona jako SaaS dla osób trzecich musi
-otworzyć swoje modyfikacje.
+Kancelaria self-host używa, modyfikuje i dystrybuuje Patrona wewnątrz
+organizacji bez dodatkowych obowiązków. Konkurent, który oferuje
+Patrona jako SaaS osobom trzecim, otwiera swoje modyfikacje.
 
 Patron jest forkiem [Mike](https://github.com/willchen96/mike) (MIT,
 ©2025 Will Chen). Pełne attribution: [NOTICE](./NOTICE).
@@ -96,8 +95,8 @@ Patron jest forkiem [Mike](https://github.com/willchen96/mike) (MIT,
 
 ## Local development
 
-Reszta README opisuje uruchomienie lokalne (development). Dla wdrożenia
-produkcyjnego użyj `deploy/README.md` (Docker).
+Dalsza część README opisuje uruchomienie lokalne (development).
+Do wdrożenia produkcyjnego użyj `deploy/README.md` (Docker).
 
 ### Contents (legacy)
 

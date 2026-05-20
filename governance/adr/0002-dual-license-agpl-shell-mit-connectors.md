@@ -1,6 +1,6 @@
-# ADR-0002: Dual-license — AGPL-3.0 shell, MIT connectors
+# ADR-0002: Dual-license - AGPL-3.0 shell, MIT connectors
 
-**Status**: Accepted
+**Status**: Przyjęty
 **Data**: 2026-05-20
 **Powiązane**: Konstytucja AI Patrona, Art. 4 (vendor neutrality) i Art. 9
 (dostępność wiedzy); fork attribution w `NOTICE`.
@@ -24,17 +24,18 @@ oryginalnej noty (zob. `NOTICE`).
 
 Stoimy przed wyborem licencji dla nowych komponentów:
 
-1. **Wszystko MIT** — maksymalna permissywność. Każdy może wziąć
-   Patrona, zamknąć, sprzedać jako SaaS. Brak ochrony moatu.
-2. **Wszystko AGPL** — twarda copyleft. Konektory MCP też zamknięte —
+1. **Wszystko MIT** - najbardziej liberalna licencja. Każdy może
+   wziąć Patrona, zamknąć go i sprzedać jako SaaS. Brak ochrony
+   moatu.
+2. **Wszystko AGPL** - twarda copyleft. Konektory MCP też zamknięte,
    inni gracze polskiego legal-techu (np. konkurencja MateMatic, ale
-   też startupy klientów, autorzy LegalTech innovation challenges)
+   też startupy klientów i autorzy LegalTech innovation challenges)
    nie mogą ich użyć w swoich zamkniętych produktach. To zubaża
    ekosystem.
-3. **Dual: AGPL shell + MIT connectors (wybrana)** — chronimy
-   value-prop (powłokę z Konstytucją AI, audit trail, polonizacją,
-   dispatchem narzędzi), oddajemy infrastrukturę (konektory danych
-   publicznych do publicznych źródeł prawa).
+3. **Dual: AGPL shell + MIT connectors (wybrana)** - chronimy
+   powłokę (Konstytucja AI, audit trail, polonizacja, dispatch
+   narzędzi), oddajemy infrastrukturę (konektory do publicznych
+   źródeł prawa).
 
 ## Uzasadnienie wyboru
 
@@ -48,73 +49,74 @@ własnych prawników, **nie ma żadnego dodatkowego obowiązku** poza
 tym, co już daje AGPL (prawo do używania, modyfikacji, dystrybucji
 wewnątrz organizacji).
 
-**Konkurent oferujący Patrona jako SaaS dla kancelarii — TAK, musi
-otworzyć modyfikacje.** To jest dokładnie cel. Nie chcemy aby:
+**Konkurent oferujący Patrona jako SaaS dla kancelarii - TAK, musi
+otworzyć modyfikacje.** O to dokładnie chodzi. Nie chcemy, żeby:
 
 - Ktoś wziął Patrona, dodał własne konektory MCP, zamknął, sprzedał
-  to z powrotem do kancelarii jako konkurencyjny SaaS, podcinając
+  z powrotem do kancelarii jako konkurencyjny SaaS i podciął
   MateMatic.
 - Ktoś zbudował zamknięty produkt na bazie audit trail hash-chain
-  i Konstytucji AI Patrona, czerpiąc z pracy społeczności.
+  i Konstytucji AI Patrona, korzystając z pracy społeczności bez
+  zwrotu kodu.
 
 AGPL-3.0 zostawia oba scenariusze **otwarte z obowiązkiem
-udostępnienia kodu** — co eliminuje motywację konkurencji do
-takiego ruchu (musieliby otworzyć całą swoją wartość dodaną).
+udostępnienia kodu**. To eliminuje motywację konkurencji do
+takiego ruchu, bo musieliby otworzyć całą swoją wartość dodaną.
 
 Vendor-lock-in po naszej stronie: zero. Kancelaria może zawsze
-wziąć Patrona, fork, prowadzić go sama. AGPL gwarantuje że to
+zrobić fork Patrona i prowadzić go sama. AGPL gwarantuje, że to
 prawo nie zniknie.
 
 ### Dlaczego MIT dla konektorów MCP
 
 Konektory są **adapterami do publicznych źródeł prawa**: SAOS,
-CBOSA, Sejm ELI, MS KRS, EUR-Lex. Te dane są publiczne — nasza
-wartość dodana to format, struktura citations, throttle, dokumentacja
-toolingu MCP. To nie jest moat — to infrastruktura.
+CBOSA, Sejm ELI, MS KRS, EUR-Lex. Te dane są publiczne. Nasza
+wartość dodana to format, struktura citations, throttling i
+dokumentacja toolingu MCP. To nie moat, to infrastruktura.
 
-MIT pozwala aby:
+MIT pozwala, żeby:
 
 - **Inne polskie produkty legal-tech** (konkurencyjne, komplementarne,
-  edukacyjne) mogły wpinać `mcp-nsa` do swoich agentów bez taraktowania
-  ich kodu.
-- **Studenci, hackathony, akademickie projekty** mogły badać polskie
-  prawo nie martwiąc się o licencję.
-- **Patron** (AGPL) mógł zawierać kod MIT — kompatybilność MIT→AGPL
-  jest bezproblemowa.
+  edukacyjne) mogły wpinać `mcp-nsa` do swoich agentów bez
+  otwierania własnego kodu.
+- **Studenci, hackathony i projekty akademickie** mogły badać
+  polskie prawo bez troski o licencję.
+- **Patron** (AGPL) mógł zawierać kod MIT - kompatybilność MIT→AGPL
+  nie sprawia problemu.
 
 Im więcej osób używa naszych konektorów, tym bardziej stają się
 **de facto standardem** zwracania cytatów z polskiego prawa
-(`structuredContent.citations`). To jest własna nagroda — efekt
+(`structuredContent.citations`). Tu nagrodą jest sam efekt
 sieciowy.
 
 ## Konsekwencje
 
 **Plusy**:
-- Ochrona moatu (powłoka + governance + UX) bez ofiarowania
+- Ochrona moatu (powłoka, governance, UX) bez poświęcania
   ekosystemu.
 - Kancelarie self-host nie czują obciążenia AGPL.
-- Konektory mogą żyć własnym życiem w ekosystemie PL legal-tech.
-- Zgodne z Art. 9 Konstytucji (dostępność wiedzy) — kod otwarty.
-- Zgodne z Art. 4 Konstytucji (vendor neutrality) — kancelaria
-  zawsze może fork i prowadzić sama.
+- Konektory mogą żyć własnym życiem w polskim legal-techu.
+- Zgodne z Art. 9 Konstytucji (dostępność wiedzy) - kod otwarty.
+- Zgodne z Art. 4 Konstytucji (vendor neutrality) - kancelaria
+  zawsze może zrobić fork i prowadzić go sama.
 
 **Minusy / ograniczenia**:
 - Komplikacja: musimy utrzymywać 6 repozytoriów osobno.
-  Mitigation: bundler `scripts/bundle-mcp.cjs` + monorepo-style
-  workflow przy pracy.
-- AGPL bywa odrzucane przez wewnętrzne polityki dużych korporacji.
-  Mitigation: kancelarie to nie korporacje IT — AGPL nie jest dla
-  nich blokerem przy self-host.
-- Możliwość zamieszania: który komponent ma jaką licencję?
-  Mitigation: tabela w `CONTRIBUTING.md` + `package.json` "license"
-  field + LICENSE plik w każdym repo + ten ADR.
+  Mitigation: bundler `scripts/bundle-mcp.cjs` + workflow w stylu
+  monorepo przy pracy.
+- Wewnętrzne polityki dużych korporacji bywają wrogie AGPL.
+  Mitigation: kancelarie to nie korporacje IT, dla nich AGPL przy
+  self-host nie jest blokerem.
+- Ryzyko zamieszania: który komponent ma jaką licencję?
+  Mitigation: tabela w `CONTRIBUTING.md`, pole "license" w
+  `package.json`, plik LICENSE w każdym repo i ten ADR.
 
 ## Implementacja
 
-- `patron/LICENSE` — GNU AGPL v3 (zachowane z forku, ponowna konfirmacja).
-- `patron/NOTICE` — attribution forka Mike + uzasadnienie wyboru AGPL.
-- `mcp-*/LICENSE` × 5 — MIT z copyrightem MateMatic.
-- `patron/CONTRIBUTING.md` — sekcja "License model" z tabelą + DCO.
+- `patron/LICENSE` - GNU AGPL v3 (zachowane z forku, ponowna konfirmacja).
+- `patron/NOTICE` - attribution forka Mike + uzasadnienie wyboru AGPL.
+- `mcp-*/LICENSE` × 5 - MIT z copyrightem MateMatic.
+- `patron/CONTRIBUTING.md` - sekcja "License model" z tabelą + DCO.
 - `package.json` "license" w każdym repo zgodne z LICENSE.
 
 ## Alternatywy odrzucone
@@ -123,9 +125,9 @@ sieciowy.
 |---|---|
 | Wszystko MIT | Brak ochrony powłoki przed komercyjnym zamknięciem. |
 | Wszystko AGPL | Zatruwa konektory dla ekosystemu (legalne, ale szkodliwe). |
-| GPL-3.0 (nie AGPL) | Network use clause AGPL jest celowo dobrana — kancelarie self-host są wolne, SaaS-i nie. GPL-3.0 nie ma tej klauzuli. |
+| GPL-3.0 (nie AGPL) | Network use clause AGPL jest celowo dobrana - kancelarie self-host są wolne, SaaS-i nie. GPL-3.0 nie ma tej klauzuli. |
 | BSL (Business Source License) z konwersją na MIT po 4 latach | Złożone, kontrowersyjne, słabe doświadczenie społeczności. Nie warto wprowadzać. |
-| Mozilla Public License 2.0 | File-level copyleft — działa dla bibliotek, nie dla produktu. |
+| Mozilla Public License 2.0 | File-level copyleft - działa dla bibliotek, nie dla produktu. |
 
 ## Aktualizacja konstytucji
 
@@ -140,5 +142,5 @@ Konstytucja AI Patrona v1.0.0 → v1.1.0 (MINOR bump):
 - [x] NOTICE w patron z pełnym attribution
 - [x] CONTRIBUTING.md z tabelą licencji
 - [x] package.json zgodne z LICENSE
-- [ ] Aktualizacja Konstytucji do v1.1.0 (Art. 9) — w toku w tym
+- [ ] Aktualizacja Konstytucji do v1.1.0 (Art. 9) - w toku w tym
       samym commicie co ADR

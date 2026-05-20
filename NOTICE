@@ -7,7 +7,7 @@ See LICENSE for full text.
 
 This product is a fork of the **Mike** legal document assistant.
 
-  Mike — https://github.com/willchen96/mike
+  Mike - https://github.com/willchen96/mike
   Copyright (c) 2025 Will Chen and contributors
   Licensed under MIT License
 
@@ -15,10 +15,10 @@ The fork dates from 2026-05-19. Significant additions in Patron:
   - Polish locale and SYSTEM_PROMPT for Polish legal practice
   - Zero-cloud self-host (Supabase + MinIO, no Cloudflare R2)
   - 5 Polish legal MCP connectors (mcp-saos, mcp-nsa, mcp-isap,
-    mcp-krs, mcp-eu-sparql — all MIT-licensed, separate repositories)
+    mcp-krs, mcp-eu-sparql - all MIT-licensed, separate repositories)
   - Hash-chain audit trail (AI Act art. 12 compliant)
   - Constitution AI v1.0.0 and Implementation Playbook (governance/)
-  - Modular chat layer (lib/chat/* — 12 modules from monolithic chatTools.ts)
+  - Modular chat layer (lib/chat/* - 12 modules from monolithic chatTools.ts)
   - Vitest test suite (69 tests in 6 files)
   - Docker compose deployment + multi-stage Dockerfiles
   - LibreOffice in-container support for .docx → .pdf
@@ -41,12 +41,12 @@ agent**. AGPL-3.0 is the right license because:
 2. **Anyone who hosts Patron as SaaS for third parties must share their
    modifications.** This prevents a competitor from taking Patron, adding
    proprietary features, and selling it back to law firms as a closed
-   service — undermining the moat we build with the community.
+   service - undermining the moat we build with the community.
 
 3. **The MCP connectors are intentionally MIT.** Each connector
    (mcp-saos, mcp-nsa, mcp-isap, mcp-krs, mcp-eu-sparql) lives in a
    separate repository under MIT so that the broader Polish legal-tech
-   ecosystem can integrate them into other products — even commercial,
+   ecosystem can integrate them into other products - even commercial,
    closed-source ones. Connectors are infrastructure; the value-add is
    in the shell (Patron itself).
 
@@ -55,9 +55,9 @@ Third-party attributions
 ------------------------
 
 Patron incorporates ideas and patterns (not code) from:
-  - chiefofstaff-legal/donna — hash-chain audit trail pattern
+  - chiefofstaff-legal/donna - hash-chain audit trail pattern
     (governance/adr/0001-hash-chain-audit-trail.md)
-  - worldwidelaw/legal-sources (Legal Data Hunter) — API contracts
+  - worldwidelaw/legal-sources (Legal Data Hunter) - API contracts
     for the MCP connectors (mcp-nsa, mcp-isap)
 
 Node.js dependencies are listed in backend/package.json and

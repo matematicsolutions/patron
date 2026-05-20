@@ -1,6 +1,6 @@
 # Contributing to Patron
 
-Thanks for helping improve **Patron** — a local AI agent for Polish law firms.
+Thanks for helping improve **Patron** - a local AI agent for Polish law firms.
 This document covers contribution norms, the dual-license setup, and how to
 submit a pull request that has a chance of being merged.
 
@@ -19,7 +19,7 @@ Patron is a **dual-license stack**. Pick the right repo for your contribution:
 
 By opening a pull request you confirm that your contribution is licensed
 under the destination repo's license (AGPL-3.0-only for `patron`, MIT for
-each `mcp-*`). No CLA — the Developer Certificate of Origin
+each `mcp-*`). No CLA - the Developer Certificate of Origin
 (<https://developercertificate.org>) is sufficient. We do not require a
 `Signed-off-by` trailer but it is welcome.
 
@@ -39,7 +39,7 @@ each `mcp-*`). No CLA — the Developer Certificate of Origin
 - New SSE event types (with backward-compatible defaults).
 - Audit trail extensions (new event types, exporters, retention controls).
 - New built-in tools (search-style helpers that don't fit MCP).
-- Tests (Vitest) — especially for `lib/chat/*` and the audit chain.
+- Tests (Vitest) - especially for `lib/chat/*` and the audit chain.
 - Documentation: runbook (`deploy/`), playbook (`governance/`), ADRs.
 
 ## What goes into separate MCP repos (MIT)

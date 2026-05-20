@@ -1,4 +1,4 @@
-# Patron — runbook wdrożeniowy
+# Patron - runbook wdrożeniowy
 
 Self-host Patrona dla kancelarii prawnej. Stack zero-cloud: dane nie opuszczają
 infrastruktury klienta.
@@ -8,7 +8,7 @@ infrastruktury klienta.
 ```
 ┌─────────────────────────────────────────────────┐
 │ Frontend (Next.js)         port 3000            │
-│ Backend  (Express + 4 MCP) port 3001            │
+│ Backend  (Express + 5 MCP) port 3001            │
 └─────────────────────────────────────────────────┘
                   ↓
 ┌─────────────────────────────────────────────────┐
@@ -18,7 +18,7 @@ infrastruktury klienta.
 ```
 
 Powłoka (frontend + backend) idzie z tego docker-compose. Supabase + MinIO są
-osobnymi stackami — typowa kancelaria stawia je raz, na poziomie systemu.
+osobnymi stackami - typowa kancelaria stawia je raz, na poziomie systemu.
 
 ## Krok po kroku
 
@@ -72,13 +72,13 @@ node scripts/bundle-mcp.cjs
 
 Po wykonaniu zobaczysz:
 ```
-patron/backend/mcp-bundled/{saos,nsa,isap,eu-sparql}/
+patron/backend/mcp-bundled/{saos,nsa,isap,krs,eu-sparql}/
 patron/backend/mcp-servers.docker.json
 ```
 
 ### 5) Postaw Supabase + MinIO
 
-Każdy ma swój sposób — typowe ścieżki:
+Każdy ma swój sposób - typowe ścieżki:
 - Supabase: `git clone https://github.com/supabase/supabase && cd supabase/docker && cp .env.example .env && docker compose up -d`
 - MinIO: `docker run -d --name minio -p 9000:9000 -p 9001:9001 -v /opt/minio-data:/data minio/minio server /data --console-address ":9001"`
 
@@ -127,7 +127,7 @@ open http://localhost:3000               # → frontend Patrona
 docker compose logs -f backend | head    # → "[MCP] Connected to ..." × 4
 ```
 
-W panelu logów backendu powinno pojawić się:
+W logach backendu zobaczysz:
 ```
 [MCP] Connected to "saos" - 3 tool(s) registered
 [MCP] Connected to "nsa" - 3 tool(s) registered
@@ -159,8 +159,8 @@ docker compose --env-file .env.docker up -d
 ## Backup (RODO art. 32)
 
 Patron przechowuje:
-- **Postgres (Supabase)** — dokumenty, czaty, użytkownicy, audit_log
-- **MinIO** — pliki .docx / .pdf
+- **Postgres (Supabase)** - dokumenty, czaty, użytkownicy, audit_log
+- **MinIO** - pliki .docx / .pdf
 
 Minimalna kopia codzienna:
 ```bash
@@ -180,19 +180,19 @@ age -e -r <pub-key> backups/patron-$(date +%F).dump > backups/patron-$(date +%F)
 
 ### „[MCP] Could not connect to server X"
 
-Sprawdź czy bundler wykonał się prawidłowo:
+Sprawdź, czy bundler przeszedł do końca:
 ```bash
 ls patron/backend/mcp-bundled/
 # powinno być: saos/  nsa/  isap/  eu-sparql/
 ```
 
-Jeśli brakuje — uruchom ponownie `node scripts/bundle-mcp.cjs`.
+Jeśli brakuje - uruchom ponownie `node scripts/bundle-mcp.cjs`.
 
 ### „certificate verify failed" przy MCP-NSA
 
 CBOSA (orzeczenia.nsa.gov.pl) ma niekompletny certyfikat chain.
 `mcp-nsa` ma już to obejście (rejectUnauthorized: false dla tej domeny).
-Jeśli widzisz błąd — sprawdź czy używasz najnowszej wersji `mcp-nsa`.
+Jeśli widzisz błąd - sprawdź czy używasz najnowszej wersji `mcp-nsa`.
 
 ### Frontend nie ładuje czata
 
@@ -208,9 +208,9 @@ docker system prune -a --volumes      # usuwa nieużywane obrazy/volumeny
 
 ## Pliki w tym katalogu
 
-- `README.md` — ten dokument (runbook)
+- `README.md` - ten dokument (runbook)
 
-Dodatkowe pliki, które warto dorzucić w kolejnych iteracjach:
-- `nginx.conf` — reverse proxy + TLS (Caddy / nginx-proxy-manager też w grze)
-- `docker-compose.prod.yml` — overlay produkcyjny (Traefik / TLS / autoupdate)
-- `backup.sh` — skrypt kopii zapasowej (cron)
+Pliki do dorzucenia w kolejnych iteracjach:
+- `nginx.conf` - reverse proxy + TLS (Caddy / nginx-proxy-manager też w grze)
+- `docker-compose.prod.yml` - overlay produkcyjny (Traefik / TLS / autoupdate)
+- `backup.sh` - skrypt kopii zapasowej (cron)

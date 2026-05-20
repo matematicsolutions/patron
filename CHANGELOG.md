@@ -7,39 +7,39 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ## [Unreleased]
 
-- Phase 2.1 — Polish locale `pl` in the frontend UI (Next.js strings,
+- Phase 2.1 - Polish locale `pl` in the frontend UI (Next.js strings,
   date/number formats).
-- Phase 2.7 — Schema for law firm domain (`matter` / `client` / docs
+- Phase 2.7 - Schema for law firm domain (`matter` / `client` / docs
   per matter).
-- Phase 4.2 — additional event types in audit log (`doc.read`,
+- Phase 4.2 - additional event types in audit log (`doc.read`,
   `doc.export`) + RODO endpoint exposed via API (not only CLI).
-- Phase 6.1 — branding + landing page on matematic.co.
+- Phase 6.1 - branding + landing page on matematic.co.
 
-## [1.1.0] — 2026-05-20
+## [1.1.0] - 2026-05-20
 
 Drafting extension + user-facing documentation.
 
-### Added — Phase 2.2 (drafting pism PL)
+### Added - Phase 2.2 (drafting pism PL)
 
 - SYSTEM_PROMPT extended (`backend/src/lib/chat/prompts.ts`) with a
   Polish drafting section: structure of procedural filings (pozew /
   odpowiedź / apelacja / skarga kasacyjna / zażalenie), administrative
   complaints to WSA, appeals under KPA art. 127-141.
-- Terminology guard — odwołanie vs skarga, pozew vs wniosek, wyrok vs
+- Terminology guard - odwołanie vs skarga, pozew vs wniosek, wyrok vs
   postanowienie vs nakaz zapłaty, apelacja vs skarga kasacyjna.
-- Citation conventions — Dz.U. + ELI for statutes, sygnatura akt +
+- Citation conventions - Dz.U. + ELI for statutes, sygnatura akt +
   data + court for case law, CELEX for EU acts. Date format always
   `DD.MM.RRRR` in document text.
-- Polite forms — Wysoki Sąd, Szanowny Organie.
-- Drafting rule — never sign as the lawyer; output placeholder
+- Polite forms - Wysoki Sąd, Szanowny Organie.
+- Drafting rule - never sign as the lawyer; output placeholder
   `[Podpis - imię, nazwisko, tytuł zawodowy, nr wpisu]` for the
   human to fill in.
 - Added 7 unit tests for drafting section coverage
   (`prompts.test.ts`).
 
-### Added — Phase 5.5 (user-facing documentation)
+### Added - Phase 5.5 (user-facing documentation)
 
-- `deploy/USER_GUIDE.md` — 9-section Polish manual for the lawyer
+- `deploy/USER_GUIDE.md` - 9-section Polish manual for the lawyer
   end-user: first login, model selection, document workflow, chat
   best practices, 5 connectors, citation panel, audit transparency,
   FAQ, troubleshooting.
@@ -50,12 +50,12 @@ Drafting extension + user-facing documentation.
 
 ---
 
-## [1.0.0] — 2026-05-20
+## [1.0.0] - 2026-05-20
 
 First public release as **Patron** (re-branded fork of
 [Mike](https://github.com/willchen96/mike) under AGPL-3.0).
 
-### Added — Phase 2 (polonization & quality)
+### Added - Phase 2 (polonization & quality)
 
 - Refactor `chatTools.ts` from 3325 lines to 18 lines (thin facade)
   + 12 modules under `backend/src/lib/chat/` (types / prompts / tools
@@ -71,7 +71,7 @@ First public release as **Patron** (re-branded fork of
   server.
 - SYSTEM_PROMPT extended with Polish jurisdiction and court structure.
 
-### Added — Phase 3 (Polish legal MCP connectors)
+### Added - Phase 3 (Polish legal MCP connectors)
 
 5 separate MIT-licensed repositories, all wired by `mcp-servers.json`:
 - [`mcp-saos`](https://github.com/matematicsolutions/mcp-saos)
@@ -80,7 +80,7 @@ First public release as **Patron** (re-branded fork of
 - [`mcp-krs`](https://github.com/matematicsolutions/mcp-krs)
 - [`mcp-eu-sparql`](https://github.com/matematicsolutions/mcp-eu-sparql)
 
-### Added — Phase 4 (compliance)
+### Added - Phase 4 (compliance)
 
 - **Audit trail with SHA-256 hash-chain** for AI Act art. 12
   record-keeping. `audit_log` schema, `lib/audit.ts`, CLI verifier
@@ -92,27 +92,27 @@ First public release as **Patron** (re-branded fork of
   SDK major bump pending), additional security headers
   (`Permissions-Policy` zeroed, `X-DNS-Prefetch-Control` off),
   `SECURITY.md`.
-- **Constitution AI v1.1.0** — `governance/CONSTITUTION.md` (9 articles,
+- **Constitution AI v1.1.0** - `governance/CONSTITUTION.md` (9 articles,
   boundaries, 5 roles, audit, evolution, mapping to AI Act + GDPR
   + Polish ethics codes).
-- **Implementation Playbook** — `governance/IMPLEMENTATION_PLAYBOOK.md`
+- **Implementation Playbook** - `governance/IMPLEMENTATION_PLAYBOOK.md`
   (6-8 week deployment with RACI matrix).
 - **ADR-0001** hash-chain audit trail decision record.
 - **ADR-0002** dual-license decision record (AGPL shell + MIT connectors).
 
-### Added — Phase 5 (deployment)
+### Added - Phase 5 (deployment)
 
-- `backend/Dockerfile` — multi-stage Node 20 + libreoffice + non-root
+- `backend/Dockerfile` - multi-stage Node 20 + libreoffice + non-root
   + healthcheck on `/health`.
-- `frontend/Dockerfile` — Next.js standalone, multi-stage, non-root.
-- `docker-compose.yml` — backend + frontend, log rotation.
-- `scripts/bundle-mcp.cjs` — cross-platform bundler that vendors
+- `frontend/Dockerfile` - Next.js standalone, multi-stage, non-root.
+- `docker-compose.yml` - backend + frontend, log rotation.
+- `scripts/bundle-mcp.cjs` - cross-platform bundler that vendors
   the 5 MCP connectors into `backend/mcp-bundled/`.
 - `.env.docker.example` template.
-- `deploy/README.md` — 12-step deployment runbook with troubleshooting.
-- `deploy/backup.sh` + `restore.sh` — encrypted backups via `age` +
+- `deploy/README.md` - 12-step deployment runbook with troubleshooting.
+- `deploy/backup.sh` + `restore.sh` - encrypted backups via `age` +
   `pg_dump` + `mc mirror`, SHA-256 manifest, configurable retention.
-- `deploy/BACKUP.md` — GDPR art. 32 backup guide.
+- `deploy/BACKUP.md` - GDPR art. 32 backup guide.
 
 ### Changed
 

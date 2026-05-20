@@ -1,19 +1,19 @@
-# Patron — AI Implementation Playbook
+# Patron - AI Implementation Playbook
 
 **Cel**: wdrożenie Patrona w kancelarii w 6-8 tygodni, od pierwszego
 spotkania do produkcyjnego pilotażu.
 
-**Audytorium**: Administrator kancelarii (partner zarządzający / OD),
+**Odbiorcy**: Administrator kancelarii (partner zarządzający / OD),
 Operator (IT / DevOps), Inspektor (IOD / compliance), 2-3 prawników
 pilotażowych.
 
-**Założenie wyjściowe**: kancelaria zatwierdziła
+**Punkt wyjścia**: kancelaria zatwierdziła
 [Konstytucję AI Patrona v1.0.0](./CONSTITUTION.md) i wybrała model
 LLM (Gemini / Claude / Ollama lokalny).
 
 ---
 
-## Tydzień 0 — Decyzja i przygotowanie (przed startem)
+## Tydzień 0 - Decyzja i przygotowanie (przed startem)
 
 **Po stronie kancelarii**:
 - [ ] Wybór Administratora, Operatora, Inspektora (3 osoby).
@@ -24,7 +24,7 @@ LLM (Gemini / Claude / Ollama lokalny).
 - [ ] Akceptacja Konstytucji AI v1.0.0 (podpis Administratora).
 
 **Po stronie MateMatic**:
-- [ ] Onboarding session (1.5 h) — przejście przez Konstytucję
+- [ ] Onboarding session (1.5 h) - przejście przez Konstytucję
       i runbook.
 - [ ] Akceptacja umowy wdrożeniowej (zakres, ceny, SLA).
 
@@ -32,7 +32,7 @@ LLM (Gemini / Claude / Ollama lokalny).
 
 ---
 
-## Tydzień 1 — Infrastruktura
+## Tydzień 1 - Infrastruktura
 
 **Po stronie Operatora (z asystą MateMatic)**:
 - [ ] Provisioning maszyny: 16 GB RAM, 8 vCPU, 200 GB SSD, Ubuntu 22.04
@@ -50,13 +50,13 @@ LLM (Gemini / Claude / Ollama lokalny).
 **Punkt kontrolny tygodnia 1**:
 - [x] Frontend dostępny pod publicznym URL z TLS.
 - [x] Backend odpowiada na `/health`.
-- [x] Logi pokazują 4× `[MCP] Connected to "X" — 3 tool(s) registered`.
+- [x] Logi pokazują 4× `[MCP] Connected to "X" - 3 tool(s) registered`.
 
 **Czas po stronie Operatora**: ~4-6 h (jeśli pierwszy raz z Dockerem).
 
 ---
 
-## Tydzień 2 — Bezpieczeństwo + Inspektor
+## Tydzień 2 - Bezpieczeństwo + Inspektor
 
 **Po stronie Inspektora**:
 - [ ] Aktualizacja rejestru czynności przetwarzania (RODO art. 30):
@@ -73,7 +73,7 @@ LLM (Gemini / Claude / Ollama lokalny).
 - [ ] Test odtworzenia backupu na maszynie zapasowej.
 
 **Po stronie Administratora**:
-- [ ] Pierwszy `npm run audit:verify` — potwierdzenie integralności
+- [ ] Pierwszy `npm run audit:verify` - potwierdzenie integralności
       hash-chain.
 
 **Punkt kontrolny tygodnia 2**:
@@ -83,16 +83,16 @@ LLM (Gemini / Claude / Ollama lokalny).
 
 ---
 
-## Tydzień 3 — Pilotaż prawniczy (2-3 osoby)
+## Tydzień 3 - Pilotaż prawniczy (2-3 osoby)
 
 **Onboarding prawników pilotażowych** (2 h warsztat):
-- [ ] Przedstawienie Konstytucji AI (zwłaszcza Art. 5 — tajemnica,
-      Art. 6 — human in the loop, Art. 2 — weryfikowalność).
+- [ ] Przedstawienie Konstytucji AI (zwłaszcza Art. 5 - tajemnica,
+      Art. 6 - human in the loop, Art. 2 - weryfikowalność).
 - [ ] Pokaz interfejsu: czaty, projekty, attachment dokumentów,
       panel cytatów (4 sekcje: SAOS / NSA / ISAP / EUR-Lex).
 - [ ] Pokaz tracked changes na `.docx` (Accept / Reject mechanism).
-- [ ] **Kluczowy moment**: pokazanie audit log. „Każde Wasze
-      zapytanie zostawia ślad. Sami to weryfikujecie."
+- [ ] Pokazanie audit log: „Każde Wasze zapytanie zostawia ślad.
+      Sami to weryfikujecie."
 
 **Pierwsze pytania pilotażowe** (kontrolowane scenariusze):
 - [ ] „Znajdź mi orzecznictwo NSA z 2024 o RODO art. 6 ust. 1 lit. f"
@@ -107,7 +107,7 @@ LLM (Gemini / Claude / Ollama lokalny).
 
 ---
 
-## Tydzień 4 — Skalowanie + tuning
+## Tydzień 4 - Skalowanie + tuning
 
 **Po stronie prawników**:
 - [ ] Pilotaż rozszerzony na 5-10 osób.
@@ -119,17 +119,17 @@ LLM (Gemini / Claude / Ollama lokalny).
       ile tokenów średnio, czas odpowiedzi.
 - [ ] Decyzja o ew. zwiększeniu zasobów (RAM / CPU) jeśli wąskie gardło.
 - [ ] Tuning SYSTEM_PROMPT pod specyfikę kancelarii (np. dodanie
-      preferencji terminologii — „odwołanie" vs „skarga", domyślny
+      preferencji terminologii - „odwołanie" vs „skarga", domyślny
       sąd właściwy).
 
 ---
 
-## Tydzień 5 — Compliance review
+## Tydzień 5 - Compliance review
 
 **Po stronie Inspektora**:
 - [ ] Pełny przegląd audit_log (sample 10% wpisów + verify chain).
 - [ ] Test eksportu danych klienta (gdyby ktoś zgłosił RODO art. 20).
-- [ ] Test usunięcia danych klienta (RODO art. 17) — sprawdzenie czy
+- [ ] Test usunięcia danych klienta (RODO art. 17) - sprawdzenie czy
       `chat_messages` + `documents` faktycznie znikają, a `audit_log`
       zachowuje wpisy z anonimizacją `actor_user_id`.
 - [ ] Symulacja incydentu: „Co robimy, jeśli pracownik z dostępem
@@ -142,7 +142,7 @@ LLM (Gemini / Claude / Ollama lokalny).
 
 ---
 
-## Tydzień 6 — Decyzja go-live
+## Tydzień 6 - Decyzja go-live
 
 **Spotkanie zarządu kancelarii** (60 min):
 - [ ] Prezentacja statystyk pilotażu:
@@ -156,7 +156,7 @@ LLM (Gemini / Claude / Ollama lokalny).
 
 ---
 
-## Tygodnie 7-8 (opcjonalne) — Rollout
+## Tygodnie 7-8 (opcjonalne) - Rollout
 
 **Po stronie Administratora**:
 - [ ] Włączenie wszystkich prawników kancelarii.

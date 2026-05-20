@@ -1,20 +1,17 @@
-# Patron — backup szyfrowany (RODO art. 32)
+# Patron - backup szyfrowany (RODO art. 32)
 
-Skrypt `backup.sh` robi codzienny **szyfrowany** snapshot:
+Skrypt `backup.sh` robi codzienny szyfrowany snapshot:
 - `pg_dump` Postgresa (Supabase): czaty, dokumenty, audit_log
 - `mc mirror` MinIO: pliki .docx / .pdf użytkowników
-- `age` enkrypcja: publiczny klucz odbiorcy
-- SHA-256 manifest do detekcji uszkodzenia/podmianki
-- retencja: usuń starsze niż N dni (domyślnie 30)
+- szyfrowanie `age` publicznym kluczem odbiorcy
+- manifest SHA-256 do wykrycia uszkodzenia lub podmianki
+- retencja: usuwa starsze niż N dni (domyślnie 30)
 
 ## Po co `age` zamiast `gpg` / `openssl`
 
-- **age** (`https://github.com/FiloSottile/age`) — nowoczesny, minimalny,
-  działa z jednego klucza. Brak konfiguracji, brak "web of trust",
-  brak ekspirujących kluczy.
-- Każdy szyfrogram jest niezależny — restore wymaga **tylko prywatnego klucza**,
-  nie ma manage'u keyring'u jak w GPG.
-- Format pliku stabilny, audytowalny przez `age --version`.
+- `age` (https://github.com/FiloSottile/age) działa z jednego klucza. Bez konfiguracji, bez „web of trust", bez kluczy, które tracą ważność.
+- Każdy szyfrogram jest niezależny. Do odtworzenia wystarczy klucz prywatny, nie trzeba zarządzać keyringiem jak w GPG.
+- Format pliku jest stabilny i daje się sprawdzić przez `age --version`.
 
 ## Generowanie kluczy
 
@@ -25,10 +22,9 @@ sudo chmod 600 /root/.config/patron/age.key
 # wypisze: "Public key: age1xyz..."
 ```
 
-**Klucz prywatny** (`age.key`) — zostaje w kancelarii, ZALECANA druga kopia
-w sejfie offline. Bez niego nikt nie odszyfruje backupu, w tym MateMatic.
+Klucz prywatny (`age.key`) zostaje w kancelarii. Zalecana druga kopia w sejfie offline. Bez tego klucza nikt nie odszyfruje backupu, włącznie z MateMatic.
 
-**Publiczny klucz** (`age1xyz...`) — idzie do `.env.backup` jako `AGE_RECIPIENT`.
+Klucz publiczny (`age1xyz...`) idzie do `.env.backup` jako `AGE_RECIPIENT`.
 
 ## Konfiguracja jednorazowa
 
@@ -56,6 +52,7 @@ chmod +x backup.sh restore.sh
 ```
 
 Spodziewane wyjście:
+
 ```
 [02:00:01] Krok 1/4: pg_dump Postgresa...
 [02:00:03]   -> /var/backups/patron/patron-2026-05-20-020001.postgres.dump (12345678 bytes)
@@ -78,8 +75,7 @@ Dorzuć:
 0 2 * * *  /opt/patron/deploy/backup.sh >> /var/log/patron-backup.log 2>&1
 ```
 
-Codziennie o 02:00. Log idzie do `/var/log/patron-backup.log` — rotacja
-przez `logrotate` (Ubuntu/Debian: `apt install logrotate`).
+Codziennie o 02:00. Log trafia do `/var/log/patron-backup.log`. Rotacją zajmuje się `logrotate` (Ubuntu/Debian: `apt install logrotate`).
 
 ## Test odtworzenia (OBOWIĄZKOWO przed go-live + raz na kwartał)
 
@@ -88,14 +84,14 @@ przez `logrotate` (Ubuntu/Debian: `apt install logrotate`).
 ```
 
 Skrypt:
-1. Weryfikuje SHA-256.
-2. Odszyfrowuje `age` (wymaga `age.key`).
+1. Sprawdza SHA-256.
+2. Odszyfrowuje `age` (potrzebuje `age.key`).
 3. Tworzy bazę testową `patron_restore_test` w Supabase Postgres.
-4. `pg_restore` do tej bazy.
-5. Wyświetla liczby wierszy `chat_messages`, `documents`, `audit_log`.
+4. Robi `pg_restore` do tej bazy.
+5. Wypisuje liczby wierszy w `chat_messages`, `documents` i `audit_log`.
 
-Jeśli liczby > 0 = backup żywy.
-**Pamiętaj usunąć bazę testową** po weryfikacji (komenda na końcu wyjścia restore.sh).
+Jeśli liczby są większe od zera, backup jest żywy.
+Po weryfikacji usuń bazę testową. Komenda jest na końcu wyjścia restore.sh.
 
 ## Walidacja audit chain w odtworzonej bazie
 
@@ -108,46 +104,38 @@ PGDATABASE=patron_restore_test \
 npm run audit:verify
 ```
 
-Powinno zwrócić `[verify] OK - N wpisów zweryfikowanych`. Jeśli backup
-jest spójny, weryfikator znajdzie nietkniętą historię.
+Powinno zwrócić `[verify] OK - N wpisów zweryfikowanych`. Jeśli backup jest spójny, weryfikator znajdzie nietkniętą historię.
 
 ## Off-site (zalecane)
 
-`/var/backups/patron/` na hoscie to jedna kopia. RODO art. 32 wymaga **odporności
-na utratę**. Zalecane: kopia poza maszyną (rsync na NAS / S3 z innym dostawcą /
-płyta szyfrowana w sejfie).
+`/var/backups/patron/` na hoście to jedna kopia. RODO art. 32 wymaga odporności na utratę. Zrób kopię poza maszyną: rsync na NAS, S3 u innego dostawcy albo płyta szyfrowana w sejfie.
 
 ```bash
 # Przykład: nightly rsync na NAS po backup.sh
 rsync -a --delete /var/backups/patron/ nas:/volume1/backups/patron/
 ```
 
-Pliki są **już zaszyfrowane** publicznym kluczem age — można je trzymać u
-dowolnego dostawcy storage bez ujawniania treści.
+Pliki są już zaszyfrowane publicznym kluczem age. Można je trzymać u dowolnego dostawcy storage bez ujawniania treści.
 
 ## Co jest w backupie
 
 | Komponent | Co zawiera | Wrażliwość |
 |---|---|---|
-| `*.postgres.dump.age` | Czaty, dokumenty (metadata), audit log, użytkownicy | Wysoka — tajemnica zawodowa |
-| `*.minio.tar.age` | Pliki .docx / .pdf | Wysoka — pełna treść dokumentów klientów |
-| `*.sha256` | Hashe artefaktów (nie zaszyfrowane) | Niska — niczego nie zdradza |
+| `*.postgres.dump.age` | Czaty, dokumenty (metadata), audit log, użytkownicy | Wysoka, tajemnica zawodowa |
+| `*.minio.tar.age` | Pliki .docx / .pdf | Wysoka, pełna treść dokumentów klientów |
+| `*.sha256` | Hashe artefaktów (nieszyfrowane) | Niska, niczego nie zdradza |
 
 ## Czego NIE ma w backupie
 
-- Sekretów `.env` — operator trzyma je osobno (poza repozytorium, password manager).
-- Logów dockera — agreguj przez Loki / OpenSearch jeśli potrzebne.
-- Konfiguracji `mcp-servers.json` — generowane przez `bundle-mcp.cjs`,
-  trzymane w repo źródłowym.
+- Sekretów `.env`. Operator trzyma je osobno, poza repozytorium, w password managerze.
+- Logów dockera. Jeśli potrzebne, agreguj przez Loki albo OpenSearch.
+- Konfiguracji `mcp-servers.json`. Generuje ją `bundle-mcp.cjs`, źródło siedzi w repo.
 
-## Test ataku na łańcuch — co backup chroni
+## Test ataku na łańcuch: co backup chroni
 
-Jeśli ktoś **na maszynie produkcyjnej** zmodyfikuje wpis `audit_log`,
-to:
-1. `npm run audit:verify` na produkcji wykryje to NATYCHMIAST (hash-chain).
-2. Backup z dnia poprzedniego zawiera **niezmodyfikowaną wersję** — można
-   porównać i udowodnić atak.
-3. Modyfikacja wpisu w backupie (`*.postgres.dump.age`) wymaga klucza
-   prywatnego `age.key`, którego atakujący na hoscie nie ma.
+Jeśli ktoś na maszynie produkcyjnej zmodyfikuje wpis `audit_log`:
+1. `npm run audit:verify` wykryje to natychmiast (hash-chain).
+2. Backup z dnia poprzedniego zawiera wersję sprzed manipulacji. Można porównać i udowodnić atak.
+3. Modyfikacja wpisu w backupie (`*.postgres.dump.age`) wymaga klucza prywatnego `age.key`. Atakujący na hoście go nie ma.
 
-To jest **wielowarstwowe record-keeping** wymagane przez AI Act art. 12.
+To jest wielowarstwowe record-keeping, którego wymaga AI Act art. 12.
