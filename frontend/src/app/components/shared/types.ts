@@ -149,6 +149,12 @@ export interface MikeMessage {
   workflow?: { id: string; title: string };
   model?: string;
   annotations?: MikeCitationAnnotation[];
+  /**
+   * Cytaty zwrocone przez serwery MCP (np. SAOS) - powiazane zrodla,
+   * pokazywane w panelu obok cytatow dokumentowych. NIE sa kotwiczone
+   * znacznikami [N] w prozie.
+   */
+  mcpCitations?: MikeMcpCitation[];
   events?: AssistantEvent[];
   /** Set when streaming failed; rendered as a red error block. */
   error?: string;
@@ -176,6 +182,29 @@ export interface MikeCitationAnnotation {
   filename: string;
   page: number | string;
   quote: string;
+}
+
+/**
+ * Cytat z serwera MCP (np. konektor SAOS). W odroznieniu od cytatu
+ * dokumentowego NIE jest kotwiczony znacznikiem [N] w prozie - to "powiazane
+ * zrodlo" renderowane w panelu obok wlasciwych cytatow.
+ *
+ * Backend kontrakt: event SSE `{ type: "mcp_citations", citations: [...] }`.
+ */
+export interface MikeMcpCitation {
+  source: "mcp";
+  /** Nazwa serwera MCP, np. "saos". */
+  server: string;
+  /** Nazwa narzedzia, np. "search" / "get_judgment". */
+  tool: string;
+  /** Etykieta - np. "I ACa 772/13 - SA w Krakowie". */
+  title?: string;
+  /** URL zrodla, np. SAOS judgment URL. */
+  url?: string;
+  /** Krotki fragment tekstu zrodla. */
+  snippet?: string;
+  /** Dowolne dodatkowe pola charakterystyczne dla domeny (sygnatura, sad, data). */
+  metadata?: Record<string, unknown>;
 }
 
 const PAGE_BREAK_SENTINEL = "[[PAGE_BREAK]]";

@@ -9,6 +9,9 @@ import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type { OpenAIToolSchema } from "../llm/types";
+import type { McpCitation, McpToolResult } from "./types";
+
+export type { McpCitation, McpToolResult } from "./types";
 
 // ---------------------------------------------------------------------------
 // Config types
@@ -200,24 +203,40 @@ export function isMcpTool(name: string): boolean {
 }
 
 /**
- * Executes an MCP tool by its prefixed name.
- * Always resolves with a string - never throws into the caller.
+ * Wykonuje narzedzie MCP po jego prefiksowanej nazwie.
+ *
+ * Zwraca obiekt {text, citations}:
+ * - text   - czlowiekoczytelne sklejenie blokow content[].text (wchodzi do tool_result dla LLM)
+ * - citations - lista McpCitation wyluskana z structuredContent.citations (jesli serwer wystawia)
+ *
+ * Nigdy nie rzuca wyjatku - blad MCP zwracany jest jako text z polem error
+ * i pusta lista citations.
  */
 export async function runMcpTool(
     name: string,
     input: Record<string, unknown>,
-): Promise<string> {
+): Promise<McpToolResult> {
     const entry = _toolRegistry.get(name);
     if (!entry) {
-        return JSON.stringify({ error: `MCP tool "${name}" is not registered.` });
+        return {
+            text: JSON.stringify({ error: `MCP tool "${name}" is not registered.` }),
+            citations: [],
+            isError: true,
+        };
     }
+
+    const serverName = name.split("__")[0] ?? "";
+    const toolName = entry.originalName;
+
     try {
         const result = await entry.client.callTool({
-            name: entry.originalName,
+            name: toolName,
             arguments: input,
         });
-        // result.content is an array of ContentBlock
+
+        // 1. Sklej tekst z bloków content[].
         const content = result.content;
+        let text: string;
         if (Array.isArray(content)) {
             const parts = content.map((block: unknown) => {
                 const b = block as { type?: string; text?: string };
@@ -226,11 +245,90 @@ export async function runMcpTool(
                 }
                 return JSON.stringify(block);
             });
-            return parts.join("\n");
+            text = parts.join("\n");
+        } else {
+            text = JSON.stringify(content);
         }
-        return JSON.stringify(content);
+
+        // 2. Wyluskaj structured citations (opcjonalne).
+        const citations = extractMcpCitations(
+            (result as { structuredContent?: unknown }).structuredContent,
+            serverName,
+            toolName,
+        );
+
+        const isError =
+            (result as { isError?: boolean }).isError === true || undefined;
+
+        return { text, citations, isError };
     } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        return JSON.stringify({ error: `MCP tool "${name}" failed: ${message}` });
+        return {
+            text: JSON.stringify({ error: `MCP tool "${name}" failed: ${message}` }),
+            citations: [],
+            isError: true,
+        };
     }
+}
+
+// ---------------------------------------------------------------------------
+// Structured citations extraction
+// ---------------------------------------------------------------------------
+
+/**
+ * Czyta `structuredContent.citations` i mapuje na liste McpCitation.
+ * Akceptuje minimum: tablice obiektow z polem title LUB url. Wszystkie inne
+ * pola sa opcjonalne; nieznane pola laduja w metadata (zeby nie tracic kontekstu).
+ *
+ * Funkcja eksportowana dla testow.
+ */
+export function extractMcpCitations(
+    structuredContent: unknown,
+    serverName: string,
+    toolName: string,
+): McpCitation[] {
+    if (!structuredContent || typeof structuredContent !== "object") {
+        return [];
+    }
+    const rawList = (structuredContent as { citations?: unknown }).citations;
+    if (!Array.isArray(rawList)) {
+        return [];
+    }
+
+    const out: McpCitation[] = [];
+    for (const raw of rawList) {
+        if (!raw || typeof raw !== "object") continue;
+        const r = raw as Record<string, unknown>;
+        const title = typeof r.title === "string" ? r.title : undefined;
+        const url = typeof r.url === "string" ? r.url : undefined;
+        const snippet = typeof r.snippet === "string" ? r.snippet : undefined;
+        // Minimum sensownego cytatu: tytul LUB url.
+        if (!title && !url) continue;
+
+        // Wszystko poza znanymi polami zachowujemy w metadata.
+        const knownKeys = new Set(["title", "url", "snippet", "metadata"]);
+        const metadata: Record<string, unknown> = {};
+        let hasMetadata = false;
+        for (const [k, v] of Object.entries(r)) {
+            if (knownKeys.has(k)) continue;
+            metadata[k] = v;
+            hasMetadata = true;
+        }
+        // Jesli serwer sam podal metadata - merge (jego klucze maja pierwszenstwo).
+        if (r.metadata && typeof r.metadata === "object") {
+            Object.assign(metadata, r.metadata as Record<string, unknown>);
+            hasMetadata = true;
+        }
+
+        out.push({
+            source: "mcp",
+            server: serverName,
+            tool: toolName,
+            ...(title !== undefined && { title }),
+            ...(url !== undefined && { url }),
+            ...(snippet !== undefined && { snippet }),
+            ...(hasMetadata && { metadata }),
+        });
+    }
+    return out;
 }

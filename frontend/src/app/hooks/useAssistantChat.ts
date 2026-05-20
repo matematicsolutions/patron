@@ -8,6 +8,7 @@ import { useGenerateChatTitle } from "./useGenerateChatTitle";
 import type {
     AssistantEvent,
     MikeCitationAnnotation,
+    MikeMcpCitation,
     MikeMessage,
 } from "@/app/components/shared/types";
 
@@ -789,6 +790,25 @@ export function useAssistantChat({
                                     updated[updated.length - 1] = {
                                         ...last,
                                         annotations: incoming,
+                                    };
+                                }
+                                return updated;
+                            });
+                            continue;
+                        }
+
+                        if (data.type === "mcp_citations") {
+                            // Cytaty z serwerow MCP (np. SAOS) - powiazane zrodla,
+                            // renderowane w panelu obok cytatow dokumentowych.
+                            const incoming = (data.citations ??
+                                []) as MikeMcpCitation[];
+                            setMessages((prev) => {
+                                const updated = [...prev];
+                                const last = updated[updated.length - 1];
+                                if (last?.role === "assistant") {
+                                    updated[updated.length - 1] = {
+                                        ...last,
+                                        mcpCitations: incoming,
                                     };
                                 }
                                 return updated;

@@ -1,0 +1,69 @@
+Patron
+======
+
+Copyright (c) 2026 MateMatic / Wiesław Mazur
+Licensed under GNU Affero General Public License v3.0 only (AGPL-3.0-only).
+See LICENSE for full text.
+
+This product is a fork of the **Mike** legal document assistant.
+
+  Mike — https://github.com/willchen96/mike
+  Copyright (c) 2025 Will Chen and contributors
+  Licensed under MIT License
+
+The fork dates from 2026-05-19. Significant additions in Patron:
+  - Polish locale and SYSTEM_PROMPT for Polish legal practice
+  - Zero-cloud self-host (Supabase + MinIO, no Cloudflare R2)
+  - 5 Polish legal MCP connectors (mcp-saos, mcp-nsa, mcp-isap,
+    mcp-krs, mcp-eu-sparql — all MIT-licensed, separate repositories)
+  - Hash-chain audit trail (AI Act art. 12 compliant)
+  - Constitution AI v1.0.0 and Implementation Playbook (governance/)
+  - Modular chat layer (lib/chat/* — 12 modules from monolithic chatTools.ts)
+  - Vitest test suite (69 tests in 6 files)
+  - Docker compose deployment + multi-stage Dockerfiles
+  - LibreOffice in-container support for .docx → .pdf
+
+The original Mike codebase remains MIT. Files derived from Mike retain
+their original MIT permission notice in NOTICE-MIKE-MIT (a copy of Mike's
+LICENSE preserved here for attribution).
+
+Why AGPL-3.0?
+-------------
+
+Patron's value to a law firm is in being a **local, self-hosted, audited
+agent**. AGPL-3.0 is the right license because:
+
+1. **Law firms are not redistributors.** A firm running Patron internally
+   on its own server is using the software, not distributing it. AGPL-3.0
+   imposes no additional duty on them beyond the freedoms granted by the
+   license.
+
+2. **Anyone who hosts Patron as SaaS for third parties must share their
+   modifications.** This prevents a competitor from taking Patron, adding
+   proprietary features, and selling it back to law firms as a closed
+   service — undermining the moat we build with the community.
+
+3. **The MCP connectors are intentionally MIT.** Each connector
+   (mcp-saos, mcp-nsa, mcp-isap, mcp-krs, mcp-eu-sparql) lives in a
+   separate repository under MIT so that the broader Polish legal-tech
+   ecosystem can integrate them into other products — even commercial,
+   closed-source ones. Connectors are infrastructure; the value-add is
+   in the shell (Patron itself).
+
+
+Third-party attributions
+------------------------
+
+Patron incorporates ideas and patterns (not code) from:
+  - chiefofstaff-legal/donna — hash-chain audit trail pattern
+    (governance/adr/0001-hash-chain-audit-trail.md)
+  - worldwidelaw/legal-sources (Legal Data Hunter) — API contracts
+    for the MCP connectors (mcp-nsa, mcp-isap)
+
+Node.js dependencies are listed in backend/package.json and
+frontend/package.json. Their licenses can be inspected via
+`npm ls --all` or `npm license-checker`.
+
+LibreOffice (runtime dependency for docx-to-pdf conversion):
+  - Mozilla Public License v2.0
+  - https://www.libreoffice.org

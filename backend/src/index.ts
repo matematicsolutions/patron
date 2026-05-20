@@ -88,6 +88,35 @@ app.use(
   }),
 );
 
+// Dodatkowe nagłówki bezpieczeństwa (helmet nie ustawia ich domyślnie).
+// Permissions-Policy: domyślnie zerujemy uprawnienia do API które
+// kancelaria-grade aplikacji nie potrzebuje (kamera, mikrofon, geo,
+// czujniki, MIDI itp.). Ułatwia audyt RODO art. 32.
+app.use((_req, res, next) => {
+  res.setHeader(
+    "Permissions-Policy",
+    [
+      "accelerometer=()",
+      "ambient-light-sensor=()",
+      "autoplay=()",
+      "battery=()",
+      "camera=()",
+      "display-capture=()",
+      "geolocation=()",
+      "gyroscope=()",
+      "magnetometer=()",
+      "microphone=()",
+      "midi=()",
+      "payment=()",
+      "usb=()",
+    ].join(", "),
+  );
+  // X-DNS-Prefetch-Control: jawnie wyłączony (helmet domyślnie ma off, ale
+  // dorzucamy dla pewności na wszelkich proxy).
+  res.setHeader("X-DNS-Prefetch-Control", "off");
+  next();
+});
+
 app.use(
   cors({
     origin: process.env.FRONTEND_URL ?? "http://localhost:3000",

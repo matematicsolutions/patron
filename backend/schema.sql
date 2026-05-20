@@ -366,3 +366,43 @@ revoke all on public.tabular_cells from anon, authenticated;
 revoke all on public.tabular_review_chats from anon, authenticated;
 revoke all on public.tabular_review_chat_messages from anon, authenticated;
 revoke all on public.user_api_keys from anon, authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Audit trail hash-chain (AI Act art. 12 record-keeping + RODO art. 32)
+-- ---------------------------------------------------------------------------
+-- Append-only ledger zdarzen istotnych compliance-wise (wiadomosci czatu,
+-- wywolania narzedzi MCP, odczyty/edycje dokumentow). Kazdy rekord linkuje
+-- hashem do poprzedniego: zmodyfikowanie albo usuniecie srodkowego wpisu
+-- psuje lancuch, co weryfikator (CLI scripts/verify-audit-chain.ts) wykryje.
+--
+-- prev_hash pierwszego (genesis) rekordu = 64 zera "0...0".
+-- hash = sha256(prev_hash || canonical_json(payload_for_hash))
+--
+-- Kolumna payload_for_hash to JSONB z czterech pol:
+--   { ts, event_type, actor_user_id, payload }
+-- (canonical_json sortuje klucze alfabetycznie, zeby hash byl deterministyczny).
+
+create table if not exists public.audit_log (
+  id           bigserial primary key,
+  ts           timestamptz not null default now(),
+  actor_user_id uuid references auth.users(id) on delete set null,
+  event_type   text not null,
+  chat_id      uuid references public.chats(id) on delete set null,
+  document_id  uuid references public.documents(id) on delete set null,
+  payload      jsonb not null,
+  prev_hash    text not null,
+  hash         text not null unique,
+  constraint audit_log_hash_format check (hash ~ '^[0-9a-f]{64}$'),
+  constraint audit_log_prev_hash_format check (prev_hash ~ '^[0-9a-f]{64}$')
+);
+
+create index if not exists idx_audit_log_chat
+  on public.audit_log(chat_id, ts);
+create index if not exists idx_audit_log_actor
+  on public.audit_log(actor_user_id, ts);
+create index if not exists idx_audit_log_event_type
+  on public.audit_log(event_type, ts);
+
+-- RLS: append-only z poziomu service role; uzytkownicy nie czytaja bezposrednio.
+alter table public.audit_log enable row level security;
+revoke all on public.audit_log from anon, authenticated;

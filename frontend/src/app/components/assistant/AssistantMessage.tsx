@@ -13,6 +13,7 @@ import type {
     AssistantEvent,
     MikeCitationAnnotation,
     MikeEditAnnotation,
+    MikeMcpCitation,
 } from "../shared/types";
 import { EditCard, applyOptimisticResolution } from "./EditCard";
 import { PreResponseWrapper } from "../shared/PreResponseWrapper";
@@ -1013,6 +1014,11 @@ interface Props {
     errorMessage?: string;
     annotations?: MikeCitationAnnotation[];
     onCitationClick?: (citation: MikeCitationAnnotation) => void;
+    /**
+     * Cytaty z serwerow MCP (np. SAOS) - powiazane zrodla renderowane
+     * pod prozą wiadomości jako sekcja "Powiązane orzeczenia".
+     */
+    mcpCitations?: MikeMcpCitation[];
     minHeight?: string;
     onWorkflowClick?: (workflowId: string) => void;
     onEditViewClick?: (ann: MikeEditAnnotation, filename: string) => void;
@@ -1075,6 +1081,7 @@ export function AssistantMessage({
     errorMessage,
     annotations = [],
     onCitationClick,
+    mcpCitations = [],
     minHeight = "0px",
     onWorkflowClick,
     onEditViewClick,
@@ -1494,6 +1501,14 @@ export function AssistantMessage({
                     </div>
                 ) : null}
 
+                {/* Powiazane zrodla z serwerow MCP (SAOS / eu-sparql / ...).
+                    Renderowane po prozie i edycjach, przed bledem i download
+                    card. Klik w karte otwiera URL w nowej karcie (zewnetrzne
+                    zrodlo - PATRON nie przechowuje tych dokumentow). */}
+                {!isStreaming && mcpCitations.length > 0 && (
+                    <McpCitationsPanel citations={mcpCitations} />
+                )}
+
                 {isError && (
                     <div className="mt-2 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-serif text-red-700">
                         <span className="leading-snug">
@@ -1629,6 +1644,99 @@ export function AssistantMessage({
                     )}
                 </div>
             </div>
+        </div>
+    );
+}
+
+// ---------------------------------------------------------------------------
+// MCP Citations panel - powiazane zrodla z serwerow MCP (SAOS / eu-sparql / ...)
+// ---------------------------------------------------------------------------
+
+/**
+ * Mapuje nazwe serwera MCP na czytelna etykiete sekcji.
+ * Domyslnie zwraca surowa nazwe (kontrakt z back-endem - nowy serwer dodany do
+ * mcp-servers.json od razu sie pokaze, byle tylko zwracal structuredContent).
+ */
+function mcpServerLabel(server: string): string {
+    switch (server) {
+        case "saos":
+            return "Orzeczenia z SAOS (sądy powszechne, SN, TK, KIO)";
+        case "nsa":
+            return "Orzeczenia z CBOSA (NSA / WSA — sądy administracyjne)";
+        case "isap":
+            return "Akty prawa polskiego (Dz.U. / M.P. — Sejm ELI)";
+        case "eu-sparql":
+        case "eurlex":
+            return "Akty prawa UE (EUR-Lex / CJEU)";
+        case "krs":
+            return "Krajowy Rejestr Sądowy (KRS — MS)";
+        default:
+            return `Powiązane źródła (${server})`;
+    }
+}
+
+interface McpCitationsPanelProps {
+    citations: MikeMcpCitation[];
+}
+
+function McpCitationsPanel({ citations }: McpCitationsPanelProps) {
+    // Grupuj po serwerze - sekcja per konektor.
+    const groups = new Map<string, MikeMcpCitation[]>();
+    for (const c of citations) {
+        const arr = groups.get(c.server) ?? [];
+        arr.push(c);
+        groups.set(c.server, arr);
+    }
+
+    return (
+        <div className="mt-3 space-y-3">
+            {Array.from(groups.entries()).map(([server, items]) => (
+                <div
+                    key={server}
+                    className="rounded-lg border border-stone-200 bg-stone-50 p-3"
+                >
+                    <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-500">
+                        {mcpServerLabel(server)} ({items.length})
+                    </div>
+                    <ul className="space-y-2">
+                        {items.map((c, i) => (
+                            <li key={`${c.server}-${c.tool}-${i}`}>
+                                {c.url ? (
+                                    <a
+                                        href={c.url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="block rounded-md border border-stone-200 bg-white px-3 py-2 text-sm transition hover:border-stone-300 hover:bg-stone-50"
+                                    >
+                                        <div className="font-medium text-stone-800">
+                                            {c.title ?? c.url}
+                                        </div>
+                                        {c.snippet && (
+                                            <div className="mt-1 text-xs text-stone-500 line-clamp-2">
+                                                {c.snippet}
+                                            </div>
+                                        )}
+                                        <div className="mt-1 text-[10px] text-stone-400 break-all">
+                                            {c.url}
+                                        </div>
+                                    </a>
+                                ) : (
+                                    <div className="rounded-md border border-stone-200 bg-white px-3 py-2 text-sm">
+                                        <div className="font-medium text-stone-800">
+                                            {c.title ?? "(brak tytułu)"}
+                                        </div>
+                                        {c.snippet && (
+                                            <div className="mt-1 text-xs text-stone-500 line-clamp-2">
+                                                {c.snippet}
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            ))}
         </div>
     );
 }

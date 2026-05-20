@@ -453,6 +453,22 @@ export async function getChat(chatId: string): Promise<MikeChatDetailOut> {
         const events = Array.isArray(m.content)
             ? (m.content as AssistantEvent[])
             : undefined;
+        // Rozdziel mieszane annotations: dokumentowe (type: "citation_data")
+        // vs MCP (type: "mcp_citation"). Edit annotations (type: "edit_data")
+        // wedruja do events, nie pokazujemy ich tutaj.
+        const rawAnns = ((m.annotations ?? []) as unknown) as Array<
+            Record<string, unknown> & { type?: string }
+        >;
+        const docCitations = rawAnns.filter(
+            (a) => !a.type || a.type === "citation_data",
+        );
+        const mcpCitations = rawAnns
+            .filter((a) => a.type === "mcp_citation")
+            .map((a) => {
+                // Strip discriminator pole `type` przed castem do MikeMcpCitation.
+                const { type: _t, ...rest } = a;
+                return rest as unknown as import("@/app/components/shared/types").MikeMcpCitation;
+            });
         return {
             role: "assistant",
             content:
@@ -460,7 +476,10 @@ export async function getChat(chatId: string): Promise<MikeChatDetailOut> {
                     ?.filter((e) => e.type === "content")
                     .map((e) => (e as { type: "content"; text: string }).text)
                     .join("") ?? "",
-            annotations: m.annotations ?? undefined,
+            annotations: docCitations.length
+                ? (docCitations as unknown as MikeCitationAnnotation[])
+                : undefined,
+            mcpCitations: mcpCitations.length ? mcpCitations : undefined,
             events,
         };
     });

@@ -1,10 +1,97 @@
-# Mike
+# Patron
 
-Mike is a legal document assistant with a Next.js frontend, an Express backend, Supabase Auth/Postgres, and Cloudflare R2-compatible object storage.
+> **Lokalny agent AI dla polskiej kancelarii prawnej.** Self-host
+> zero-cloud (Postgres + MinIO), 4 konektory polskiego prawa
+> (SAOS / NSA / ISAP / EUR-Lex), audit trail z hash-chain (AI Act art. 12),
+> bring-your-own-model (Gemini / Claude / Ollama lokalny).
 
-Website: [mikeoss.com](https://mikeoss.com)
+Patron jest forkiem [Mike](https://github.com/willchen96/mike) (legalny dokumentowy
+asystent, MIT) z polonizacją, polskim legal stackiem i compliance
+wymaganym przez kancelarie. Patrz [governance/CONSTITUTION.md](./governance/CONSTITUTION.md)
+po pełne zasady.
 
-## Contents
+## Zawartość
+
+- `frontend/` — aplikacja Next.js
+- `backend/` — Express API, klient MCP, audit trail, dispatch narzędzi
+- `backend/schema.sql` — schemat Postgresa (Supabase-compatible)
+- `governance/` — **Konstytucja AI Patrona** + Implementation Playbook + ADR
+- `deploy/` — runbook wdrożeniowy (`docker-compose`)
+- `scripts/bundle-mcp.cjs` — bundler 4 serwerów MCP do obrazu backendu
+
+## Konektory MCP polskiego prawa (osobne repo)
+
+| Konektor | Domena | Zwraca |
+|---|---|---|
+| [`mcp-saos`](https://github.com/matematicsolutions/mcp-saos) | orzeczenia powszechne, SN, TK, KIO | search / get_judgment / search_by_case |
+| [`mcp-nsa`](https://github.com/matematicsolutions/mcp-nsa) | orzecznictwo NSA + 16 WSA (CBOSA) | search / get_judgment / search_by_case |
+| [`mcp-isap`](https://github.com/matematicsolutions/mcp-isap) | legislacja PL (Dz.U. + M.P., Sejm ELI) | search_acts / get_act / get_act_text |
+| [`mcp-krs`](https://github.com/matematicsolutions/mcp-krs) | Krajowy Rejestr Sądowy (MS) | get_entity / get_entity_full / get_board |
+| [`mcp-eu-sparql`](https://github.com/matematicsolutions/mcp-eu-sparql) | prawo UE (EUR-Lex + CJEU) | search_by_celex / search_by_date_range / search_cjeu |
+
+## Wdrożenie produkcyjne
+
+Pełny runbook: **[deploy/README.md](./deploy/README.md)**.
+Skrót dla niecierpliwych:
+
+```bash
+# 1. Klon 6 repo (patron + 5 mcp-*)
+git clone matematicsolutions/patron && cd patron
+for d in mcp-saos mcp-nsa mcp-isap mcp-krs mcp-eu-sparql; do
+  (cd .. && git clone matematicsolutions/$d && cd $d && npm install && npm run build)
+done
+
+# 2. Bundle MCP do obrazu backendu
+node scripts/bundle-mcp.cjs
+
+# 3. Config sekretów
+cp .env.docker.example .env.docker
+nano .env.docker
+
+# 4. Up
+docker compose --env-file .env.docker up -d
+```
+
+Wymaga osobno postawionego Supabase + MinIO (osobne stack). Patrz runbook.
+
+## Governance (przed wdrożeniem)
+
+- [**Konstytucja AI Patrona v1.1.0**](./governance/CONSTITUTION.md) —
+  9 zasad, granice produktu, role (Administrator / Operator / Inspektor),
+  audyt, ewolucja. Mapa do AI Act art. 12, RODO art. 5/25/30, Etyki
+  zawodowej.
+- [**Implementation Playbook**](./governance/IMPLEMENTATION_PLAYBOOK.md) —
+  6-8 tygodni wdrożenia krok po kroku z macierzą RACI.
+- [**ADR**](./governance/adr/) — Architecture Decision Records
+  ([0001 hash-chain](./governance/adr/0001-hash-chain-audit-trail.md),
+  [0002 dual-license](./governance/adr/0002-dual-license-agpl-shell-mit-connectors.md)).
+
+Każda kancelaria przed wdrożeniem powinna **przeczytać i podpisać
+Konstytucję v1.1.0** (sekcja podpisów na końcu pliku).
+
+## Licencja
+
+Stack jest **dual-license** (zob. [ADR-0002](./governance/adr/0002-dual-license-agpl-shell-mit-connectors.md)):
+
+- `patron` (ten repo, powłoka) — **AGPL-3.0-only** ([LICENSE](./LICENSE) + [NOTICE](./NOTICE))
+- `mcp-saos`, `mcp-nsa`, `mcp-isap`, `mcp-krs`, `mcp-eu-sparql` — **MIT**
+
+Kancelaria self-host nie ma żadnych dodatkowych obowiązków poza
+prawem do używania, modyfikacji i dystrybucji wewnątrz organizacji.
+Konkurent oferujący Patrona jako SaaS dla osób trzecich musi
+otworzyć swoje modyfikacje.
+
+Patron jest forkiem [Mike](https://github.com/willchen96/mike) (MIT,
+©2025 Will Chen). Pełne attribution: [NOTICE](./NOTICE).
+
+---
+
+## Local development
+
+Reszta README opisuje uruchomienie lokalne (development). Dla wdrożenia
+produkcyjnego użyj `deploy/README.md` (Docker).
+
+### Contents (legacy)
 
 - `frontend/` - Next.js application
 - `backend/` - Express API, Supabase access, document processing, and database schema

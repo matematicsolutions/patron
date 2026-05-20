@@ -1,7 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-    /* config options here */
+    // Standalone output - minimalizuje rozmiar obrazu Dockera
+    // (kopiowane sa tylko realnie uzywane node_modules + .next/static + server).
+    output: "standalone",
     reactCompiler: true,
     async rewrites() {
         return [

@@ -13,6 +13,7 @@ import {
 import { completeText } from "../lib/llm";
 import { getUserApiKeys, getUserModelSettings } from "../lib/userSettings";
 import { checkProjectAccess } from "../lib/access";
+import { appendAuditEvent } from "../lib/audit";
 
 export const chatRouter = Router();
 
@@ -520,6 +521,18 @@ chatRouter.post("/", requireAuth, async (req, res) => {
             files: lastUser.files ?? null,
             workflow: lastUser.workflow ?? null,
         });
+        // Audit trail (AI Act art. 12): zapis zdarzenia user-input. Bez tresci
+        // (long PII) - tylko skrot (dlugosc, liczba plikow, workflow id).
+        void appendAuditEvent(db, {
+            event_type: "chat.message.user",
+            actor_user_id: userId,
+            chat_id: chatId,
+            payload: {
+                content_len: (lastUser.content ?? "").length,
+                file_count: lastUser.files?.length ?? 0,
+                workflow_id: lastUser.workflow?.id ?? null,
+            },
+        });
     }
 
     const { docIndex, docStore } = await buildDocContext(
@@ -561,7 +574,7 @@ chatRouter.post("/", requireAuth, async (req, res) => {
     try {
         write(`data: ${JSON.stringify({ type: "chat_id", chatId })}\n\n`);
 
-        const { fullText, events } = await runLLMStream({
+        const { fullText, events, mcpCitations } = await runLLMStream({
             apiMessages,
             docStore,
             docIndex,
@@ -579,12 +592,40 @@ chatRouter.post("/", requireAuth, async (req, res) => {
             eventCount: events?.length ?? 0,
         });
 
-        const annotations = extractAnnotations(fullText, docIndex, events);
+        const annotations = extractAnnotations(
+            fullText,
+            docIndex,
+            events,
+            mcpCitations,
+        );
         await db.from("chat_messages").insert({
             chat_id: chatId,
             role: "assistant",
             content: events.length ? events : null,
             annotations: annotations.length ? annotations : null,
+        });
+        // Audit trail (AI Act art. 12): zapis zdarzenia assistant-output.
+        // Bez pelnej tresci - tylko liczby + lista narzedzi MCP wywolanych
+        // w tej turze (po nazwie konektora i toola).
+        const mcpToolsCalled = Array.from(
+            new Set(mcpCitations.map((c) => `${c.server}__${c.tool}`)),
+        );
+        void appendAuditEvent(db, {
+            event_type: "chat.message.assistant",
+            actor_user_id: userId,
+            chat_id: chatId,
+            payload: {
+                model: model ?? null,
+                full_text_len: fullText.length,
+                event_count: events.length,
+                citation_count: annotations.filter(
+                    (a) =>
+                        (a as Record<string, unknown>).type ===
+                        "citation_data",
+                ).length,
+                mcp_citation_count: mcpCitations.length,
+                mcp_tools_called: mcpToolsCalled,
+            },
         });
 
         if (!chatTitle && lastUser?.content) {

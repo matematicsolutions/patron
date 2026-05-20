@@ -1,5 +1,7 @@
 node_modules
 backend/mcp-servers.json
+backend/mcp-servers.docker.json
+backend/mcp-bundled/
 .next
 dist
 out
@@ -10,6 +12,7 @@ build
 .env.*
 !.env.example
 !.env.local.example
+!.env.docker.example
 
 *.log
 *.tsbuildinfo

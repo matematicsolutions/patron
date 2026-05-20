@@ -1,0 +1,170 @@
+// Audit trail hash-chain dla zdarzen Patrona (AI Act art. 12 + RODO art. 32).
+//
+// Idea: kazdy rekord w `audit_log` zawiera `prev_hash` poprzedniego rekordu
+// oraz wlasny `hash` policzony z konkatenacji `prev_hash + canonical_json(...)`.
+// Modyfikacja albo usuniecie srodkowego rekordu zrywa lancuch i zostanie
+// wykryta przez weryfikator (`scripts/verify-audit-chain.ts`).
+//
+// Hash to SHA-256 hex (64 znaki, lower-case). Genesis = "0".repeat(64).
+//
+// Bezpieczne uzycie:
+//   await appendAuditEvent(db, {
+//     event_type: "chat.message.assistant",
+//     actor_user_id: userId,
+//     chat_id: chatId,
+//     payload: { model, full_text_len: fullText.length, citation_count, mcp_count },
+//   });
+//
+// UWAGA: payload trafia do bazy w pelnej formie - nie wkladaj tam pelnych
+// tresci dokumentow ani osobowych danych klientow kancelarii. Domyslnie
+// trzymaj sie skrotow (hashy, dlugosci, identyfikatorow).
+
+import crypto from "crypto";
+import type { createServerSupabase } from "./supabase";
+
+export const GENESIS_HASH = "0".repeat(64);
+
+export interface AuditEventInput {
+    /** Krotka nazwa zdarzenia, np. "chat.message.user", "tool.call.saos__search". */
+    event_type: string;
+    /** UUID uzytkownika z auth.users (jesli zdarzenie pochodzi od czlowieka). */
+    actor_user_id?: string | null;
+    /** UUID czatu w kontekscie ktorego zaszlo zdarzenie. */
+    chat_id?: string | null;
+    /** UUID dokumentu (np. dla doc.read / doc.edit). */
+    document_id?: string | null;
+    /** Dowolne ustrukturyzowane pola opisujace zdarzenie. Bez PII pelnotekstowego. */
+    payload?: Record<string, unknown>;
+}
+
+interface PreparedAuditRow extends AuditEventInput {
+    ts: string;
+    prev_hash: string;
+    hash: string;
+}
+
+/**
+ * Kanoniczna serializacja JSON - klucze sortowane alfabetycznie na kazdym
+ * poziomie zagniezdzenia. Daje deterministyczny ciag bajtow do hashowania.
+ * Akceptuje tylko JSON-safe wartosci (string, number, boolean, null, array, obj).
+ */
+export function canonicalJsonStringify(value: unknown): string {
+    if (value === null || typeof value !== "object") {
+        return JSON.stringify(value);
+    }
+    if (Array.isArray(value)) {
+        return `[${value.map(canonicalJsonStringify).join(",")}]`;
+    }
+    const keys = Object.keys(value as Record<string, unknown>).sort();
+    const parts = keys.map(
+        (k) =>
+            `${JSON.stringify(k)}:${canonicalJsonStringify(
+                (value as Record<string, unknown>)[k],
+            )}`,
+    );
+    return `{${parts.join(",")}}`;
+}
+
+/**
+ * Liczy hash rekordu audit_log na bazie poprzedniego hasha + serializowanej
+ * tresci (ts, event_type, actor_user_id, payload). Funkcja eksportowana
+ * zeby weryfikator mogl jej uzyc niezaleznie od wstawiania.
+ */
+export function computeAuditHash(args: {
+    prev_hash: string;
+    ts: string;
+    event_type: string;
+    actor_user_id?: string | null;
+    chat_id?: string | null;
+    document_id?: string | null;
+    payload?: Record<string, unknown>;
+}): string {
+    const canon = canonicalJsonStringify({
+        ts: args.ts,
+        event_type: args.event_type,
+        actor_user_id: args.actor_user_id ?? null,
+        chat_id: args.chat_id ?? null,
+        document_id: args.document_id ?? null,
+        payload: args.payload ?? {},
+    });
+    return crypto
+        .createHash("sha256")
+        .update(args.prev_hash + canon, "utf8")
+        .digest("hex");
+}
+
+/**
+ * Pobiera hash ostatniego rekordu audit_log (do uzycia jako prev_hash dla
+ * nowego). Zwraca GENESIS_HASH jesli tabela jest pusta.
+ */
+async function getLastHash(
+    db: ReturnType<typeof createServerSupabase>,
+): Promise<string> {
+    const { data, error } = await db
+        .from("audit_log")
+        .select("hash")
+        .order("id", { ascending: false })
+        .limit(1);
+    if (error) {
+        console.warn("[audit] cannot read last hash:", error.message);
+        return GENESIS_HASH;
+    }
+    const row = data?.[0] as { hash?: string } | undefined;
+    return row?.hash ?? GENESIS_HASH;
+}
+
+/**
+ * Dopisuje pojedyncze zdarzenie do audit_log z poprawnym hash-chainem.
+ * Nigdy nie rzuca - bledy logowane do konsoli (audit trail nie moze
+ * blokowac sciezki produktowej).
+ *
+ * UWAGA: w wielowątkowym scenariuszu (wiele rownoleglych zdarzen tego
+ * samego czatu) wystarczy ze pomiedzy `getLastHash` a `insert` wbiegnie
+ * inne zdarzenie - to bedzie kolizja na `hash unique`. Akceptujemy:
+ * insert retry-uje raz pobierajac swiezy prev_hash. Wykrycie kolizji
+ * przez unique constraint zapewnia ze lancuch zawsze pozostanie spojny.
+ */
+export async function appendAuditEvent(
+    db: ReturnType<typeof createServerSupabase>,
+    event: AuditEventInput,
+): Promise<{ ok: boolean; row?: PreparedAuditRow; error?: string }> {
+    for (let attempt = 0; attempt < 2; attempt++) {
+        const prev_hash = await getLastHash(db);
+        const ts = new Date().toISOString();
+        const hash = computeAuditHash({
+            prev_hash,
+            ts,
+            event_type: event.event_type,
+            actor_user_id: event.actor_user_id,
+            chat_id: event.chat_id,
+            document_id: event.document_id,
+            payload: event.payload,
+        });
+
+        const row = {
+            ts,
+            actor_user_id: event.actor_user_id ?? null,
+            event_type: event.event_type,
+            chat_id: event.chat_id ?? null,
+            document_id: event.document_id ?? null,
+            payload: event.payload ?? {},
+            prev_hash,
+            hash,
+        };
+
+        const { error } = await db.from("audit_log").insert(row);
+        if (!error) {
+            return { ok: true, row: { ...event, ts, prev_hash, hash } };
+        }
+        // 23505 = unique_violation w PostgreSQL. Wystapila race - retry.
+        if (
+            (error as { code?: string }).code === "23505" &&
+            attempt === 0
+        ) {
+            continue;
+        }
+        console.warn("[audit] insert failed:", error.message ?? error);
+        return { ok: false, error: error.message ?? String(error) };
+    }
+    return { ok: false, error: "exhausted retries" };
+}

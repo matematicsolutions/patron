@@ -13,6 +13,7 @@ import {
 } from "../lib/chatTools";
 import { getUserApiKeys } from "../lib/userSettings";
 import { checkProjectAccess } from "../lib/access";
+import { appendAuditEvent } from "../lib/audit";
 
 const PROJECT_SYSTEM_PROMPT_EXTRA = `PROJECT CONTEXT:
 You are operating within a project folder that contains a collection of legal documents the user has organised for a single matter. The user's questions will usually refer to one or more documents in this project — your job is to find the relevant files to work on. Use list_documents to see what is available and fetch_documents / read_document to pull in any documents you need before answering.
@@ -87,6 +88,17 @@ projectChatRouter.post("/", requireAuth, async (req, res) => {
             files: lastUser.files ?? null,
             workflow: lastUser.workflow ?? null,
         });
+        void appendAuditEvent(db, {
+            event_type: "chat.message.user",
+            actor_user_id: userId,
+            chat_id: chatId,
+            payload: {
+                project_id: projectId,
+                content_len: (lastUser.content ?? "").length,
+                file_count: lastUser.files?.length ?? 0,
+                workflow_id: lastUser.workflow?.id ?? null,
+            },
+        });
     }
 
     const { docIndex, docStore, folderPaths } = await buildProjectDocContext(
@@ -157,7 +169,7 @@ projectChatRouter.post("/", requireAuth, async (req, res) => {
     try {
         write(`data: ${JSON.stringify({ type: "chat_id", chatId })}\n\n`);
 
-        const { fullText, events } = await runLLMStream({
+        const { fullText, events, mcpCitations } = await runLLMStream({
             apiMessages,
             docStore,
             docIndex,
@@ -171,12 +183,38 @@ projectChatRouter.post("/", requireAuth, async (req, res) => {
             projectId,
         });
 
-        const annotations = extractAnnotations(fullText, docIndex, events);
+        const annotations = extractAnnotations(
+            fullText,
+            docIndex,
+            events,
+            mcpCitations,
+        );
         await db.from("chat_messages").insert({
             chat_id: chatId,
             role: "assistant",
             content: events.length ? events : null,
             annotations: annotations.length ? annotations : null,
+        });
+        const mcpToolsCalled = Array.from(
+            new Set(mcpCitations.map((c) => `${c.server}__${c.tool}`)),
+        );
+        void appendAuditEvent(db, {
+            event_type: "chat.message.assistant",
+            actor_user_id: userId,
+            chat_id: chatId,
+            payload: {
+                project_id: projectId,
+                model: model ?? null,
+                full_text_len: fullText.length,
+                event_count: events.length,
+                citation_count: annotations.filter(
+                    (a) =>
+                        (a as Record<string, unknown>).type ===
+                        "citation_data",
+                ).length,
+                mcp_citation_count: mcpCitations.length,
+                mcp_tools_called: mcpToolsCalled,
+            },
         });
 
         if (!chatTitle && lastUser?.content) {
