@@ -172,7 +172,7 @@ export function ProjectsOverview() {
         setProjects((prev) => prev.filter((p) => !owned.includes(p.id)));
         if (blocked > 0) {
             setOwnerOnlyAction(
-                `delete ${blocked} of the selected projects — only the project owner can delete a project`,
+                `${t("ownerOnly.actionDeleteReviewsBulkPrefix")} ${blocked} ${t("ownerOnly.actionDeleteProjectsBulkSuffix")}`,
             );
         }
     }

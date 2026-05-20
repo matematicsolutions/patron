@@ -504,7 +504,7 @@ export function ProjectPage({ projectId, initialTab = "documents" }: Props) {
         // Backend only lets the doc creator delete. Warn the requester
         // instead of letting the request 404 silently.
         if (doc && user?.id && doc.user_id && doc.user_id !== user.id) {
-            setOwnerOnlyAction("delete this document");
+            setOwnerOnlyAction(t("ownerOnly.actionDeleteDocument"));
             return;
         }
         await deleteDocument(docId);
@@ -555,7 +555,7 @@ export function ProjectPage({ projectId, initialTab = "documents" }: Props) {
         // Server-side this would 404 silently for non-owners; surface a
         // clear permission warning instead.
         if (project && project.is_owner === false) {
-            setOwnerOnlyAction("rename this project");
+            setOwnerOnlyAction(t("ownerOnly.actionRenameProject"));
             return;
         }
         setProject((prev) => (prev ? { ...prev, name: newName } : prev));
@@ -568,7 +568,7 @@ export function ProjectPage({ projectId, initialTab = "documents" }: Props) {
         if (!trimmed) return;
         const chat = chats.find((c) => c.id === chatId);
         if (chat && user?.id && chat.user_id !== user.id) {
-            setOwnerOnlyAction("rename this chat");
+            setOwnerOnlyAction(t("ownerOnly.actionRenameChat"));
             return;
         }
         setChats((prev) => prev.map((c) => (c.id === chatId ? { ...c, title: trimmed } : c)));
@@ -581,7 +581,7 @@ export function ProjectPage({ projectId, initialTab = "documents" }: Props) {
         if (!trimmed) return;
         const review = projectReviews.find((r) => r.id === reviewId);
         if (review && user?.id && review.user_id !== user.id) {
-            setOwnerOnlyAction("rename this tabular review");
+            setOwnerOnlyAction(t("ownerOnly.actionRenameReview"));
             return;
         }
         setProjectReviews((prev) => prev.map((r) => (r.id === reviewId ? { ...r, title: trimmed } : r)));
@@ -637,7 +637,7 @@ export function ProjectPage({ projectId, initialTab = "documents" }: Props) {
         );
         if (blocked > 0) {
             setOwnerOnlyAction(
-                `delete ${blocked} of the selected documents — only the document creator can delete a document`,
+                `${t("ownerOnly.actionDeleteReviewsBulkPrefix")} ${blocked} ${t("ownerOnly.actionDeleteDocumentsBulkSuffix")}`,
             );
         }
     }
@@ -655,7 +655,7 @@ export function ProjectPage({ projectId, initialTab = "documents" }: Props) {
         setChats((prev) => prev.filter((c) => !owned.includes(c.id)));
         if (blocked > 0) {
             setOwnerOnlyAction(
-                `delete ${blocked} of the selected chats — only the chat creator can delete a chat`,
+                `${t("ownerOnly.actionDeleteReviewsBulkPrefix")} ${blocked} ${t("ownerOnly.actionDeleteChatsBulkSuffix")}`,
             );
         }
     }
@@ -673,14 +673,14 @@ export function ProjectPage({ projectId, initialTab = "documents" }: Props) {
         setProjectReviews((prev) => prev.filter((r) => !owned.includes(r.id)));
         if (blocked > 0) {
             setOwnerOnlyAction(
-                `delete ${blocked} of the selected reviews — only the review creator can delete a review`,
+                `${t("ownerOnly.actionDeleteReviewsBulkPrefix")} ${blocked} ${t("ownerOnly.actionDeleteReviewsBulkSuffix")}`,
             );
         }
     }
 
     async function handleDeleteChatRow(chat: MikeChat) {
         if (user?.id && chat.user_id !== user.id) {
-            setOwnerOnlyAction("delete this chat");
+            setOwnerOnlyAction(t("ownerOnly.actionDeleteChat"));
             return;
         }
         await deleteChat(chat.id);
@@ -689,7 +689,7 @@ export function ProjectPage({ projectId, initialTab = "documents" }: Props) {
 
     async function handleDeleteReviewRow(review: TabularReview) {
         if (user?.id && review.user_id !== user.id) {
-            setOwnerOnlyAction("delete this tabular review");
+            setOwnerOnlyAction(t("ownerOnly.actionDeleteReview"));
             return;
         }
         await deleteTabularReview(review.id);

@@ -1,6 +1,7 @@
 "use client";
 
 import { FileText, File, X, AlertCircle, Loader2 } from "lucide-react";
+import { t } from "@/i18n";
 import type { MikeDocument } from "./types";
 
 interface Props {
@@ -57,9 +58,9 @@ export function DocumentCard({ document, onRemove, onClick, selected }: Props) {
         </p>
         <p className="text-xs text-gray-400">
           {isProcessing
-            ? "Processing…"
+            ? t("docs.processing")
             : isError
-            ? "Upload failed"
+            ? t("docs.uploadFailed")
             : [
                 document.size_bytes != null ? formatBytes(document.size_bytes) : null,
                 document.page_count ? `${document.page_count}p` : null,
@@ -76,7 +77,7 @@ export function DocumentCard({ document, onRemove, onClick, selected }: Props) {
             onRemove(document.id);
           }}
           className="shrink-0 rounded p-0.5 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
-          aria-label="Remove document"
+          aria-label={t("docs.removeDocument")}
         >
           <X className="h-3.5 w-3.5" />
         </button>

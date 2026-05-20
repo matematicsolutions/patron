@@ -3,6 +3,7 @@
 import { type Dispatch, type SetStateAction } from "react";
 import { Table2 } from "lucide-react";
 import { RowActions } from "@/app/components/shared/RowActions";
+import { t } from "@/i18n";
 import type { MikeDocument, TabularReview } from "@/app/components/shared/types";
 import { CHECK_W, formatDate, NAME_COL_W } from "./ProjectPageParts";
 
@@ -70,28 +71,28 @@ export function ProjectReviewsTab({
                 <div
                     className={`sticky left-8 z-[60] ${NAME_COL_W} bg-white pl-2 text-left`}
                 >
-                    Name
+                    {t("tabular.nameColumn")}
                 </div>
-                <div className="ml-auto w-24 shrink-0 text-left">Columns</div>
-                <div className="w-24 shrink-0 text-left">Documents</div>
-                <div className="w-32 shrink-0 text-left">Created</div>
+                <div className="ml-auto w-24 shrink-0 text-left">{t("tabular.columnsColumn")}</div>
+                <div className="w-24 shrink-0 text-left">{t("tabular.documentsColumn")}</div>
+                <div className="w-32 shrink-0 text-left">{t("tabular.createdColumn")}</div>
                 <div className="w-8 shrink-0" />
             </div>
             {reviews.length === 0 ? (
                 <div className="flex flex-col items-start py-24 w-full max-w-xs mx-auto">
                     <Table2 className="h-8 w-8 text-gray-300 mb-4" />
                     <p className="text-2xl font-medium font-serif text-gray-900">
-                        Tabular Reviews
+                        {t("tabular.listTitle")}
                     </p>
                     <p className="mt-1 text-xs text-gray-400 max-w-xs">
-                        Extract data from project documents into tables using AI.
+                        {t("tabular.emptyBody")}
                     </p>
                     <button
                         onClick={onCreateReview}
                         disabled={creatingReview || docs.length === 0}
                         className="mt-4 inline-flex items-center gap-1 rounded-full bg-gray-900 px-3 py-1 text-xs font-medium text-white hover:bg-gray-700 transition-colors shadow-md disabled:opacity-40"
                     >
-                        + Create New
+                        {t("tabular.emptyCta")}
                     </button>
                 </div>
             ) : (
@@ -152,7 +153,7 @@ export function ProjectReviewsTab({
                                     />
                                 ) : (
                                     <span className="text-sm text-gray-800 truncate block">
-                                        {review.title ?? "Untitled Review"}
+                                        {review.title ?? t("tabular.untitledReview")}
                                     </span>
                                 )}
                             </div>
@@ -180,12 +181,12 @@ export function ProjectReviewsTab({
                                             review.user_id !== currentUserId
                                         ) {
                                             onOwnerOnlyAction(
-                                                "rename this tabular review",
+                                                t("ownerOnly.actionRenameReview"),
                                             );
                                             return;
                                         }
                                         setRenameReviewValue(
-                                            review.title ?? "Untitled Review",
+                                            review.title ?? t("tabular.untitledReview"),
                                         );
                                         setRenamingReviewId(review.id);
                                     }}

@@ -193,6 +193,9 @@ export const pl = {
         attached: "Załączone",
         attachment: "Załącznik",
         attachments: "Załączniki",
+        // DocumentCard - statusy przetwarzania
+        processing: "Przetwarzam…",
+        uploadFailed: "Nie udało się wczytać",
     },
 
     // ---------------------------------------------------------------------
@@ -251,18 +254,18 @@ export const pl = {
         failedUpdateOrganisation:
             "Nie udało się zapisać kancelarii. Spróbuj ponownie.",
         // Strona Konto - plan
-        usagePlan: "Plan użytkowania",
+        usagePlan: "Twój plan",
         planFree: "Darmowy",
         // Strona Konto - akcje
         actions: "Akcje",
         // Strona Konto - strefa zagrozenia
         dangerZone: "Strefa zagrożenia",
         dangerZoneNote:
-            "Trwale usuń konto i wszystkie powiązane dane. Operacja jest nieodwracalna.",
+            "Trwale usuń konto i wszystkie powiązane dane. Tej akcji nie cofniesz.",
         deleteAccount: "Usuń konto",
         deleting: "Usuwanie…",
         deleteAccountConfirm:
-            "Na pewno? Twoje konto zostanie trwale usunięte.",
+            "Na pewno? Konto i wszystkie dane usuniemy trwale.",
         failedDeleteAccount:
             "Nie udało się usunąć konta. Spróbuj ponownie.",
     },
@@ -286,7 +289,7 @@ export const pl = {
         googleKeyLabel: "Google (Gemini) - klucz API",
         openaiKeyLabel: "OpenAI - klucz API",
         serverKeyConfigured:
-            "Klucz po stronie serwera jest skonfigurowany. Edycja klucza w przeglądarce jest wyłączona.",
+            "Administrator ustawił klucz w pliku .env serwera. Nie zmienisz go w przeglądarce.",
         serverKeyWillBeUsed: "Patron użyje klucza z serwera.",
         serverKeyPlaceholder: "Klucz po stronie serwera",
         savedKeyHidden: "Zapisany klucz ukryty",
@@ -601,6 +604,38 @@ export const pl = {
             "z zaznaczonych projektów - usunąć projekt może tylko jego właściciel",
         actionDeleteDocumentsMany:
             "usunąć te dokumenty - dokument może usunąć tylko jego twórca",
+    },
+
+    // ---------------------------------------------------------------------
+    // ShareWorkflowModal - udostepnianie workflow innym osobom
+    // ---------------------------------------------------------------------
+    workflowShare: {
+        cannotShareSelf: "Nie możesz udostępnić workflow samemu sobie.",
+        addPeoplePlaceholder: "Dodaj osoby przez email…",
+        allowEditing: "Pozwól edytować",
+        peopleWithAccess: "Osoby z dostępem",
+        canEdit: "Może edytować",
+        sharing: "Udostępniam…",
+        share: "Udostępnij",
+    },
+
+    // ---------------------------------------------------------------------
+    // WFColumnViewModal - podglad kolumny workflow
+    // ---------------------------------------------------------------------
+    workflowColumn: {
+        title: "Tytuł kolumny",
+        tags: "Tagi",
+        noPromptDefined: "_Brak polecenia._",
+    },
+
+    // ---------------------------------------------------------------------
+    // ProjectPicker - wybor projektu (np. przy przenoszeniu przegladu)
+    // ---------------------------------------------------------------------
+    projectPicker: {
+        searchPlaceholder: "Szukaj projektów…",
+        projectsLabel: "Projekty",
+        // noMatches: reuse common.noMatches
+        // noProjectsYet: reuse nav.noProjectsYet
     },
 } as const;
 

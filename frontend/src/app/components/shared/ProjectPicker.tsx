@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Folder, Search, X } from "lucide-react";
+import { t } from "@/i18n";
 import type { MikeProject } from "./types";
 
 interface Props {
@@ -23,7 +24,7 @@ export function ProjectPicker({ projects, loading, selectedId, onSelect }: Props
                     <Search className="h-3.5 w-3.5 text-gray-400 shrink-0" />
                     <input
                         type="text"
-                        placeholder="Search projects…"
+                        placeholder={t("projectPicker.searchPlaceholder")}
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
                         className="flex-1 bg-transparent text-sm text-gray-700 placeholder:text-gray-400 outline-none"
@@ -52,12 +53,12 @@ export function ProjectPicker({ projects, loading, selectedId, onSelect }: Props
                     </div>
                 ) : filtered.length === 0 ? (
                     <p className="text-center text-sm text-gray-400 py-8">
-                        {q ? "No matches found" : "No projects yet"}
+                        {q ? t("common.noMatches") : t("nav.noProjectsYet")}
                     </p>
                 ) : (
                     <div className="rounded-sm border border-gray-100 overflow-hidden">
                         <div className="flex items-center justify-between px-2 py-2">
-                            <p className="text-xs font-medium text-gray-400">Projects</p>
+                            <p className="text-xs font-medium text-gray-400">{t("projectPicker.projectsLabel")}</p>
                         </div>
                         <div className="space-y-px">
                             {filtered.map((project) => {

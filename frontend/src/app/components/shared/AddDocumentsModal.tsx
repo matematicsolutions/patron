@@ -14,6 +14,7 @@ import { FileDirectory } from "./FileDirectory";
 import { useDirectoryData, invalidateDirectoryCache } from "./useDirectoryData";
 import { OwnerOnlyModal } from "./OwnerOnlyModal";
 import { useAuth } from "@/contexts/AuthContext";
+import { t } from "@/i18n";
 
 export { invalidateDirectoryCache };
 
@@ -148,9 +149,7 @@ export function AddDocumentsModal({
         });
         const blocked = ids.length - owned.length;
         if (owned.length === 0 && blocked > 0) {
-            setOwnerOnlyAction(
-                "delete these documents — only the document creator can delete a document",
-            );
+            setOwnerOnlyAction(t("ownerOnly.actionDeleteDocumentsMany"));
             return;
         }
         const idSet = new Set(owned);
@@ -169,7 +168,7 @@ export function AddDocumentsModal({
         });
         if (blocked > 0) {
             setOwnerOnlyAction(
-                `delete ${blocked} of the selected documents — only the document creator can delete a document`,
+                `${t("ownerOnly.actionDeleteReviewsBulkPrefix")} ${blocked} ${t("ownerOnly.actionDeleteDocumentsBulkSuffix")}`,
             );
         }
     }
