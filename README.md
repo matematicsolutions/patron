@@ -1,8 +1,16 @@
 # Patron
 
+[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](./LICENSE)
+[![Tests](https://img.shields.io/badge/tests-69%2F69_passing-brightgreen)](./backend)
+[![AI Act](https://img.shields.io/badge/AI_Act-Art._12_record--keeping-orange)](./governance/CONSTITUTION.md)
+[![RODO](https://img.shields.io/badge/RODO-art._5%2F25%2F30%2F32-orange)](./governance/CONSTITUTION.md)
+[![Stack](https://img.shields.io/badge/stack-zero--cloud-success)](./governance/CONSTITUTION.md)
+[![MCP](https://img.shields.io/badge/MCP-5_connectors_PL-blue)](https://github.com/matematicsolutions)
+[![Node](https://img.shields.io/badge/Node-20%2B-brightgreen)](https://nodejs.org)
+
 > **Lokalny agent AI dla polskiej kancelarii prawnej.** Self-host
-> zero-cloud (Postgres + MinIO), 4 konektory polskiego prawa
-> (SAOS / NSA / ISAP / EUR-Lex), audit trail z hash-chain (AI Act art. 12),
+> zero-cloud (Postgres + MinIO), 5 konektorów polskiego prawa
+> (SAOS / NSA / ISAP / KRS / EUR-Lex), audit trail z hash-chain (AI Act art. 12),
 > bring-your-own-model (Gemini / Claude / Ollama lokalny).
 
 Patron jest forkiem [Mike](https://github.com/willchen96/mike) (legalny dokumentowy
