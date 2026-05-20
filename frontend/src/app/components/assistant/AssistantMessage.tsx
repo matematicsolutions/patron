@@ -160,8 +160,8 @@ function BulkEditActions({
                         versionId: annotation.version_id ?? null,
                         message:
                             verb === "accept"
-                                ? "Couldn't save one or more accepts."
-                                : "Couldn't save one or more rejects.",
+                                ? t("chat.bulkAcceptFailed")
+                                : t("chat.bulkRejectFailed"),
                     });
                 }
                 done++;
@@ -283,7 +283,11 @@ function EditCardsSection({
                 </p>
                 <button
                     onClick={() => setIsOpen((v) => !v)}
-                    aria-label={isOpen ? "Collapse edits" : "Expand edits"}
+                    aria-label={
+                        isOpen
+                            ? t("chat.collapseEdits")
+                            : t("chat.expandEdits")
+                    }
                     className="shrink-0 rounded p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-800 transition-colors"
                 >
                     <ChevronDown
@@ -359,13 +363,17 @@ function ResponseStatus({ status }: { status: StatusState }) {
 // Event block components
 // ---------------------------------------------------------------------------
 
-const THINKING_PHRASES = [
-    "Thinking...",
-    "Pondering...",
-    "Analyzing...",
-    "Reviewing...",
-    "Reasoning...",
-];
+// Frazy "thinking" - i18n. Definiowane jako funkcja, by t() bylo wolane
+// na kazdym renderze (a nie raz przy module-init, gdy slownik nie jest gotowy).
+function thinkingPhrases(): string[] {
+    return [
+        t("chat.thinking1"),
+        t("chat.thinking2"),
+        t("chat.thinking3"),
+        t("chat.thinking4"),
+        t("chat.thinking5"),
+    ];
+}
 
 function ReasoningBlock({
     text,
@@ -381,8 +389,9 @@ function ReasoningBlock({
 
     useEffect(() => {
         if (!isStreaming) return;
+        const len = thinkingPhrases().length;
         const interval = setInterval(() => {
-            setThinkingIndex((i) => (i + 1) % THINKING_PHRASES.length);
+            setThinkingIndex((i) => (i + 1) % len);
         }, 2000);
         return () => clearInterval(interval);
     }, [isStreaming]);
@@ -405,8 +414,8 @@ function ReasoningBlock({
                 )}
                 <span className="font-medium ml-2">
                     {isStreaming
-                        ? THINKING_PHRASES[thinkingIndex]
-                        : "Thought process"}
+                        ? thinkingPhrases()[thinkingIndex]
+                        : t("chat.thoughtProcess")}
                 </span>
                 {!isStreaming && (
                     <ChevronDown
@@ -459,7 +468,9 @@ function DocReadBlock({
             )}
             <div className="ml-2 min-w-0 flex-1 whitespace-normal break-words">
                 <span className="font-medium">
-                    {isStreaming ? "Reading" : "Read"}
+                    {isStreaming
+                        ? t("chat.readingActive")
+                        : t("chat.readingDone")}
                 </span>{" "}
                 {isStreaming ? (
                     <span>{filename}...</span>
@@ -491,10 +502,21 @@ function DocFindBlock({
     isStreaming?: boolean;
     showConnector?: boolean;
 }) {
-    const label = isStreaming ? "Finding" : "Found";
+    const label = isStreaming
+        ? t("chat.findingActive")
+        : t("chat.findingDone");
+    // Polska deklinacja "match": 1 trafienie / 2-4 trafienia / 5+ trafien
+    function matchWord(n: number): string {
+        const lastTwo = n % 100;
+        const last = n % 10;
+        if (n === 1) return "trafienie";
+        if (lastTwo >= 12 && lastTwo <= 14) return "trafień";
+        if (last >= 2 && last <= 4) return "trafienia";
+        return "trafień";
+    }
     const matchSuffix = isStreaming
         ? ""
-        : ` (${totalMatches} ${totalMatches === 1 ? "match" : "matches"})`;
+        : ` (${totalMatches} ${matchWord(totalMatches)})`;
     return (
         <div className="flex items-start text-sm font-serif text-gray-500 relative">
             {showConnector && (
@@ -510,8 +532,8 @@ function DocFindBlock({
             <div className="ml-2 min-w-0 flex-1 whitespace-normal break-words">
                 <span className="font-medium">{label}</span>{" "}
                 <span>
-                    &ldquo;{query}&rdquo;{matchSuffix}
-                    <span className="ml-1 text-gray-400">in {filename}</span>
+                    „{query}"{matchSuffix}
+                    <span className="ml-1 text-gray-400">w {filename}</span>
                     {isStreaming && "..."}
                 </span>
             </div>
@@ -540,7 +562,9 @@ function DocCreatedBlock({
             )}
             <div className="ml-2 min-w-0 flex-1 whitespace-normal break-words">
                 <span className="font-medium">
-                    {isStreaming ? "Creating" : "Created"}
+                    {isStreaming
+                        ? t("chat.creatingActive")
+                        : t("chat.creatingDone")}
                 </span>{" "}
                 <span>{isStreaming ? `${filename}...` : filename}</span>
             </div>
@@ -565,7 +589,9 @@ function DocReplicatedBlock({
     isStreaming?: boolean;
     hasError?: boolean;
 }) {
-    const label = isStreaming ? "Replicating" : "Replicated";
+    const label = isStreaming
+        ? t("chat.replicatingActive")
+        : t("chat.replicatingDone");
     const suffix =
         !isStreaming && count > 1 ? ` ${count} times` : isStreaming ? "..." : "";
     return (
@@ -790,10 +816,10 @@ function DocEditedBlock({
             <div className="ml-2 min-w-0 flex-1 whitespace-normal break-words">
                 <span className="font-medium">
                     {isStreaming
-                        ? "Editing"
+                        ? t("chat.editingActive")
                         : hasError
-                          ? "Edit failed"
-                          : "Edited"}
+                          ? t("chat.editingFailed")
+                          : t("chat.editingDone")}
                 </span>{" "}
                 <span>{isStreaming ? `${filename}...` : filename}</span>
             </div>
@@ -1661,18 +1687,18 @@ export function AssistantMessage({
 function mcpServerLabel(server: string): string {
     switch (server) {
         case "saos":
-            return "Orzeczenia z SAOS (sądy powszechne, SN, TK, KIO)";
+            return t("citations.saos");
         case "nsa":
-            return "Orzeczenia z CBOSA (NSA / WSA — sądy administracyjne)";
+            return t("citations.nsa");
         case "isap":
-            return "Akty prawa polskiego (Dz.U. / M.P. — Sejm ELI)";
+            return t("citations.isap");
         case "eu-sparql":
         case "eurlex":
-            return "Akty prawa UE (EUR-Lex / CJEU)";
+            return t("citations.euSparql");
         case "krs":
-            return "Krajowy Rejestr Sądowy (KRS — MS)";
+            return t("citations.krs");
         default:
-            return `Powiązane źródła (${server})`;
+            return `${t("citations.unknownServer")} (${server})`;
     }
 }
 

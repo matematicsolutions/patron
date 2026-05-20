@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import type { MikeEditAnnotation } from "../shared/types";
+import { t } from "@/i18n";
 
 function normalizeText(s: string) {
     return s.replace(/\s+/g, " ").trim();
@@ -286,8 +287,8 @@ export function EditCard({
                 versionId: annotation.version_id ?? null,
                 message:
                     verb === "accept"
-                        ? "Couldn't save accept — reverted."
-                        : "Couldn't save reject — reverted.",
+                        ? t("edit.revertAccept")
+                        : t("edit.revertReject"),
             });
         } finally {
             setBusy(false);
@@ -319,27 +320,23 @@ export function EditCard({
                     disabled={inFlight || resolved}
                     className="px-2 py-1 text-xs rounded border border-gray-900 bg-gray-900 text-white hover:bg-gray-800 disabled:opacity-50"
                 >
-                    {status === "accepted" ? "Accepted" : "Accept"}
+                    {status === "accepted" ? t("edit.accepted") : t("edit.accept")}
                 </button>
                 <button
                     onClick={() => handle("reject")}
                     disabled={inFlight || resolved}
                     className="px-2 py-1 text-xs rounded border border-gray-200 bg-white text-gray-700 hover:bg-gray-100 disabled:opacity-50"
                 >
-                    {status === "rejected" ? "Rejected" : "Reject"}
+                    {status === "rejected" ? t("edit.rejected") : t("edit.reject")}
                 </button>
                 {onViewClick && (
                     <button
                         onClick={() => onViewClick(annotation)}
                         disabled={resolved}
-                        title={
-                            resolved
-                                ? "This change has been resolved and is no longer in the document."
-                                : undefined
-                        }
+                        title={resolved ? t("edit.resolvedNote") : undefined}
                         className="ml-auto px-2 py-1 text-xs rounded border border-gray-200 bg-white text-gray-700 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-white"
                     >
-                        View
+                        {t("common.open")}
                     </button>
                 )}
             </div>

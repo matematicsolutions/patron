@@ -12,6 +12,7 @@ import { FileDirectory } from "../shared/FileDirectory";
 import { EmailPillInput } from "../shared/EmailPillInput";
 import type { MikeProject } from "../shared/types";
 import { useAuth } from "@/contexts/AuthContext";
+import { t } from "@/i18n";
 
 interface Props {
     open: boolean;
@@ -64,7 +65,9 @@ export function NewProjectModal({ open, onClose, onCreated }: Props) {
             resetForm();
             onClose();
         } catch (err: unknown) {
-            setError((err as Error).message || "Failed to create project");
+            setError(
+                (err as Error).message || t("modals.failedCreateProject"),
+            );
         } finally {
             setLoading(false);
         }
@@ -91,9 +94,9 @@ export function NewProjectModal({ open, onClose, onCreated }: Props) {
                 {/* Header */}
                 <div className="flex items-center justify-between px-6 pt-5 pb-2">
                     <div className="flex items-center gap-1.5 text-xs text-gray-400">
-                        <span>Projects</span>
+                        <span>{t("nav.projects")}</span>
                         <span>›</span>
-                        <span>New project</span>
+                        <span>{t("modals.breadcrumbNewProject")}</span>
                     </div>
                     <button
                         onClick={handleClose}
@@ -110,7 +113,7 @@ export function NewProjectModal({ open, onClose, onCreated }: Props) {
                             type="text"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
-                            placeholder="Project name"
+                            placeholder={t("modals.projectNamePlaceholder")}
                             className="w-full text-2xl font-serif text-gray-800 placeholder-gray-300 focus:outline-none bg-transparent"
                             autoFocus
                         />
@@ -120,7 +123,7 @@ export function NewProjectModal({ open, onClose, onCreated }: Props) {
                             type="text"
                             value={cmNumber}
                             onChange={(e) => setCmNumber(e.target.value)}
-                            placeholder="Add a CM number..."
+                            placeholder={t("modals.cmNumberPlaceholder")}
                             className="mt-1.5 w-full text-sm text-gray-500 placeholder-gray-300 focus:outline-none bg-transparent"
                         />
 
@@ -132,7 +135,7 @@ export function NewProjectModal({ open, onClose, onCreated }: Props) {
                                 className="flex items-center gap-1.5 rounded-full border border-gray-200 px-3 py-1 text-xs text-gray-600 hover:bg-gray-50 transition-colors"
                             >
                                 <Users className="h-3 w-3 text-gray-400" />
-                                Members{sharedEmails.length > 0 ? ` (${sharedEmails.length})` : ""}
+                                {t("modals.members")}{sharedEmails.length > 0 ? ` (${sharedEmails.length})` : ""}
                             </button>
                         </div>
 
@@ -144,24 +147,24 @@ export function NewProjectModal({ open, onClose, onCreated }: Props) {
                                     onChange={setSharedEmails}
                                     validate={async (email) =>
                                         ownEmail && email === ownEmail
-                                            ? "You cannot share a project with yourself."
+                                            ? t("modals.cannotShareWithSelf")
                                             : null
                                     }
-                                    placeholder="Add colleagues by email…"
+                                    placeholder={t("modals.addColleagues")}
                                 />
                             </div>
                         )}
 
                         {/* Documents */}
                         <div className="mt-4 space-y-2">
-                            <p className="text-xs font-medium text-gray-700">Select documents</p>
+                            <p className="text-xs font-medium text-gray-700">{t("modals.selectDocuments")}</p>
                                 <FileDirectory
                                     standaloneDocs={standaloneDocuments}
                                     directoryProjects={dirProjects}
                                     loading={dirLoading}
                                     selectedIds={selectedDocIds}
                                     onChange={setSelectedDocIds}
-                                    emptyMessage="No existing documents"
+                                    emptyMessage={t("modals.noExistingDocuments")}
                                 />
 
                         </div>
@@ -187,7 +190,7 @@ export function NewProjectModal({ open, onClose, onCreated }: Props) {
                                 className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-gray-500 hover:bg-gray-50 transition-colors"
                             >
                                 <Upload className="h-3.5 w-3.5" />
-                                Upload files{pendingFiles.length > 0 ? ` (${pendingFiles.length})` : ""}
+                                {t("modals.uploadFiles")}{pendingFiles.length > 0 ? ` (${pendingFiles.length})` : ""}
                             </button>
                         </div>
                         <div className="flex items-center gap-2">
@@ -196,14 +199,16 @@ export function NewProjectModal({ open, onClose, onCreated }: Props) {
                                 onClick={handleClose}
                                 className="rounded-lg px-4 py-2 text-sm text-gray-500 hover:bg-gray-100 transition-colors"
                             >
-                                Cancel
+                                {t("common.cancel")}
                             </button>
                             <button
                                 type="submit"
                                 disabled={!name.trim() || loading}
                                 className="rounded-lg bg-gray-900 px-5 py-2 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-40 transition-colors"
                             >
-                                {loading ? "Creating…" : "Create project"}
+                                {loading
+                                    ? t("modals.creating")
+                                    : t("modals.createProject")}
                             </button>
                         </div>
                     </div>

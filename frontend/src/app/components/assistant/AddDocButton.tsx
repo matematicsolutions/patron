@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { uploadStandaloneDocument } from "@/app/lib/mikeApi";
 import type { MikeDocument } from "../shared/types";
+import { t } from "@/i18n";
 
 interface Props {
     onSelectDoc: (doc: MikeDocument) => void;
@@ -57,8 +58,8 @@ export function AddDocButton({ onSelectDoc, onBrowseAll, selectedDocIds = [] }: 
                                 ? "text-black hover:bg-gray-100"
                                 : "text-gray-400 hover:text-gray-700 hover:bg-gray-100"
                         } ${isOpen ? "bg-gray-100" : ""}`}
-                        title="Add documents"
-                        aria-label="Add documents"
+                        title={t("chat.addDocuments")}
+                        aria-label={t("chat.addDocuments")}
                     >
                         {selectedDocIds.length > 0 ? (
                             <span className="font-medium tabular-nums">{selectedDocIds.length}</span>
@@ -69,8 +70,8 @@ export function AddDocButton({ onSelectDoc, onBrowseAll, selectedDocIds = [] }: 
                         )}
                         <span className="hidden sm:inline">
                             {selectedDocIds.length === 1
-                                ? "Document"
-                                : "Documents"}
+                                ? t("docs.attachment")
+                                : t("docs.attachments")}
                         </span>
                     </button>
                 </DropdownMenuTrigger>

@@ -1,6 +1,7 @@
 import { X, Link2, Check } from "lucide-react";
 import { useState } from "react";
 import { createPortal } from "react-dom";
+import { t } from "@/i18n";
 
 interface SimpleLinkDialogProps {
     isOpen: boolean;
@@ -48,7 +49,7 @@ export function SimpleLinkDialog({
                     {/* Header */}
                     <div className="flex items-center justify-between mb-6">
                         <h2 className="text-3xl font-light font-eb-garamond text-gray-900">
-                            Share Chat
+                            {t("modals.shareTitle")}
                         </h2>
                     </div>
 
@@ -57,7 +58,7 @@ export function SimpleLinkDialog({
                         {/* Link display */}
                         <div className="bg-gray-50 rounded-lg p-3 border border-gray-200">
                             <p className="text-sm text-gray-600 mb-2 font-medium">
-                                Share Link
+                                {t("modals.shareLinkLabel")}
                             </p>
                             <p className="text-sm text-gray-800 break-all font-mono">
                                 {shareUrl}
@@ -72,12 +73,12 @@ export function SimpleLinkDialog({
                             {linkCopied ? (
                                 <>
                                     <Check className="h-5 w-5" />
-                                    Copied!
+                                    {t("modals.linkCopied")}
                                 </>
                             ) : (
                                 <>
                                     <Link2 className="h-5 w-5" />
-                                    Copy Link
+                                    {t("modals.copyLink")}
                                 </>
                             )}
                         </button>

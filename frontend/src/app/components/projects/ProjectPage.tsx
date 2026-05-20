@@ -78,6 +78,7 @@ import {
 } from "./ProjectPageParts";
 import { ProjectAssistantTab } from "./ProjectAssistantTab";
 import { ProjectReviewsTab } from "./ProjectReviewsTab";
+import { t } from "@/i18n";
 
 interface Props {
     projectId: string;
@@ -786,7 +787,7 @@ export function ProjectPage({ projectId, initialTab = "documents" }: Props) {
                         <input
                             autoFocus
                             className="flex-1 min-w-0 text-sm text-gray-800 bg-transparent outline-none border-b border-gray-300"
-                            placeholder="Folder name"
+                            placeholder={t("projects.folderNamePlaceholder")}
                             value={newFolderName}
                             onChange={(e) => setNewFolderName(e.target.value)}
                             onKeyDown={(e) => {
@@ -1003,7 +1004,7 @@ export function ProjectPage({ projectId, initialTab = "documents" }: Props) {
                                                 setRenameDocumentValue(doc.filename);
                                                 setRenamingDocumentId(doc.id);
                                             }}
-                                            renameLabel="Rename document"
+                                            renameLabel={t("projects.renameDocument")}
                                             onDownload={() => downloadDoc(doc.id)}
                                             onShowAllVersions={
                                                 hasVersions && !isVersionsOpen
@@ -1264,9 +1265,12 @@ export function ProjectPage({ projectId, initialTab = "documents" }: Props) {
 
             <ToolbarTabs
                 tabs={[
-                    { id: "documents", label: "Documents" },
-                    { id: "assistant", label: "Assistant" },
-                    { id: "reviews", label: "Tabular Reviews" },
+                    { id: "documents", label: t("projects.tabDocuments") },
+                    { id: "assistant", label: t("projects.tabAssistant") },
+                    {
+                        id: "reviews",
+                        label: t("projects.tabTabularReviews"),
+                    },
                 ]}
                 active={tab}
                 onChange={handleTabChange}
@@ -1494,7 +1498,7 @@ export function ProjectPage({ projectId, initialTab = "documents" }: Props) {
                                                                     setRenameDocumentValue(doc.filename);
                                                                     setRenamingDocumentId(doc.id);
                                                                 }}
-                                                                renameLabel="Rename document"
+                                                                renameLabel={t("projects.renameDocument")}
                                                                 onDownload={() => downloadDoc(doc.id)}
                                                                 onShowAllVersions={
                                                                     hasVersions && !isVersionsOpen
@@ -1568,7 +1572,7 @@ export function ProjectPage({ projectId, initialTab = "documents" }: Props) {
                                                         menuDoc.id,
                                                     );
                                                 }}
-                                                renameLabel="Rename document"
+                                                renameLabel={t("projects.renameDocument")}
                                                 onDownload={() => downloadDoc(menuDoc.id)}
                                                 onShowAllVersions={
                                                     menuDocHasVersions && !menuDocVersionsOpen
@@ -1610,8 +1614,8 @@ export function ProjectPage({ projectId, initialTab = "documents" }: Props) {
                                                 }}
                                                 newSubfolderLabel={
                                                     contextMenu.showFolderActions
-                                                        ? "New subfolder inside"
-                                                        : "New subfolder"
+                                                        ? t("projects.newSubfolderInside")
+                                                        : t("projects.newSubfolder")
                                                 }
                                                 onRename={
                                                     contextMenu.showFolderActions &&
@@ -1632,7 +1636,7 @@ export function ProjectPage({ projectId, initialTab = "documents" }: Props) {
                                                           }
                                                         : undefined
                                                 }
-                                                renameLabel="Rename folder"
+                                                renameLabel={t("projects.renameFolder")}
                                                 onDelete={
                                                     contextMenu.showFolderActions &&
                                                     contextMenu.folderId
@@ -1642,7 +1646,7 @@ export function ProjectPage({ projectId, initialTab = "documents" }: Props) {
                                                               )
                                                         : undefined
                                                 }
-                                                deleteLabel="Delete folder"
+                                                deleteLabel={t("projects.deleteFolder")}
                                             />
                                         )}
                                     </div>
@@ -1713,7 +1717,12 @@ export function ProjectPage({ projectId, initialTab = "documents" }: Props) {
                 open={addDocsOpen}
                 onClose={() => setAddDocsOpen(false)}
                 onSelect={handleDocsSelected}
-                breadcrumb={["Projects", project.name + (project.cm_number ? ` (${project.cm_number})` : ""), "Add Documents"]}
+                breadcrumb={[
+                    t("projects.breadcrumbProjects"),
+                    project.name +
+                        (project.cm_number ? ` (${project.cm_number})` : ""),
+                    t("projects.breadcrumbAddDocs"),
+                ]}
                 projectId={projectId}
             />
 
@@ -1759,12 +1768,12 @@ export function ProjectPage({ projectId, initialTab = "documents" }: Props) {
                 fetchPeople={getProjectPeople}
                 currentUserEmail={user?.email ?? null}
                 breadcrumb={[
-                    "Projects",
+                    t("projects.breadcrumbProjects"),
                     project
                         ? project.name +
                           (project.cm_number ? ` (${project.cm_number})` : "")
                         : "",
-                    "People",
+                    t("projects.breadcrumbPeople"),
                 ]}
                 // Only owners may modify the member list. Without this prop
                 // PeopleModal renders read-only — non-owners can still see

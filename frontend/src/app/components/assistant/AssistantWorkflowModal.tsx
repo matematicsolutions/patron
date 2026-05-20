@@ -8,6 +8,7 @@ import remarkGfm from "remark-gfm";
 import type { MikeWorkflow } from "../shared/types";
 import { listWorkflows } from "@/app/lib/mikeApi";
 import { BUILT_IN_WORKFLOWS } from "../workflows/builtinWorkflows";
+import { t } from "@/i18n";
 
 interface Props {
     open: boolean;
@@ -97,7 +98,7 @@ export function AssistantWorkflowModal({
                     <div className="flex items-center gap-1.5 text-xs text-gray-400">
                         {projectName ? (
                             <>
-                                <span>Projects</span>
+                                <span>{t("nav.projects")}</span>
                                 <span>›</span>
                                 <span>
                                     {projectName}
@@ -106,15 +107,15 @@ export function AssistantWorkflowModal({
                                         : ""}
                                 </span>
                                 <span>›</span>
-                                <span>Assistant</span>
+                                <span>{t("chat.breadcrumbAssistant")}</span>
                                 <span>›</span>
-                                <span>Add workflow</span>
+                                <span>{t("workflows.addWorkflow")}</span>
                             </>
                         ) : (
                             <>
-                                <span>Assistant</span>
+                                <span>{t("chat.breadcrumbAssistant")}</span>
                                 <span>›</span>
-                                <span>Add workflow</span>
+                                <span>{t("workflows.addWorkflow")}</span>
                             </>
                         )}
                     </div>
@@ -138,7 +139,7 @@ export function AssistantWorkflowModal({
                                 <Search className="h-3 w-3 text-gray-400 shrink-0" />
                                 <input
                                     type="text"
-                                    placeholder="Search workflows…"
+                                    placeholder={t("workflows.searchPlaceholder")}
                                     value={search}
                                     onChange={(e) => setSearch(e.target.value)}
                                     className="flex-1 bg-transparent text-xs text-gray-700 placeholder:text-gray-400 outline-none"
@@ -168,7 +169,9 @@ export function AssistantWorkflowModal({
                             </div>
                         ) : filteredWorkflows.length === 0 ? (
                             <p className="px-4 py-8 text-sm text-center text-gray-400">
-                                {search ? "No matches found" : "No assistant workflows found"}
+                                {search
+                                    ? t("common.noMatches")
+                                    : t("workflows.noWorkflowsFound")}
                             </p>
                         ) : (
                             filteredWorkflows.map((wf) => (
@@ -190,7 +193,9 @@ export function AssistantWorkflowModal({
                                         {wf.title}
                                     </span>
                                     <span className="shrink-0 text-xs text-gray-400">
-                                        {wf.is_system ? "Built-in" : "Custom"}
+                                        {wf.is_system
+                                            ? t("workflows.builtIn")
+                                            : t("workflows.custom")}
                                     </span>
                                 </button>
                             ))

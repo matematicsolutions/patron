@@ -5,6 +5,7 @@ import { MessageSquare } from "lucide-react";
 import { RowActions } from "@/app/components/shared/RowActions";
 import type { MikeChat } from "@/app/components/shared/types";
 import { CHECK_W, formatDate, NAME_COL_W } from "./ProjectPageParts";
+import { t } from "@/i18n";
 
 export function ProjectAssistantTab({
     chats,
@@ -139,7 +140,7 @@ export function ProjectAssistantTab({
                                     />
                                 ) : (
                                     <span className="text-sm text-gray-800 truncate block">
-                                        {chat.title ?? "Untitled Chat"}
+                                        {chat.title ?? t("chat.untitledChat")}
                                     </span>
                                 )}
                             </div>
@@ -160,7 +161,7 @@ export function ProjectAssistantTab({
                                             return;
                                         }
                                         setRenameChatValue(
-                                            chat.title ?? "Untitled Chat",
+                                            chat.title ?? t("chat.untitledChat"),
                                         );
                                         setRenamingChatId(chat.id);
                                     }}

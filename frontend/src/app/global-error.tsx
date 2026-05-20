@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { t } from "@/i18n";
 
 export default function GlobalError({
     error,
@@ -12,9 +13,9 @@ export default function GlobalError({
     }, [error]);
 
     return (
-        <html lang="en">
+        <html lang="pl">
             <head>
-                <title>Something went wrong – Mike</title>
+                <title>{t("error.somethingWentWrong")} – Patron</title>
                 <style>{`
                     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=EB+Garamond:wght@400;500&display=swap');
                     
@@ -79,16 +80,17 @@ export default function GlobalError({
             </head>
             <body>
                 <div className="error-container">
-                    <h1 className="error-title">Something went wrong</h1>
+                    <h1 className="error-title">
+                        {t("error.somethingWentWrong")}
+                    </h1>
                     <p className="error-message">
-                        We encountered an unexpected error. This has been logged
-                        and our team will look into it.
+                        {t("error.unexpectedError")}
                     </p>
                     <button
                         className="btn-back"
                         onClick={() => window.history.back()}
                     >
-                        Back
+                        {t("error.back")}
                     </button>
                 </div>
             </body>
