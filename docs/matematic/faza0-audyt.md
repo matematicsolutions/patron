@@ -272,7 +272,7 @@ Jezeli Faza 1 zawiera tez spolszczenie systemu i wpiat MCP:
 
 ## 9. Najwazniejsze ustalenia (top 5)
 
-1. **Storage jest wymienialny bez kodu** - `lib/storage.ts` to czysty S3-compatible adapter. MinIO = zmiana 3 zmiennych srodowiskowych. Zero blokady vendor.
+1. **Storage jest wymienialny bez kodu** - `lib/storage.ts` to czysty S3-compatible adapter. MinIO = zmiana 3 zmiennych srodowiskowych. Brak zaleznosci od konkretnego dostawcy chmury.
 
 2. **Warstwa LLM jest profesjonalna i gotowa na MCP** - `lib/llm/` z callback `runTools` jest naturalnym miejscem wpiecia klienta MCP. Nie trzeba przepisywac rdzenia - wystarczy nowy plik `lib/mcpClient.ts` i doklejenie go w `chatTools.ts`.
 

@@ -90,7 +90,7 @@ LLM (Gemini / Claude / Ollama lokalny).
       Art. 6 - human in the loop, Art. 2 - weryfikowalność).
 - [ ] Pokaz interfejsu: czaty, projekty, attachment dokumentów,
       panel cytatów (4 sekcje: SAOS / NSA / ISAP / EUR-Lex).
-- [ ] Pokaz tracked changes na `.docx` (Accept / Reject mechanism).
+- [ ] Pokaz zmian śledzonych na `.docx` (mechanizm Akceptuj / Odrzuć).
 - [ ] Pokazanie audit log: „Każde Wasze zapytanie zostawia ślad.
       Sami to weryfikujecie."
 

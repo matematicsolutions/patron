@@ -107,8 +107,8 @@ Mechanizmy techniczne:
 Patron nie wykonuje czynności prawnych w imieniu kancelarii. Pisma,
 opinie, wnioski przygotowywane przez Patrona są draftami, które
 prawnik musi przejrzeć i podpisać. Edycje proponowane przez Patrona
-(tracked changes w .docx) mają mechanizm Accept / Reject. Domyślnie
-żadna zmiana nie jest automatycznie wcielona.
+(zmiany śledzone w `.docx`) mają mechanizm Akceptuj / Odrzuć.
+Domyślnie żadna zmiana nie jest automatycznie wcielona.
 
 Patron nigdy nie składa pisma do sądu, nie wysyła maila do klienta,
 nie podpisuje umowy.
@@ -213,7 +213,7 @@ Odpowiada za:
 - Aktualizacje konektorów MCP gdy źródła publiczne zmieniają format.
 - Dokumentację i runbook.
 
-Nie odpowiada za: model LLM (vendor LLM-a), infrastrukturę kancelarii,
+Nie odpowiada za: model LLM (dostawca modelu), infrastrukturę kancelarii,
 treść porad prawnych generowanych przez Patrona.
 
 ---
