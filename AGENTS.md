@@ -1,0 +1,80 @@
+# AGENTS.md - Patron
+
+Plik standardu [agents.md](https://agents.md) (Linux Foundation / Agentic AI Foundation) - kanoniczne instrukcje dla agentow AI pracujacych z tym repozytorium. Czytany natywnie przez Cursor, Codex (OpenAI), Jules (Google), Devin / Windsurf (Cognition), Aider, Amp, Factory, GitHub Copilot i kolejne narzedzia z [oficjalnej listy](https://agents.md/#supported-tools).
+
+> **Dla agenta:** jezeli zmieniasz cokolwiek w tym repo, zacznij od przeczytania trzech plikow w kolejnosci: ten plik (AGENTS.md), [governance/CONSTITUTION.md](./governance/CONSTITUTION.md), [README.md](./README.md). To nie jest formalnosc - Patron jest produktem governance, nie zwyklym kodem.
+
+## Cel projektu
+
+Patron to **lokalny RODO-safe agent AI dla polskiej kancelarii prawnej**. Self-host zero-cloud (Postgres + MinIO + 5 konektorow MCP polskiego prawa), audit trail z hash-chain (AI Act art. 12), bring-your-own-model (Gemini / Claude / Ollama lokalny). Forka [willchen96/mike](https://github.com/willchen96/mike) (MIT) na powloce AGPL-3.0 - patrz [ADR-0002](./governance/adr/0002-dual-license-agpl-shell-mit-connectors.md).
+
+## Kontekst MateMatic (TWARDE OGRANICZENIA)
+
+Repo prowadzi [MateMatic Solutions](https://matematicsolutions.com). Patron jest **produktem regulowanym** - dotyczy go:
+
+- **Tajemnica zawodowa adwokacka / radcowska** (PoA art. 6, URP art. 3) - bezwzgledna. Patron nie wysyla aktow sprawy do chmury bez zgody Operatora ([Konstytucja](./governance/CONSTITUTION.md) Art. 2).
+- **RODO art. 5/25/30/32** - minimalizacja, privacy by design, rejestr czynnosci, bezpieczenstwo. Schemat Postgresa (`backend/schema.sql`) jest projektowany pod art. 30 i 32.
+- **AI Act art. 6 (high-risk AI w prawie, od 2026-08-02)** + **art. 12 (record-keeping)** - kazda interakcja LLM jest logowana z hash-chainem (ADR-0001).
+- **Neutralnosc wobec dostawcow** ([Konstytucja](./governance/CONSTITUTION.md) Art. 4) - Patron nie faworyzuje zadnego LLM ani providera. NIE wprowadzaj zaleznosci od jednego providera w kodzie powloki.
+
+## Build i test
+
+```bash
+# Backend (Node 20+, TypeScript)
+cd backend && npm install && npm run build && npm test
+
+# Frontend (Next.js)
+cd frontend && npm install && npm run build && npm test
+
+# Bundle 5 konektorow MCP do obrazu backendu
+node scripts/bundle-mcp.cjs
+
+# Pelny stack (Docker, wymaga Supabase + MinIO osobno)
+cp .env.docker.example .env.docker
+# (uzupelnij sekrety)
+docker compose --env-file .env.docker up -d
+```
+
+Testy: 233/238 pass na 2026-05-21 (5 todo, 0 fail). TSC clean. **Nie commituj jezeli testy fail** - bramka jakosci z [Konstytucja](./governance/CONSTITUTION.md) Art. 7.
+
+## Zasady kodu
+
+- **TypeScript strict**. Bez `any` w nowym kodzie, bez `// @ts-ignore` bez komentarza dlaczego.
+- **Audit-first** - kazda nowa interakcja z LLM przechodzi przez `backend/src/lib/audit/` (hash-chain). Bypass = blad krytyczny.
+- **Pseudonim/anonimizacja** - dane wrazliwe (PESEL/imie/nazwisko/adres) przechodza przez `backend/src/lib/pl-entities/` PRZED wyslaniem do LLM. Patrz [ADR-0003](./governance/adr/0003-hey-jude-pseudonim-pipeline.md).
+- **i18n** - tlumaczenia w `frontend/messages/`. Slownik PRZED komponenty.
+- **Bez polskich znakow w commit messages** - konwencja organizacji (a -> a, e -> e, l -> l, o -> o, s -> s, n -> n, c -> c, z -> z).
+- **ADR przed kazda nietrwialnaa decyzja architektoniczna** - `governance/adr/NNNN-slug.md`. Marko-pl review 2x runda PRZED merge.
+
+## Czego NIE robic (twarde reguly)
+
+- **NIE dodawaj LLM provider w core path bez ADR.** Patron jest vendor-neutral by design.
+- **NIE wysylaj danych klienta kancelarii do US.** Transfer poza EOG wymaga DPA + DPF i decyzji Administratora (rola z [Konstytucja](./governance/CONSTITUTION.md)).
+- **NIE wylaczaj audit trail** ani jego weryfikacji hash-chain. To jest jedyny dowod compliance.
+- **NIE forkuj struktury polskich entities** (PESEL/NIP/REGON/sygnatury) - sa w `backend/src/lib/pl-entities/` jako shared library z testami.
+- **NIE commituj** node_modules / dist / .env / dump bazy.
+
+## Zrodla prawdy (kolejnosc czytania)
+
+1. [README.md](./README.md) - opis dla ludzi
+2. [governance/CONSTITUTION.md](./governance/CONSTITUTION.md) - 9 zasad, role, audyt (v1.1.1, podpisywana przez kancelarie)
+3. [governance/IMPLEMENTATION_PLAYBOOK.md](./governance/IMPLEMENTATION_PLAYBOOK.md) - 6-8 tyg wdrozenia, RACI
+4. [governance/adr/](./governance/adr/) - Architecture Decision Records (0001-0009)
+5. [THIRD_PARTY_INSPIRATIONS.md](./THIRD_PARTY_INSPIRATIONS.md) - co cherry-pickowalismy i skad (Lavern, gbrain, Mike)
+6. [CHANGELOG.md](./CHANGELOG.md), [SECURITY.md](./SECURITY.md), [CONTRIBUTING.md](./CONTRIBUTING.md)
+
+## Kompatybilnosc agentow
+
+Ten plik (AGENTS.md) jest standardem [agents.md](https://agents.md) wspieranym przez **Linux Foundation / Agentic AI Foundation**. Czytany natywnie przez 20+ narzedzi.
+
+Dla Claude Code dodatkowo istnieje plik [CLAUDE.md](./CLAUDE.md) ktory importuje ten dokument (`@AGENTS.md`).
+
+Dla agentow uruchamianych w kontenerach: pelny `AGENTS.md` ma byc obecny w obrazie backendu (skopiuj w Dockerfile).
+
+## Licencja i atrybucja
+
+- **Powloka** (`backend/`, `frontend/`, `deploy/`, `governance/`, `scripts/`) - **AGPL-3.0**. Patrz [LICENSE](./LICENSE) i [NOTICE](./NOTICE).
+- **5 konektorow MCP** (osobne repo `mcp-*`) - **MIT**.
+- Cherry-pick i atrybucje: [THIRD_PARTY_INSPIRATIONS.md](./THIRD_PARTY_INSPIRATIONS.md).
+
+Cytowanie: *MateMatic Solutions (2026), Patron - lokalny agent AI dla polskiej kancelarii, https://github.com/matematicsolutions/patron, AGPL-3.0.*
