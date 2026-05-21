@@ -1,0 +1,82 @@
+{
+  "$schema": "./sady-pl.schema.json",
+  "version": "0.1.0",
+  "lastUpdated": "2026-05-21",
+  "source": "Rejestr sadow Ministerstwa Sprawiedliwosci PL (lista trzonowa, do uzupelnienia w T2 ADR-0008)",
+  "scope": "Sady ktore najczesciej pojawiaja sie w cytowaniach kancelaryjnych - SN, TK, NSA, KIO + 11 SA + 16 WSA + 10 najwiekszych SO. Sady Rejonowe pominiete (~318 - poza zakresem skeletonu).",
+  "courts": [
+    {
+      "id": "sn",
+      "name": "Sad Najwyzszy",
+      "type": "trybunal",
+      "city": "Warszawa",
+      "aliases": ["SN", "Sąd Najwyższy"],
+      "jurisdiction": "ogolnokrajowa"
+    },
+    {
+      "id": "tk",
+      "name": "Trybunal Konstytucyjny",
+      "type": "trybunal",
+      "city": "Warszawa",
+      "aliases": ["TK", "Trybunał Konstytucyjny"],
+      "jurisdiction": "ogolnokrajowa"
+    },
+    {
+      "id": "nsa",
+      "name": "Naczelny Sad Administracyjny",
+      "type": "sad-administracyjny",
+      "city": "Warszawa",
+      "aliases": ["NSA", "Naczelny Sąd Administracyjny"],
+      "jurisdiction": "ogolnokrajowa"
+    },
+    {
+      "id": "kio",
+      "name": "Krajowa Izba Odwolawcza",
+      "type": "organ-odwolawczy",
+      "city": "Warszawa",
+      "aliases": ["KIO", "KIO/UZP", "Krajowa Izba Odwoławcza"],
+      "jurisdiction": "ogolnokrajowa",
+      "parent": "UZP"
+    },
+
+    { "id": "wsa-bialystok",    "name": "Wojewodzki Sad Administracyjny w Bialymstoku",     "type": "wsa", "city": "Bialystok",    "aliases": ["WSA Bialystok", "WSA w Bialymstoku"],     "sigPrefix": "Bk", "jurisdiction": "podlaskie" },
+    { "id": "wsa-bydgoszcz",    "name": "Wojewodzki Sad Administracyjny w Bydgoszczy",      "type": "wsa", "city": "Bydgoszcz",    "aliases": ["WSA Bydgoszcz", "WSA w Bydgoszczy"],       "sigPrefix": "Bd", "jurisdiction": "kujawsko-pomorskie" },
+    { "id": "wsa-gdansk",       "name": "Wojewodzki Sad Administracyjny w Gdansku",         "type": "wsa", "city": "Gdansk",       "aliases": ["WSA Gdansk", "WSA w Gdansku"],            "sigPrefix": "Gd", "jurisdiction": "pomorskie" },
+    { "id": "wsa-gliwice",      "name": "Wojewodzki Sad Administracyjny w Gliwicach",       "type": "wsa", "city": "Gliwice",      "aliases": ["WSA Gliwice", "WSA w Gliwicach"],         "sigPrefix": "Gl", "jurisdiction": "slaskie (poludniowe)" },
+    { "id": "wsa-gorzow",       "name": "Wojewodzki Sad Administracyjny w Gorzowie Wlkp.",  "type": "wsa", "city": "Gorzow Wlkp.", "aliases": ["WSA Gorzow", "WSA w Gorzowie"],           "sigPrefix": "Go", "jurisdiction": "lubuskie" },
+    { "id": "wsa-kielce",       "name": "Wojewodzki Sad Administracyjny w Kielcach",        "type": "wsa", "city": "Kielce",       "aliases": ["WSA Kielce", "WSA w Kielcach"],           "sigPrefix": "Ke", "jurisdiction": "swietokrzyskie" },
+    { "id": "wsa-krakow",       "name": "Wojewodzki Sad Administracyjny w Krakowie",        "type": "wsa", "city": "Krakow",       "aliases": ["WSA Krakow", "WSA w Krakowie"],           "sigPrefix": "Kr", "jurisdiction": "malopolskie" },
+    { "id": "wsa-lublin",       "name": "Wojewodzki Sad Administracyjny w Lublinie",        "type": "wsa", "city": "Lublin",       "aliases": ["WSA Lublin", "WSA w Lublinie"],           "sigPrefix": "Lu", "jurisdiction": "lubelskie" },
+    { "id": "wsa-lodz",         "name": "Wojewodzki Sad Administracyjny w Lodzi",           "type": "wsa", "city": "Lodz",         "aliases": ["WSA Lodz", "WSA w Lodzi"],                "sigPrefix": "Lo", "jurisdiction": "lodzkie" },
+    { "id": "wsa-olsztyn",      "name": "Wojewodzki Sad Administracyjny w Olsztynie",       "type": "wsa", "city": "Olsztyn",      "aliases": ["WSA Olsztyn", "WSA w Olsztynie"],         "sigPrefix": "Ol", "jurisdiction": "warminsko-mazurskie" },
+    { "id": "wsa-opole",        "name": "Wojewodzki Sad Administracyjny w Opolu",           "type": "wsa", "city": "Opole",        "aliases": ["WSA Opole", "WSA w Opolu"],               "sigPrefix": "Op", "jurisdiction": "opolskie" },
+    { "id": "wsa-poznan",       "name": "Wojewodzki Sad Administracyjny w Poznaniu",        "type": "wsa", "city": "Poznan",       "aliases": ["WSA Poznan", "WSA w Poznaniu"],           "sigPrefix": "Po", "jurisdiction": "wielkopolskie" },
+    { "id": "wsa-rzeszow",      "name": "Wojewodzki Sad Administracyjny w Rzeszowie",       "type": "wsa", "city": "Rzeszow",      "aliases": ["WSA Rzeszow", "WSA w Rzeszowie"],         "sigPrefix": "Rz", "jurisdiction": "podkarpackie" },
+    { "id": "wsa-szczecin",     "name": "Wojewodzki Sad Administracyjny w Szczecinie",      "type": "wsa", "city": "Szczecin",     "aliases": ["WSA Szczecin", "WSA w Szczecinie"],       "sigPrefix": "Sz", "jurisdiction": "zachodniopomorskie" },
+    { "id": "wsa-warszawa",     "name": "Wojewodzki Sad Administracyjny w Warszawie",       "type": "wsa", "city": "Warszawa",     "aliases": ["WSA Warszawa", "WSA w Warszawie"],        "sigPrefix": "Wa", "jurisdiction": "mazowieckie" },
+    { "id": "wsa-wroclaw",      "name": "Wojewodzki Sad Administracyjny we Wroclawiu",      "type": "wsa", "city": "Wroclaw",      "aliases": ["WSA Wroclaw", "WSA we Wroclawiu"],        "sigPrefix": "Wr", "jurisdiction": "dolnoslaskie" },
+
+    { "id": "sa-bialystok", "name": "Sad Apelacyjny w Bialymstoku",  "type": "sa", "city": "Bialystok", "aliases": ["SA Bialystok"], "jurisdiction": "podlaskie, czesc warminsko-mazurskiego" },
+    { "id": "sa-gdansk",    "name": "Sad Apelacyjny w Gdansku",      "type": "sa", "city": "Gdansk",    "aliases": ["SA Gdansk"],    "jurisdiction": "pomorskie, kujawsko-pomorskie" },
+    { "id": "sa-katowice",  "name": "Sad Apelacyjny w Katowicach",   "type": "sa", "city": "Katowice",  "aliases": ["SA Katowice"],  "jurisdiction": "slaskie, czesc opolskiego" },
+    { "id": "sa-krakow",    "name": "Sad Apelacyjny w Krakowie",     "type": "sa", "city": "Krakow",    "aliases": ["SA Krakow"],    "jurisdiction": "malopolskie, swietokrzyskie" },
+    { "id": "sa-lublin",    "name": "Sad Apelacyjny w Lublinie",     "type": "sa", "city": "Lublin",    "aliases": ["SA Lublin"],    "jurisdiction": "lubelskie, podkarpackie" },
+    { "id": "sa-lodz",      "name": "Sad Apelacyjny w Lodzi",        "type": "sa", "city": "Lodz",      "aliases": ["SA Lodz"],      "jurisdiction": "lodzkie" },
+    { "id": "sa-poznan",    "name": "Sad Apelacyjny w Poznaniu",     "type": "sa", "city": "Poznan",    "aliases": ["SA Poznan"],    "jurisdiction": "wielkopolskie, lubuskie" },
+    { "id": "sa-rzeszow",   "name": "Sad Apelacyjny w Rzeszowie",    "type": "sa", "city": "Rzeszow",   "aliases": ["SA Rzeszow"],   "jurisdiction": "podkarpackie (czesc)" },
+    { "id": "sa-szczecin",  "name": "Sad Apelacyjny w Szczecinie",   "type": "sa", "city": "Szczecin",  "aliases": ["SA Szczecin"],  "jurisdiction": "zachodniopomorskie" },
+    { "id": "sa-warszawa",  "name": "Sad Apelacyjny w Warszawie",    "type": "sa", "city": "Warszawa",  "aliases": ["SA Warszawa"],  "jurisdiction": "mazowieckie" },
+    { "id": "sa-wroclaw",   "name": "Sad Apelacyjny we Wroclawiu",   "type": "sa", "city": "Wroclaw",   "aliases": ["SA Wroclaw"],   "jurisdiction": "dolnoslaskie, opolskie (czesc)" },
+
+    { "id": "so-warszawa",  "name": "Sad Okregowy w Warszawie",      "type": "so", "city": "Warszawa",  "aliases": ["SO Warszawa", "SO w Warszawie"] },
+    { "id": "so-krakow",    "name": "Sad Okregowy w Krakowie",       "type": "so", "city": "Krakow",    "aliases": ["SO Krakow", "SO w Krakowie"] },
+    { "id": "so-wroclaw",   "name": "Sad Okregowy we Wroclawiu",     "type": "so", "city": "Wroclaw",   "aliases": ["SO Wroclaw", "SO we Wroclawiu"] },
+    { "id": "so-poznan",    "name": "Sad Okregowy w Poznaniu",       "type": "so", "city": "Poznan",    "aliases": ["SO Poznan", "SO w Poznaniu"] },
+    { "id": "so-gdansk",    "name": "Sad Okregowy w Gdansku",        "type": "so", "city": "Gdansk",    "aliases": ["SO Gdansk", "SO w Gdansku"] },
+    { "id": "so-katowice",  "name": "Sad Okregowy w Katowicach",     "type": "so", "city": "Katowice",  "aliases": ["SO Katowice", "SO w Katowicach"] },
+    { "id": "so-lodz",      "name": "Sad Okregowy w Lodzi",          "type": "so", "city": "Lodz",      "aliases": ["SO Lodz", "SO w Lodzi"] },
+    { "id": "so-lublin",    "name": "Sad Okregowy w Lublinie",       "type": "so", "city": "Lublin",    "aliases": ["SO Lublin", "SO w Lublinie"] },
+    { "id": "so-szczecin",  "name": "Sad Okregowy w Szczecinie",     "type": "so", "city": "Szczecin",  "aliases": ["SO Szczecin", "SO w Szczecinie"] },
+    { "id": "so-bydgoszcz", "name": "Sad Okregowy w Bydgoszczy",     "type": "so", "city": "Bydgoszcz", "aliases": ["SO Bydgoszcz", "SO w Bydgoszczy"] }
+  ]
+}

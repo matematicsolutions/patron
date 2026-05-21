@@ -1,0 +1,55 @@
+{
+  "$schema": "./sygnatury-prefix.schema.json",
+  "version": "0.1.0",
+  "lastUpdated": "2026-05-21",
+  "source": "Skompilowane na podstawie publicznych baz orzecznictwa SAOS / NSA / orzeczenia.ms.gov.pl / TK, lista trzonowa - do uzupelnienia w T2 ADR-0008 pelnym indeksem kodow izb i typow spraw",
+  "scope": "Mapowanie kod_izby_lub_typu -> sad + opis sprawy. Uzywane przez extractor T2 do podniesienia confidence dopasowania sygnatury (jezeli kod jest znany - confidence rosnie, jezeli nieznany - zostaje base z reguly regex).",
+  "prefixes": [
+
+    { "prefix": "III CZP",  "court": "sn",  "department": "izba cywilna",                              "caseType": "uchwala 7 sedziow lub powiekszony sklad" },
+    { "prefix": "I CSK",    "court": "sn",  "department": "izba cywilna",                              "caseType": "kasacja cywilna" },
+    { "prefix": "II CSK",   "court": "sn",  "department": "izba cywilna",                              "caseType": "kasacja cywilna" },
+    { "prefix": "III CSK",  "court": "sn",  "department": "izba cywilna",                              "caseType": "kasacja cywilna" },
+    { "prefix": "IV CSK",   "court": "sn",  "department": "izba cywilna",                              "caseType": "kasacja cywilna" },
+    { "prefix": "V CSK",    "court": "sn",  "department": "izba cywilna",                              "caseType": "kasacja cywilna" },
+    { "prefix": "I CSKP",   "court": "sn",  "department": "izba cywilna",                              "caseType": "kasacja cywilna (nowy kod)" },
+    { "prefix": "I KK",     "court": "sn",  "department": "izba karna",                                "caseType": "kasacja karna" },
+    { "prefix": "II KK",    "court": "sn",  "department": "izba karna",                                "caseType": "kasacja karna" },
+    { "prefix": "III KK",   "court": "sn",  "department": "izba karna",                                "caseType": "kasacja karna" },
+    { "prefix": "IV KK",    "court": "sn",  "department": "izba karna",                                "caseType": "kasacja karna" },
+    { "prefix": "I PK",     "court": "sn",  "department": "izba pracy i ubezpieczen spolecznych",      "caseType": "kasacja w sprawach pracowniczych" },
+    { "prefix": "II PK",    "court": "sn",  "department": "izba pracy i ubezpieczen spolecznych",      "caseType": "kasacja w sprawach pracowniczych" },
+    { "prefix": "III PK",   "court": "sn",  "department": "izba pracy i ubezpieczen spolecznych",      "caseType": "kasacja w sprawach pracowniczych" },
+    { "prefix": "I UK",     "court": "sn",  "department": "izba pracy i ubezpieczen spolecznych",      "caseType": "ubezpieczenia spoleczne" },
+    { "prefix": "II UK",    "court": "sn",  "department": "izba pracy i ubezpieczen spolecznych",      "caseType": "ubezpieczenia spoleczne" },
+    { "prefix": "SDI",      "court": "sn",  "department": "izba dyscyplinarna",                        "caseType": "sprawa dyscyplinarna" },
+
+    { "prefix": "I FSK",    "court": "nsa", "department": "izba finansowa",                            "caseType": "kasacja w sprawach finansowych" },
+    { "prefix": "II FSK",   "court": "nsa", "department": "izba finansowa",                            "caseType": "kasacja w sprawach finansowych" },
+    { "prefix": "I OSK",    "court": "nsa", "department": "izba ogolnoadministracyjna",                "caseType": "kasacja administracyjna" },
+    { "prefix": "II OSK",   "court": "nsa", "department": "izba ogolnoadministracyjna",                "caseType": "kasacja administracyjna" },
+    { "prefix": "I OPS",    "court": "nsa", "department": "izba ogolnoadministracyjna",                "caseType": "postanowienie skladu 7 sedziow" },
+    { "prefix": "II OPS",   "court": "nsa", "department": "izba ogolnoadministracyjna",                "caseType": "postanowienie skladu 7 sedziow" },
+    { "prefix": "I GSK",    "court": "nsa", "department": "izba gospodarcza",                          "caseType": "kasacja gospodarcza" },
+    { "prefix": "II GSK",   "court": "nsa", "department": "izba gospodarcza",                          "caseType": "kasacja gospodarcza" },
+    { "prefix": "I FPS",    "court": "nsa", "department": "izba finansowa",                            "caseType": "uchwala skladu poszerzonego" },
+
+    { "prefix": "K",        "court": "tk",  "department": "trybunal pelny sklad",                      "caseType": "kontrola konstytucyjnosci ustawy" },
+    { "prefix": "P",        "court": "tk",  "department": "trybunal",                                  "caseType": "pytanie prawne sadu" },
+    { "prefix": "U",        "court": "tk",  "department": "trybunal",                                  "caseType": "kontrola rozporzadzen" },
+    { "prefix": "SK",       "court": "tk",  "department": "trybunal",                                  "caseType": "skarga konstytucyjna" },
+    { "prefix": "Kp",       "court": "tk",  "department": "trybunal",                                  "caseType": "kontrola przedpublikacyjna" },
+    { "prefix": "Kpt",      "court": "tk",  "department": "trybunal",                                  "caseType": "spor kompetencyjny" },
+    { "prefix": "Pp",       "court": "tk",  "department": "trybunal",                                  "caseType": "zgodnosc partii politycznej z Konstytucja" },
+    { "prefix": "Tw",       "court": "tk",  "department": "trybunal - wstepne rozpoznanie",            "caseType": "wstepne rozpoznanie skargi" },
+
+    { "prefix": "KIO",      "court": "kio", "department": "Krajowa Izba Odwolawcza",                    "caseType": "odwolanie w sprawie zamowienia publicznego" },
+    { "prefix": "KIO/UZP",  "court": "kio", "department": "Krajowa Izba Odwolawcza",                    "caseType": "odwolanie w sprawie zamowienia publicznego (stary format)" },
+
+    { "prefix": "I ACa",    "court": "sa-*", "department": "wydzial cywilny I (apelacyjny)",            "caseType": "apelacja cywilna" },
+    { "prefix": "II ACa",   "court": "sa-*", "department": "wydzial cywilny II (apelacyjny)",           "caseType": "apelacja cywilna" },
+    { "prefix": "III APa",  "court": "sa-*", "department": "wydzial pracy i ubezpieczen spolecznych",   "caseType": "apelacja w sprawach pracowniczych" },
+    { "prefix": "II AKa",   "court": "sa-*", "department": "wydzial karny",                             "caseType": "apelacja karna" },
+    { "prefix": "I AGa",    "court": "sa-*", "department": "wydzial gospodarczy",                       "caseType": "apelacja gospodarcza" }
+  ]
+}
