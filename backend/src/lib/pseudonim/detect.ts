@@ -5,43 +5,28 @@
 // + email + telefon. Imiona i nazwy firm zostawiamy na LLM-fallback w
 // fazie tydzien 2 planu migracji (patrz ADR-0003).
 //
-// CHECKSUMY: zaimplementowane dla PESEL i NIP (wzorce GUS). REGON 9-cyfr
-// i 14-cyfr ma checksumy zlozone (do dolozenia w iteracji). KRS to
-// 10-cyfrowy ciag bez checksumy publicznej - akceptujemy goly format.
+// REFACTOR T1 ADR-0008 (2026-05-21, commit a5f03c2 + nastepny): walidatory
+// checksum oraz format checks importujemy z kanonicznej biblioteki
+// `lib/pl-entities/checksums.ts`. Single source of truth - taki sam
+// algorytm uzywany przez graf cytowan (ADR-0008) i pseudonim (ADR-0003).
+//
+// W tym module zostaja: regexy specyficzne dla detekcji PII (mozliwe
+// ze sa szersze niz w pl-entities z uwagi na inne false-positive profile),
+// re-exporty walidatorow (backward compat z istniejacymi testami),
+// orkiestracja `detectRegex` + stub LlmDetector.
 
+import {
+    isValidPesel,
+    isValidNip,
+    isValidRegon,
+    isValidKrsFormat,
+} from "../pl-entities/checksums";
 import type { DetectionRule, LlmDetector, PiiCategory } from "./types";
 
-/**
- * Walidacja PESEL - checksuma wagowa (1,3,7,9,1,3,7,9,1,3) modulo 10.
- * Patrz Ustawa o ewidencji ludnosci, zalacznik nr 1.
- */
-export function isValidPesel(pesel: string): boolean {
-    if (!/^\d{11}$/.test(pesel)) return false;
-    const weights = [1, 3, 7, 9, 1, 3, 7, 9, 1, 3];
-    let sum = 0;
-    for (let i = 0; i < 10; i++) {
-        sum += parseInt(pesel[i]!, 10) * weights[i]!;
-    }
-    const checksum = (10 - (sum % 10)) % 10;
-    return checksum === parseInt(pesel[10]!, 10);
-}
-
-/**
- * Walidacja NIP - checksuma wagowa (6,5,7,2,3,4,5,6,7) modulo 11.
- * Ustawa o zasadach ewidencji i identyfikacji podatnikow.
- */
-export function isValidNip(nip: string): boolean {
-    const digits = nip.replace(/[\s-]/g, "");
-    if (!/^\d{10}$/.test(digits)) return false;
-    const weights = [6, 5, 7, 2, 3, 4, 5, 6, 7];
-    let sum = 0;
-    for (let i = 0; i < 9; i++) {
-        sum += parseInt(digits[i]!, 10) * weights[i]!;
-    }
-    const checksum = sum % 11;
-    if (checksum === 10) return false;
-    return checksum === parseInt(digits[9]!, 10);
-}
+// Re-eksport walidatorow dla backward compat - poprzednia wersja modulu
+// eksportowala je lokalnie, istniejace testy `pseudonim.test.ts` i przyszle
+// integracje importuja przez `./index` -> `./detect`.
+export { isValidPesel, isValidNip, isValidRegon, isValidKrsFormat };
 
 /**
  * Zestaw reguł regex-based dla polskich identyfikatorow. Walidatory
@@ -66,16 +51,23 @@ export const POLISH_PII_RULES: DetectionRule[] = [
     {
         id: "regon-9-or-14-digits",
         category: "REGON",
-        // 9-cyfrowy lub 14-cyfrowy ciag; checksuma do dolozenia w tygodniu 2
+        // 9-cyfrowy lub 14-cyfrowy ciag z checksuma. Walidator z
+        // pl-entities/checksums.ts redukuje false-positive (zwykly ciag
+        // 9/14 cyfr ktory nie jest REGON-em odpada).
         pattern: /\b(\d{14}|\d{9})\b/g,
+        validate: isValidRegon,
     },
     {
         id: "krs-10-digits",
         category: "KRS",
         // KRS to 10 cyfr (czesto z wiodacymi zerami). Brak publicznej
-        // checksumy. False-positive ryzyko sredne - uzywamy razem z
-        // kontekstem (slowo "KRS" w okolicy) w tygodniu 2.
+        // checksumy - walidujemy wylacznie format (10 cyfr) przez
+        // isValidKrsFormat. Wymagamy slowa "KRS" + opcjonalnego
+        // separatora przed cyframi - bez tego false-positive eksploduje.
+        // Walidacja istnienia podmiotu w rejestrze odbywa sie przez
+        // mcp-krs lookup (flag `.env KRS_LOOKUP_ENABLED`, patrz ADR-0008).
         pattern: /\bKRS[:\s]*(\d{10})\b/gi,
+        validate: isValidKrsFormat,
     },
     {
         id: "email-rfc5322-loose",

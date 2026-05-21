@@ -150,11 +150,25 @@ describe("regression PL #10-13: identyfikatory polskie", () => {
         expect(bareOnly.find((h) => h.category === "KRS")).toBeUndefined();
     });
 
-    it("#13 REGON 9-cyfrowy i 14-cyfrowy oba wykrywane (checksum TODO)", () => {
-        const r9 = detectRegex("REGON 012345678 wpisany");
-        const r14 = detectRegex("REGON 01234567812345 oddzial");
-        expect(r9.find((h) => h.category === "REGON")?.span).toBe("012345678");
-        expect(r14.find((h) => h.category === "REGON")?.span).toBe("01234567812345");
+    it("#13 REGON 9-cyfrowy i 14-cyfrowy oba wykrywane (z checksuma od T1 refactor pl-entities)", () => {
+        // Po refactor T1 (commit po a5f03c2) REGON dostaje walidator checksumy
+        // z pl-entities/checksums.ts - same walidne REGON-y wchodza do detekcji.
+        // 123456785 = valid REGON 9 (wagi 8-9-2-3-4-5-6-7 mod 11),
+        // 12345678500002 = valid REGON 14 (prefiks 9 valid + wagi 2-4-8-5-0-9-7-3-6-1-2-4-8 mod 11).
+        const r9 = detectRegex("REGON 123456785 wpisany");
+        const r14 = detectRegex("REGON 12345678500002 oddzial");
+        expect(r9.find((h) => h.category === "REGON")?.span).toBe("123456785");
+        expect(r14.find((h) => h.category === "REGON")?.span).toBe("12345678500002");
+    });
+
+    it("#13b REGON z bledna checksuma jest odrzucony (post-T1 refactor)", () => {
+        // 012345678 nie jest valid REGON 9 (checksum bledna), 123456789 tez nie.
+        // Przed refactorem T1 oba byly wykrywane jako REGON; po dolaczeniu
+        // walidatora checksumy z pl-entities/ - oba odpadaja.
+        const invalid9 = detectRegex("Numer 012345678 podany");
+        const invalid14 = detectRegex("Numer 12345678500001 podany");
+        expect(invalid9.find((h) => h.category === "REGON")).toBeUndefined();
+        expect(invalid14.find((h) => h.category === "REGON")).toBeUndefined();
     });
 });
 
