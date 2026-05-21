@@ -251,6 +251,79 @@ properties / AES-GCM session archive / plain-text audit log dla Inspektora).
   ADR-0001, polskie PII (PESEL/NIP/REGON/IBAN PL), Konstytucja v1.1.1
   (vendor-neutrality, lokalnosc, audytowalnosc). NIE jest to fork ani port.
 
+## earendil-works/pi (MIT)
+
+**Repo**: https://github.com/earendil-works/pi
+**Licencja**: MIT
+**Snapshot**: 2026-05-21 (v0.75.4 z 20.05.2026, 52.3k gwiazdek, 4227 commitow
+na main, organizacja earendil-works, monorepo 4 pakietow: pi-coding-agent /
+pi-agent-core / pi-ai / pi-tui)
+**Pattern wzorcowany**: warstwa abstrakcji LLM (jeden interfejs, N providerow,
+capability flags na providera, router z fallback chain) oraz format storage
+sesji uzytkownika (JSONL append-only z `parentId` budujacym drzewo wariantow,
+in-place branching, standalone HTML export).
+
+**Co Patron bierze (wzor)**:
+- **Interfejs `LLMProvider`** z capability flags (egress / tool calling /
+  vision / context window / structured output), router wybierajacy providera
+  na podstawie data classification + required capabilities + .env primary +
+  fallback chain - ADR-0014
+- **Provider-agnostic message format** (jeden wewnetrzny typ `Message[]`,
+  kazdy provider tlumaczy na natywny format) - ADR-0014
+- **Failover/retry chain** (`LLM_FALLBACK_CHAIN=anthropic,gemini,ollama`) z
+  rate limit + timeout + retry-with-backoff + circuit breaker per provider -
+  ADR-0014
+- **Cost estimation per call** PRZED wywolaniem (limit per call, alert) -
+  ADR-0014
+- **Format JSONL one-message-per-line** z `id` + `parentId` budujacym drzewo
+  sesji (zamiast linear listy) - ADR-0015
+- **In-place branching** (branch zyje w tym samym pliku co parent) +
+  standalone HTML export drzewa - ADR-0015
+
+**Czego Patron NIE bierze**:
+- **Kod `@earendil-works/pi-ai` jako dependency** - dolozenie zaleznosci
+  runtime na warstwie LLM = ryzyko (zmiana licencji, supply chain). Patron
+  reimplementuje od zera w `backend/src/lib/llm/` (AGPL-3.0 powloka)
+- **Pelny zestaw 8+ providerow pi** (DeepSeek, Groq, Bedrock, Azure, Mistral,
+  ...) - MVP Patrona 4 providery (Anthropic, Gemini, Ollama, OpenAI opt-in),
+  wiecej dodajemy gdy pojawi sie potrzeba kancelarii
+- **Session sharing pi** ("encourages session sharing for OSS improvement") -
+  **RODO red flag**. Sesje kancelaryjne nie wychodza poza serwer. Eksport
+  sesji do HTML w Patronie ma inny cel - artefakt zgodnosci AI Act art. 12,
+  nie content do udostepnienia OSS
+- **Pi compaction algorithm** - Patron uzywa wlasnej logiki podsumowywania
+  (ADR-0009 overnight consolidation z gbrain wzorem)
+- **Pi message queuing UI** (Enter steer / Alt+Enter follow-up) - to pattern
+  terminal UI; Patron ma frontend Next.js, watch list jako osobny ADR UI
+  w przyszlosci
+- **Kod pi-tui** (terminal UI) - Patron ma frontend Next.js
+- **Brand "earendil" / "pi"** - amerykanski projekt, my robimy polski legal
+  product. Atrybucja w tym pliku, brak brand-association w UI Patrona
+
+**Wdrozenie**:
+- ADR-0014 (Multi-provider abstraction layer) - operacjonalizacja Art. 4
+  Konstytucji v1.1.1, ~5 tygodni dev (T1-T6)
+- ADR-0015 (In-place session branching JSONL) - artefakt zgodnosci AI Act
+  art. 12 + eksploracja wariantow decyzyjnych prawnika, ~8-10 tygodni dev
+  (T1-T9, mozliwe rownoleglenie)
+- Implementacja Patrona napisana **od zera** pod multi-provider z polskimi
+  klasyfikacjami danych (`attorney_client_privileged`, `case_id`), pseudonim
+  layer pre-LLM (ADR-0003), hash-chain audit (ADR-0001), retencja zgodna z
+  art. 118 KC i regulacjami korporacyjnymi samorzadow prawniczych
+
+**Decyzje strategiczne**:
+- **NIE forkujemy** pi - 95% kodu pi to terminal UI (`pi-tui`, `pi-coding-agent`)
+  irrelevant dla frontend Next.js Patrona
+- **NIE instalujemy** pi jako runtime dependency - cherry-pick wzorca,
+  reimplementacja od zera. Powod: kluczowa warstwa (LLM + sessions) =
+  niezaleznosc ewolucyjna ([zasada 4 cherry-pick MateMatic](#zasada-cherry-pick-matematic))
+- **NIE adoptujemy** filozofii "session sharing for OSS improvement" - RODO
+  niezgodne z duchem projektu
+
+**Watch**: monitoring kierunku rozwoju pi - czy v1.0 zaproponuje nowe
+patterny LLM abstraction lub session storage warte cherry-pick. Status
+2026-09 do 2026-11 - ponowny check.
+
 ## Zasada cherry-pick MateMatic
 
 Patron stosuje wzorzec **cherry-pick wzoru zamiast adopcji narzedzia**
