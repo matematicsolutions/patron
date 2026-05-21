@@ -206,6 +206,51 @@ grounding + taxonomia typu kolumny + self-contained HTML viewer.
   Postgres+pgvector persistence, audit hash-chain, pseudonimizacja PRZED
   ekstrakcja, polskie entity types, brand matematicsolutions, i18n pl-PL.
 
+## gregmos/PII-Shield (MIT)
+
+**Repo**: https://github.com/gregmos/PII-Shield
+**Licencja**: MIT
+**Snapshot**: 2026-05-21 (v2.0.2 z 28.04.2026, 92 gwiazdek, autor Grigorii
+Moskalev - Microsoft Presidio team)
+**Pattern wzorcowany**: 5 patternow operacyjnych warstwy pseudonimizacji
+(TTL mapping cleanup / source_hash per dokument / session_id w docx custom
+properties / AES-GCM session archive / plain-text audit log dla Inspektora).
+
+**Co Patron bierze (wzor)**:
+- **TTL mapping cleanup** - automatyczne usuwanie pseudonim-mapping po N
+  dniach (default 7, configurable per kancelaria), zgodnie z RODO art. 5
+  ust. 1 lit. e (ograniczenie przechowywania) - ADR-0013, T1
+- **`source_hash` per dokument** (sha256) - deterministyczny dowod ze
+  konkretny plik audytowany byl tym samym co pseudonimizowany, AI Act
+  art. 12 record-keeping - ADR-0013, T1
+- **`session_id` w docx custom properties** - reopen workflow tygodnie
+  pozniej, deanonymize jednym klikiem jezeli mapping wciaz w TTL -
+  ADR-0013, T2
+- **AES-GCM session archive** z scrypt-derived key - szyfrowany transfer
+  sesji miedzy maszynami, RODO art. 32 - ADR-0013, T3
+- **Plain-text `pseudonim_audit.log` dla Inspektora** - rownolegly do
+  hash-chain ADR-0001, czytelny bez deszyfrowania, AI Act art. 12 + art. 13
+  (instrukcje uzytkowania) - ADR-0013, T1
+
+**Czego Patron NIE bierze**:
+- **GLiNER zero-shot NER + ONNX Runtime** (>100 MB modeli) - lamie ADR-0008
+  (entity extraction zero-LLM przy zapisie). Patron uzywa deterministycznych
+  regex + checksum (PESEL wagi 1-3-7-9, NIP mod 11, REGON, IBAN PL).
+- **MCP server architecture** - PII-Shield jest MCP serverem dla Claude
+  Desktop. Hey Jude jest shared library w Patron backend (in-process
+  calls). Cherry-pick MCP konektora pseudonim do osobnej decyzji.
+- **33 entity types US/UK/DE/FR/IT/ES/CY** - Patron skupia sie na polskich
+  PII (Konstytucja Art. 1 lokalnosc + AGENTS.md "polskie kancelarie -
+  polskie PII"). EU_VAT moze sie przydac do CJEU/EUR-Lex, ale to drobiazg.
+
+**Wdrozenie**:
+- ADR-0013 (PII-Shield patterns cherry-pick) - 5 patternow operacyjnych,
+  ~10h dev rozlozone na 2-3 sesje (T1-T5)
+- Plan implementacyjny: `backend/src/lib/pl-entities/PII_SHIELD_PATTERNS_PLAN.md`
+- Implementacja Patrona napisana **od zera** pod schema Postgresa, hash-chain
+  ADR-0001, polskie PII (PESEL/NIP/REGON/IBAN PL), Konstytucja v1.1.1
+  (vendor-neutrality, lokalnosc, audytowalnosc). NIE jest to fork ani port.
+
 ## Zasada cherry-pick MateMatic
 
 Patron stosuje wzorzec **cherry-pick wzoru zamiast adopcji narzedzia**
