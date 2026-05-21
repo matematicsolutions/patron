@@ -158,6 +158,54 @@ Patrona.
 w schemacie dual-license (powloka AGPL-3.0 + konektory MIT), patrz
 ADR-0002.
 
+## isaacus-dev/cookbooks (MIT)
+
+**Repo**: https://github.com/isaacus-dev/cookbooks (folder `cookbooks/tabular-review`)
+**Licencja**: MIT
+**Snapshot**: 2026-04-22 (pushed_at z gh API)
+**Pattern wzorcowany**: model danych komorki tabular review z character-offset
+grounding + taxonomia typu kolumny + self-contained HTML viewer.
+
+**Co Patron bierze (wzor)**:
+- **Format komorki** `metadata: {segment_id, start, end}` + `score` + viable
+  re-derivation cytatu z offsetow (ADR-0011)
+- **Taxonomia `col_type: span | entity`** (Patron rozszerza o `boolean`,
+  `enum` dla polskich legal use-cases - ADR-0011)
+- **Threshold cosine filtering** (default 0.4, konfigurowalny per projekt -
+  ADR-0011)
+- **Self-contained single-file HTML viewer** (Vue 3 + Tailwind/Lucide z
+  CDN/inline fallback, drag-drop JSON, zero install u klienta) - czwarty
+  format eksportu obok docx/csv/audit-bundle (ADR-0012)
+- **Entity filtering UI** z color coding per typ encji + hover popup z
+  metadata + resizable panes (ADR-0012)
+
+**Czego Patron NIE bierze**:
+- **Kanon 2 Enricher / Embedder / Answer Extractor** - closed-weight API
+  Isaacus (US/AU SaaS). Konflikt z Konstytucja Art. 1 (lokalnosc) i Art. 4
+  (neutralnosc dostawcow). Patron uzywa `multilingual-e5` (Ollama lokalnie)
+  zamiast Kanon 2 Embedder, `pl-entities` + Ollama LLM zamiast Kanon
+  Answer Extractor.
+- **Wewnetrzny format isaacus** (skrot "ILGS" uzywany w README isaacus bez
+  rozwiniecia w publicznej dokumentacji; hierarchiczna segmentacja
+  units/items/containers). Patron polega na Docling pipeline (ADR-0010)
+  i istniejacym grafie `pl-entities`.
+- **Qdrant in-memory** - Patron uzywa pgvector w Postgres (ADR-0007)
+  jako single source. Zero dodatkowego serwisu.
+- **FastAPI architektury** - Patron uzywa istniejacego TS API.
+- **External JSZip / Mammoth** w viewer - niepotrzebne dla Patron
+  use-case.
+- **Brand "Harvey-style"** - amerykanski brand, my robimy "Przeglad
+  tabelaryczny".
+
+**Wdrozenie**:
+- ADR-0011 (Span-level offsets + column type taxonomy) - uszczegolawia T2/T4
+  ADR-0010, zero dodatkowych tygodni
+- ADR-0012 (Self-contained Viewer HTML) - 4. format eksportu, ~13 dni dev
+  dodanych do T6 ADR-0010
+- Implementacja Patrona napisana **od zera** pod multi-provider LLM,
+  Postgres+pgvector persistence, audit hash-chain, pseudonimizacja PRZED
+  ekstrakcja, polskie entity types, brand matematicsolutions, i18n pl-PL.
+
 ## Zasada cherry-pick MateMatic
 
 Patron stosuje wzorzec **cherry-pick wzoru zamiast adopcji narzedzia**
