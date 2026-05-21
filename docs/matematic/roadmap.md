@@ -70,18 +70,97 @@ AI Act). To rozni Patrona od zwyklego czatu.
       ZAMKNIETE 2026-05-20.
 - [ ] 4.4 Hardening - przeglad bezpieczenstwa (skill security-and-hardening),
       sekrety, uprawnienia, izolacja
-- [~] 4.5 Pseudonim PII PL (Hey Jude cherry-pick + polonizacja forku) - SKELETON ZAKODOWANY 2026-05-20.
-      backend/src/lib/pseudonim/ (7 plikow, 24/24 testy Vitest zielone): detect (regex PESEL/NIP/REGON/KRS
-      + checksumy + email + telefon +48), map (in-memory + interfejs PseudonimStore na Postgres),
-      wrap/unwrap (orchestrator z deduplikacja), prompts.pl (polski prompt LLM-fallback PERSON/ORG/ADDRESS).
-      AGPL-3.0 dziedziczone po patron. NIE WPIETE w streamChatWithTools - decyzja architektoniczna
-      (Postgres vs Redis, kompatybilnosc SSE, koszt latency +200-400ms) wymaga osobnego ADR i zgody.
-      Plan migracji 6-tygodniowy w governance/adr/0003-pseudonimizacja-pii-pre-llm.md, 6 faz:
-      (1) regression set 20+ przypadkow PL, (2) LLM-fallback w Ollama dla zlozonej fleksji,
-      (3) wrapper na streamChatWithTools za flaga PSEUDONIM_ENABLED, (4) shadow mode na pierwszej
-      kancelarii pilotazowej, (5) fork matematicsolutions/pseudonim-pl jako osobne AGPL repo,
-      (6) PSEUDONIM_MODE=on jako default dla pilotazu.
-      Konstytucja Art. 1/5/7 - bump 1.1 -> 1.2 PO wpieciu produkcyjnym.
+- [~] 4.5 Pseudonim PII PL (Hey Jude cherry-pick + polonizacja forku) - T1 ZAMKNIETY 2026-05-21.
+      Postep:
+      * 2026-05-20: SKELETON (d715073) - 7 plikow pseudonim/ z 24 testami zielonymi
+      * 2026-05-20: regression set PL 20 cases (74b32b0)
+      * 2026-05-21: shared library backend/src/lib/pl-entities/ (a5f03c2) - PESEL/NIP/REGON
+        9+14/KRS checksumy + 13 regul ekstrakcji + 44 testy, kanoniczne miejsce algorytmow
+      * 2026-05-21: refactor pseudonim/detect.ts -> import z pl-entities/checksums (090344d) -
+        DRY, REGON i KRS dostaja walidatory, +1 regression test
+      * 2026-05-21: gazetteery sady-pl.json + sygnatury-prefix.json + loader (33431e7) -
+        37 sadow trzonowych + 41 prefixow izb, 34 nowe testy
+      Status: AGPL-3.0 dziedziczone po patron. NIE WPIETE w streamChatWithTools.
+      Plan migracji 6-tygodniowy ADR-0003: T2 LLM-fallback Ollama (pending decyzja modelu),
+      T3 wrapper za flaga PSEUDONIM_ENABLED (pending decyzja Postgres vs Redis), T4 shadow mode
+      pilotazu, T5 fork matematicsolutions/pseudonim-pl, T6 default-on + Konstytucja MINOR bump
+      v1.1.1 -> v1.2.0.
+- [~] 4.6 Debate + 3-warstwowa weryfikacja dla high-stakes (Lavern cherry-pick) -
+      ADR-0004 PROPONOWANY 2026-05-20, commit ADR (e8668b1). T1 LIVE 2026-05-21
+      (a0cc2d6) - klasyfikator reguly-based `backend/src/lib/highstakes/` (4 pliki,
+      26 testow): 3 bramki (explicitFlag, alwaysHighStakesTypes opinia/M&A/DD/finansowa,
+      typ eskalowalny umowa_handlowa/pismo_procesowe + cm_value >= threshold default
+      100k PLN), configFromEnv z HIGH_STAKES_CM_VALUE_THRESHOLD + HIGH_STAKES_ALWAYS_TYPES,
+      isInputSufficient bezpiecznik (brak danych = nigdy auto-eskalacji). Pure function
+      bez wywolan LLM, deterministyczny audit.
+      T2-T6: evaluator + 3 adversarial + synthesizer + 10-pass verifier (kazdy jako
+      modul lib/debate/), wpiec w streamChatWithTools z .env DEBATE_ENABLED=false default,
+      UI progress streaming, audit log debate transcript do bundle ADR-0006, metryki
+      debate.draft_vs_synthesized_delta, pilotaz kancelarii.
+      Konstytucja Art. 2 (weryfikowalnosc) + Art. 7 (minimalnosc danych - selektywna
+      eskalacja) - bump 1.1.1 -> 1.2.0 wspolnie z 4.5/4.7/4.8/4.9/4.10/4.11.
+- [~] 4.7 Mechaniczna weryfikacja cytatow preflight (citation grounding, Lavern cherry-pick) -
+      ADR-0005 PROPONOWANY 2026-05-20. Kazdy cytat orzeczenia/przepisu/dokumentu
+      klienta przechodzi fuzzy string-match (Levenshtein 0.95) z parsed source
+      (mcp-saos pelne brzmienie, mcp-isap artykul, indeks PDF/DOCX projektu).
+      3-stopniowy signal: verified / unverified / blocked. Cache parsed orzeczen
+      (Postgres lub Redis, TTL 7 dni). UI badge per cytat. Plan migracji 6-tygodniowy
+      w governance/adr/0005. Konstytucja Art. 2 - bump 1.1 -> 1.2.
+- [~] 4.8 Audit bundle dla zgodnosci z AI Act art. 12 (Lavern + video governance cherry-pick) -
+      ADR-0006 PROPONOWANY 2026-05-20, commit ADR (e8668b1). Bundle = deliverable +
+      debate_transcript + citation_verification + audit_log_excerpt (hash-chain integrity
+      proof) + cost_log + pseudonim_map_excerpt (szyfr osobnym kluczem per kancelaria) +
+      prompts_used + model_versions + manifest + signature. Auto-gen dla high-stakes
+      (z klasyfikatora 4.6), opt-in dla pozostalych. CLI `audit:bundle:verify`
+      dla regulatora. Parafraza AI Act art. 12 z CELEX 32024R1689 + link EUR-Lex.
+      Plan migracji 4-tygodniowy w governance/adr/0006.
+      Konstytucja Art. 3 (audytowalnosc) + Art. 7 (minimalnosc - bundle tylko dla
+      high-stakes) - bump 1.1.1 -> 1.2.0.
+
+- [~] 4.9 Hybrid retrieval 3-warstwowy (gbrain cherry-pick) - ADR-0007 PROPONOWANY 2026-05-21
+      (e8668b1). Trzy silniki rownolegle + reciprocal rank fusion (k=60 default):
+      (1) wektor multilingual-e5-large przez Ollama lokalnie (1024d, RODO-safe), opcja
+      ZeroEntropy/OpenAI/Voyage po opt-in .env z ostrzezeniem;
+      (2) BM25 Postgres tsvector z polskim stemmerem (pg_trgm + unaccent) - lapie sygnatury
+      orzeczen ktore embedding myli;
+      (3) graf cytowan z backlink-boosted ranking - dokument cytowany w 3+ opiniach kancelarii
+      dostaje boost (orientacyjnie +20-40%, do walidacji T2).
+      Cold start grafu 3 miesiace z GRAPH_BOOST_ENABLED=false. Plan 6-tygodniowy w
+      governance/adr/0007.
+      Konstytucja Art. 2/4/7/9 - bump 1.1.1 -> 1.2.0.
+
+- [~] 4.10 Entity extraction at write-time, zero LLM calls (gbrain cherry-pick) -
+      ADR-0008 PROPONOWANY 2026-05-21 (e8668b1). T1+T2 LIVE 2026-05-21 (a5f03c2 + 33431e7
+      + 6a88957):
+      * pl-entities/ shared library - 13 regul ekstrakcji (PESEL/NIP/REGON 9+14/KRS +
+        email + telefon +48 + 5 kategorii sygnatur SN/NSA/WSA/KIO/TK + CELEX/ELI +
+        firmy z forma prawna)
+      * gazetteery sady-pl.json (37 sadow) + sygnatury-prefix.json (41 prefixow izb) +
+        loader gazetteers.ts z parseSignaturePrefix dla 16 typowych formatow
+      * backend/src/lib/graph/ extractor - extractEntitiesAndEdges() z ontologia legal PL
+        (9 typow CitationRelation: cytuje_orzeczenie / cytuje_przepis / strona_postepowania
+        / reprezentuje / wzorzec_aneksowany / derywat_pisma / przed_sadem / wspomina_firme
+        / wspomina_osobe), context-based confidence boost (slowa-trigger "sygn.", "wyrok",
+        "uchwala" +0.2; prefix znany w gazetteerze +0.1), enrichSignatureMetadata
+        rozszyfrowuje WSA sigPrefix na konkretny sad
+      T3-T6: schema SQL extracted_entities + citation_graph, wpiec w lib/docparse.ts
+      post-parse hook, reuse output pseudonim/ dla imion/firm (T4), mcp-krs lookup
+      walidacja (T5), UI panel encji + manual corrections (T6).
+      Konstytucja Art. 1/3/4/7 - bump 1.1.1 -> 1.2.0.
+
+- [~] 4.11 Nocna konsolidacja pamieci + self-healing cytatow (gbrain cherry-pick) -
+      ADR-0009 PROPONOWANY 2026-05-21 (e8668b1). Cron 03:00 + przycisk "konsoliduj teraz"
+      w UI:
+      (1) re-weryfikacja cytatow >30 dni (SAOS/ISAP/EUR-Lex aktualizacje), flaga
+          citation_stale + audit log;
+      (2) konserwatywna deduplikacja encji - merge wymaga PESEL/NIP/KRS, same imie =
+          NIE merge (krytyczne: dwoch klientow Jan Kowalski);
+      (3) purge orphans 90d (ORPHAN_RETENTION_DAYS configurable);
+      (4) audit chain check incremental + full;
+      (5) morning brief markdown w UI rano.
+      Job idempotentny, monitorowany przez systemd timer. Plan 6-tygodniowy w
+      governance/adr/0009.
+      Konstytucja Art. 2/3/6/9 - bump 1.1.1 -> 1.2.0.
 
 Brama: audyt bezpieczenstwa + checklista legal-ai-plugin-governance przechodza.
 
