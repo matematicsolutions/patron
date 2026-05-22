@@ -324,6 +324,53 @@ in-place branching, standalone HTML export).
 patterny LLM abstraction lub session storage warte cherry-pick. Status
 2026-09 do 2026-11 - ponowny check.
 
+## Shubhamsaboo/awesome-llm-apps - knowledge_graph_rag_citations (Apache 2.0)
+
+**Repo**: https://github.com/Shubhamsaboo/awesome-llm-apps (folder
+`rag_tutorials/knowledge_graph_rag_citations`)
+**Licencja**: Apache 2.0
+**Snapshot**: 2026-05-22 (repo 111378 gwiazdek wg gh API, push 2026-05-21,
+nie fork/archiwum)
+**Upstream demka**: [bibinprathap/VeritasGraph](https://github.com/bibinprathap/VeritasGraph)
+(named inspiration wg README demka - GraphRAG multi-hop + verifiable attribution;
+**brak zadeklarowanej licencji** wg gh API 2026-05-22 = all rights reserved,
+NIE cherry-pickujemy z niego, tylko z demka Apache 2.0; kandydat do osobnej oceny)
+**Pattern wzorcowany**: multi-hop reasoning po grafie wiedzy z jawna sciezka
+wnioskowania (reasoning trace) eksponowana obok cytatow.
+
+**Co Patron bierze (wzor)**:
+- **Multi-hop traversal grafu jako mechanizm wyprowadzania odpowiedzi** na
+  pytania wielodokumentowe (nie flat similarity) - ADR-0016
+- **Reasoning trace jako jawna struktura** (from -> relation -> to + zrodlo per
+  hop), nie czarna skrzynka - ADR-0016
+- **Lokalnosc stacku** (demo: Neo4j+Ollama lokalnie) potwierdza, ze pattern
+  dziala bez chmury - zgodne z Konstytucja Art. 1
+
+**Czego Patron NIE bierze**:
+- **Kodu Python/Streamlit** demo (Patron: TypeScript/Node/Postgres, od zera)
+- **Neo4j** - Patron uzywa `citation_graph` w Postgres (ADR-0007/0008), zero
+  dodatkowego serwisu grafowego
+- **Generycznej ontologii** demo (person/org/concept/technology) - Patron uzywa
+  ontologii legal PL z ADR-0008 (`cytuje_orzeczenie` / `derywat_pisma` /
+  `przed_sadem`...)
+- **Trace jako wygody UX** - Patron traktuje reasoning trace jako **artefakt
+  zgodnosci AI Act art. 12** (audit bundle ADR-0006 + hash-chain ADR-0001),
+  nie tylko element interfejsu
+- **Naiwnego traversalu bez weryfikacji** - Patron wpina ADR-0005 verifier
+  na kazdy hop (ucina error propagation), demo tego nie ma
+- **Braku limitu ekspansji** - Patron dodaje hop-budget + beam search pod
+  Konstytucja Art. 7 (minimalnosc)
+
+**Wdrozenie**: ADR-0016 (multi-hop graph traversal + reasoning trace), ~4-5
+tygodni dev (T1-T5), twarda zaleznosc od ADR-0007 (hybrid retrieval) i ADR-0008
+(entity extraction / `citation_graph`). Implementacja PL od zera, nie port kodu.
+
+**Uwaga o repo zrodlowym**: awesome-llm-apps to **katalog ~111 demo-aplikacji**
+(tutoriale), nie produkcyjne narzedzie. Werdykt oceny MateMatic: **bank pomyslow
+/ blueprint**, demo-grade (cloud-first, klucze API w kodzie, brak persistence/
+audit/PII w wiekszosci apek) - **nic stad nie idzie pod marke MateMatic jako
+kod**. Cherry-pickujemy wylacznie wzorzec architektoniczny tej jednej apki.
+
 ## Zasada cherry-pick MateMatic
 
 Patron stosuje wzorzec **cherry-pick wzoru zamiast adopcji narzedzia**
