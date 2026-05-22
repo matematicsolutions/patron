@@ -2,7 +2,7 @@
 
 > **Uwaga numeracja**: ostatni zajety ADR to 0018 (precedent-board). Przed bumpem sprawdzono `ls governance/adr/` oraz brak rownoleglej rezerwacji - zgodnie z [[feedback_sesje_rownolegle_semver]]. Jezeli rownolegla sesja zajmie 0019, przenumerowac na pierwszy wolny.
 
-**Status**: Proponowany (cherry-pick blueprint + PL-aware skeleton; NIEWPIETY w stack produkcyjny)
+**Status**: Przyjety (2026-05-22 - skeleton zakodowany i przetestowany; wpiecie produkcyjne wg ADR-0020, zaakceptowane przez Wieslawa)
 **Data**: 2026-05-22
 
 **Powiazane zasady** (Konstytucja Patrona v1.1.1, zweryfikowane wzgledem `governance/CONSTITUTION.md`):

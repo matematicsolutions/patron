@@ -1,7 +1,7 @@
 # Konstytucja AI Patrona
 
-Wersja: 1.1.1
-Data: 2026-05-20
+Wersja: 1.2.0
+Data: 2026-05-22
 Status: obowiązująca
 Wydawca: MateMatic / Wiesław Mazur
 
@@ -101,6 +101,11 @@ Mechanizmy techniczne:
 - audit log: każde wywołanie modelu zostawia ślad (kto, kiedy, ile
   tokenów, jaki tool MCP, ale BEZ pełnej treści promptu - tylko
   długość i metadata)
+- kontrola wejścia: dokumenty przesłane do Patrona są skanowane
+  lokalnie (deterministycznie, bez LLM) pod kątem prób manipulacji
+  modelem (prompt-injection), ukrytych akcji PDF i zaciemnionej treści,
+  ZANIM trafią do modelu lub indeksu RAG; decyzja skanu trafia do audit
+  logu (ADR-0019, ADR-0020)
 
 ### Art. 6 - Granica błędu (zasada "human in the loop")
 
@@ -298,6 +303,7 @@ Consequences: <co się zmienia>
 
 | Wersja | Data | Zmiana |
 |---|---|---|
+| 1.2.0 | 2026-05-22 | Art. 5 rozszerzony o mechanizm „kontrola wejścia" - skan dokumentów wejściowych pod kątem manipulacji modelu (prompt-injection / ukryte akcje PDF / zaciemnienie) przed wejściem do modelu lub RAG (ADR-0019, ADR-0020). MINOR (rozszerzenie zasady, brak łamania kontraktów). |
 | 1.1.1 | 2026-05-20 | Art. 4 przemianowany z „Vendor neutrality" na „Neutralność wobec dostawców", rola 4.5 z „Vendor" na „Dostawca". PATCH (doprecyzowanie terminologii PL, korpus zasady i wszystkie kontrakty bez zmian; zgodnie z § 6.1 wystarcza commit i changelog). |
 | 1.1.0 | 2026-05-20 | Art. 9 doprecyzowany o dual-license: AGPL-3.0 shell + MIT connectors (ADR-0002). MINOR bump (rozszerzenie zasady, brak łamania kontraktów). |
 | 1.0.0 | 2026-05-20 | Pierwsza wersja konstytucji Patrona. |

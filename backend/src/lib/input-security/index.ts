@@ -7,6 +7,12 @@ export * from "./types";
 export { analyzeInput, DEFAULT_DETECTORS } from "./pipeline";
 export { calculateRiskScore, decideAction, toThreatLevel } from "./scorer";
 export { buildResult } from "./report";
+export {
+    resolveIngestOutcome,
+    toAuditPayload,
+    INPUT_SECURITY_AUDIT_EVENT,
+} from "./ingest";
+export type { IngestOutcome } from "./ingest";
 export { adversarialDetector } from "./detectors/adversarial-pl";
 export { steganographyDetector } from "./detectors/steganography";
 export { obfuscationDetector } from "./detectors/obfuscation";

@@ -147,6 +147,18 @@ alter table public.documents
   add column if not exists current_version_id uuid
   references public.document_versions(id) on delete set null;
 
+-- ADR-0019/0020: status skanu bezpieczenstwa dokumentu wejsciowego.
+-- Skan (lib/input-security) badzie wejscie PRZED utrwaleniem/RAG-indeksacja;
+-- wynik zapisywany tu + do audit_log (zdarzenie input_security_scan, ADR-0001).
+-- 'pending' = jeszcze nieskanowany (kompatybilnosc wstecz z istniejacymi wierszami).
+alter table public.documents
+  add column if not exists security_status text not null default 'pending'
+  check (security_status in
+    ('pending', 'allowed', 'quarantined', 'human_review', 'blocked'));
+
+alter table public.documents
+  add column if not exists security_report_id text;
+
 create table if not exists public.document_edits (
   id uuid primary key default gen_random_uuid(),
   document_id uuid not null references public.documents(id) on delete cascade,

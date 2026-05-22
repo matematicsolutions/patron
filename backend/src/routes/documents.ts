@@ -13,8 +13,17 @@ import {
 import { docxToPdf, convertedPdfKey } from "../lib/convert";
 import {
   extractTrackedChangeIds,
+  extractDocxBodyText,
   resolveTrackedChange,
 } from "../lib/docxTrackedChanges";
+import { extractPdfText } from "../lib/chat/pdf";
+import { appendAuditEvent } from "../lib/audit";
+import {
+  analyzeInput,
+  resolveIngestOutcome,
+  toAuditPayload,
+  INPUT_SECURITY_AUDIT_EVENT,
+} from "../lib/input-security";
 import { buildDownloadUrl } from "../lib/downloadTokens";
 import {
   attachActiveVersionPaths,
@@ -876,19 +885,60 @@ async function handleDocumentUpload(
       suffix === "pdf"
         ? "application/pdf"
         : "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-    await uploadFile(
-      key,
-      content.buffer.slice(
-        content.byteOffset,
-        content.byteOffset + content.byteLength,
-      ) as ArrayBuffer,
-      contentType,
-    );
 
     const rawBuf = content.buffer.slice(
       content.byteOffset,
       content.byteOffset + content.byteLength,
     ) as ArrayBuffer;
+
+    // ADR-0019/0020: skan bezpieczenstwa wejscia PRZED utrwaleniem bajtow i
+    // RAG-indeksacja. Deterministyczny, lokalny, zero-LLM. Wynik -> kolumny
+    // documents.security_* + audit_log (zdarzenie input_security_scan).
+    // blocked => bajty NIE trafiaja do storage (return przed uploadFile).
+    let scanText = "";
+    try {
+      scanText =
+        suffix === "pdf"
+          ? await extractPdfText(rawBuf)
+          : await extractDocxBodyText(content);
+    } catch {
+      // Ekstrakcja tekstu do skanu jest best-effort (np. skan bez warstwy
+      // tekstowej); detektory binarne dzialaja na buforze niezaleznie.
+    }
+    const scan = analyzeInput({
+      text: scanText,
+      fileName: filename,
+      declaredType: contentType,
+      buffer: new Uint8Array(rawBuf),
+    });
+    const outcome = resolveIngestOutcome(scan);
+    await appendAuditEvent(db, {
+      event_type: INPUT_SECURITY_AUDIT_EVENT,
+      actor_user_id: userId,
+      document_id: docId,
+      payload: toAuditPayload(scan),
+    });
+    if (!outcome.persist) {
+      await db
+        .from("documents")
+        .update({
+          status: outcome.documentStatus,
+          security_status: outcome.securityStatus,
+          security_report_id: scan.reportId,
+        })
+        .eq("id", docId);
+      return void res.status(outcome.httpStatus).json({
+        detail: "Dokument odrzucony: wykryto zagrozenie bezpieczenstwa wejscia.",
+        security: {
+          action: scan.action,
+          threat_level: scan.threatLevel,
+          report_id: scan.reportId,
+        },
+      });
+    }
+
+    await uploadFile(key, rawBuf, contentType);
+
     const tree = await extractStructureTree(rawBuf, suffix, filename);
     const pageCount = suffix === "pdf" ? await countPdfPages(rawBuf) : null;
 
@@ -945,7 +995,9 @@ async function handleDocumentUpload(
         size_bytes: content.byteLength,
         page_count: pageCount,
         structure_tree: tree ?? null,
-        status: "ready",
+        status: outcome.documentStatus,
+        security_status: outcome.securityStatus,
+        security_report_id: scan.reportId,
         updated_at: new Date().toISOString(),
       })
       .eq("id", docId);
@@ -957,9 +1009,20 @@ async function handleDocumentUpload(
       .single();
     // Surface storage paths to the caller for backward compatibility.
     const responseDoc = updated
-      ? { ...updated, storage_path: key, pdf_storage_path: pdfStoragePath }
+      ? {
+          ...updated,
+          storage_path: key,
+          pdf_storage_path: pdfStoragePath,
+          security: {
+            action: scan.action,
+            threat_level: scan.threatLevel,
+            report_id: scan.reportId,
+          },
+        }
       : updated;
-    return void res.status(201).json(responseDoc);
+    // 202 dla human_review (utrwalony, czeka na decyzje Operatora/Inspektora),
+    // 201 dla allowed/quarantined. allowIndex=false => RAG ma pominac.
+    return void res.status(outcome.httpStatus).json(responseDoc);
   } catch (e) {
     await db.from("documents").update({ status: "error" }).eq("id", doc.id);
     return void res

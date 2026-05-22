@@ -2,7 +2,7 @@
 
 > **Uwaga numeracja**: ostatni zajety ADR to 0019 (input-security skeleton, commit e23e444). Przed bumpem sprawdzono `ls governance/adr/`. Jezeli rownolegla sesja zajmie 0020, przenumerowac.
 
-**Status**: Proponowany (decyzja wpiecia w istniejacy kontrakt; CZEKA na akceptacje Wieslawa - patrz Punkty decyzyjne)
+**Status**: Przyjety (2026-05-22 - Wieslaw zaakceptowal rekomendacje: ingest / sync; `human_review` odbiera Operator + Inspektor. Default-on jest decyzja PROJEKTOWA (warstwa istnieje i jest wlaczana w kodzie), ale BRAMA PRODUKCYJNA: default-on w produkcji dopiero po ukonczeniu T3 - regression set PL kalibrujacy progi)
 **Data**: 2026-05-22
 
 **Powiazane zasady** (Konstytucja Patrona v1.1.1, zweryfikowane wzgledem `governance/CONSTITUTION.md`):
@@ -86,12 +86,12 @@ Kazdy skan (takze `allowed`) loguje `input_security_scan` z `reportId`, `riskSco
 
 ## Punkty decyzyjne (CZEKAJA na Wieslawa)
 
-Rekomendacje uzasadnione w sekcji Decyzja. Tutaj tylko do potwierdzenia:
+Rozstrzygniete przez Wieslawa 2026-05-22:
 
-- [ ] **Szew / Sync / Default-on** - przyjac trzy rekomendacje z sekcji Decyzja (ingest, synchronicznie, domyslnie wlaczone) w calosci? TAK/NIE per punkt.
-- [ ] **Gate `human_review`**: kto odbiera - Operator, Inspektor, czy oba (Konstytucja role 4.2/4.3)?
-- [ ] **Kalibracja progow**: wymagamy ukonczenia T3 (regression set PL) PRZED default-on w produkcji?
-- [ ] **Akceptacja ADR** -> zmiana statusu na "Przyjety", ADR-0019 awansuje na "Przyjety", start W1.
+- [x] **Szew / Sync / Default-on** - przyjete w calosci: skan na ingescie, synchronicznie, domyslnie wlaczony.
+- [x] **Gate `human_review`**: odbiera **Operator + Inspektor** (Konstytucja role 4.2 i 4.3).
+- [x] **Kalibracja progow**: T3 (regression set PL) wymagany PRZED default-on w produkcji - TAK.
+- [x] **Akceptacja ADR** -> ADR-0019 i 0020 = Przyjete, start W1.
 
 ---
 
