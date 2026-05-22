@@ -9,6 +9,14 @@
     "enabled": false
   },
   {
+    "_comment": "eu-compliance wymaga pobranego korpusu: w repo mcp-eu-compliance uruchom 'npm run fetch-corpus' przed 'npm run build'.",
+    "name": "eu-compliance",
+    "transport": "stdio",
+    "command": "node",
+    "args": ["/path/to/mcp-eu-compliance/dist/index.js"],
+    "enabled": false
+  },
+  {
     "name": "example-http",
     "transport": "http",
     "url": "http://localhost:3100/mcp",

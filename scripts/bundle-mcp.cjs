@@ -30,12 +30,16 @@ const path = require("path");
 // Format: { name, repoDir (relatywny od MCP_REPOS_DIR), distSubdir }.
 // ---------------------------------------------------------------------------
 
+// needsData: konektor wymaga katalogu data/ obok dist/ (np. lokalny korpus
+// SQLite). data/ jest kopiowany do obrazu; jego brak to blad (uruchom
+// fetch-corpus w repo konektora przed bundlem).
 const SERVERS = [
     { name: "saos", repoDir: "mcp-saos" },
     { name: "nsa", repoDir: "mcp-nsa" },
     { name: "isap", repoDir: "mcp-isap" },
     { name: "krs", repoDir: "mcp-krs" },
     { name: "eu-sparql", repoDir: "mcp-eu-sparql" },
+    { name: "eu-compliance", repoDir: "mcp-eu-compliance", needsData: true },
 ];
 
 const ROOT = path.resolve(__dirname, "..");
@@ -136,12 +140,23 @@ for (const server of SERVERS) {
         continue;
     }
 
+    const dataPath = path.resolve(repoPath, "data");
+    if (server.needsData && !fs.existsSync(dataPath)) {
+        log(
+            "error",
+            `Brak data/ dla "${server.name}" (${dataPath}). Uruchom w "${repoPath}": npm run fetch-corpus`,
+        );
+        errors++;
+        continue;
+    }
+
     checkedServers.push({
         ...server,
         repoPath,
         distPath,
         pkgPath,
         nmPath,
+        dataPath: fs.existsSync(dataPath) ? dataPath : null,
     });
 }
 
@@ -174,6 +189,11 @@ for (const server of checkedServers) {
     copyDir(server.distPath, path.resolve(targetDir, "dist"));
     fs.copyFileSync(server.pkgPath, path.resolve(targetDir, "package.json"));
     copyDir(server.nmPath, path.resolve(targetDir, "node_modules"));
+    // Konektor szuka korpusu przez __dirname/../data, czyli targetDir/data.
+    if (server.dataPath) {
+        copyDir(server.dataPath, path.resolve(targetDir, "data"));
+        log("info", `  + data/ skopiowany dla "${server.name}"`);
+    }
 
     manifest.push({
         name: server.name,
