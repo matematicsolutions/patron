@@ -365,11 +365,35 @@ wnioskowania (reasoning trace) eksponowana obok cytatow.
 tygodni dev (T1-T5), twarda zaleznosc od ADR-0007 (hybrid retrieval) i ADR-0008
 (entity extraction / `citation_graph`). Implementacja PL od zera, nie port kodu.
 
+**Druga apka z tego repo - `rag_failure_diagnostics_clinic`** (ten sam Apache 2.0):
+
+**Pattern wzorcowany**: klasyfikacja awarii RAG wg taksonomii (wg README demka:
+12 generycznych trybow IT) + strukturalny zapis do post-mortem.
+
+**Co Patron bierze (wzor)**:
+- **Klasyfikacja awarii wg taksonomii** + strukturalny zapis diagnozy - ADR-0017
+
+**Czego Patron NIE bierze**:
+- **12 generycznych trybow IT** demka - Patron pisze wlasna **taksonomie PL legal**
+  (brak_zrodla_w_SAOS / zrodla_sprzeczne / przepis_nieaktualny / cytat_unverified
+  / pokrycie_czesciowe / sygnatura_nieistniejaca)
+- **Dev-time triage po fakcie** - Patron robi **runtime gate** sygnalizujacy
+  wiarygodnosc prawnikowi PRZED oparciem sie na odpowiedzi (Konstytucja Art. 6)
+- **LLM-only klasyfikacja** (wg README demka gpt-4o) - Patron liczy wiekszosc sygnalow
+  deterministycznie z istniejacych warstw (0005/0007/0016), LLM tylko dla oceny
+  sprzecznosci zrodel (Art. 3 reprodukowalnosc + Art. 7 minimalnosc)
+- **Kodu Python/CLI** i plaskiego JSON - Patron: TypeScript/Postgres, audit bundle
+  z hash-chain (ADR-0006/0001), eskalacja do debate (ADR-0004)
+
+**Wdrozenie**: ADR-0017 (diagnostyka wiarygodnosci odpowiedzi), ~3-4 tygodnie dev
+(T1-T4), zaleznosc od ADR-0005 (verification rate) i ADR-0007 (score retrievalu).
+
 **Uwaga o repo zrodlowym**: awesome-llm-apps to **katalog ~111 demo-aplikacji**
 (tutoriale), nie produkcyjne narzedzie. Werdykt oceny MateMatic: **bank pomyslow
 / blueprint**, demo-grade (cloud-first, klucze API w kodzie, brak persistence/
 audit/PII w wiekszosci apek) - **nic stad nie idzie pod marke MateMatic jako
-kod**. Cherry-pickujemy wylacznie wzorzec architektoniczny tej jednej apki.
+kod**. Cherry-pickujemy wylacznie wzorce architektoniczne wybranych apek
+(KG-citations -> ADR-0016, failure-diagnostics -> ADR-0017).
 
 ## Zasada cherry-pick MateMatic
 
