@@ -7,6 +7,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ## [Unreleased]
 
+- ADR-0021 - Time-travel nowelizacji (deterministyczny diff przepisu w
+  czasie). Decyzja przyjeta 2026-05-22, koncept z chrisryugj/korean-law-mcp
+  (MIT) - patrz THIRD_PARTY_INSPIRATIONS.md. Implementacja jako narzedzie
+  w `mcp-isap`, NIE zakodowana (T1-T5 w ADR). Bramka ELI zwalidowana.
 - Phase 2.7 - Schema for law firm domain (`matter` / `client` / docs
   per matter).
 - Phase 4.2 - additional event types in audit log (`doc.read`,

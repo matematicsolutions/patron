@@ -435,6 +435,29 @@ przyszly ADR-0020.
 - **PII-detektora** - Patron ma wlasny PL (pl-entities, ADR-0003/0013), mocniejszy
   dla fleksji i checksum GUS.
 
+## chrisryugj/korean-law-mcp (MIT)
+
+**Repo**: https://github.com/chrisryugj/korean-law-mcp
+**Licencja**: `MIT` (zweryfikowane realnym plikiem LICENSE - `gh repo view` zwracal
+falszywe NONE; zawsze czytaj plik). Bierzemy KONCEPT, nie kod.
+**Snapshot**: 2026-05-22 (1806 gwiazdek, v4.0.4, push 2026-05-19, TypeScript, nie fork/archiwum)
+**Pattern wzorcowany**: narzedzie `time_travel` - auto-diff przepisu miedzy dwiema
+datami (anti-halucynacja przez mechaniczne porownanie zrodel, nie streszczenie modelu).
+Korea opakowuje 41 panstwowych API KR; my mamy wlasny konektor ISAP na polskim ELI.
+**Wdrozenie**: ADR-0021 (time-travel diff nowelizacji) - SZKIC, czeka marko-pl 2x + decyzje Wieslawa.
+
+**Co Patron bierze (wzor)**:
+- **Model "dwa punkty w czasie -> diff"** + mapowanie zmiany na akt nowelizujacy
+- **Filozofia anti-halucynacji przez mechanike** (zbiezne z ADR-0005 citation-grounding)
+
+**Czego Patron NIE bierze (i dlaczego)**:
+- **Kodu** - opakowuje koreanskie API panstwowe (KR-specific). Implementujemy od zera
+  na `api.sejm.gov.pl/eli`, rozszerzajac wlasny konektor ISAP o historie wersji.
+- **`impact_map`** (graf wplywu przepisu) - nie dublujemy; graf zaleznosci to rozszerzenie
+  istniejacego grafu (ADR-0007/0016), nie nowy mechanizm.
+- **`citation-verification`** - juz pokryte mechanicznie ADR-0005.
+- **`action_plan`** (przewodnik obywatelski) - segment access-to-justice, nie kancelaryjny Patron.
+
 ## Zasada cherry-pick MateMatic
 
 Patron stosuje wzorzec **cherry-pick wzoru zamiast adopcji narzedzia**
