@@ -404,6 +404,37 @@ audit/PII w wiekszosci apek) - **nic stad nie idzie pod marke MateMatic jako
 kod**. Cherry-pickujemy wylacznie wzorce architektoniczne wybranych apek
 (KG-citations -> ADR-0016, failure-diagnostics -> ADR-0017).
 
+## jdai-ca/atticus (Apache-2.0 OR Commercial)
+
+**Repo**: https://github.com/jdai-ca/atticus
+**Licencja**: dual `Apache-2.0 OR Commercial` - bierzemy galaz **Apache-2.0**
+(w kanonie cherry-pick MateMatic). Trademark "Atticus" zastrzezony (John Kost /
+JDAI.ca) - nazwy nie uzywamy.
+**Snapshot**: 2026-05-22 (38 gwiazdek, v0.9.20, push 2026-05-19, nie fork/archiwum)
+**Pattern wzorcowany**: 5-fazowy pipeline skanu bezpieczenstwa dokumentu
+wejsciowego (`src/services/fileSecurityPipeline.ts` + `src/services/security/`) -
+triage typu pliku -> ekstrakcja -> rownolegle detektory -> scoring -> raport z akcja.
+**Wdrozenie**: ADR-0019 (input document security pipeline PL-aware), T1 skeleton
+zakodowany 2026-05-22 w `backend/src/lib/input-security/`; wpiecie w kontrakt =
+przyszly ADR-0020.
+
+**Co Patron bierze (wzor)**:
+- **5-fazowy orchestrator** (u Atticusa `analyzeFile()`, u nas `analyzeInput()`)
+- **Model akcji** czterostanowy: `allowed` / `quarantined` / `human_review` / `blocked`
+- **Taksonomia kategorii**: adversarial / steganography / obfuscation / evasion
+- **Idea skanu wejscia pre-LLM** jako artefakt audytu (zbiezne z ADR-0001/0006, AI Act art. 12)
+
+**Czego Patron NIE bierze (i dlaczego)**:
+- **Kodu detektorow** - w Atticusie sa **English-only** (listy `PROMPT_INJECTION_SIGNALS`,
+  `JAILBREAK_PATTERNS` po angielsku) i czesciowo **wrogie polszczyznie**
+  (`detectHomoglyphs` lapie cyrylice, `detectEmbeddingAnomalies` ma `[^\x00-\x7F]{3,}`
+  = false-positive na kazdym polskim diakrytyku). Detektory piszemy od zera, PL-aware.
+- **Naiwnych heurystyk**: LSB obrazu (chi-kwadrat na surowych bajtach, nie pikselach),
+  porownanie NFC/NFD (lamie sie na polskich znakach), "perplexity" jako entropia slow.
+- **Electron/React/Zustand stacku** - Patron to TypeScript/Node/Postgres.
+- **PII-detektora** - Patron ma wlasny PL (pl-entities, ADR-0003/0013), mocniejszy
+  dla fleksji i checksum GUS.
+
 ## Zasada cherry-pick MateMatic
 
 Patron stosuje wzorzec **cherry-pick wzoru zamiast adopcji narzedzia**
