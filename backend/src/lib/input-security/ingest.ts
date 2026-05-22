@@ -86,3 +86,13 @@ export function toAuditPayload(result: SecurityScanResult): Record<string, unkno
 }
 
 export const INPUT_SECURITY_AUDIT_EVENT = "input_security_scan";
+
+/**
+ * Twardy sygnal manipulacji - kwalifikuje do wstrzymania na sciezce read-time
+ * (ADR-0020 W4, obrona w glab). Tylko `blocked` (critical) i `human_review`
+ * (high) - `quarantined`/`allowed` NIE blokuja odczytu (zbyt agresywne dla
+ * obrony w glab). Lekka decyzja, bez pelnego raportu.
+ */
+export function isHardThreat(result: SecurityScanResult): boolean {
+    return result.action === "blocked" || result.action === "human_review";
+}

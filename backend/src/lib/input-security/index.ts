@@ -10,6 +10,7 @@ export { buildResult } from "./report";
 export {
     resolveIngestOutcome,
     toAuditPayload,
+    isHardThreat,
     INPUT_SECURITY_AUDIT_EVENT,
 } from "./ingest";
 export type { IngestOutcome } from "./ingest";

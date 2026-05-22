@@ -15,6 +15,7 @@ import { createServerSupabase } from "../supabase";
 import { citationReminder } from "./prompts";
 import { resolveDocLabel } from "./citations";
 import { extractPdfText } from "./pdf";
+import { analyzeInput, isHardThreat } from "../input-security";
 import { generateDocx } from "./docx-generate";
 import { loadCurrentVersionBytes, runEditDocument } from "./docx-edit";
 import type {
@@ -158,6 +159,26 @@ async function readDocumentContent(
         console.log(
             `[read_document] DONE filename="${docInfo.filename}" finalTextLength=${text.length} firstChars=${JSON.stringify(text.slice(0, 120))}`,
         );
+
+        // ADR-0020 W4: obrona w glab. Tuz przed podaniem tresci do promptu
+        // sprawdzamy twarde sygnaly manipulacji (prompt-injection / ukryte akcje
+        // PDF). Lapie dokumenty wgrane przed wpieciem skanu w ingest (W2) albo
+        // oznaczone do przegladu. Lekko - blokujemy tylko na blocked/human_review.
+        const guard = analyzeInput({
+            text,
+            fileName: docInfo.filename,
+            declaredType:
+                docInfo.file_type === "pdf" ? "application/pdf" : undefined,
+            buffer: new Uint8Array(raw),
+        });
+        if (isHardThreat(guard)) {
+            console.log(
+                `[read_document] WSTRZYMANY przez input-security action=${guard.action} filename="${docInfo.filename}"`,
+            );
+            emitDocRead();
+            return `Dokument "${docInfo.filename}" zostal wstrzymany przez kontrole bezpieczenstwa wejscia (mozliwa proba manipulacji modelem, np. wstrzykniete polecenie lub ukryta akcja). Tresc nie zostala wczytana do modelu. Zglos dokument Operatorowi/Inspektorowi do recznej oceny.`;
+        }
+
         emitDocRead();
         return text;
     } catch (err) {
