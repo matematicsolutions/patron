@@ -19,31 +19,40 @@ interface SignalRule {
 // bo dokument moze byc po polsku z pelnymi znakami - regex dziala na tresci
 // klienta (z diakrytykami), nie na komentarzach kodu.
 const PROMPT_INJECTION_PL: SignalRule[] = [
+    // UWAGA granice slow: JS `\b` jest ASCII-only - polskie s/n/c (z diakrytykiem)
+    // to dla `\b` znaki NIE-slowne, wiec `jeste[sś]\b` zachowuje sie odwrotnie do
+    // intencji (matchuje "jestesmy", nie matchuje "jestes " przed spacja). Dlatego
+    // uzywamy unicode-aware lookaheadow `(?<!\p{L})` / `(?!\p{L})`. To dokladnie ta
+    // klasa bledu, ktora odrzucamy u Atticusa (patrz ADR-0019).
     {
         technique: "prompt-injection-pl",
         pattern:
-            /\b(?:zignoruj|pomi[nń]|zapomnij|odrzu[cć])\s+(?:wszystkie\s+)?(?:poprzednie|powy[zż]sze|wcze[sś]niejsze|dotychczasowe)\s+(?:instrukcje|polecenia|wytyczne|ustalenia|zasady)/giu,
+            /(?<!\p{L})(?:zignoruj|pomi[nń]|zapomnij|odrzu[cć])\s+(?:wszystkie\s+)?(?:poprzednie|powy[zż]sze|wcze[sś]niejsze|dotychczasowe)\s+(?:instrukcje|polecenia|wytyczne|ustalenia|zasady)/giu,
         severity: "high",
         impact: "Proba nadpisania instrukcji systemowych - model moze ujawnic kontekst innej sprawy lub zlamac zasady.",
     },
     {
+        // Tylko silne, imperatywne przejecie roli. Bare "od teraz jestes" / "jestes
+        // teraz" CELOWO usuniete - to naturalne zwroty w pismach ("od teraz jestes
+        // zobowiazany"), dawaly false-positive. Atak typu role-override i tak lapie
+        // sie na "udawaj ze jestes" / "dzialaj jako".
         technique: "prompt-injection-pl-newrole",
         pattern:
-            /\b(?:dzia[lł]aj\s+(?:jako|jak)|udawaj,?\s+[zż]e\s+jeste[sś]|wciel\s+si[eę]\s+w|od\s+teraz\s+jeste[sś]|jeste[sś]\s+teraz)\b/giu,
+            /(?<!\p{L})(?:dzia[lł]aj\s+(?:jako|jak)|udawaj,?\s+[zż]e\s+jeste[sś]|wciel\s+si[eę]\s+w)(?!\p{L})/giu,
         severity: "high",
         impact: "Proba przejecia roli (role override) - wymuszenie nowej persony modelu.",
     },
     {
         technique: "prompt-injection-pl-reveal",
         pattern:
-            /\b(?:ujawnij|poka[zż]|wypisz|wyswietl|zdrad[zź])\s+(?:sw[oó]j\s+)?(?:prompt\s+systemowy|instrukcje\s+systemowe|polecenie\s+systemowe|konfiguracj[eę]|ustawienia\s+systemowe)/giu,
+            /(?<!\p{L})(?:ujawnij|poka[zż]|wypisz|wyswietl|zdrad[zź])\s+(?:sw[oó]j\s+)?(?:prompt\s+systemowy|instrukcje\s+systemowe|polecenie\s+systemowe|konfiguracj[eę]|ustawienia\s+systemowe)/giu,
         severity: "high",
         impact: "Proba ekstrakcji promptu systemowego.",
     },
     {
         technique: "jailbreak-pl-mode",
         pattern:
-            /\b(?:tryb\s+(?:dewelopera|deweloperski|bez\s+ogranicze[nń]|nieocenzurowany|swobodny)|bez\s+(?:filtr[oó]w|cenzury|ogranicze[nń])|pomi[nń]\s+(?:zabezpieczenia|filtry|zasady\s+bezpiecze[nń]stwa))\b/giu,
+            /(?<!\p{L})(?:tryb\s+(?:dewelopera|deweloperski|bez\s+ogranicze[nń]|nieocenzurowany|swobodny)|bez\s+(?:filtr[oó]w|cenzury|ogranicze[nń])|pomi[nń]\s+(?:zabezpieczenia|filtry|zasady\s+bezpiecze[nń]stwa))(?!\p{L})/giu,
         severity: "high",
         impact: "Polski wariant proby jailbreak - wylaczenie mechanizmow bezpieczenstwa.",
     },

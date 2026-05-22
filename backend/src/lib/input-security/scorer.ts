@@ -30,9 +30,14 @@ export function calculateRiskScore(findings: SecurityFinding[]): number {
 }
 
 export function toThreatLevel(score: number, findings: SecurityFinding[]): ThreatLevel {
+    // Severity-floor: realna detekcja nigdy nie przechodzi po cichu jako "low".
+    // Pojedynczy finding medium daje niski zagregowany score (waga * confidence),
+    // ale samo jego istnienie warte jest co najmniej kwarantanny (Art. 6 - nie
+    // przepuszczamy w ciszy podejrzanej tresci). Score sluzy do ESKALACJI w gore.
     if (findings.some((f) => f.severity === "critical")) return "critical";
-    if (score >= 60) return "high";
-    if (score >= 25) return "medium";
+    if (score >= 60 || findings.some((f) => f.severity === "high")) return "high";
+    if (score >= 25 || findings.some((f) => f.severity === "medium")) return "medium";
+    if (findings.some((f) => f.severity === "low")) return "low";
     return "low";
 }
 
