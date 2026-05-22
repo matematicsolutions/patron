@@ -152,7 +152,7 @@ Patrona.
 - Planowane: debate (ADR-0004), citation grounding (ADR-0005), audit
   bundle (ADR-0006)
 - Stack governance: Konstytucja, IMPLEMENTATION_PLAYBOOK, USER_GUIDE,
-  6 ADR-ow
+  17 ADR-ow (0001-0017)
 
 **Licencja**: Patron jako derivative work willchen96/mike pozostaje
 w schemacie dual-license (powloka AGPL-3.0 + konektory MIT), patrz

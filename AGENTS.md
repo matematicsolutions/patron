@@ -59,8 +59,8 @@ Testy: 233/238 pass na 2026-05-21 (5 todo, 0 fail). TSC clean. **Nie commituj je
 1. [README.md](./README.md) - opis dla ludzi
 2. [governance/CONSTITUTION.md](./governance/CONSTITUTION.md) - 9 zasad, role, audyt (v1.1.1, podpisywana przez kancelarie)
 3. [governance/IMPLEMENTATION_PLAYBOOK.md](./governance/IMPLEMENTATION_PLAYBOOK.md) - 6-8 tyg wdrozenia, RACI
-4. [governance/adr/](./governance/adr/) - Architecture Decision Records (0001-0009)
-5. [THIRD_PARTY_INSPIRATIONS.md](./THIRD_PARTY_INSPIRATIONS.md) - co cherry-pickowalismy i skad (Lavern, gbrain, Mike)
+4. [governance/adr/](./governance/adr/) - Architecture Decision Records (0001-0017)
+5. [THIRD_PARTY_INSPIRATIONS.md](./THIRD_PARTY_INSPIRATIONS.md) - co cherry-pickowalismy i skad (Mike, Lavern, gbrain, isaacus/tabular-review, PII-Shield, earendil/pi, awesome-llm-apps)
 6. [CHANGELOG.md](./CHANGELOG.md), [SECURITY.md](./SECURITY.md), [CONTRIBUTING.md](./CONTRIBUTING.md)
 
 ## Kompatybilnosc agentow
