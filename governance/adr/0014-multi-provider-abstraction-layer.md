@@ -15,7 +15,7 @@
 - ADR-0006 (audit bundle AI Act art. 12) - bundle zawiera per-call provider metadata (kto, jaki model, ile tokenow, ile kosztowalo)
 - ADR-0010 (contract review module) - extraction worker juz wymaga "konfigurowalnego LLM, nie Gemini hardcoded"; ten ADR to wdraza systemowo
 
-**Inspiracja cherry-pick**: [earendil-works/pi](https://github.com/earendil-works/pi) (MIT, 52.3k gwiazdek, v0.75.4 z 20.05.2026, organizacja earendil-works, monorepo 4 pakietow, pakiet `@earendil-works/pi-ai`). **NIE forkujemy** - cherry-pick patternu architektonicznego abstrakcji. Caly kod TypeScript Patrona napisany od zera w `backend/src/lib/llm/`.
+**Inspiracja cherry-pick**: [earendil-works/pi](https://github.com/earendil-works/pi) (MIT, 52.3k gwiazdek, v0.75.4 z 20.05.2026, organizacja earendil-works, monorepo 4 pakietow, pakiet `@earendil-works/pi-ai`) - pattern abstrakcji providera. Drugie zrodlo dla **adaptera tool-calling**: [AnttiHero/lavern](https://github.com/AnttiHero/lavern) (Apache 2.0), plik `src/providers/tool-converter.ts` - pattern budowy provider-agnostycznego rejestru narzedzi z definicji MCP z odpornym fallbackiem per narzedzie. **NIE forkujemy** zadnego - cherry-pick patternow architektonicznych. Caly kod TypeScript Patrona napisany od zera w `backend/src/lib/llm/`.
 
 ## Decyzja
 
@@ -72,6 +72,7 @@ Decyzja: **cherry-pick patternu abstrakcji, caly kod Patrona pisze od zera** pod
 3. **Provider-agnostic message format** - jeden wewnetrzny typ `Message[]`, kazdy provider robi tlumaczenie na swoj natywny format (Anthropic content blocks vs Gemini parts vs OpenAI messages vs Ollama prompt).
 4. **Failover/retry chain** - `LLM_FALLBACK_CHAIN=anthropic,gemini,ollama`. Gdy primary down lub odmawia (np. rate limit, classification mismatch), router probuje nastepny w lancuchu.
 5. **Cost estimation per call** - method `estimateCost(req)` zwraca przewidywany koszt PRZED wywolaniem. Pozwala kancelarii ustawic limity i alert na drogie calle.
+6. **Adapter tool-calling: provider-agnostyczny `ToolRegistry`** (z Lavern `tool-converter.ts`) - jedna lista definicji narzedzi MCP, kazdy provider buduje z niej swoj natywny format function-calling (Anthropic tool blocks vs OpenAI functions vs natywne narzedzia Gemini). Kluczowy szczegol patternu: **odporny fallback per narzedzie** - jezeli pojedyncze `inputSchema` jest zlamane, narzedzie zostaje wywolywalne bez typowanych parametrow (`{ type: 'object', additionalProperties: true }`) zamiast wywalic caly rejestr. To domyka flage `capabilities.toolCalling` realna implementacja, nie tylko deklaracja.
 
 ## Czego NIE bierzemy
 
@@ -105,23 +106,24 @@ Decyzja: **cherry-pick patternu abstrakcji, caly kod Patrona pisze od zera** pod
 |---|---|---|
 | **T1** | Interface `LLMProvider` + typy `ChatRequest/Response/Chunk` w `backend/src/lib/llm/types.ts`. Schema walidacji `zod`. Tests dla schema. | 1 tydzien |
 | **T2** | 4 implementacje providerow (`AnthropicProvider`, `GeminiProvider`, `OllamaProvider`, `OpenAIProvider`). Kazda dziedziczy z `BaseProvider` z capability flags. **Per provider obligatoryjne**: rate limiter (token bucket per API key), `requestTimeoutMs` z `.env`, retry-with-backoff (3 proby, exp backoff 1s/4s/16s, retry tylko na 429/503/timeout), circuit breaker (po 5 kolejnych fail przez 60s provider oznaczony `down`, router pomija). Integration testy per provider (mock + 1 live happy path + 1 chaos test wymuszony 429/timeout). | 2.5 tygodnia |
+| **T2b** | `ToolRegistry` adapter (wzor Lavern `tool-converter.ts`) - mapuje definicje narzedzi MCP konektorow PL (mcp-saos / mcp-isap / mcp-nsa / mcp-krs / mcp-eu-sparql) na natywny format function-calling kazdego providera. Odporny fallback per narzedzie (zlamane `inputSchema` -> narzedzie wywolywalne bez typow, nie crash rejestru). Test: rejestr zbudowany z 5 konektorow dziala na Anthropic i OpenAI; jedno celowo zlamane schema nie kladzie pozostalych. | 4 dni |
 | **T3** | `LLMRouter` z logika decyzji (classification → capabilities → primary → fallback chain). Tests dla decision matrix. | 3 dni |
 | **T4** | Integration z `lib/audit/` (ADR-0001) - kazda response zawiera `audit_event_id`. Update `audit_log` schema o `provider_id`, `model_id`, `cost_estimate_pln`. Migration. | 3 dni |
 | **T5** | Refactor istniejacych call-sites (chat, contract review ADR-0010, hybrid retrieval ADR-0007) na nowy interfejs. Tests regresji. | 1 tydzien |
 | **T6** | `docs/llm-providers.md` - tabela providerow z capability flags, egress flags, kosztami per 1M tokens, instrukcja `.env` setup. Update USER_GUIDE. | 2 dni |
 
-**Lacznie**: ~5 tygodni dev. Najlepsze okno: po zamknieciu T1 ADR-0013 (PII-Shield patterns) - obie zmiany dotykaja `lib/`, nie wchodzimy sobie w paradne.
+**Lacznie**: ~5.5 tygodnia dev (T2b adapter tool-calling +4 dni; moze isc rownolegle z T3 routerem). Najlepsze okno: po zamknieciu T1 ADR-0013 (PII-Shield patterns) - obie zmiany dotykaja `lib/`, nie wchodzimy sobie w paradne.
 
-**Bumpa Konstytucji**: NIE. Ten ADR **operacjonalizuje** Art. 4 ktory juz jest w v1.1.1, nie zmienia tresci zasady. Po implementacji T1-T6 dopisujemy w `governance/CONSTITUTION.md` § "Implementacja Art. 4" wskaznik do ADR-0014 - to PATCH v1.1.2 (zgodnie z [feedback_sesje_rownolegle_semver](../../../.claude/projects/C--Users-Wieslaw/memory/feedback_sesje_rownolegle_semver.md)).
+**Bumpa Konstytucji**: NIE. Ten ADR **operacjonalizuje** Art. 4 ktory juz jest w v1.1.1, nie zmienia tresci zasady. Po implementacji T1-T6 (+ T2b) dopisujemy w `governance/CONSTITUTION.md` § "Implementacja Art. 4" wskaznik do ADR-0014 - to PATCH v1.1.2 (zgodnie z [feedback_sesje_rownolegle_semver](../../../.claude/projects/C--Users-Wieslaw/memory/feedback_sesje_rownolegle_semver.md)).
 
 ## Marko-pl scope (przed merge)
 
 ADR-0014 dostaje **2x runda Marko-pl** (regula [feedback_marko_2x_runda_pattern](../../../.claude/projects/C--Users-Wieslaw/memory/feedback_marko_2x_runda_pattern.md)). Zakres review:
 
-1. Czy interfejs `LLMProvider` faktycznie pokrywa wszystkie use-cases (chat, tool calling, streaming, structured output, vision)? Dziury w sygnaturze.
+1. Czy interfejs `LLMProvider` faktycznie pokrywa wszystkie use-cases (chat, tool calling przez `ToolRegistry`/T2b, streaming, structured output, vision)? Dziury w sygnaturze.
 2. Czy capability flags pokrywaja wszystkie wymogi RODO/AI Act (egress + region + retention provider-side)?
 3. Czy nie ma kolizji z ADR-0003 (warstwa pseudonim) - kto wola kogo, jaka kolejnosc?
-4. Czy plan T1-T6 nie ma luk w testach regresji?
+4. Czy plan T1-T6 (+ T2b) nie ma luk w testach regresji?
 5. Czy "operacjonalizacja Art. 4" jest faktycznie operacjonalizacja, czy ukryta zmiana zasady (wymaga bumpa MINOR, nie PATCH)?
 
 ## Zalaczniki

@@ -55,6 +55,10 @@ zadan high-stakes; mechaniczna weryfikacja cytatow; audit bundle.
   + cost log alongside the output (ADR-0006), wzmocniony PL-specific
   rozszerzeniami (pseudonim_map_excerpt z ADR-0003, hash-chain
   audit_log_excerpt z ADR-0001)
+- Provider-agnostyczny adapter tool-calling: `ToolRegistry` budowany z
+  definicji narzedzi MCP, odporny fallback per narzedzie (zlamane
+  inputSchema nie kladzie calego rejestru). Plik wzorcowy
+  `src/providers/tool-converter.ts` (ADR-0014 T2b)
 
 **Czego Patron NIE bierze**:
 - 67 promptow agentow (Lavern celuje w US contract review,
@@ -67,8 +71,8 @@ zadan high-stakes; mechaniczna weryfikacja cytatow; audit bundle.
   ekosystemie konektorow PL: mcp-saos, mcp-isap, mcp-eurlex)
 
 **Wdrozenie**: ADR-0004 (debate + verification), ADR-0005 (citation
-grounding), ADR-0006 (audit bundle). Implementacja PL od zera,
-nie port kodu.
+grounding), ADR-0006 (audit bundle), ADR-0014 T2b (adapter tool-calling).
+Implementacja PL od zera, nie port kodu.
 
 **Watch**: v0.16+ Lavern czy autor dorobi EU connectors (EUR-Lex /
 CJEU) - roadmap wspomina bez timeline. Status 2026-06-17 do 07-01 -
