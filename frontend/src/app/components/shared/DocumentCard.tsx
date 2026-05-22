@@ -1,6 +1,6 @@
 "use client";
 
-import { FileText, File, X, AlertCircle, Loader2 } from "lucide-react";
+import { FileText, File, X, AlertCircle, Loader2, ShieldAlert } from "lucide-react";
 import { t } from "@/i18n";
 import type { MikeDocument } from "./types";
 
@@ -30,6 +30,15 @@ function formatBytes(bytes: number): string {
 export function DocumentCard({ document, onRemove, onClick, selected }: Props) {
   const isError = document.status === "error";
   const isProcessing = document.status === "pending" || document.status === "processing";
+  // Badge skanu bezpieczenstwa wejscia (ADR-0019/0020).
+  const securityNote =
+    document.security_status === "human_review"
+      ? t("docs.securityReview")
+      : document.security_status === "quarantined"
+      ? t("docs.securityQuarantined")
+      : document.security_status === "blocked"
+      ? t("docs.securityBlocked")
+      : null;
 
   return (
     <div
@@ -68,6 +77,12 @@ export function DocumentCard({ document, onRemove, onClick, selected }: Props) {
                 .filter(Boolean)
                 .join(" · ")}
         </p>
+        {securityNote && (
+          <p className="mt-0.5 flex items-center gap-1 text-xs text-amber-600">
+            <ShieldAlert className="h-3 w-3 shrink-0" />
+            {securityNote}
+          </p>
+        )}
       </div>
 
       {onRemove && !isProcessing && (

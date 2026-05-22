@@ -38,11 +38,24 @@ export interface MikeDocument {
   size_bytes: number | null;
   page_count: number | null;
   structure_tree: StructureNode[] | null;
-  status: "pending" | "processing" | "ready" | "error";
+  status: "pending" | "processing" | "ready" | "error" | "review";
   created_at: string | null;
   updated_at?: string | null;
   /** Max version_number across assistant_edit rows, null if doc is unedited. */
   latest_version_number?: number | null;
+  /** Status skanu bezpieczenstwa wejscia (ADR-0019/0020). */
+  security_status?:
+    | "pending"
+    | "allowed"
+    | "quarantined"
+    | "human_review"
+    | "blocked";
+  /** Podsumowanie skanu zwracane przy uploadzie. */
+  security?: {
+    action: "allowed" | "quarantined" | "human_review" | "blocked";
+    threat_level: "low" | "medium" | "high" | "critical";
+    report_id: string;
+  };
 }
 
 export interface StructureNode {

@@ -359,8 +359,21 @@ export async function uploadProjectDocument(
             body: form,
         },
     );
-    if (!response.ok) throw new Error(await response.text());
+    if (!response.ok) throw new Error(await extractUploadError(response));
     return response.json() as Promise<MikeDocument>;
+}
+
+// Wyciaga czytelny komunikat z odpowiedzi bledu uploadu. Dla skanu
+// bezpieczenstwa (ADR-0020, 422 blocked) backend zwraca { detail, security }.
+async function extractUploadError(response: Response): Promise<string> {
+    const raw = await response.text();
+    try {
+        const body = JSON.parse(raw) as { detail?: string };
+        if (body.detail) return body.detail;
+    } catch {
+        // nie-JSON - zwracamy surowy tekst
+    }
+    return raw || `HTTP ${response.status}`;
 }
 
 export async function uploadStandaloneDocument(
@@ -374,7 +387,7 @@ export async function uploadStandaloneDocument(
         headers: { ...authHeaders },
         body: form,
     });
-    if (!response.ok) throw new Error(await response.text());
+    if (!response.ok) throw new Error(await extractUploadError(response));
     return response.json() as Promise<MikeDocument>;
 }
 

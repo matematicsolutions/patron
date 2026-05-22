@@ -196,6 +196,14 @@ export const pl = {
         // DocumentCard - statusy przetwarzania
         processing: "Przetwarzam…",
         uploadFailed: "Nie udało się wczytać",
+        // Skan bezpieczeństwa wejścia (ADR-0019/0020)
+        securityQuarantined: "Oznaczony przez kontrolę bezpieczeństwa",
+        securityReview: "Skierowany do przeglądu",
+        securityBlocked: "Zablokowany przez kontrolę bezpieczeństwa",
+        securityReviewHint:
+            "Dokument czeka na ręczną ocenę (Operator/Inspektor) przed użyciem w czacie.",
+        securityQuarantinedHint:
+            "Wykryto sygnały podwyższonego ryzyka. Dokument nie jest indeksowany do czasu weryfikacji.",
     },
 
     // ---------------------------------------------------------------------
