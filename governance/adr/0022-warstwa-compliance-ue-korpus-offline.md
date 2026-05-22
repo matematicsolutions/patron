@@ -2,7 +2,7 @@
 
 > **Uwaga numeracja**: ostatni zajety ADR to 0021 (time-travel diff nowelizacji). Przed bumpem sprawdzono `ls governance/adr/` 2026-05-22 - 0022 wolne, brak rownoleglej rezerwacji, zgodnie z [[feedback_sesje_rownolegle_semver]]. Jezeli rownolegla sesja zajmie 0022, przenumerowac na pierwszy wolny.
 
-**Status**: ZAAKCEPTOWANY (2026-05-22) - NIE zakodowany (skeleton, czeka na implementacje). 2x runda marko-pl ([[feedback_marko_2x_runda_pattern]]) zaliczona (werdykt: ok). Cztery pytania otwarte rozstrzygniete decyzja Wieslawa 2026-05-22 - patrz sekcja "Rozstrzygniecia". Bramka make-or-break (licencja korpusu UE) ZWALIDOWANA 2026-05-22 - patrz Ryzyka i bramki.
+**Status**: ZAIMPLEMENTOWANY v0.1.0 (2026-05-22) - osobny konektor `mcp-eu-compliance` (repo ~/mcp-eu-compliance, MIT), 5 toolow, smoke test PASS. NIE wpiety w `mcp-servers.json` ani w kontrakt rozmowy (Art. 8 - to osobna decyzja/przyszly ADR). 2x runda marko-pl ([[feedback_marko_2x_runda_pattern]]) na ADR zaliczona (ok). Cztery pytania rozstrzygniete - patrz "Rozstrzygniecia". Bramka licencji ZWALIDOWANA 2026-05-22.
 **Data**: 2026-05-22
 
 **Powiazane zasady** (Konstytucja Patrona, zweryfikowane grepem wzgledem `governance/CONSTITUTION.md` - [[feedback_grep_constitution_pre_cite]]):
