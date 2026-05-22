@@ -59,6 +59,11 @@ zadan high-stakes; mechaniczna weryfikacja cytatow; audit bundle.
   definicji narzedzi MCP, odporny fallback per narzedzie (zlamane
   inputSchema nie kladzie calego rejestru). Plik wzorcowy
   `src/providers/tool-converter.ts` (ADR-0014 T2b)
+- Precedent board: pamiec ustalen (findings) per klient - index po
+  przetworzeniu, query przed nowym dokumentem, izolacja per klient,
+  confidence-decaying, evidence-linked. Plik wzorcowy
+  `src/claw/precedent-board.ts` (ADR-0018). Pamiec WNIOSKOW, odrebna od
+  retrieval dokumentow (ADR-0007)
 
 **Czego Patron NIE bierze**:
 - 67 promptow agentow (Lavern celuje w US contract review,
@@ -71,8 +76,8 @@ zadan high-stakes; mechaniczna weryfikacja cytatow; audit bundle.
   ekosystemie konektorow PL: mcp-saos, mcp-isap, mcp-eurlex)
 
 **Wdrozenie**: ADR-0004 (debate + verification), ADR-0005 (citation
-grounding), ADR-0006 (audit bundle), ADR-0014 T2b (adapter tool-calling).
-Implementacja PL od zera, nie port kodu.
+grounding), ADR-0006 (audit bundle), ADR-0014 T2b (adapter tool-calling),
+ADR-0018 (precedent board). Implementacja PL od zera, nie port kodu.
 
 **Watch**: v0.16+ Lavern czy autor dorobi EU connectors (EUR-Lex /
 CJEU) - roadmap wspomina bez timeline. Status 2026-06-17 do 07-01 -
