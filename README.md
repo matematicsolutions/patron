@@ -22,6 +22,7 @@ compliance, których potrzebuje kancelaria. Pełne zasady opisuje
 
 - `frontend/` - aplikacja Next.js
 - `backend/` - Express API, klient MCP, audit trail, dispatch narzędzi
+- `backend/src/lib/input-security/` - lokalny, deterministyczny skan dokumentów wejściowych (prompt-injection / ukryte akcje PDF / zaciemnienie) przed wejściem do modelu lub RAG (ADR-0019/0020)
 - `backend/schema.sql` - schemat Postgresa (Supabase-compatible)
 - `governance/` - **Konstytucja AI Patrona** + Implementation Playbook + ADR
 - `deploy/` - runbook wdrożeniowy (`docker-compose`)
@@ -64,17 +65,19 @@ Wymaga osobno postawionego Supabase + MinIO (osobne stack). Patrz runbook.
 
 ## Governance (przed wdrożeniem)
 
-- [**Konstytucja AI Patrona v1.1.1**](./governance/CONSTITUTION.md) -
+- [**Konstytucja AI Patrona v1.2.0**](./governance/CONSTITUTION.md) -
   9 zasad, granice produktu, role (Administrator / Operator / Inspektor),
-  audyt, ewolucja. Mapowanie na AI Act art. 12, RODO art. 5/25/30
-  i etykę zawodową.
+  audyt, ewolucja. Mapowanie na AI Act art. 12, RODO art. 5/25/30/32
+  i etykę zawodową. Art. 5 obejmuje kontrolę wejścia dokumentów.
 - [**Implementation Playbook**](./governance/IMPLEMENTATION_PLAYBOOK.md) -
   6-8 tygodni wdrożenia krok po kroku, z macierzą RACI.
-- [**ADR**](./governance/adr/) - Architecture Decision Records
-  ([0001 hash-chain](./governance/adr/0001-hash-chain-audit-trail.md),
-  [0002 dual-license](./governance/adr/0002-dual-license-agpl-shell-mit-connectors.md)).
+- [**ADR**](./governance/adr/) - Architecture Decision Records (0001-0020),
+  m.in. [0001 hash-chain](./governance/adr/0001-hash-chain-audit-trail.md),
+  [0002 dual-license](./governance/adr/0002-dual-license-agpl-shell-mit-connectors.md),
+  [0019 skan dokumentów wejściowych](./governance/adr/0019-input-document-security-pipeline-pl.md),
+  [0020 wpięcie w ingest](./governance/adr/0020-wpiecie-input-security-w-ingest.md).
 
-Kancelaria przed wdrożeniem czyta i podpisuje **Konstytucję v1.1.1**
+Kancelaria przed wdrożeniem czyta i podpisuje **Konstytucję v1.2.0**
 (sekcja podpisów na końcu pliku).
 
 ## Licencja
