@@ -2,13 +2,25 @@
 // Config is read from backend/mcp-servers.json at startup.
 // If the file does not exist the module is a no-op: the rest of the app runs normally.
 // A server that fails to connect is skipped with a warning; it never crashes the backend.
+//
+// ADR-0028: kazda definicja konektora przechodzi przez MCP Security Gateway
+// (lib/mcp-security/) PRZED registracja toolow. Decyzja human_review / denied
+// blokuje konektor + logowana strukturyzowanie. Lokalny baseline file dla
+// drift detection w ~/.patron/mcp-drift-baseline.json (env PATRON_MCP_BASELINE_PATH).
 
 import fs from "fs";
+import os from "os";
 import path from "path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type { OpenAIToolSchema } from "../llm/types";
+import {
+    buildScanContext,
+    scanMcpRegistry,
+    type McpServerDefinition,
+    type McpToolDefinition,
+} from "../mcp-security";
 import type { McpCitation, McpToolResult } from "./types";
 
 export type { McpCitation, McpToolResult } from "./types";
@@ -90,10 +102,17 @@ function mcpToolToOpenAI(
 }
 
 // ---------------------------------------------------------------------------
-// Connect to a single server and register its tools
+// Connect to a single server (no registration yet - ADR-0028 2-fazowy)
 // ---------------------------------------------------------------------------
 
-async function connectServer(cfg: McpServerConfig): Promise<void> {
+interface DiscoveredServer {
+    cfg: McpServerConfig;
+    client: Client;
+    tools: ReadonlyArray<{ name: string; description?: string; inputSchema?: unknown }>;
+    ok: boolean;
+}
+
+async function connectAndDiscover(cfg: McpServerConfig): Promise<DiscoveredServer> {
     const client = new Client({ name: "polski-legal-ai", version: "1.0.0" });
 
     try {
@@ -103,7 +122,7 @@ async function connectServer(cfg: McpServerConfig): Promise<void> {
                 console.warn(
                     `[MCP] Server "${cfg.name}" has transport "stdio" but no command - skipping`,
                 );
-                return;
+                return { cfg, client, tools: [], ok: false };
             }
             transport = new StdioClientTransport({
                 command: cfg.command,
@@ -115,34 +134,96 @@ async function connectServer(cfg: McpServerConfig): Promise<void> {
                 console.warn(
                     `[MCP] Server "${cfg.name}" has transport "http" but no url - skipping`,
                 );
-                return;
+                return { cfg, client, tools: [], ok: false };
             }
             transport = new StreamableHTTPClientTransport(new URL(cfg.url));
         } else {
             console.warn(
                 `[MCP] Server "${cfg.name}" has unknown transport "${(cfg as McpServerConfig).transport}" - skipping`,
             );
-            return;
+            return { cfg, client, tools: [], ok: false };
         }
 
         await client.connect(transport);
-
         const { tools } = await client.listTools();
-
-        for (const tool of tools) {
-            const prefixed = `${cfg.name}__${tool.name}`;
-            _toolRegistry.set(prefixed, { client, originalName: tool.name });
-        }
-
-        console.log(
-            `[MCP] Connected to "${cfg.name}" - ${tools.length} tool(s) registered`,
-        );
+        return { cfg, client, tools, ok: true };
     } catch (err) {
         console.warn(
             `[MCP] Could not connect to server "${cfg.name}" - skipping. Reason:`,
             err,
         );
+        return { cfg, client, tools: [], ok: false };
     }
+}
+
+function registerTools(
+    client: Client,
+    serverName: string,
+    tools: ReadonlyArray<{ name: string }>,
+): void {
+    for (const tool of tools) {
+        const prefixed = `${serverName}__${tool.name}`;
+        _toolRegistry.set(prefixed, { client, originalName: tool.name });
+    }
+    console.log(
+        `[MCP] Connected to "${serverName}" - ${tools.length} tool(s) registered`,
+    );
+}
+
+// ---------------------------------------------------------------------------
+// MCP Security Gateway baseline (ADR-0028) - lokalny plik per uzytkownik
+// ---------------------------------------------------------------------------
+
+function baselinePath(): string {
+    const override = process.env.PATRON_MCP_BASELINE_PATH;
+    if (override && override.length > 0) return override;
+    return path.join(os.homedir(), ".patron", "mcp-drift-baseline.json");
+}
+
+export function loadBaseline(): Map<string, string> {
+    const p = baselinePath();
+    if (!fs.existsSync(p)) return new Map();
+    try {
+        const raw = fs.readFileSync(p, "utf-8");
+        const parsed = JSON.parse(raw) as Record<string, string>;
+        if (!parsed || typeof parsed !== "object") return new Map();
+        return new Map(Object.entries(parsed));
+    } catch (err) {
+        console.warn(`[MCP-SECURITY] Failed to read baseline at ${p}, treating as empty:`, err);
+        return new Map();
+    }
+}
+
+export function saveBaseline(baseline: ReadonlyMap<string, string>): void {
+    const p = baselinePath();
+    try {
+        fs.mkdirSync(path.dirname(p), { recursive: true });
+        const obj = Object.fromEntries(baseline.entries());
+        const tmp = `${p}.tmp`;
+        fs.writeFileSync(tmp, JSON.stringify(obj, null, 2), "utf-8");
+        fs.renameSync(tmp, p);
+    } catch (err) {
+        console.warn(`[MCP-SECURITY] Failed to write baseline at ${p}:`, err);
+    }
+}
+
+function toMcpServerDefinition(d: DiscoveredServer): McpServerDefinition {
+    const toolDefs: McpToolDefinition[] = d.tools.map((t) => ({
+        name: t.name,
+        description: t.description ?? "",
+        inputSchema:
+            t.inputSchema && typeof t.inputSchema === "object"
+                ? (t.inputSchema as Record<string, unknown>)
+                : undefined,
+    }));
+    return {
+        name: d.cfg.name,
+        transport: d.cfg.transport,
+        command: d.cfg.command,
+        args: d.cfg.args,
+        url: d.cfg.url,
+        tools: toolDefs,
+    };
 }
 
 // ---------------------------------------------------------------------------
@@ -152,6 +233,13 @@ async function connectServer(cfg: McpServerConfig): Promise<void> {
 /**
  * Returns the list of OpenAIToolSchema for all reachable MCP tools.
  * Results are cached after the first call.
+ *
+ * ADR-0028: kazda definicja konektora przechodzi przez MCP Security Gateway
+ * (4 detektory: typosquat / drift / hidden-instructions / tool-poisoning)
+ * PRZED registracja toolow. Decyzje:
+ * - allowed: tools rejestrowane, baseline zaktualizowany
+ * - audit: tools rejestrowane, findings logowane (informational)
+ * - human_review / denied: tools NIE rejestrowane, warning, client zamykany
  */
 export async function getMcpTools(): Promise<OpenAIToolSchema[]> {
     if (_cachedTools !== null) {
@@ -165,30 +253,61 @@ export async function getMcpTools(): Promise<OpenAIToolSchema[]> {
         return _cachedTools;
     }
 
-    await Promise.all(configs.map(connectServer));
+    // Faza 1: collect (connect + listTools, bez registracji w _toolRegistry)
+    const discovered = await Promise.all(configs.map(connectAndDiscover));
+    const ok = discovered.filter((d) => d.ok);
 
+    if (ok.length === 0) {
+        _cachedTools = [];
+        return _cachedTools;
+    }
+
+    // Faza 2: scan przez MCP Security Gateway
+    const definitions = ok.map(toMcpServerDefinition);
+    const baseline = loadBaseline();
+    const context = buildScanContext(baseline);
+    const report = scanMcpRegistry(definitions, context);
+
+    // Faza 3: register / skip per server
+    const newBaseline = new Map(baseline);
     const tools: OpenAIToolSchema[] = [];
 
-    // Build the tools list by calling listTools() once more per server so we
-    // can get the full schema (inputSchema). We deduplicate by server name
-    // because _toolRegistry has one entry per tool, not per server.
-    const serversSeen = new Set<string>();
-    for (const [prefixed, { client }] of _toolRegistry) {
-        const serverName = prefixed.split("__")[0];
-        if (serversSeen.has(serverName)) continue;
-        serversSeen.add(serverName);
-        try {
-            const { tools: serverTools } = await client.listTools();
-            for (const t of serverTools) {
-                tools.push(mcpToolToOpenAI(serverName, t));
+    for (const d of ok) {
+        const result = report.perServer.find((r) => r.serverName === d.cfg.name);
+        if (!result) continue;
+
+        if (result.action === "allowed" || result.action === "audit") {
+            registerTools(d.client, d.cfg.name, d.tools);
+            newBaseline.set(d.cfg.name, result.currentHash);
+            if (result.action === "audit" || result.findings.length > 0) {
+                console.warn(
+                    `[MCP-SECURITY] Server "${d.cfg.name}" action=${result.action} riskScore=${result.riskScore} findings=${result.findings.length}`,
+                );
+                for (const f of result.findings) {
+                    console.warn(
+                        `[MCP-SECURITY]   - ${f.detector}/${f.severity}: ${f.message}`,
+                    );
+                }
             }
-        } catch (err) {
+            for (const t of d.tools) {
+                tools.push(mcpToolToOpenAI(d.cfg.name, t));
+            }
+        } else {
             console.warn(
-                `[MCP] Failed to list tools for server "${serverName}":`,
-                err,
+                `[MCP-SECURITY] Server "${d.cfg.name}" BLOCKED action=${result.action} riskScore=${result.riskScore} findings=${result.findings.length}. Tools NOT registered.`,
             );
+            for (const f of result.findings) {
+                console.warn(
+                    `[MCP-SECURITY]   - ${f.detector}/${f.severity}: ${f.message}`,
+                );
+            }
+            await d.client.close().catch(() => {
+                // ignore close errors - we already decided to drop the client
+            });
         }
     }
+
+    saveBaseline(newBaseline);
 
     _cachedTools = tools;
     return _cachedTools;
