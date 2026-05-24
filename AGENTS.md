@@ -43,7 +43,7 @@ Testy: 396/401 pass na 2026-05-24 (5 todo, 0 fail). TSC clean. **Nie commituj je
 - **Audit-first** - kazda nowa interakcja z LLM przechodzi przez `backend/src/lib/audit/` (hash-chain). Bypass = blad krytyczny.
 - **Pseudonim/anonimizacja** - dane wrazliwe (PESEL/imie/nazwisko/adres) przechodza przez `backend/src/lib/pl-entities/` PRZED wyslaniem do LLM. Patrz [ADR-0003](./governance/adr/0003-hey-jude-pseudonim-pipeline.md).
 - **Input security** - dokumenty wejsciowe (PDF/DOCX/TXT) przechodza przez `backend/src/lib/input-security/` (prompt-injection / steganografia / homoglify / evasion) PRZED indeksacja RAG. Patrz [ADR-0019](./governance/adr/0019-input-document-security-pipeline-pl.md) + [ADR-0020](./governance/adr/0020-wpiecie-input-security-w-ingest.md).
-- **MCP security gateway** - definicje konektorow MCP przechodza przez `backend/src/lib/mcp-security/` (typosquat / drift / hidden-instructions / tool-poisoning) PRZED registracja toolow w runtime. Decyzja `denied`/`human_review` blokuje wpiecie. Patrz [ADR-0025](./governance/adr/0025-mcp-security-gateway-wdrazenie.md) + [ADR-0028](./governance/adr/0028-wpiecie-mcp-security-gateway-w-startup.md).
+- **MCP security gateway** - definicje konektorow MCP przechodza przez `backend/src/lib/mcp-security/` (typosquat / drift / hidden-instructions / tool-poisoning) PRZED registracja toolow w runtime. Decyzja `denied`/`human_review` blokuje wpiecie. Decyzje inne niz `allowed-clean` propaguja sie do audit hash-chain (`event_type = "mcp_security.gateway"`) przez `backend/src/lib/mcp/audit-bridge.ts`. Patrz [ADR-0025](./governance/adr/0025-mcp-security-gateway-wdrazenie.md) + [ADR-0028](./governance/adr/0028-wpiecie-mcp-security-gateway-w-startup.md) + [ADR-0033](./governance/adr/0033-propagacja-mcp-security-do-audit-hash-chain.md).
 - **i18n** - tlumaczenia w `frontend/messages/`. Slownik PRZED komponenty.
 - **Bez polskich znakow w commit messages** - konwencja organizacji (a -> a, e -> e, l -> l, o -> o, s -> s, n -> n, c -> c, z -> z).
 - **ADR przed kazda nietrwialnaa decyzja architektoniczna** - `governance/adr/NNNN-slug.md`. Marko-pl review 2x runda PRZED merge.
@@ -61,7 +61,7 @@ Testy: 396/401 pass na 2026-05-24 (5 todo, 0 fail). TSC clean. **Nie commituj je
 1. [README.md](./README.md) - opis dla ludzi
 2. [governance/CONSTITUTION.md](./governance/CONSTITUTION.md) - 9 zasad, role, audyt (v1.2.2, podpisywana przez kancelarie)
 3. [governance/IMPLEMENTATION_PLAYBOOK.md](./governance/IMPLEMENTATION_PLAYBOOK.md) - 6-8 tyg wdrozenia, RACI
-4. [governance/adr/](./governance/adr/) - Architecture Decision Records (0001-0031, rezerwacje 0026/0027/0030/0032/0033)
+4. [governance/adr/](./governance/adr/) - Architecture Decision Records (0001-0033, rezerwacje 0026/0027/0030/0032/0034/0035)
 5. [THIRD_PARTY_INSPIRATIONS.md](./THIRD_PARTY_INSPIRATIONS.md) - co cherry-pickowalismy i skad (Mike, Lavern, gbrain, isaacus/tabular-review, PII-Shield, earendil/pi, awesome-llm-apps)
 6. [CHANGELOG.md](./CHANGELOG.md), [SECURITY.md](./SECURITY.md), [CONTRIBUTING.md](./CONTRIBUTING.md)
 

@@ -9,6 +9,19 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ### Added
 
+- **ADR-0033 - Propagacja decyzji MCP Security Gateway do audit hash-chain**
+  (2026-05-24). Decyzje Gateway'a inne niz `allowed-clean` (`audit`,
+  `human_review`, `denied`) trafiaja teraz do tabeli `audit_log` z
+  `event_type = "mcp_security.gateway"` przez nowy modul
+  `backend/src/lib/mcp/audit-bridge.ts`. Realizuje pierwsza polowe zadania
+  zostawionego przez ADR-0028 (druga polowa - UI banner dla Operatora +
+  admin endpoint - rezerwacja ADR-0034 ze wzgledu na brak patternu RBAC
+  w kodzie Patrona). Fire-and-forget: porazka audit_log NIE blokuje
+  rejestracji toolow (Konstytucja Art. 8). Graceful no-op gdy `SUPABASE_*`
+  env brak (analogicznie do `loadConfig`). Payload pomija pole `sample`
+  z `McpFinding` (Konstytucja Art. 7 minimalnosc - sample moze zawierac
+  fragment opisu 3rd-party konektora). +5 testow `audit-bridge.test.ts`.
+  401/406 testow pass, TSC clean.
 - **ADR-0025 / ADR-0028 - MCP Security Gateway** w `backend/src/lib/mcp-security/`
   (2026-05-24). Lokalny, deterministyczny, zero-LLM, zero-cloud skan definicji
   konektorow MCP przed ich zaladowaniem do kontraktu. 4 detektory: typosquat

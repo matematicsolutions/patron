@@ -15,6 +15,18 @@
 //     payload: { model, full_text_len: fullText.length, citation_count, mcp_count },
 //   });
 //
+// Konwencja nazewnictwa event_type w Patronie - uzywane oraz zarezerwowane.
+// Kolumna `event_type` w schemacie to wolny text bez CHECK constraint -
+// planowane wzmocnienie w rezerwowanym ADR-0035 (infrastruktura migracji).
+// Status "uzywane" znaczy: istnieje wywolanie appendAuditEvent z ta wartoscia
+// w produkcyjnym kodzie (poza testami).
+//
+//   - "chat.message.user"       UZYWANE - routes/chat.ts, routes/projectChat.ts
+//   - "chat.message.assistant"  UZYWANE - routes/chat.ts, routes/projectChat.ts
+//   - "mcp_security.gateway"    UZYWANE - lib/mcp/audit-bridge.ts (ADR-0033)
+//   - "chat.created"            REZERWACJA - obecnie tylko w audit.test.ts (sample)
+//   - "tool.call"               REZERWACJA - obecnie tylko w audit.test.ts (sample)
+//
 // UWAGA: payload trafia do bazy w pelnej formie - nie wkladaj tam pelnych
 // tresci dokumentow ani osobowych danych klientow kancelarii. Domyslnie
 // trzymaj sie skrotow (hashy, dlugosci, identyfikatorow).

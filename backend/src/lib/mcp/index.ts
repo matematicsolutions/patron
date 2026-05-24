@@ -21,6 +21,7 @@ import {
     type McpServerDefinition,
     type McpToolDefinition,
 } from "../mcp-security";
+import { recordMcpSecurityEvent } from "./audit-bridge";
 import type { McpCitation, McpToolResult } from "./types";
 
 export type { McpCitation, McpToolResult } from "./types";
@@ -288,6 +289,19 @@ export async function getMcpTools(): Promise<OpenAIToolSchema[]> {
                         `[MCP-SECURITY]   - ${f.detector}/${f.severity}: ${f.message}`,
                     );
                 }
+                // ADR-0033: propagacja decyzji Gateway do audit hash-chain.
+                // Fire-and-forget - porazka audit nie blokuje registracji toolow.
+                void recordMcpSecurityEvent({
+                    serverName: d.cfg.name,
+                    action: result.action,
+                    riskScore: result.riskScore,
+                    findings: result.findings,
+                }).catch((err) => {
+                    console.warn(
+                        `[MCP-SECURITY] audit bridge failed for "${d.cfg.name}":`,
+                        err,
+                    );
+                });
             }
             for (const t of d.tools) {
                 tools.push(mcpToolToOpenAI(d.cfg.name, t));
@@ -301,6 +315,19 @@ export async function getMcpTools(): Promise<OpenAIToolSchema[]> {
                     `[MCP-SECURITY]   - ${f.detector}/${f.severity}: ${f.message}`,
                 );
             }
+            // ADR-0033: propagacja decyzji Gateway do audit hash-chain.
+            // Fire-and-forget - porazka audit nie wstrzymuje obslugi blokady konektora.
+            void recordMcpSecurityEvent({
+                serverName: d.cfg.name,
+                action: result.action,
+                riskScore: result.riskScore,
+                findings: result.findings,
+            }).catch((err) => {
+                console.warn(
+                    `[MCP-SECURITY] audit bridge failed for "${d.cfg.name}":`,
+                    err,
+                );
+            });
             await d.client.close().catch(() => {
                 // ignore close errors - we already decided to drop the client
             });
