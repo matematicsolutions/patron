@@ -477,3 +477,87 @@ i `reference_narzedzia_oceny_2026-05-14`):
 
 Patron jest **polonizacja swiatowych patternow** w ekosystemie polskiego
 prawa - to wartosc, nie wstyd.
+
+## microsoft/agent-governance-toolkit (MIT)
+
+**Repo**: https://github.com/microsoft/agent-governance-toolkit
+**Licencja**: MIT (Microsoft Corporation, monorepo: Python + TypeScript + .NET + Rust + Go SDK).
+**Snapshot**: 2026-05-24 (1904 gwiazdek, pushedAt `2026-05-24T17:02:19Z`, 352 forki, 992 testow conformance, OpenSSF Best Practices project 12085, OpenSSF Scorecard, OWASP Agentic Top 10 10/10, 25 ADR z RFC 2119 specs).
+**Status Public Preview** (Microsoft explicite: "may have breaking changes before GA") - cherry-pick patternow, NIE wpinanie zaleznosci.
+**Pattern wzorcowany (ADR-0024 + ADR-0025)**:
+- Taksonomia 4 detektorow MCP Security Gateway (typosquat, drift, hidden-instructions, tool-poisoning).
+- Pojecie "scan przed zaladowaniem do kontraktu" jako fail-closed gate.
+- Decyzja allow/deny/audit/human-review w runtime z fail-closed semantics.
+- (Roadmap) Merkle-chained audit log nad hash-chain ADR-0001 (planowany ADR-0026).
+- (Roadmap) 3-poziomowy ring model uprawnien dla wywolan narzedzi (planowany ADR-0027).
+
+**Wdrozenie**:
+- **ADR-0024** - cherry-pick decision record (3 patterny, granice "co NIE bierzemy").
+- **ADR-0025** - MCP Security Gateway, skeleton w `backend/src/lib/mcp-security/` (11 plikow, 25 testow vitest, +0 zaleznosci npm). NIE wpiety w startup (osobny ADR-0028).
+- Audyt RODO pakietu `agent-governance-claude-code` v3.6.0 = **🟢 ZIELONY** (zero HTTP/telemetrii w hooks+lib+server zweryfikowane grepem, SDK deps czyste `@noble/*` + `js-yaml`, hash-chain audit lokalny w `~/.claude/agt/`, MCP server bundled stdio). Dopuszczony do PATRON dev environment z pinem wersji 3.6.0. NIE dopuszczony do maszyn kancelarii klienckich bez DPA z Microsoft. Pelny raport: `memory/audit_agent_governance_claude_code_2026-05-24.md`.
+
+**Co NIE bierzemy (twarda granica)**:
+- Pelne wpiecie `@microsoft/agent-governance-toolkit` jako npm/pip dependency (Public Preview = breaking changes; Patron jest produktem regulowanym).
+- Zero-Trust Identity (Ed25519 + ML-DSA-65 trust scoring) - Patron single-tenant per kancelaria, ekonomika nie domyka.
+- 4-poziomowy ring model z hardware-style isolation - adaptujemy do 3 ringow (System / Trusted MCP / Untrusted, planowany ADR-0027).
+- RL Training Governance (Lightning Fast-Path), Framework Adapter Contract (10 frameworkow) - przeskalowane dla naszej skali.
+- Shadow AI Discovery w Patronie - to pattern dla skilla `matematic-konstytucja-ai` (audyt klienta), nie samego Patrona.
+- `agent-governance-claude-code` plugin na maszynach kancelarii klienckich bez osobnego DPA z Microsoft.
+
+**Co jest NASZE (kod od zera)**:
+- TypeScript strict, vitest, Node 20+ - zgodne ze stosem Patrona.
+- Polski + angielski korpus wzorcow w hidden-instructions i tool-poisoning.
+- 5-fazowy orchestrator i 4 stany akcji wziete z naszego wlasnego `input-security` (ADR-0019).
+- Lista 6 zatwierdzonych konektorow Patrona jako baseline typosquat (saos, eu-compliance, krs, isap, sn-orzeczenia, nsa-orzeczenia).
+- Hash SHA256 z (server.name + tools[].name + tools[].description) jako drift fingerprint.
+- 25 testow jednostkowych pod kazda kategorie detektora i pipeline agregujacy.
+
+**Atrybucja w kodzie**: naglowek w kazdym pliku `backend/src/lib/mcp-security/*.ts` + `README.md` modulu + ADR-0024 + ADR-0025.
+
+## ICME Preflight (MIT + cloud-only SaaS)
+
+**Repo (open)**: [ICME-Lab/icme-preflight-guardrail](https://github.com/ICME-Lab/icme-preflight-guardrail) (MIT, snapshot 2026-05-24, push 2026-04-01, 1 star)
+**Repo integracyjne (open)**: [hshadab/preflight-mike](https://github.com/hshadab/preflight-mike) (MIT, snapshot 2026-05-24, push 2026-05-24, drop-in patch dla Mike - PATRON forkuje Mike)
+**Repo zarchiwizowane**: [hshadab/mikeoss](https://github.com/hshadab/mikeoss) (AGPL-3.0, ARCHIVED 2026-05-22, reference impl - przerzucone do preflight-mike)
+**SaaS hosted**: `api.icme.io/v1/{checkLogic,checkRelevance,checkIt,checkItPaid,verify,verifyPaid,verifyProof,...}` - cloud-only, US, brak EU region, brak DPA template, brak self-host
+**Autor**: Houman Shadab (Stanford CodeX Fellow, National Law Journal Trailblazer)
+**Pricing**: pay-per-use ($3 makeRules / $0.01 checkIt / $0.10 verifyPaid przez x402 USDC Base), bez subscription
+**Status**: produkcyjny SaaS (jeszcze nie GA officially declared, ale aktywne deployments na Mike)
+
+**Pattern wzorcowany (ADR-0031)**:
+- **Plain English -> SMT-LIB compilation -> lokalny solver** (Z3 / minizinc / cvc5 - decyzja techniczna w ADR-0032 implementacyjnym). Deterministyczna walidacja decyzji AI, SAT = allowed / UNSAT = blocked. Niezalezne od probabilistycznego LLM-judge.
+- **Proof receipt** z `check_id` (UUID) + `policy_hash` (SHA256 ze skompilowanej polityki) + `verdict` + `latency_ms` + `created_at`. Zapisywany w istniejacym audit hash-chain Patrona (ADR-0001) jako nowy typ eventu `policy_verdict`.
+- **Public verifier offline** (CLI tool `patron-verify`) - regulator UODO/KIRP/klient kancelarii dostaje paczke `proofs.tar.gz` + binarka i weryfikuje deterministycznie BEZ dostepu do reszty systemu kancelarii. Adaptacja wzorca ICME `icme.io/proofs/<check_id>` na lokalny offline binary.
+- **5 polityk-szablonow dla legal AI** (no unauthorized advice / privilege boundary / PII egress / citation integrity / escalation scope) - adoptowane do skilla `matematic-konstytucja-ai` Appendix G jako gold template polityk kancelaryjnych.
+- **Iterator polityki** (scenarios -> feedback -> refine -> tests) - polityka traktowana jak kod, kompilowana i testowana przed deploymentem. Adoptowane do skilla `matematic-konstytucja-ai` Appendix G.
+
+**Wdrozenie**:
+- **ADR-0031 PATRON** PROPONOWANY - decision record dla 3 patternow (compiler + receipt + verifier). Implementacja w osobnym ADR-0032 po wybraniu solvera.
+- **matematic-konstytucja-ai SKILL Appendix G** LIVE - 5 polityk-szablonow PL + iterator polityki "jako kod".
+- **legal-ai-audit-bundle SKILL** - dodana sekcja "Roadmap rozszerzenie 2: per-decision proof receipt" obok wczesniejszego Merkle. Trzy warstwy audytu: Merkle (integralnosc lancucha) + proof receipt (dowod decyzji) + paczka audytowa (kontekst sprawy).
+
+**Co NIE bierzemy (twarda granica)**:
+- **HTTP klient do `api.icme.io`** - cloud-only narusza Art. 1 Konstytucji Patrona (Lokalność danych). `structured action` (matter, input, tool) opuszcza maszyne kancelarii bez DPA + bez EU region. Nawet "free" checkLogic wysyla `reasoning` text do US.
+- **Drop-in patch `preflight-mike`** (MIT) - jako patch wlasciwie dziala technicznie (PATRON forkuje Mike), ale zawiera `backend/lib/preflight.ts` ktory dzwoni api.icme.io. Czerwony zakaz.
+- **`Private Venice tier` "zero data retention contractually"** - umowna gwarancja, nie techniczna. Polega na zaufaniu do ICME. Niedostateczne dla tajemnicy zawodowej art. 6 Pr.Adw.
+- **`zk_proof_id` i jolt-atlas zkVM** (ICME-Lab/jolt-atlas, 64 star, Rust, Other license) - przeskalowane. Nasz hash-chain SHA256 + planowany Merkle = wystarczajacy dla audytora polskiego. zkVM na watch list (gdyby regulacja kiedys wymagala zero-knowledge proof).
+- **x402 USDC on Base payment** - kancelaria PL nie placi w stablecoin za walidacje wlasnej polityki AI.
+- **Policy text jako workproduct ICME** - kompilacja u nich, my nie mamy kompilatora. Filozoficznie sprzeczne z naszą teza "kancelaria pisze wlasna Konstytucje AI".
+
+**Co jest NASZE (kod od zera)**:
+- TypeScript strict, Node 20+, lokalny solver Z3/minizinc/cvc5 (do ustalenia w ADR-0032).
+- Polskie 5 polityk-szablonow zaadaptowane do realia kancelaryjne PL (art. 6 Pr.Adw., RODO art. 5/32, art. 28 Pr.Adw.).
+- CLI tool `patron-verify` dla regulatorow polskich - Node binary z embedded solver, weryfikuje proofs.tar.gz offline.
+- DB schema migration: nowe pole `policy_verdict` w `audit_events` lub osobna tabela `policy_verdicts`.
+- UI badge "Zweryfikowano" + UNSAT explanation flow dla Operatora kancelarii.
+- Iterator polityki PL: generator scenariuszy + feedback flow w UI + test runner CLI.
+
+**Atrybucja w kodzie**: naglowek w kazdym pliku Patrona dotyczacym tej warstwy + ADR-0031 + dokumentacja `matematic-konstytucja-ai` Appendix G + ten plik.
+
+## ICME-Lab/jolt-atlas (Other license)
+
+**Repo**: [ICME-Lab/jolt-atlas](https://github.com/ICME-Lab/jolt-atlas) (snapshot 2026-05-24, push 2026-05-18, 64 star, Rust)
+**Licencja**: "Other" (niezdeklarowana standardowa OSS) - **wymaga osobnego audytu licencji przed jakimkolwiek cherry-pick**.
+**Co**: zkVM (zero-knowledge virtual machine) zaadaptowany przez ICME Labs (NovaNet) dla verifiable machine learning. Pierwotnie a16z Crypto, fork ICME pod ML.
+**Status w MateMatic**: **WATCH LIST**. Nie cherry-pickujemy obecnie. Pattern "zero-knowledge proof of policy compliance" moglby byc relevantny gdyby polska regulacja kiedys wymagala tego (obecnie nie wymaga). Sledzimy projekt; jezeli pojawi sie polska / EU regulacja wymagajaca ZK proof dla AI w prawie, wracamy.
+**Niepelne dla nas dzisiaj**: hash-chain SHA256 (ADR-0001) + planowany Merkle (ADR-0026 rezerwacja) sa wystarczajace dla AI Act art. 12 + RODO art. 30. ZK to overkill dla obecnej regulacji PL.

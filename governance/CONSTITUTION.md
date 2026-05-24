@@ -351,3 +351,26 @@ Consequences: <co się zmienia>
 Podpisał: Administrator kancelarii __________ data __________
 
 Akceptacja Vendora (MateMatic): Wiesław Mazur, 2026-05-20
+
+---
+
+## Załącznik C: OWASP Agentic Top 10 - mapping na Artykuły Konstytucji Patrona
+
+Cherry-pick referencji z [OWASP Top 10 for Agentic Applications (2026)](https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/) - branzowy konsensus 10 ryzyk dla aplikacji agentowych AI. Pattern mappingu cherry-picked z [microsoft/agent-governance-toolkit](https://github.com/microsoft/agent-governance-toolkit) (MIT, snapshot 2026-05-24, audyt RODO 🟢 ZIELONY - patrz [[ADR-0024]]). Mapping adaptowany do Patrona pod realia polskich kancelarii prawnych.
+
+| OWASP | Ryzyko (skrot) | Artykul Konstytucji Patrona | Komponent Patrona |
+|---|---|---|---|
+| ASI-01 | Agent Goal Hijack (manipulacja celow agenta) | Art. 6 Granica błędu (human in the loop) + Art. 3 Audytowalność | `backend/src/lib/input-security/` (ADR-0019/0020, prompt-injection PL) |
+| ASI-02 | Tool Misuse & Exploitation | Art. 7 Minimalność danych + Art. 8 Stałość kontraktów | Lista 6 zatwierdzonych konektorow MCP + capability scoping w MCP |
+| ASI-03 | Identity & Privilege Abuse | Art. 5 Tajemnica zawodowa + Art. 4 Neutralność wobec dostawców | Patron single-tenant per kancelaria, brak agent-to-agent identity poza scope |
+| ASI-04 | Agentic Supply Chain Vulnerabilities | Art. 8 Stałość kontraktów + Art. 4 Neutralność wobec dostawców | `backend/src/lib/mcp-security/` (ADR-0025, MCP Security Gateway, 4 detektory: typosquat/drift/hidden-instructions/tool-poisoning) |
+| ASI-05 | Unexpected Code Execution | Art. 6 Granica błędu (human in the loop) | Patron nie eksponuje narzedzia do wykonania kodu na maszynie kancelarii bez human ack |
+| ASI-06 | Memory & Context Poisoning | Art. 3 Audytowalność (hash-chain) + Art. 1 Lokalność danych | `backend/src/lib/audit/` (ADR-0001, hash-chain, planowany Merkle upgrade ADR-0026) |
+| ASI-07 | Insecure Inter-Agent Communication | Art. 1 Lokalność danych + Art. 5 Tajemnica zawodowa | Patron single-tenant, brak komunikacji inter-agent w defaulcie. Komunikacja z LLM = TLS + DPA per provider |
+| ASI-08 | Cascading Agent Failures | Art. 3 Audytowalność + Art. 6 Granica błędu | Planowane: ADR-0029 Agent SRE Governance (SLO/error budget/circuit breaker dla wywolan LLM) |
+| ASI-09 | Human-Agent Trust Exploitation | Art. 6 Granica błędu (human in the loop) - **fundament** | Wszystkie decyzje high-stakes wymagaja ack Operatora (Konstytucja Art. 6) |
+| ASI-10 | Rogue Agents | Art. 3 Audytowalność + Art. 6 Granica błędu | Hash-chain audit + procedura amendment Konstytucji (sekcja 6 Ewolucja) |
+
+**Pokrycie**: 10/10 ryzyk OWASP Agentic Top 10 zaadresowanych przez Konstytucję Patrona. Trzy ryzyka (ASI-01, ASI-04, ASI-08) maja zaimplementowane lub planowane komponenty kodowe w Patronie - ADR-0019/0020 (input-security), ADR-0025 (mcp-security), ADR-0029 (SRE governance, planowany).
+
+**Dla audytu**: ta tabela = formalna deklaracja, ze Patron jako produkt regulowany adresuje uznane branzowo ryzyka, nie tylko nasze wlasne. Mapowanie na Articles Konstytucji + komponenty kodu daje audytorowi sciezke od ryzyka do implementacji.
