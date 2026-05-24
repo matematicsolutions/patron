@@ -7,6 +7,54 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ## [Unreleased]
 
+### Added
+
+- **ADR-0025 / ADR-0028 - MCP Security Gateway** w `backend/src/lib/mcp-security/`
+  (2026-05-24). Lokalny, deterministyczny, zero-LLM, zero-cloud skan definicji
+  konektorow MCP przed ich zaladowaniem do kontraktu. 4 detektory: typosquat
+  (Levenshtein vs 6 zatwierdzonych nazw), drift (SHA256 hash vs baseline w
+  `~/.patron/mcp-drift-baseline.json`), hidden-instructions (PL+EN regex
+  jailbreak patterns w opisach narzedzi), tool-poisoning (permission expansion
+  + schema mismatch). 4 stany akcji: `allowed` / `audit` / `human_review` /
+  `denied`. ADR-0025 = skeleton (11 plikow, 25 testow vitest, +0 zaleznosci
+  npm). ADR-0028 = wpiecie w `getMcpTools()` jako gate PRZED registracja
+  toolow (refactor 2-fazowy: collect + register), baseline persist atomowo,
+  +7 testow `baseline.test.ts`. Cherry-pick wzorca z
+  [microsoft/agent-governance-toolkit](https://github.com/microsoft/agent-governance-toolkit)
+  (MIT). 396/401 testow pass, TSC clean.
+- **ADR-0024 - cherry-pick decision record** dla Microsoft Agent Governance
+  Toolkit (MIT, 1904 star, OWASP Agentic Top 10 10/10, 992 testow conformance).
+  Trzy patterny do osobnych ADR-ow implementacyjnych (MCP Security Gateway =
+  ADR-0025/0028 wdrozone; Merkle audit chain = ADR-0026 rezerwacja; privilege
+  rings = ADR-0027 rezerwacja). Audyt RODO pakietu `agent-governance-claude-code`
+  v3.6.0 = ZIELONY.
+- **ADR-0029 PROPONOWANY - Agent SRE Governance** dla wywolan LLM Patrona.
+  4 SLI kancelarii-skali: TaskSuccessRate (>=80% w 7d), HallucinationRate
+  (<=2% w 30d), CitationCoverage (>=70% pytan prawnych), McpSecurityIncidentRate
+  (=0). 3-stanowy circuit breaker SYGNALOWY (NIE autonomiczne wylaczenie -
+  zachowuje Art. 6 Konstytucji "human in the loop"). Implementacja w
+  przyszlym ADR-0030.
+- **ADR-0031 PROPONOWANY - deterministyczna walidacja decyzji z lokalnym
+  proof receipt** (kontrpropozycja do ICME Preflight). Cherry-pick wzorca
+  SMT-LIB compilation + proof receipt + offline verifier, NIE wpiecie
+  zaleznosci HTTP (ICME `api.icme.io` to cloud-only US, lamie Art. 1 + Art. 5).
+  3 patterny do osobnego ADR-0032 implementacyjnego (wybor solvera Z3 vs
+  minizinc vs cvc5). 5 polityk-szablonow legal AI zaadoptowanych do skilla
+  `matematic-konstytucja-ai` Appendix G.
+- `THIRD_PARTY_INSPIRATIONS.md` rozszerzony o 3 sekcje
+  (microsoft/agent-governance-toolkit, ICME Preflight,
+  ICME-Lab/jolt-atlas WATCH LIST) z pelna atrybucja zgodna z kanonem
+  cherry-pick MateMatic.
+
+### Changed
+
+- **Konstytucja AI v1.2.1 -> v1.2.2** (PATCH, 2026-05-24). Dodano Zalacznik C:
+  mapping OWASP Agentic Top 10 (10 ryzyk ASI-01..ASI-10) na Artykuly Konstytucji
+  Patrona + komponenty kodu. Pokrycie 10/10. Formalna deklaracja ze Patron jako
+  produkt regulowany adresuje uznane branzowo ryzyka.
+
+---
+
 - ADR-0022 / ADR-0023 - 6. konektor MCP `mcp-eu-compliance` wpiety w
   Patrona (2026-05-22). Offline korpus prawa UE w lokalnym SQLite FTS5,
   verbatim (zero-LLM) - GDPR, AI Act, DORA, NIS2, eIDAS 2.0, CRA.

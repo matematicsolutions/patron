@@ -23,6 +23,7 @@ compliance, których potrzebuje kancelaria. Pełne zasady opisuje
 - `frontend/` - aplikacja Next.js
 - `backend/` - Express API, klient MCP, audit trail, dispatch narzędzi
 - `backend/src/lib/input-security/` - lokalny, deterministyczny skan dokumentów wejściowych (prompt-injection / ukryte akcje PDF / zaciemnienie) przed wejściem do modelu lub RAG (ADR-0019/0020)
+- `backend/src/lib/mcp-security/` - lokalny, deterministyczny skan definicji konektorów MCP (typosquat / drift opisu / hidden-instructions / tool-poisoning) PRZED ich załadowaniem do kontraktu MCP (ADR-0025/0028)
 - `backend/schema.sql` - schemat Postgresa (Supabase-compatible)
 - `governance/` - **Konstytucja AI Patrona** + Implementation Playbook + ADR
 - `deploy/` - runbook wdrożeniowy (`docker-compose`)

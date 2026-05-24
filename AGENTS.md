@@ -35,13 +35,15 @@ cp .env.docker.example .env.docker
 docker compose --env-file .env.docker up -d
 ```
 
-Testy: 233/238 pass na 2026-05-21 (5 todo, 0 fail). TSC clean. **Nie commituj jezeli testy fail** - bramka jakosci z [Konstytucja](./governance/CONSTITUTION.md) Art. 7.
+Testy: 396/401 pass na 2026-05-24 (5 todo, 0 fail). TSC clean. **Nie commituj jezeli testy fail** - bramka jakosci z [Konstytucja](./governance/CONSTITUTION.md) Art. 7.
 
 ## Zasady kodu
 
 - **TypeScript strict**. Bez `any` w nowym kodzie, bez `// @ts-ignore` bez komentarza dlaczego.
 - **Audit-first** - kazda nowa interakcja z LLM przechodzi przez `backend/src/lib/audit/` (hash-chain). Bypass = blad krytyczny.
 - **Pseudonim/anonimizacja** - dane wrazliwe (PESEL/imie/nazwisko/adres) przechodza przez `backend/src/lib/pl-entities/` PRZED wyslaniem do LLM. Patrz [ADR-0003](./governance/adr/0003-hey-jude-pseudonim-pipeline.md).
+- **Input security** - dokumenty wejsciowe (PDF/DOCX/TXT) przechodza przez `backend/src/lib/input-security/` (prompt-injection / steganografia / homoglify / evasion) PRZED indeksacja RAG. Patrz [ADR-0019](./governance/adr/0019-input-document-security-pipeline-pl.md) + [ADR-0020](./governance/adr/0020-wpiecie-input-security-w-ingest.md).
+- **MCP security gateway** - definicje konektorow MCP przechodza przez `backend/src/lib/mcp-security/` (typosquat / drift / hidden-instructions / tool-poisoning) PRZED registracja toolow w runtime. Decyzja `denied`/`human_review` blokuje wpiecie. Patrz [ADR-0025](./governance/adr/0025-mcp-security-gateway-wdrazenie.md) + [ADR-0028](./governance/adr/0028-wpiecie-mcp-security-gateway-w-startup.md).
 - **i18n** - tlumaczenia w `frontend/messages/`. Slownik PRZED komponenty.
 - **Bez polskich znakow w commit messages** - konwencja organizacji (a -> a, e -> e, l -> l, o -> o, s -> s, n -> n, c -> c, z -> z).
 - **ADR przed kazda nietrwialnaa decyzja architektoniczna** - `governance/adr/NNNN-slug.md`. Marko-pl review 2x runda PRZED merge.
@@ -57,9 +59,9 @@ Testy: 233/238 pass na 2026-05-21 (5 todo, 0 fail). TSC clean. **Nie commituj je
 ## Zrodla prawdy (kolejnosc czytania)
 
 1. [README.md](./README.md) - opis dla ludzi
-2. [governance/CONSTITUTION.md](./governance/CONSTITUTION.md) - 9 zasad, role, audyt (v1.1.1, podpisywana przez kancelarie)
+2. [governance/CONSTITUTION.md](./governance/CONSTITUTION.md) - 9 zasad, role, audyt (v1.2.2, podpisywana przez kancelarie)
 3. [governance/IMPLEMENTATION_PLAYBOOK.md](./governance/IMPLEMENTATION_PLAYBOOK.md) - 6-8 tyg wdrozenia, RACI
-4. [governance/adr/](./governance/adr/) - Architecture Decision Records (0001-0017)
+4. [governance/adr/](./governance/adr/) - Architecture Decision Records (0001-0031, rezerwacje 0026/0027/0030/0032/0033)
 5. [THIRD_PARTY_INSPIRATIONS.md](./THIRD_PARTY_INSPIRATIONS.md) - co cherry-pickowalismy i skad (Mike, Lavern, gbrain, isaacus/tabular-review, PII-Shield, earendil/pi, awesome-llm-apps)
 6. [CHANGELOG.md](./CHANGELOG.md), [SECURITY.md](./SECURITY.md), [CONTRIBUTING.md](./CONTRIBUTING.md)
 
