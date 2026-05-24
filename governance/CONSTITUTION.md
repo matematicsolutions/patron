@@ -1,6 +1,6 @@
 # Konstytucja AI Patrona
 
-Wersja: 1.2.1
+Wersja: 1.2.2
 Data: 2026-05-24
 Status: obowiązująca
 Wydawca: MateMatic / Wiesław Mazur
