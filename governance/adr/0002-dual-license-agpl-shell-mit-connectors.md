@@ -12,13 +12,13 @@ Patron jest stackiem dwu-licencyjnym:
 | Komponent | Licencja |
 |---|---|
 | `patron` (powłoka: backend + frontend + governance + deploy) | **AGPL-3.0-only** |
-| `mcp-saos`, `mcp-nsa`, `mcp-isap`, `mcp-krs`, `mcp-eu-sparql` (5 konektorów MCP, osobne repo) | **MIT** |
+| `mcp-saos`, `mcp-nsa`, `mcp-isap`, `mcp-krs`, `mcp-eu-sparql`, `mcp-eu-compliance` (6 konektorów MCP, osobne repo) | **MIT** |
 
 ## Kontekst
 
 Patron jest forkiem [Mike](https://github.com/willchen96/mike)
-(MIT) z istotnymi modyfikacjami (polonizacja, 5 konektorów polskiego
-prawa, audit trail hash-chain, Konstytucja AI, docker-compose stack).
+(MIT) z istotnymi modyfikacjami (polonizacja, 6 konektorów polskiego
+i unijnego prawa, audit trail hash-chain, Konstytucja AI, docker-compose stack).
 MIT pozwala na zmianę licencji w forku, pod warunkiem zachowania
 oryginalnej noty (zob. `NOTICE`).
 
@@ -101,7 +101,7 @@ sieciowy.
   zawsze może zrobić fork i prowadzić go sama.
 
 **Minusy / ograniczenia**:
-- Komplikacja: musimy utrzymywać 6 repozytoriów osobno.
+- Komplikacja: musimy utrzymywać 7 repozytoriów osobno.
   Mitigation: bundler `scripts/bundle-mcp.cjs` + workflow w stylu
   monorepo przy pracy.
 - Wewnętrzne polityki dużych korporacji bywają wrogie AGPL.
@@ -115,7 +115,7 @@ sieciowy.
 
 - `patron/LICENSE` - GNU AGPL v3 (zachowane z forku, ponowna konfirmacja).
 - `patron/NOTICE` - attribution forka Mike + uzasadnienie wyboru AGPL.
-- `mcp-*/LICENSE` × 5 - MIT z copyrightem MateMatic.
+- `mcp-*/LICENSE` × 6 - MIT z copyrightem MateMatic.
 - `patron/CONTRIBUTING.md` - sekcja "License model" z tabelą + DCO.
 - `package.json` "license" w każdym repo zgodne z LICENSE.
 
@@ -138,7 +138,7 @@ Konstytucja AI Patrona v1.0.0 → v1.1.0 (MINOR bump):
 
 ## Status weryfikacji
 
-- [x] LICENSE pliki istnieją we wszystkich 6 repo
+- [x] LICENSE pliki istnieją we wszystkich 7 repo
 - [x] NOTICE w patron z pełnym attribution
 - [x] CONTRIBUTING.md z tabelą licencji
 - [x] package.json zgodne z LICENSE

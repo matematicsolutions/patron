@@ -28,8 +28,8 @@ For email contact (if GitHub reporting is unavailable):
 ## In-scope
 
 - Patron shell (`patron` repo): backend, frontend, governance docs.
-- All 5 MCP connectors (`mcp-saos`, `mcp-nsa`, `mcp-isap`, `mcp-krs`,
-  `mcp-eu-sparql`).
+- All 6 MCP connectors (`mcp-saos`, `mcp-nsa`, `mcp-isap`, `mcp-krs`,
+  `mcp-eu-sparql`, `mcp-eu-compliance`).
 - Deployment artifacts (`Dockerfile`, `docker-compose.yml`, `bundle-mcp.cjs`).
 
 ## Out-of-scope

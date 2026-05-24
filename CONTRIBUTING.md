@@ -102,7 +102,7 @@ npm run dev
 Full stack (Docker):
 
 ```bash
-# Requires all 5 mcp-* repos cloned next to patron/ and built.
+# Requires all 6 mcp-* repos cloned next to patron/ and built.
 node scripts/bundle-mcp.cjs
 cp .env.docker.example .env.docker     # fill values
 docker compose --env-file .env.docker up -d

@@ -1,7 +1,7 @@
 # Konstytucja AI Patrona
 
-Wersja: 1.2.0
-Data: 2026-05-22
+Wersja: 1.2.1
+Data: 2026-05-24
 Status: obowiązująca
 Wydawca: MateMatic / Wiesław Mazur
 
@@ -151,11 +151,11 @@ Model licencyjny (zob. [ADR-0002](./adr/0002-dual-license-agpl-shell-mit-connect
   obowiązków poza prawem do używania, modyfikacji i dystrybucji wewnątrz
   organizacji. Konkurent oferujący Patrona jako SaaS dla osób trzecich
   musi otworzyć swoje modyfikacje.
-- 5 konektorów MCP (`mcp-saos`, `mcp-nsa`, `mcp-isap`, `mcp-krs`,
-  `mcp-eu-sparql`, osobne repo): MIT. To infrastruktura do publicznych
-  źródeł prawa polskiego. Chcemy, żeby cały ekosystem polskiego
-  legal-techu mógł je wpinać do swoich produktów, niezależnie od ich
-  licencji.
+- 6 konektorów MCP (`mcp-saos`, `mcp-nsa`, `mcp-isap`, `mcp-krs`,
+  `mcp-eu-sparql`, `mcp-eu-compliance`, osobne repo): MIT. To
+  infrastruktura do publicznych źródeł prawa polskiego i unijnego.
+  Chcemy, żeby cały ekosystem polskiego i unijnego legal-techu mógł
+  je wpinać do swoich produktów, niezależnie od ich licencji.
 
 ---
 
@@ -303,6 +303,7 @@ Consequences: <co się zmienia>
 
 | Wersja | Data | Zmiana |
 |---|---|---|
+| 1.2.1 | 2026-05-24 | Lista konektorów MCP w Art. 9 rozszerzona z 5 do 6 - dodany `mcp-eu-compliance` (offline korpus EUR-Lex: GDPR, AI Act, DORA, NIS2, eIDAS 2.0, CRA; MIT). Wpięcie w Patrona zdecydowane przez ADR-0022/0023 (2026-05-22). PATCH (doprecyzowanie listy referencyjnej, korpus zasady i model licencyjny bez zmian; zgodnie z § 6.1 wystarcza commit i changelog). |
 | 1.2.0 | 2026-05-22 | Art. 5 rozszerzony o mechanizm „kontrola wejścia" - skan dokumentów wejściowych pod kątem manipulacji modelu (prompt-injection / ukryte akcje PDF / zaciemnienie) przed wejściem do modelu lub RAG (ADR-0019, ADR-0020). MINOR (rozszerzenie zasady, brak łamania kontraktów). |
 | 1.1.1 | 2026-05-20 | Art. 4 przemianowany z „Vendor neutrality" na „Neutralność wobec dostawców", rola 4.5 z „Vendor" na „Dostawca". PATCH (doprecyzowanie terminologii PL, korpus zasady i wszystkie kontrakty bez zmian; zgodnie z § 6.1 wystarcza commit i changelog). |
 | 1.1.0 | 2026-05-20 | Art. 9 doprecyzowany o dual-license: AGPL-3.0 shell + MIT connectors (ADR-0002). MINOR bump (rozszerzenie zasady, brak łamania kontraktów). |

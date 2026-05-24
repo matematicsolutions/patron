@@ -6,7 +6,7 @@ Plik standardu [agents.md](https://agents.md) (Linux Foundation / Agentic AI Fou
 
 ## Cel projektu
 
-Patron to **lokalny RODO-safe agent AI dla polskiej kancelarii prawnej**. Self-host zero-cloud (Postgres + MinIO + 5 konektorow MCP polskiego prawa), audit trail z hash-chain (AI Act art. 12), bring-your-own-model (Gemini / Claude / Ollama lokalny). Forka [willchen96/mike](https://github.com/willchen96/mike) (MIT) na powloce AGPL-3.0 - patrz [ADR-0002](./governance/adr/0002-dual-license-agpl-shell-mit-connectors.md).
+Patron to **lokalny RODO-safe agent AI dla polskiej kancelarii prawnej**. Self-host zero-cloud (Postgres + MinIO + 6 konektorow MCP polskiego i unijnego prawa), audit trail z hash-chain (AI Act art. 12), bring-your-own-model (Gemini / Claude / Ollama lokalny). Forka [willchen96/mike](https://github.com/willchen96/mike) (MIT) na powloce AGPL-3.0 - patrz [ADR-0002](./governance/adr/0002-dual-license-agpl-shell-mit-connectors.md).
 
 ## Kontekst MateMatic (TWARDE OGRANICZENIA)
 
@@ -26,7 +26,7 @@ cd backend && npm install && npm run build && npm test
 # Frontend (Next.js)
 cd frontend && npm install && npm run build && npm test
 
-# Bundle 5 konektorow MCP do obrazu backendu
+# Bundle 6 konektorow MCP do obrazu backendu
 node scripts/bundle-mcp.cjs
 
 # Pelny stack (Docker, wymaga Supabase + MinIO osobno)
@@ -74,7 +74,7 @@ Dla agentow uruchamianych w kontenerach: pelny `AGENTS.md` ma byc obecny w obraz
 ## Licencja i atrybucja
 
 - **Powloka** (`backend/`, `frontend/`, `deploy/`, `governance/`, `scripts/`) - **AGPL-3.0**. Patrz [LICENSE](./LICENSE) i [NOTICE](./NOTICE).
-- **5 konektorow MCP** (osobne repo `mcp-*`) - **MIT**.
+- **6 konektorow MCP** (osobne repo `mcp-*`) - **MIT**.
 - Cherry-pick i atrybucje: [THIRD_PARTY_INSPIRATIONS.md](./THIRD_PARTY_INSPIRATIONS.md).
 
 Cytowanie: *MateMatic Solutions (2026), Patron - lokalny agent AI dla polskiej kancelarii, https://github.com/matematicsolutions/patron, AGPL-3.0.*

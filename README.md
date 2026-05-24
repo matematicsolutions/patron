@@ -5,12 +5,12 @@
 [![AI Act](https://img.shields.io/badge/AI_Act-Art._12_record--keeping-orange)](./governance/CONSTITUTION.md)
 [![RODO](https://img.shields.io/badge/RODO-art._5%2F25%2F30%2F32-orange)](./governance/CONSTITUTION.md)
 [![Stack](https://img.shields.io/badge/stack-zero--cloud-success)](./governance/CONSTITUTION.md)
-[![MCP](https://img.shields.io/badge/MCP-5_connectors_PL-blue)](https://github.com/matematicsolutions)
+[![MCP](https://img.shields.io/badge/MCP-6_connectors-blue)](https://github.com/matematicsolutions)
 [![Node](https://img.shields.io/badge/Node-20%2B-brightgreen)](https://nodejs.org)
 
 > **Lokalny agent AI dla polskiej kancelarii prawnej.** Self-host
-> zero-cloud (Postgres + MinIO), 5 konektorów polskiego prawa
-> (SAOS / NSA / ISAP / KRS / EUR-Lex), audit trail z hash-chain (AI Act art. 12),
+> zero-cloud (Postgres + MinIO), 6 konektorów polskiego i unijnego prawa
+> (SAOS / NSA / ISAP / KRS / EUR-Lex / EU-Compliance), audit trail z hash-chain (AI Act art. 12),
 > bring-your-own-model (Gemini / Claude / Ollama lokalny).
 
 Patron jest forkiem [Mike](https://github.com/willchen96/mike) (dokumentowy
@@ -26,9 +26,9 @@ compliance, których potrzebuje kancelaria. Pełne zasady opisuje
 - `backend/schema.sql` - schemat Postgresa (Supabase-compatible)
 - `governance/` - **Konstytucja AI Patrona** + Implementation Playbook + ADR
 - `deploy/` - runbook wdrożeniowy (`docker-compose`)
-- `scripts/bundle-mcp.cjs` - bundler 5 serwerów MCP do obrazu backendu
+- `scripts/bundle-mcp.cjs` - bundler 6 serwerów MCP do obrazu backendu
 
-## Konektory MCP polskiego prawa (osobne repo)
+## Konektory MCP polskiego i unijnego prawa (osobne repo)
 
 | Konektor | Domena | Zwraca |
 |---|---|---|
@@ -36,7 +36,8 @@ compliance, których potrzebuje kancelaria. Pełne zasady opisuje
 | [`mcp-nsa`](https://github.com/matematicsolutions/mcp-nsa) | orzecznictwo NSA + 16 WSA (CBOSA) | search / get_judgment / search_by_case |
 | [`mcp-isap`](https://github.com/matematicsolutions/mcp-isap) | legislacja PL (Dz.U. + M.P., Sejm ELI) | search_acts / get_act / get_act_text |
 | [`mcp-krs`](https://github.com/matematicsolutions/mcp-krs) | Krajowy Rejestr Sądowy (MS) | get_entity / get_entity_full / get_board |
-| [`mcp-eu-sparql`](https://github.com/matematicsolutions/mcp-eu-sparql) | prawo UE (EUR-Lex + CJEU) | search_by_celex / search_by_date_range / search_cjeu |
+| [`mcp-eu-sparql`](https://github.com/matematicsolutions/mcp-eu-sparql) | prawo UE (EUR-Lex + CJEU, live SPARQL) | search_by_celex / search_by_date_range / search_cjeu |
+| [`mcp-eu-compliance`](https://github.com/matematicsolutions/mcp-eu-compliance) | compliance UE offline (GDPR, AI Act, DORA, NIS2, eIDAS 2.0, CRA) | eu_search / eu_article / eu_compare / eu_check_applicability / eu_evidence |
 
 ## Wdrożenie produkcyjne
 
@@ -44,9 +45,9 @@ Pełny runbook: **[deploy/README.md](./deploy/README.md)**.
 Skrót dla niecierpliwych:
 
 ```bash
-# 1. Klon 6 repo (patron + 5 mcp-*)
+# 1. Klon 7 repo (patron + 6 mcp-*)
 git clone matematicsolutions/patron && cd patron
-for d in mcp-saos mcp-nsa mcp-isap mcp-krs mcp-eu-sparql; do
+for d in mcp-saos mcp-nsa mcp-isap mcp-krs mcp-eu-sparql mcp-eu-compliance; do
   (cd .. && git clone matematicsolutions/$d && cd $d && npm install && npm run build)
 done
 

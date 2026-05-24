@@ -7,6 +7,17 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ## [Unreleased]
 
+- ADR-0022 / ADR-0023 - 6. konektor MCP `mcp-eu-compliance` wpiety w
+  Patrona (2026-05-22). Offline korpus prawa UE w lokalnym SQLite FTS5,
+  verbatim (zero-LLM) - GDPR, AI Act, DORA, NIS2, eIDAS 2.0, CRA.
+  5 narzedzi: `eu_search`, `eu_article`, `eu_compare`, `eu_check_applicability`,
+  `eu_evidence`. MIT. Komplementarny do `mcp-eu-sparql` (live SPARQL).
+  Konektor jest publicznym repo (`matematicsolutions/mcp-eu-compliance`);
+  bundle data via `npm run fetch-corpus` z Ansvar-Systems/EU_compliance_MCP
+  (Apache-2.0). Bundler `scripts/bundle-mcp.cjs` i
+  `backend/mcp-servers.example.json` zaktualizowane.
+- Constitution AI v1.2.0 -> v1.2.1 (PATCH, 2026-05-24) - lista konektorow
+  w Art. 9 rozszerzona z 5 do 6. Korpus zasady i model licencyjny bez zmian.
 - ADR-0021 - Time-travel nowelizacji (deterministyczny diff przepisu w
   czasie). Decyzja przyjeta 2026-05-22, koncept z chrisryugj/korean-law-mcp
   (MIT) - patrz THIRD_PARTY_INSPIRATIONS.md. Implementacja jako narzedzie
