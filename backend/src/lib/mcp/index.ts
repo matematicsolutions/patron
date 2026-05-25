@@ -21,7 +21,8 @@ import {
     type McpServerDefinition,
     type McpToolDefinition,
 } from "../mcp-security";
-import { recordMcpSecurityEvent } from "./audit-bridge";
+import { recordMcpSecurityEvent, recordRingPolicyEvent } from "./audit-bridge";
+import { decideRing } from "./ring-policy";
 import type { McpCitation, McpToolResult } from "./types";
 
 export type { McpCitation, McpToolResult } from "./types";
@@ -41,17 +42,29 @@ interface McpServerConfig {
     url?: string;
     // enabled flag - absent means enabled
     enabled?: boolean;
+    // ADR-0027 privilege rings - pola dla Ring 2 explicit allow przez Operatora.
+    // trustLevel jest informacyjne (audytor widzi w git diff), decyzja
+    // ring-policy wymaga operatorApproved=true dla Ring 2 allow.
+    // approvedAt / approvedBy sa informacyjne dla audytora w samym pliku konfigu.
+    trustLevel?: "trusted" | "untrusted";
+    operatorApproved?: boolean;
+    approvedAt?: string;
+    approvedBy?: string;
 }
 
 // ---------------------------------------------------------------------------
 // Internal state
 // ---------------------------------------------------------------------------
 
-// tool name (prefixed) -> { client, original name }
+// tool name (prefixed) -> { client, original name, serverName }
 const _toolRegistry = new Map<
     string,
-    { client: Client; originalName: string }
+    { client: Client; originalName: string; serverName: string }
 >();
+// ADR-0027: serverName -> McpServerConfig, populowana razem z _toolRegistry
+// w fazie 3 getMcpTools(). Czytana w runMcpTool zeby decideRing mial dostep
+// do pol trustLevel/operatorApproved konektora.
+const _serverConfigByName = new Map<string, McpServerConfig>();
 // cached list of OpenAIToolSchema[]
 let _cachedTools: OpenAIToolSchema[] | null = null;
 
@@ -161,11 +174,15 @@ function registerTools(
     client: Client,
     serverName: string,
     tools: ReadonlyArray<{ name: string }>,
+    cfg: McpServerConfig,
 ): void {
     for (const tool of tools) {
         const prefixed = `${serverName}__${tool.name}`;
-        _toolRegistry.set(prefixed, { client, originalName: tool.name });
+        _toolRegistry.set(prefixed, { client, originalName: tool.name, serverName });
     }
+    // ADR-0027: zachowujemy konfig serwera zeby ring-policy w runMcpTool
+    // miala dostep do flag trustLevel/operatorApproved.
+    _serverConfigByName.set(serverName, cfg);
     console.log(
         `[MCP] Connected to "${serverName}" - ${tools.length} tool(s) registered`,
     );
@@ -278,7 +295,7 @@ export async function getMcpTools(): Promise<OpenAIToolSchema[]> {
         if (!result) continue;
 
         if (result.action === "allowed" || result.action === "audit") {
-            registerTools(d.client, d.cfg.name, d.tools);
+            registerTools(d.client, d.cfg.name, d.tools, d.cfg);
             newBaseline.set(d.cfg.name, result.currentHash);
             if (result.action === "audit" || result.findings.length > 0) {
                 console.warn(
@@ -371,8 +388,39 @@ export async function runMcpTool(
         };
     }
 
-    const serverName = name.split("__")[0] ?? "";
+    const serverName = entry.serverName;
     const toolName = entry.originalName;
+
+    // ADR-0027 privilege rings - gate w czasie wywolania przed faktycznym callTool.
+    // decideRing jest pure function; audit dziala w trybie wyslij-i-zapomnij
+    // (Konstytucja Art. 8 stalosc kontraktow - porazka audit nie blokuje tool call).
+    const cfg = _serverConfigByName.get(serverName);
+    const decision = decideRing(serverName, cfg);
+    void recordRingPolicyEvent({
+        toolName: name,
+        serverName,
+        decision,
+    }).catch((err) => {
+        console.warn(
+            `[RING-POLICY] audit bridge failed for "${name}":`,
+            err,
+        );
+    });
+
+    if (decision.action === "deny") {
+        console.warn(
+            `[RING-POLICY] Tool "${name}" DENIED (ring=${decision.ring}, reason=${decision.reason}). Add operatorApproved=true in mcp-servers.json to allow.`,
+        );
+        return {
+            text: JSON.stringify({
+                error: `Tool "${name}" denied by ring policy (ring ${decision.ring}, reason: ${decision.reason}). Operator approval required.`,
+                ring: decision.ring,
+                reason: decision.reason,
+            }),
+            citations: [],
+            isError: true,
+        };
+    }
 
     try {
         const result = await entry.client.callTool({

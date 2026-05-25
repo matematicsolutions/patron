@@ -2,8 +2,8 @@
 // (lib/audit). Implementuje ADR-0033 - propagacja decyzji Gateway'a (audit /
 // human_review / denied) do tabeli audit_log z event_type = "mcp_security.gateway".
 //
-// Modul jest fire-and-forget: porazka audit_log NIE blokuje rejestracji toolow
-// MCP (Konstytucja Art. 8 stalosc kontraktow). Brak env SUPABASE_URL /
+// Modul dziala w trybie wyslij-i-zapomnij: porazka audit_log NIE blokuje
+// rejestracji toolow MCP (Konstytucja Art. 8 stalosc kontraktow). Brak env SUPABASE_URL /
 // SUPABASE_SECRET_KEY = graceful no-op (analogicznie do loadConfig w
 // lib/mcp/index.ts, ktore no-op gdy mcp-servers.json nie istnieje).
 //
@@ -14,8 +14,10 @@
 import { appendAuditEvent } from "../audit";
 import { createServerSupabase } from "../supabase";
 import type { McpAction, McpFinding } from "../mcp-security";
+import type { RingDecision } from "./ring-policy";
 
 export const MCP_SECURITY_EVENT_TYPE = "mcp_security.gateway";
+export const RING_POLICY_EVENT_TYPE = "ring_policy.decision";
 
 export interface RecordMcpSecurityEventArgs {
     serverName: string;
@@ -77,6 +79,59 @@ export async function recordMcpSecurityEvent(
             risk_score: args.riskScore,
             findings_count: args.findings.length,
             findings: findingsForAudit,
+        },
+    });
+
+    return result.ok ? { ok: true } : { ok: false, reason: "audit_failed" };
+}
+
+// ---------------------------------------------------------------------------
+// Ring policy event propagation (ADR-0027)
+// ---------------------------------------------------------------------------
+
+export interface RecordRingPolicyEventArgs {
+    /** Pelna prefixowana nazwa toola, np. "saos__search". */
+    toolName: string;
+    /** Nazwa serwera MCP (segment przed `__`). */
+    serverName: string;
+    /** Decyzja ring-policy (ring + action + reason). */
+    decision: RingDecision;
+}
+
+/**
+ * Zapisuje decyzje ring-policy (per tool call) do audit_log z hash-chain
+ * (event_type = "ring_policy.decision"). Nigdy nie rzuca - bledy zwracane
+ * w polu `reason`. Patrz ADR-0027.
+ *
+ * Logujemy ZAROWNO allow jak i deny - daje pelen rejestr runtime autoryzacji
+ * komplementarny do load-time mcp_security.gateway (ADR-0033).
+ */
+export async function recordRingPolicyEvent(
+    args: RecordRingPolicyEventArgs,
+    factory: SupabaseFactory = defaultSupabaseFactory,
+): Promise<RecordMcpSecurityEventResult> {
+    let db: ReturnType<typeof createServerSupabase>;
+    try {
+        db = factory();
+    } catch {
+        return { ok: false, reason: "env_missing" };
+    }
+
+    // Minimalizacja danych (Konstytucja Art. 7): bez argumentow toola,
+    // bez wynikow, bez approvedAt/approvedBy (audytor widzi je w
+    // mcp-servers.json pod git review). Patrz ADR-0027 sekcja "Co NIE jest
+    // w payload".
+    const result = await appendAuditEvent(db, {
+        event_type: RING_POLICY_EVENT_TYPE,
+        actor_user_id: null,
+        chat_id: null,
+        document_id: null,
+        payload: {
+            tool_name: args.toolName,
+            server_name: args.serverName,
+            ring: args.decision.ring,
+            action: args.decision.action,
+            reason: args.decision.reason,
         },
     });
 

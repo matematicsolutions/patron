@@ -9,6 +9,24 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ### Added
 
+- **ADR-0027 - Privilege rings dla wywolan narzedzi MCP** (2026-05-25).
+  Implementacja trzeciego patternu z ADR-0024 (cherry-pick Microsoft AGT).
+  Nowy modul `backend/src/lib/mcp/ring-policy.ts` (pure function
+  `decideRing`) wpiety w `runMcpTool` jako gate w czasie wywolania PRZED
+  faktycznym `client.callTool`. 3 ringi: Ring 0 (system, dokumentacyjnie
+  zarezerwowany), Ring 1 (6 trusted konektorow Patrona z
+  `APPROVED_PATRON_CONNECTORS`, allow + audit), Ring 2 (3rd-party,
+  fail-closed default `deny`, explicit allow tylko gdy
+  `operatorApproved=true` w `mcp-servers.json` + audit). Decyzje
+  propagowane do `audit_log` z `event_type = "ring_policy.decision"`
+  przez `recordRingPolicyEvent` w `audit-bridge.ts` (reuse modulu z
+  ADR-0033). Komplementarne do MCP Security Gateway (ADR-0025/0028):
+  Gateway = gate w czasie ladowania, ring-policy = gate w czasie
+  wywolania. Defense-in-depth z dwoch perspektyw. +28 testow pure
+  function `ring-policy.test.ts` w 5 sekcjach (Ring 1 trusted / Ring 2
+  explicit allow / Ring 2 fail-closed / determinism + immutability /
+  RingReason values), zero mockow. 429/434 testow pass (+5 todo, +28
+  nowych), TSC clean.
 - **ADR-0033 - Propagacja decyzji MCP Security Gateway do audit hash-chain**
   (2026-05-24). Decyzje Gateway'a inne niz `allowed-clean` (`audit`,
   `human_review`, `denied`) trafiaja teraz do tabeli `audit_log` z
@@ -16,12 +34,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
   `backend/src/lib/mcp/audit-bridge.ts`. Realizuje pierwsza polowe zadania
   zostawionego przez ADR-0028 (druga polowa - UI banner dla Operatora +
   admin endpoint - rezerwacja ADR-0034 ze wzgledu na brak patternu RBAC
-  w kodzie Patrona). Fire-and-forget: porazka audit_log NIE blokuje
-  rejestracji toolow (Konstytucja Art. 8). Graceful no-op gdy `SUPABASE_*`
-  env brak (analogicznie do `loadConfig`). Payload pomija pole `sample`
-  z `McpFinding` (Konstytucja Art. 7 minimalnosc - sample moze zawierac
-  fragment opisu 3rd-party konektora). +5 testow `audit-bridge.test.ts`.
-  401/406 testow pass, TSC clean.
+  w kodzie Patrona). Tryb wyslij-i-zapomnij: porazka audit_log NIE
+  blokuje rejestracji toolow (Konstytucja Art. 8). Graceful no-op gdy
+  `SUPABASE_*` env brak (analogicznie do `loadConfig`). Payload pomija
+  pole `sample` z `McpFinding` (Konstytucja Art. 7 minimalnosc - sample
+  moze zawierac fragment opisu 3rd-party konektora). +5 testow
+  `audit-bridge.test.ts`. 401/406 testow pass, TSC clean.
 - **ADR-0025 / ADR-0028 - MCP Security Gateway** w `backend/src/lib/mcp-security/`
   (2026-05-24). Lokalny, deterministyczny, zero-LLM, zero-cloud skan definicji
   konektorow MCP przed ich zaladowaniem do kontraktu. 4 detektory: typosquat
@@ -39,7 +57,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
   Toolkit (MIT, 1904 star, OWASP Agentic Top 10 10/10, 992 testow conformance).
   Trzy patterny do osobnych ADR-ow implementacyjnych (MCP Security Gateway =
   ADR-0025/0028 wdrozone; Merkle audit chain = ADR-0026 rezerwacja; privilege
-  rings = ADR-0027 rezerwacja). Audyt RODO pakietu `agent-governance-claude-code`
+  rings = ADR-0027 WDROZONE 2026-05-25). Audyt RODO pakietu `agent-governance-claude-code`
   v3.6.0 = ZIELONY.
 - **ADR-0029 PROPONOWANY - Agent SRE Governance** dla wywolan LLM Patrona.
   4 SLI kancelarii-skali: TaskSuccessRate (>=80% w 7d), HallucinationRate
@@ -104,7 +122,7 @@ Polish-only terminology patch for AI Constitution.
 - All cross-refs synced: `governance/adr/0002-*.md`, `README.md`,
   `deploy/USER_GUIDE.md`.
 - Why: align the last English anglicism in Constitution with the rest
-  of the PL client-grade documentation (Marko-PL round 2 rollout).
+  of the PL client-grade documentation (internal redaction QA round 2).
   Article semantics, signatories, and external contracts (AI Act,
   GDPR mapping in App. A) unchanged - PATCH per § 6.1 of the
   Constitution. Version 1.2.0 reserved for the PII pseudonymization
