@@ -14,6 +14,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 export type AdminAccessEventType =
     | "admin.access.audit_viewer"
     | "admin.access.audit_export"
+    | "admin.access.merkle_compute_now"
     | "admin.access.security_banner"
     | "admin.access.metrics";
 

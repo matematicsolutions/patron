@@ -16,7 +16,7 @@
 import { Router, type Request, type Response } from "express";
 import { requireAuth, requireAdmin } from "../middleware/auth";
 import { createServerSupabase } from "../lib/supabase";
-import { fetchProofForEvent } from "../lib/audit-merkle-roots";
+import { fetchProofForEvent, runAutoCompute } from "../lib/audit-merkle-roots";
 import { maskPayload } from "../lib/audit-pii-mask";
 import {
     buildResponseEvents,
@@ -30,6 +30,10 @@ import {
     buildAuditPackFilename,
     type AuditPackEvent,
 } from "../lib/audit-pack";
+import {
+    buildComputeNowResponse,
+    parseComputerByLabel,
+} from "../lib/audit-merkle-compute-now";
 
 export const auditRouter = Router();
 
@@ -315,5 +319,76 @@ auditRouter.get(
             `attachment; filename="${filename}"`,
         );
         res.status(200).send(JSON.stringify(pack, null, 2));
+    },
+);
+
+/**
+ * POST /api/audit/merkle/compute-now
+ *
+ * Wymusza compute next Merkle root bez czekania na auto-trigger ADR-0036
+ * (count >= 1000 LUB interval >= 24h). Bypass thresholdami "forsuje":
+ * countThreshold=1, intervalMs=0 - kazdy nowy event w audit_log
+ * wystarczy do compute.
+ *
+ * Use case: audytor UODO klika "Pobierz audit pack" w UI viewera
+ * (ADR-0046, ADR-0047), dostaje 404 "brak Merkle root pokrywajacego event"
+ * bo event byl od ostatniego roota a auto-trigger jeszcze nie strzelil.
+ * Frontend pokazuje drugi button "Wymus compute root", wywoluje ten
+ * endpoint, audytor ponawia eksport.
+ *
+ * Patrz ADR-0048. Logika compute reuse z ADR-0036 (`runAutoCompute`).
+ *
+ * Loguje admin.access.merkle_compute_now do audit_log per ADR-0043
+ * (meta-audyt kto kiedy wymusil compute).
+ *
+ * Status codes:
+ *   200 - { computed: true, reason, root } gdy insert root udany
+ *   200 - { computed: false, reason } gdy brak nowych eventow (no_new_events)
+ *   200 - { computed: false, reason, error } gdy decyzja=compute ale insert failed
+ *   401 - brak/niepoprawny JWT
+ *   403 - non-admin
+ *   500 - Supabase unavailable
+ *
+ * Uwaga: 200 dla "no_new_events" jest swiadome - to nie blad, kancelaria po
+ * prostu nie ma nowych eventow od ostatniego roota. Frontend rozroznia
+ * computed=true/false aby zdecydowac czy ponawiac eksport.
+ */
+auditRouter.post(
+    "/merkle/compute-now",
+    requireAuth,
+    requireAdmin,
+    async (req: Request, res: Response): Promise<void> => {
+        const actorUserId = (res.locals.userId as string | null) ?? null;
+        const actorEmail = (res.locals.userEmail as string | null) ?? null;
+
+        let db: ReturnType<typeof createServerSupabase>;
+        try {
+            db = createServerSupabase();
+        } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            res.status(500).json({ error: "supabase_unavailable", detail: msg });
+            return;
+        }
+
+        // ADR-0043: log dostepu admin (graceful, NIE blokuje compute)
+        void recordAdminAccess({
+            db,
+            event_type: "admin.access.merkle_compute_now",
+            actor_user_id: actorUserId,
+            actor_email: actorEmail,
+            method: req.method,
+            path: req.originalUrl,
+        });
+
+        const computedByLabel = parseComputerByLabel(actorEmail, actorUserId);
+
+        const result = await runAutoCompute(db, {
+            countThreshold: 1, // FORCE_COUNT_THRESHOLD - kazdy nowy event wymusza compute
+            intervalMs: 0,     // FORCE_INTERVAL_MS - bypass wymogu wieku ostatniego roota
+            computedBy: computedByLabel,
+        });
+
+        const response = buildComputeNowResponse(result);
+        res.status(200).json(response);
     },
 );

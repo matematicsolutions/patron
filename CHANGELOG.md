@@ -9,6 +9,53 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ### Added
 
+- **ADR-0048 - Endpoint "Wymus compute Merkle root" + UI fallback dla audytora**
+  (2026-05-27). Realizacja rezerwacji z ADR-0047 (sekcja "Co NIE jest w
+  ADR-0047" + odpowiedz `404` w endpoint `GET /api/audit/export/:eventId`).
+  Zamyka UX dziure: audytor UODO klika "Pobierz audit pack", dostaje 404
+  "brak Merkle root pokrywajacego event" bo event byl po ostatnim
+  auto-trigger ADR-0036 (count >= 1000 LUB interval >= 24h). Frontend wykrywa
+  tym 404 (heurystyka `detail.includes("brak Merkle root")` - dlug
+  zarejestrowany do ADR-0050), pokazuje secondary button "Wymus compute root
+  i ponow eksport", wywoluje nowy endpoint `POST /api/audit/merkle/compute-now`
+  (requireAuth + requireAdmin per ADR-0034), po sukcesie auto-retry eksport.
+  Backend reuse `runAutoCompute` z `audit-merkle-roots.ts` (ADR-0036) z
+  thresholdami forsujacymi `countThreshold=1`, `intervalMs=0` - kazdy nowy
+  event wymusza compute. Pure helper `backend/src/lib/audit-merkle-compute-now.ts`
+  (118 LoC) z 3 eksportami: `FORCE_*` thresholds jako stale,
+  `parseComputerByLabel(email, userId)` z anti-injection sanitizacja
+  (`\r\n\t` + znaki kontrolne x00-x1f, trim do 100 znakow, fallback
+  `manual-ui:unknown`), `buildComputeNowResponse(result)` mapuje 4 scenariusze
+  `RunAutoComputeResult` na response endpointu. 16 testow zero-mock w
+  `audit-merkle-compute-now.test.ts` (FORCE thresholds 2, parseComputerByLabel
+  8 wlacznie z anti-injection cases, buildComputeNowResponse 6). Response
+  endpointu **zawsze 200** z `{computed: bool, reason, root?, error?}` -
+  `no_new_events` to legalny stan (kancelaria nie pracowala od ostatniego
+  roota), nie 409 Conflict. Logowanie meta-audit
+  `admin.access.merkle_compute_now` przez `recordAdminAccess` PRZED `runAutoCompute`
+  (zamiar wymuszenia rejestrowany niezaleznie od sukcesu compute). Frontend
+  `<AuditExportButton />` rozszerzony z 4 stanow do **5 stanow**
+  (`idle | loading | needs-compute | computing | failed`) - amber alert box
+  z secondary button wyjasnia powod: "Event nie jest jeszcze pokryty przez
+  Merkle root. Wymus compute (auto-trigger uruchamia sie raz na 24h lub po
+  1000 nowych eventow per ADR-0036)." Migracja 004 ALTER CHECK whitelist
+  event_type (dodanie `admin.access.merkle_compute_now`, format UP/DOWN per
+  ADR-0038, idempotent `pg_constraint` check). Lustrzane wpisy w 4 miejscach
+  (schema.sql + migration 004 + `EVENT_TYPES` w audit.ts +
+  `AdminAccessEventType` w audit-admin-access.ts). Zero nowych zaleznosci
+  npm w obu package.json (reuse runAutoCompute + native React state +
+  lucide `ShieldCheck` istniejacy). 646 vitest pass / 5 todo / 0 fail
+  (+16 nowe vs 630 po ADR-0047). TSC clean backend + frontend. Bulk export
+  ZIP = rezerwacja ADR-0050 (`jszip` juz jest w `backend/package.json` deps,
+  ZIP nie wymaga nowej oceny); PDF audit raport ludzki = rezerwacja ADR-0051
+  (rozdzielone bo wymaga oceny puppeteer vs pdfkit vs server-side React
+  renderer); machine-readable error code `error: "merkle_root_missing"`
+  zamiast string match = dlug zarejestrowany do ADR-0050. Konstytucja
+  Patrona v1.3.1 -> v1.3.2 PATCH (UX safety net dla eksportu z ADR-0047,
+  audytor mial juz capability przez prosbe do operatora
+  `npm run merkle:trigger` - ten ADR daje mu to w UI; nie zmienia kontraktu
+  rol w Konstytucji ani semantyki Merkle hash).
+
 - **ADR-0047 - Eksport audit pack JSON** (2026-05-27). Realizacja rezerwacji
   z ADR-0046 (sekcja "Co NIE jest w ADR-0046"). Nowy endpoint
   `GET /api/audit/export/:eventId` (requireAuth + requireAdmin per ADR-0034)

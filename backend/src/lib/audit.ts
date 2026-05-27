@@ -65,6 +65,7 @@ export const EVENT_TYPES = [
     // Wymaga migracji 002 ALTER CHECK whitelist.
     "admin.access.audit_viewer",
     "admin.access.audit_export",
+    "admin.access.merkle_compute_now",
     "admin.access.security_banner",
     "admin.access.metrics",
     // ADR-0038 rezerwacja: log rollbacku migracji (DOWN aplikacja).
