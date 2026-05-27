@@ -36,7 +36,7 @@
         "katex": "^0.16.27",
         "lucide-react": "^1.16.0",
         "mammoth": "^1.11.0",
-        "marked": "^17.0.1",
+        "marked": "^18.0.4",
         "next": "^16.2.6",
         "nextjs-toploader": "^3.9.17",
         "pdfjs-dist": "4.10.38",
