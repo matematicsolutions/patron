@@ -14,6 +14,8 @@
     "migrate": "tsx scripts/run-migrations.ts plan",
     "migrate:mark": "tsx scripts/run-migrations.ts mark",
     "migrate:status": "tsx scripts/run-migrations.ts status",
+    "migrate:rollback": "tsx scripts/run-migrations.ts rollback",
+    "migrate:rollback:mark": "tsx scripts/run-migrations.ts rollback:mark",
     "merkle:trigger": "tsx scripts/trigger-merkle.ts"
   },
   "dependencies": {

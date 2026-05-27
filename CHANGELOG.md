@@ -9,6 +9,27 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ### Added
 
+- **ADR-0038 - Down/rollback dla infrastruktury migracji** (2026-05-27).
+  Realizacja rezerwacji z ADR-0035 ("down/rollback migracji = ADR-0038
+  proponowany"). Format `-- UP` / `-- DOWN` sekcji w jednym pliku migracji
+  `backend/migrations/NNN_*.sql` (wzorzec sqitch/Flyway). Pure helper
+  `extractUpDown` w `backend/src/lib/migrations.ts` (parser regex
+  case-insensitive, back-compat dla migracji bez markerow). 2 nowe komendy
+  runnera w `backend/scripts/run-migrations.ts`:
+  `npm run migrate:rollback NNN` (wypisuje DOWN SQL + instrukcje
+  skopiowania do Supabase SQL Editor) i `npm run migrate:rollback:mark NNN`
+  (kasuje rekord z `schema_migrations` po manualnej aplikacji + console.warn
+  ze structured tag `[MIGRATE-ROLLBACK]`). Operator wykonuje DOWN DDL
+  manualnie w SQL Editor / psql / pgAdmin (governance-friendly, ten sam
+  wzorzec co `migrate:plan` z ADR-0035). Migracja 001 zaktualizowana z
+  idempotent `-- DOWN` sekcja (`DROP CONSTRAINT IF EXISTS audit_log_event_type_whitelist`)
+  jako wzorzec dla kolejnych migracji. Zero nowych zaleznosci npm
+  (Konstytucja Art. 4). +8 testow `extractUpDown` w
+  `lib/migrations.test.ts` (pure functions, 0 mockow). 524/529 pass
+  (+8 nowych vs baseline 516/521 z ADR-0034), TSC clean. Konstytucja
+  Patrona v1.2.6 -> v1.2.7 PATCH (sekcja 5.2.2 zaktualizowana o down/rollback).
+  Rezerwacje: ADR-0043 (audit_log eventu `migrate.rollback` + `admin.access`),
+  ADR-0039 (CI gate na drift schema.sql vs migrations).
 - **ADR-0034 - RBAC admin oparty na whitelist emaili w env** (2026-05-27).
   Realizacja rezerwacji "admin RBAC + UI banner mcp-security" w wezszym
   zakresie (scope-down) - tylko backend RBAC; UI banner mcp-security =

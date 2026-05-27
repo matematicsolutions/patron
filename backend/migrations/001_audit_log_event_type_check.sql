@@ -1,5 +1,6 @@
 -- Migration 001: CHECK constraint na public.audit_log.event_type (whitelist).
 -- ADR-0035 (governance/adr/0035-migration-infra-event-type-check.md).
+-- Format UP/DOWN dodany w ADR-0038 (governance/adr/0038-migration-down-rollback.md).
 --
 -- Whitelist 7 produkcyjnych event_type. Dodawanie nowego event_type wymaga
 -- osobnej migracji + ADR. Wartosci wytypowane przez grep `appendAuditEvent`
@@ -23,6 +24,8 @@
 -- czytelnym komunikatem. Operator kancelarii uruchamia query diagnostyczne
 -- przed migracja: select distinct event_type from audit_log order by 1;
 
+-- UP
+
 do $$
 begin
   if not exists (
@@ -45,3 +48,13 @@ begin
   end if;
 end;
 $$;
+
+-- DOWN
+-- Idempotent rollback - DROP CONSTRAINT IF EXISTS pozwala na re-run bez bledu.
+-- UWAGA: po rollback wszystkie nowe wstawienia do audit_log dostana wolny text
+-- bez walidacji whitelist; warstwa TypeScript (EventType union w lib/audit.ts)
+-- nadal chroni przed bledami dewelopera, ale runtime bypass (raw SQL, mock
+-- supabase) przejdzie. Uruchom tylko w windowie maintenance.
+
+alter table public.audit_log
+  drop constraint if exists audit_log_event_type_whitelist;

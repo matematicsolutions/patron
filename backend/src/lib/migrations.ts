@@ -77,3 +77,46 @@ export function findDuplicateIds(files: ReadonlyArray<MigrationFile>): string[] 
     }
     return [...seen.entries()].filter(([, count]) => count > 1).map(([id]) => id);
 }
+
+// ---------------------------------------------------------------------------
+// UP / DOWN section parsing (ADR-0038)
+// ---------------------------------------------------------------------------
+
+export interface UpDownSections {
+    /** SQL forward migration (przed znacznikiem `-- DOWN`). */
+    up: string;
+    /** SQL rollback (po znaczniku `-- DOWN`). Pusty string = brak rollback. */
+    down: string;
+}
+
+const DOWN_MARKER_REGEX = /^--\s*DOWN\s*$/im;
+const UP_MARKER_REGEX = /^--\s*UP\s*$/im;
+
+/**
+ * Rozdziela content pliku migracji na sekcje UP i DOWN. Regex matchuje
+ * linie `-- DOWN` (case-insensitive, opcjonalne biale znaki). Jezeli plik
+ * zawiera tez marker `-- UP` na poczatku, jest usuwany z sekcji up.
+ *
+ * Back-compat: plik bez `-- DOWN` -> caly content jako up, down = pusty.
+ * Bez `-- UP` na poczatku -> caly content przed `-- DOWN` jako up.
+ *
+ * Pure function - bez IO. Whitespace na koncach sekcji trim.
+ */
+export function extractUpDown(content: string): UpDownSections {
+    const downMatch = content.match(DOWN_MARKER_REGEX);
+    if (!downMatch || downMatch.index === undefined) {
+        return { up: stripUpMarker(content).trim(), down: "" };
+    }
+    const upPart = content.slice(0, downMatch.index);
+    const downPart = content.slice(downMatch.index + downMatch[0].length);
+    return {
+        up: stripUpMarker(upPart).trim(),
+        down: downPart.trim(),
+    };
+}
+
+function stripUpMarker(section: string): string {
+    const upMatch = section.match(UP_MARKER_REGEX);
+    if (!upMatch || upMatch.index === undefined) return section;
+    return section.slice(0, upMatch.index) + section.slice(upMatch.index + upMatch[0].length);
+}

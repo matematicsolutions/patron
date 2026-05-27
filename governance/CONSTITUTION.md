@@ -1,6 +1,6 @@
 # Konstytucja AI Patrona
 
-Wersja: 1.2.6
+Wersja: 1.2.7
 Data: 2026-05-27
 Status: obowiązująca
 Wydawca: MateMatic / Wiesław Mazur
@@ -311,11 +311,18 @@ z ALTER CHECK, (2) ADR (jezeli nietrywialne semantycznie), (3) bump `EVENT_TYPES
 w `lib/audit.ts`, (4) wpis w tabeli 5.1 tej Konstytucji.
 
 Infrastruktura migracji: governance-friendly runner `backend/scripts/run-migrations.ts`
-(komendy `plan`/`mark`/`status`). Operator kancelarii aplikuje DDL manualnie
-w Supabase SQL Editor / psql / pgAdmin, potem oznacza w rejestrze
-`schema_migrations`. Audytowalne (DDL widoczny w Supabase Audit Logs).
-Zero nowych zaleznosci npm. Down/rollback = rezerwacja ADR-0038. CI gate
-na drift schema.sql vs migrations = rezerwacja ADR-0039.
+(komendy `plan`/`mark`/`status`/`rollback`/`rollback:mark`). Operator kancelarii
+aplikuje DDL manualnie w Supabase SQL Editor / psql / pgAdmin, potem oznacza
+w rejestrze `schema_migrations`. Audytowalne (DDL widoczny w Supabase Audit Logs).
+Zero nowych zaleznosci npm.
+
+Down/rollback LIVE od ADR-0038 - format `-- UP` / `-- DOWN` sekcji w jednym
+pliku migracji, pure helper `extractUpDown` w `lib/migrations.ts`. Operator
+robi `npm run migrate:rollback NNN` (wypisuje DOWN SQL), aplikuje manualnie
+w SQL Editor, potem `npm run migrate:rollback:mark NNN` (kasuje rekord
+z schema_migrations + console.warn `[MIGRATE-ROLLBACK]`). Audit_log eventu
+`migrate.rollback` = rezerwacja ADR-0043. CI gate na drift schema.sql vs
+migrations = rezerwacja ADR-0039.
 
 ### 5.3. Retencja i usunięcie
 
@@ -370,6 +377,7 @@ Consequences: <co się zmienia>
 
 | Wersja | Data | Zmiana |
 |---|---|---|
+| 1.2.7 | 2026-05-27 | Sekcja 5.2.2 zaktualizowana - infrastruktura migracji rozszerzona o down/rollback (ADR-0038, LIVE). Format `-- UP` / `-- DOWN` sekcji w jednym pliku migracji `NNN_*.sql` (wzorzec sqitch/Flyway). Pure helper `extractUpDown` w `lib/migrations.ts` + 8 nowych testow. 2 nowe komendy runnera: `npm run migrate:rollback NNN` (wypisuje DOWN SQL) + `npm run migrate:rollback:mark NNN` (kasuje rekord z schema_migrations po manualnej aplikacji). Migracja 001 zaktualizowana z idempotent `-- DOWN` sekcja (`DROP CONSTRAINT IF EXISTS`) jako wzorzec. Audit_log eventu `migrate.rollback` = rezerwacja ADR-0043. PATCH (rozszerzenie istniejacej infrastruktury migracji o deterministyczna droge powrotu, brak zmiany kontraktow API). |
 | 1.2.6 | 2026-05-27 | Nowa rola 4.6 Admin (ADR-0034, LIVE) - podzbiór Administratora z dostępem do zaostrzonych endpointów backend (audyt Merkle, w przyszłości UI viewer dla audytora ADR-0040 i UI banner mcp-security ADR-0042). Admin pool zarządzany przez whitelist emaili w env `PATRON_ADMIN_EMAILS` (CSV, lowercase, trim). Middleware `requireAdmin` w `backend/src/middleware/auth.ts` po `requireAuth` w łańcuchu. Endpoint `GET /api/audit/merkle/verify/:eventId` (ADR-0036) zaostrzony z "każdy zalogowany" na admin-only. Strukturyzowane logi `[ADMIN] grant|denied` na stdout (audit_log eventu `admin.access` = rezerwacja ADR-0043). PATCH (dodanie podzbioru roli istniejącej, brak zmiany kontraktów API innych endpointów). |
 | 1.2.5 | 2026-05-27 | Sekcja 5.2.1 zaktualizowana - manualny trigger Merkle rozszerzony o hybrid auto-trigger (ADR-0036, LIVE). Compute Merkle root nastepuje automatycznie gdy nowych eventow >= 1000 LUB ostatni root sprzed >= 24h (whichever first, env-tunable). Endpoint `GET /api/audit/merkle/verify/:eventId` LIVE - audytor pobiera samowystarczalny ProofBundle przez HTTPS, weryfikuje offline przez `audit-merkle-verifier.ts`. setInterval w backend startup (single-instance self-host), manualny CLI fallback `npm run merkle:trigger`. PATCH (rozszerzenie zasady audytowalnosci - automatyzacja istniejacego mechanizmu, brak zmiany kontraktow API ani semantyki Merkle hash). |
 | 1.2.4 | 2026-05-27 | Sekcja 5.1 (Co jest zapisywane) rozszerzona o 5 event_type ktore weszly do produkcji w iteracjach 1.2.2-1.2.3 (input_security_scan, mcp_security.gateway, ring_policy.decision, rodo.delete, rodo.export). Nowa sekcja 5.2.2 (Whitelist event_type i infrastruktura migracji) - ADR-0035, CHECK constraint `audit_log_event_type_whitelist` z 7 produkcyjnymi wartosciami + governance-friendly runner migracji. PATCH (doprecyzowanie istniejacej zasady audytowalnosci, brak zmiany kontraktow API; zgodnie z § 6.1 wystarcza commit i changelog). |

@@ -34,6 +34,7 @@ import {
     computeMigrationChecksum,
     selectPendingMigrations,
     findDuplicateIds,
+    extractUpDown,
 } from "../src/lib/migrations";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -124,22 +125,96 @@ async function commandPlan(): Promise<void> {
     for (const file of pending) {
         const content = await readMigrationContent(file);
         const checksum = computeMigrationChecksum(content);
+        const sections = extractUpDown(content);
         console.log("");
         console.log("=".repeat(72));
         console.log(`-- ${file.filename}  (checksum: ${checksum.slice(0, 16)}...)`);
         console.log("=".repeat(72));
-        console.log(content);
+        console.log(sections.up);
     }
     console.log("");
     console.log("=".repeat(72));
     console.log("[migrate] Instrukcja:");
-    console.log("  1. Skopiuj kazda migracje z osobna do Supabase SQL Editor");
+    console.log("  1. Skopiuj kazda UP sekcje z osobna do Supabase SQL Editor");
     console.log("     (lub psql / pgAdmin) i wykonaj.");
     console.log("  2. Po udanej aplikacji oznacz w rejestrze:");
     for (const file of pending) {
         console.log(`     npm run migrate:mark ${file.id}`);
     }
     console.log("=".repeat(72));
+}
+
+async function commandRollback(id: string): Promise<void> {
+    if (!/^\d{3}$/.test(id)) {
+        console.error(
+            `[migrate:rollback] Niepoprawny id "${id}". Oczekiwany format NNN.`,
+        );
+        process.exit(1);
+    }
+    const onDisk = await listMigrationsOnDisk();
+    const file = onDisk.find((f) => f.id === id);
+    if (!file) {
+        console.error(`[migrate:rollback] Brak pliku migracji dla id ${id}.`);
+        process.exit(1);
+    }
+    const applied = await listAppliedMigrations();
+    if (!applied.some((r) => r.id === id)) {
+        console.error(
+            `[migrate:rollback] Migracja ${id} nie jest zaaplikowana - nic do rollback. Sprawdz: npm run migrate:status`,
+        );
+        process.exit(1);
+    }
+    const content = await readMigrationContent(file);
+    const sections = extractUpDown(content);
+    if (!sections.down) {
+        console.error(
+            `[migrate:rollback] Migracja ${file.filename} NIE ma sekcji '-- DOWN'. Rollback niemozliwy automatycznie - operator musi napisac DDL recznie.`,
+        );
+        process.exit(1);
+    }
+
+    console.log("=".repeat(72));
+    console.log(`-- DOWN dla ${file.filename}`);
+    console.log("=".repeat(72));
+    console.log(sections.down);
+    console.log("");
+    console.log("=".repeat(72));
+    console.log("[migrate:rollback] Instrukcja:");
+    console.log("  1. Skopiuj DOWN SQL do Supabase SQL Editor / psql / pgAdmin");
+    console.log("     i wykonaj.");
+    console.log("  2. Po udanym rollback usun rekord z rejestru:");
+    console.log(`     npm run migrate:rollback:mark ${file.id}`);
+    console.log("=".repeat(72));
+}
+
+async function commandRollbackMark(id: string): Promise<void> {
+    if (!/^\d{3}$/.test(id)) {
+        console.error(
+            `[migrate:rollback:mark] Niepoprawny id "${id}". Oczekiwany format NNN.`,
+        );
+        process.exit(1);
+    }
+    const applied = await listAppliedMigrations();
+    if (!applied.some((r) => r.id === id)) {
+        console.error(
+            `[migrate:rollback:mark] Migracja ${id} nie jest w rejestrze. Nic do usuniecia.`,
+        );
+        process.exit(1);
+    }
+
+    const { error } = await db
+        .from("schema_migrations")
+        .delete()
+        .eq("id", id);
+    if (error) {
+        console.error(
+            `[migrate:rollback:mark] Blad usuwania rekordu: ${error.message ?? error}`,
+        );
+        process.exit(1);
+    }
+    console.warn(
+        `[MIGRATE-ROLLBACK] migration ${id} rolled back, schema_migrations record removed`,
+    );
 }
 
 async function commandMark(id: string): Promise<void> {
@@ -235,8 +310,22 @@ async function main(): Promise<void> {
         await commandMark(id);
     } else if (cmd === "status") {
         await commandStatus();
+    } else if (cmd === "rollback") {
+        const id = args[0];
+        if (!id) {
+            console.error("[migrate:rollback] Uzycie: npm run migrate:rollback <id>");
+            process.exit(1);
+        }
+        await commandRollback(id);
+    } else if (cmd === "rollback:mark") {
+        const id = args[0];
+        if (!id) {
+            console.error("[migrate:rollback:mark] Uzycie: npm run migrate:rollback:mark <id>");
+            process.exit(1);
+        }
+        await commandRollbackMark(id);
     } else {
-        console.error(`[migrate] Nieznana komenda "${cmd}". Dostepne: plan / mark <id> / status`);
+        console.error(`[migrate] Nieznana komenda "${cmd}". Dostepne: plan / mark <id> / status / rollback <id> / rollback:mark <id>`);
         process.exit(1);
     }
 }

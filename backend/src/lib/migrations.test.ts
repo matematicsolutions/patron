@@ -11,6 +11,7 @@ import {
     computeMigrationChecksum,
     selectPendingMigrations,
     findDuplicateIds,
+    extractUpDown,
 } from "./migrations";
 
 describe("parseMigrationFilename", () => {
@@ -185,5 +186,88 @@ describe("findDuplicateIds", () => {
             { id: "003", name: "c", filename: "003_c.sql" },
         ];
         expect(findDuplicateIds(files)).toEqual(["002"]);
+    });
+});
+
+describe("extractUpDown (ADR-0038)", () => {
+    it("rozdziela UP i DOWN gdy oba markery obecne", () => {
+        const content = `-- UP
+alter table foo add column bar text;
+
+-- DOWN
+alter table foo drop column bar;`;
+        const result = extractUpDown(content);
+        expect(result.up).toBe("alter table foo add column bar text;");
+        expect(result.down).toBe("alter table foo drop column bar;");
+    });
+
+    it("back-compat: plik bez UP/DOWN markerow - caly content jako up", () => {
+        const content = "alter table foo add column bar text;";
+        const result = extractUpDown(content);
+        expect(result.up).toBe("alter table foo add column bar text;");
+        expect(result.down).toBe("");
+    });
+
+    it("plik tylko z DOWN markerem (bez UP) - tresc przed markerem jako up", () => {
+        const content = `create table foo (id int);
+
+-- DOWN
+drop table foo;`;
+        const result = extractUpDown(content);
+        expect(result.up).toBe("create table foo (id int);");
+        expect(result.down).toBe("drop table foo;");
+    });
+
+    it("case-insensitive marker (-- down zamiast -- DOWN)", () => {
+        const content = `alter table foo add column bar text;
+-- down
+alter table foo drop column bar;`;
+        const result = extractUpDown(content);
+        expect(result.up).toBe("alter table foo add column bar text;");
+        expect(result.down).toBe("alter table foo drop column bar;");
+    });
+
+    it("whitespace wokol markera (-- DOWN   z trailing space)", () => {
+        const content = "alter table foo add column bar text;\n--   DOWN   \nalter table foo drop column bar;";
+        const result = extractUpDown(content);
+        expect(result.up).toBe("alter table foo add column bar text;");
+        expect(result.down).toBe("alter table foo drop column bar;");
+    });
+
+    it("pierwsze wystapienie -- DOWN wygrywa (nie scala wielu sekcji)", () => {
+        const content = `alter table a add column x text;
+-- DOWN
+drop column x;
+-- DOWN
+this is treated as part of first down section;`;
+        const result = extractUpDown(content);
+        expect(result.up).toBe("alter table a add column x text;");
+        expect(result.down).toContain("drop column x;");
+        expect(result.down).toContain("this is treated as part of first down section;");
+    });
+
+    it("pusta sekcja DOWN (-- DOWN bez tresci)", () => {
+        const content = `alter table foo add column bar text;
+-- DOWN`;
+        const result = extractUpDown(content);
+        expect(result.up).toBe("alter table foo add column bar text;");
+        expect(result.down).toBe("");
+    });
+
+    it("trim whitespace na koncach obu sekcji", () => {
+        const content = `
+
+-- UP
+
+   alter table foo add column bar text;
+
+-- DOWN
+
+   alter table foo drop column bar;
+
+`;
+        const result = extractUpDown(content);
+        expect(result.up).toBe("alter table foo add column bar text;");
+        expect(result.down).toBe("alter table foo drop column bar;");
     });
 });
