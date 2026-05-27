@@ -418,3 +418,36 @@ create index if not exists idx_audit_log_event_type
 -- RLS: append-only z poziomu service role; uzytkownicy nie czytaja bezposrednio.
 alter table public.audit_log enable row level security;
 revoke all on public.audit_log from anon, authenticated;
+
+-- Merkle roots nad audit_log (ADR-0026). Warstwa NAD hash-chain (ADR-0001),
+-- nie zamiast niego. Daje proof-of-inclusion w O(log n) dla audytora
+-- (UODO, rewident kancelarii, biegly w postepowaniu) - bez czytania calego loga.
+--
+-- Lisce drzewa = audit_log.hash (SHA-256 hex z ADR-0001).
+-- Wezly wewnetrzne = SHA-256(left_hex || right_hex), konwencja RFC 6962.
+-- Manualny trigger w ADR-0026; auto-hook po N events = ADR-0036.
+create table if not exists public.audit_merkle_roots (
+  id                 bigserial primary key,
+  chain_block_start  bigint not null,
+  chain_block_end    bigint not null,
+  merkle_root        text not null,
+  event_count        int not null,
+  computed_at        timestamptz not null default now(),
+  computed_by        text not null,
+  constraint audit_merkle_roots_block_order
+    check (chain_block_start <= chain_block_end),
+  constraint audit_merkle_roots_event_count
+    check (event_count > 0 and event_count = chain_block_end - chain_block_start + 1),
+  constraint audit_merkle_roots_hash_format
+    check (merkle_root ~ '^[0-9a-f]{64}$')
+);
+
+create index if not exists idx_audit_merkle_roots_block
+  on public.audit_merkle_roots(chain_block_start, chain_block_end);
+create index if not exists idx_audit_merkle_roots_computed_at
+  on public.audit_merkle_roots(computed_at);
+
+-- RLS: tylko service role pisze i czyta. Audytor dostaje proof bundle przez
+-- backend (fetchProofForEvent), nie ma bezposredniego dostepu do tabeli.
+alter table public.audit_merkle_roots enable row level security;
+revoke all on public.audit_merkle_roots from anon, authenticated;

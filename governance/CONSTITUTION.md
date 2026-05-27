@@ -1,7 +1,7 @@
 # Konstytucja AI Patrona
 
-Wersja: 1.2.2
-Data: 2026-05-24
+Wersja: 1.2.3
+Data: 2026-05-27
 Status: obowiązująca
 Wydawca: MateMatic / Wiesław Mazur
 
@@ -250,6 +250,27 @@ Weryfikator: `npm run audit:verify` (`scripts/verify-audit-chain.ts`).
 4 scenariusze ataku pokryte testami (modyfikacja payload, usunięcie wpisu,
 podmiana hash, reorder).
 
+### 5.2.1. Merkle audit chain (ADR-0026, WDROZONY 2026-05-27)
+
+Nad hash-chain zbudowane jest **drzewo Merkle** (RFC 6962) jako rownolegla
+warstwa weryfikacji. Hash-chain detekuje modyfikacje (continuous integrity),
+Merkle daje audytorowi proof-of-inclusion konkretnego eventu w **O(log n)**
+zamiast O(n) lancucha.
+
+Tabela `audit_merkle_roots` (chain_block_start, chain_block_end, merkle_root,
+event_count, computed_at, computed_by). Lisce drzewa = `audit_log.hash`.
+Wezly wewnetrzne = `sha256(left_hex || right_hex)`. Nieparzysta liczba lisci
+= duplicate last.
+
+Audytor (UODO, rewident, biegly w postepowaniu) dostaje samowystarczalny
+`ProofBundle` (event_hash + proof + merkle_root + zakres bloku) i mozna
+zweryfikowac offline przez `verifyProofBundle` - bez dostepu do bazy
+kancelarii (chroni tajemnice zawodowa innych klientow).
+
+Manualny trigger compute w tej iteracji; automatyczny hook po N events +
+UI viewer dla audytora = rezerwacja ADR-0036; zewnetrzny znacznik czasu
+(RFC 3161 / OpenTimestamps) = rezerwacja ADR-0037.
+
 ### 5.3. Retencja i usunięcie
 
 - Domyślna retencja audit_log: 5 lat (konfigurowalne).
@@ -365,7 +386,7 @@ Cherry-pick referencji z [OWASP Top 10 for Agentic Applications (2026)](https://
 | ASI-03 | Identity & Privilege Abuse | Art. 5 Tajemnica zawodowa + Art. 4 Neutralność wobec dostawców | Patron single-tenant per kancelaria, brak agent-to-agent identity poza scope |
 | ASI-04 | Agentic Supply Chain Vulnerabilities | Art. 8 Stałość kontraktów + Art. 4 Neutralność wobec dostawców | `backend/src/lib/mcp-security/` (ADR-0025, MCP Security Gateway, 4 detektory: typosquat/drift/hidden-instructions/tool-poisoning) |
 | ASI-05 | Unexpected Code Execution | Art. 6 Granica błędu (human in the loop) | Patron nie eksponuje narzedzia do wykonania kodu na maszynie kancelarii bez human ack |
-| ASI-06 | Memory & Context Poisoning | Art. 3 Audytowalność (hash-chain) + Art. 1 Lokalność danych | `backend/src/lib/audit/` (ADR-0001, hash-chain, planowany Merkle upgrade ADR-0026) |
+| ASI-06 | Memory & Context Poisoning | Art. 3 Audytowalność (hash-chain) + Art. 1 Lokalność danych | `backend/src/lib/audit*.ts` (ADR-0001 hash-chain + ADR-0026 Merkle audit chain WDROZONY) |
 | ASI-07 | Insecure Inter-Agent Communication | Art. 1 Lokalność danych + Art. 5 Tajemnica zawodowa | Patron single-tenant, brak komunikacji inter-agent w defaulcie. Komunikacja z LLM = TLS + DPA per provider |
 | ASI-08 | Cascading Agent Failures | Art. 3 Audytowalność + Art. 6 Granica błędu | Planowane: ADR-0029 Agent SRE Governance (SLO/error budget/circuit breaker dla wywolan LLM) |
 | ASI-09 | Human-Agent Trust Exploitation | Art. 6 Granica błędu (human in the loop) - **fundament** | Wszystkie decyzje high-stakes wymagaja ack Operatora (Konstytucja Art. 6) |

@@ -488,12 +488,14 @@ prawa - to wartosc, nie wstyd.
 - Taksonomia 4 detektorow MCP Security Gateway (typosquat, drift, hidden-instructions, tool-poisoning).
 - Pojecie "scan przed zaladowaniem do kontraktu" jako fail-closed gate.
 - Decyzja allow/deny/audit/human-review w runtime z fail-closed semantics.
-- (Roadmap) Merkle-chained audit log nad hash-chain ADR-0001 (planowany ADR-0026).
-- (Roadmap) 3-poziomowy ring model uprawnien dla wywolan narzedzi (planowany ADR-0027).
+- Merkle-chained audit log nad hash-chain ADR-0001 (WDROZONY w ADR-0026, 2026-05-27).
+- 3-poziomowy ring model uprawnien dla wywolan narzedzi (WDROZONY w ADR-0027, 2026-05-25).
 
 **Wdrozenie**:
 - **ADR-0024** - cherry-pick decision record (3 patterny, granice "co NIE bierzemy").
 - **ADR-0025** - MCP Security Gateway, skeleton w `backend/src/lib/mcp-security/` (11 plikow, 25 testow vitest, +0 zaleznosci npm). NIE wpiety w startup (osobny ADR-0028).
+- **ADR-0026** - Merkle audit chain upgrade, 3 moduly w `backend/src/lib/audit-merkle*.ts` (30 testow vitest, +0 zaleznosci npm). Lisce = audit_log.hash, konwencja RFC 6962 (Laurie/Langley/Kasper 2013). Manual trigger; auto-trigger + UI = rezerwacja ADR-0036.
+- **ADR-0027** - Privilege Rings dla wywolan MCP, `backend/src/lib/mcp/ring-policy.ts` (28 testow vitest). Ring 1 trusted + Ring 2 default-deny + audit propagation.
 - Audyt RODO pakietu `agent-governance-claude-code` v3.6.0 = **🟢 ZIELONY** (zero HTTP/telemetrii w hooks+lib+server zweryfikowane grepem, SDK deps czyste `@noble/*` + `js-yaml`, hash-chain audit lokalny w `~/.claude/agt/`, MCP server bundled stdio). Dopuszczony do PATRON dev environment z pinem wersji 3.6.0. NIE dopuszczony do maszyn kancelarii klienckich bez DPA z Microsoft. Pelny raport: `memory/audit_agent_governance_claude_code_2026-05-24.md`.
 
 **Co NIE bierzemy (twarda granica)**:
@@ -540,7 +542,7 @@ prawa - to wartosc, nie wstyd.
 - **HTTP klient do `api.icme.io`** - cloud-only narusza Art. 1 Konstytucji Patrona (Lokalność danych). `structured action` (matter, input, tool) opuszcza maszyne kancelarii bez DPA + bez EU region. Nawet "free" checkLogic wysyla `reasoning` text do US.
 - **Drop-in patch `preflight-mike`** (MIT) - jako patch wlasciwie dziala technicznie (PATRON forkuje Mike), ale zawiera `backend/lib/preflight.ts` ktory dzwoni api.icme.io. Czerwony zakaz.
 - **`Private Venice tier` "zero data retention contractually"** - umowna gwarancja, nie techniczna. Polega na zaufaniu do ICME. Niedostateczne dla tajemnicy zawodowej art. 6 Pr.Adw.
-- **`zk_proof_id` i jolt-atlas zkVM** (ICME-Lab/jolt-atlas, 64 star, Rust, Other license) - przeskalowane. Nasz hash-chain SHA256 + planowany Merkle = wystarczajacy dla audytora polskiego. zkVM na watch list (gdyby regulacja kiedys wymagala zero-knowledge proof).
+- **`zk_proof_id` i jolt-atlas zkVM** (ICME-Lab/jolt-atlas, 64 star, Rust, Other license) - przeskalowane. Nasz hash-chain SHA256 (ADR-0001) + Merkle audit chain (ADR-0026 WDROZONY) = wystarczajacy dla audytora polskiego. zkVM na watch list (gdyby regulacja kiedys wymagala zero-knowledge proof).
 - **x402 USDC on Base payment** - kancelaria PL nie placi w stablecoin za walidacje wlasnej polityki AI.
 - **Policy text jako workproduct ICME** - kompilacja u nich, my nie mamy kompilatora. Filozoficznie sprzeczne z naszą teza "kancelaria pisze wlasna Konstytucje AI".
 
@@ -560,4 +562,4 @@ prawa - to wartosc, nie wstyd.
 **Licencja**: "Other" (niezdeklarowana standardowa OSS) - **wymaga osobnego audytu licencji przed jakimkolwiek cherry-pick**.
 **Co**: zkVM (zero-knowledge virtual machine) zaadaptowany przez ICME Labs (NovaNet) dla verifiable machine learning. Pierwotnie a16z Crypto, fork ICME pod ML.
 **Status w MateMatic**: **WATCH LIST**. Nie cherry-pickujemy obecnie. Pattern "zero-knowledge proof of policy compliance" moglby byc relevantny gdyby polska regulacja kiedys wymagala tego (obecnie nie wymaga). Sledzimy projekt; jezeli pojawi sie polska / EU regulacja wymagajaca ZK proof dla AI w prawie, wracamy.
-**Niepelne dla nas dzisiaj**: hash-chain SHA256 (ADR-0001) + planowany Merkle (ADR-0026 rezerwacja) sa wystarczajace dla AI Act art. 12 + RODO art. 30. ZK to overkill dla obecnej regulacji PL.
+**Niepelne dla nas dzisiaj**: hash-chain SHA256 (ADR-0001) + Merkle audit chain (ADR-0026 WDROZONY) sa wystarczajace dla AI Act art. 12 + RODO art. 30. ZK to overkill dla obecnej regulacji PL.

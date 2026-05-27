@@ -9,6 +9,39 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ### Added
 
+- **ADR-0026 - Merkle audit chain upgrade nad hash-chainem** (2026-05-27).
+  Implementacja drugiego patternu z ADR-0024 (cherry-pick Microsoft AGT) -
+  pattern 1 (MCP Security Gateway) zrobiony w ADR-0025/0028, pattern 3
+  (Privilege Rings) w ADR-0027, teraz pattern 2 (Merkle audit chain).
+  Warstwa NAD hash-chain (ADR-0001), nie zamiast niego. Daje audytorowi
+  (UODO, rewident kancelarii, biegly w postepowaniu) proof-of-inclusion
+  w O(log n) zamiast O(n) lancucha - dla kancelarii z 500k events to ~19
+  hash'y do zweryfikowania zamiast 500k. Komplementarne z proof receipt
+  (ADR-0031 PROPONOWANY) - rozne warstwy weryfikacji decyzji AI.
+  Nowa tabela `audit_merkle_roots` w `backend/schema.sql` (chain_block_start,
+  chain_block_end, merkle_root, event_count, computed_at, computed_by) z
+  3 CHECK constraints (block order, event count consistency, hash format).
+  3 nowe moduly w `backend/src/lib/`:
+  `audit-merkle.ts` (pure functions `buildMerkleRoot` + `buildMerkleProof`
+  + `verifyMerkleProof`, konwencja RFC 6962 - duplicate last leaf dla
+  nieparzystej liczby, SHA-256 dla wezlow), `audit-merkle-roots.ts`
+  (storage layer: `computeAndStoreRoot` + `fetchProofForEvent`, operacja
+  read-only nad audit_log, brak ON CONFLICT - jednokrotnosc wywolania na
+  zakres bloku jest odpowiedzialnoscia administratora w manual-trigger
+  trybie), `audit-merkle-verifier.ts` (offline verifier `verifyProofBundle`
+  dla audytora - zero zaleznosci od bazy, do uruchamiania standalone).
+  Manualny trigger compute w tym ADR - automatyzacja (hook po N events
+  z check-before-insert) + UI viewer dla audytora = rezerwacja ADR-0036.
+  Zewnetrzny znacznik czasu (RFC 3161 / OpenTimestamps) =
+  rezerwacja ADR-0037. +30 testow pure function w 2 plikach
+  (`audit-merkle.test.ts` 20 testow w 4 sekcjach: buildMerkleRoot /
+  round-trip proof / tamper detection / walidacja formatu;
+  `audit-merkle-verifier.test.ts` 10 testow w 4 sekcjach: happy path /
+  walidacja schematu / walidacja zakresu bloku / tamper detection), zero
+  mockow. 459/464 testow pass (+5 todo, +30 nowych), TSC clean. Atrybucja:
+  Microsoft AGT (MIT) + RFC 6962 Certificate Transparency
+  (Laurie/Langley/Kasper, 2013) - pisane od zera w TypeScript, bez
+  zaleznosci od @microsoft/agt.
 - **ADR-0027 - Privilege rings dla wywolan narzedzi MCP** (2026-05-25).
   Implementacja trzeciego patternu z ADR-0024 (cherry-pick Microsoft AGT).
   Nowy modul `backend/src/lib/mcp/ring-policy.ts` (pure function
