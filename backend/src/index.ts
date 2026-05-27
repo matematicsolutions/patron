@@ -11,6 +11,13 @@ import { tabularRouter } from "./routes/tabular";
 import { workflowsRouter } from "./routes/workflows";
 import { userRouter } from "./routes/user";
 import { downloadsRouter } from "./routes/downloads";
+import { auditRouter } from "./routes/audit";
+import { createServerSupabase } from "./lib/supabase";
+import { runAutoCompute } from "./lib/audit-merkle-roots";
+import {
+  parseIntervalHours,
+  parsePositiveInt,
+} from "./lib/audit-merkle-scheduler";
 
 const app = express();
 const PORT = process.env.PORT ?? 3001;
@@ -147,9 +154,57 @@ app.use("/workflows", workflowsRouter);
 app.use("/user", userRouter);
 app.use("/users", userRouter);
 app.use("/download", downloadsRouter);
+app.use("/api/audit", auditRouter);
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
 
+// ADR-0036: hybrid auto-trigger Merkle audit root. Tick co
+// PATRON_MERKLE_CHECK_INTERVAL_MS (default 1h). Decyzja compute pure
+// function `shouldComputeNextRoot` w lib/audit-merkle-scheduler.
+// TODO ADR-0041: distributed lock (Postgres advisory lock) gdy backend
+// bedzie multi-instance. Obecnie self-host single-instance per kancelaria.
+function startMerkleScheduler(): void {
+  const checkIntervalMs = envInt("PATRON_MERKLE_CHECK_INTERVAL_MS", 3600000);
+  const countThreshold = parsePositiveInt(
+    process.env.PATRON_MERKLE_AUTO_COUNT_THRESHOLD,
+    1000,
+  );
+  const intervalMs = parseIntervalHours(
+    process.env.PATRON_MERKLE_AUTO_INTERVAL_HOURS,
+    24 * 3600 * 1000,
+  );
+
+  setInterval(async () => {
+    try {
+      const db = createServerSupabase();
+      const result = await runAutoCompute(db, {
+        countThreshold,
+        intervalMs,
+        computedBy: "auto-scheduler",
+      });
+      if (result.decision.compute && result.computeResult?.ok) {
+        const root = result.computeResult.root;
+        console.log(
+          `[merkle:auto] root #${root?.id} computed (reason=${result.decision.reason}, events=${root?.event_count})`,
+        );
+      } else if (result.decision.compute && !result.computeResult?.ok) {
+        console.warn(
+          `[merkle:auto] compute FAIL (reason=${result.decision.reason}): ${result.computeResult?.error}`,
+        );
+      }
+      // decision.compute === false = skip, brak loga (norma)
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      console.warn(`[merkle:auto] tick FAIL: ${msg}`);
+    }
+  }, checkIntervalMs);
+
+  console.log(
+    `[merkle:auto] scheduler started (check=${Math.floor(checkIntervalMs / 1000)}s, count_threshold=${countThreshold}, interval=${Math.floor(intervalMs / 3600 / 1000)}h)`,
+  );
+}
+
 app.listen(PORT, () => {
   console.log(`Mike backend running on port ${PORT}`);
+  startMerkleScheduler();
 });

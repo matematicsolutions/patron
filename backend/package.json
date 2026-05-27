@@ -13,7 +13,8 @@
     "rodo:delete": "tsx scripts/rodo-delete.ts",
     "migrate": "tsx scripts/run-migrations.ts plan",
     "migrate:mark": "tsx scripts/run-migrations.ts mark",
-    "migrate:status": "tsx scripts/run-migrations.ts status"
+    "migrate:status": "tsx scripts/run-migrations.ts status",
+    "merkle:trigger": "tsx scripts/trigger-merkle.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.99.0",

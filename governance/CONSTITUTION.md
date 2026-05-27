@@ -1,6 +1,6 @@
 # Konstytucja AI Patrona
 
-Wersja: 1.2.4
+Wersja: 1.2.5
 Data: 2026-05-27
 Status: obowiązująca
 Wydawca: MateMatic / Wiesław Mazur
@@ -272,8 +272,12 @@ Audytor (UODO, rewident, biegly w postepowaniu) dostaje samowystarczalny
 zweryfikowac offline przez `verifyProofBundle` - bez dostepu do bazy
 kancelarii (chroni tajemnice zawodowa innych klientow).
 
-Manualny trigger compute w tej iteracji; automatyczny hook po N events +
-UI viewer dla audytora = rezerwacja ADR-0036; zewnetrzny znacznik czasu
+Manualny trigger compute LIVE od ADR-0026; hybrid auto-trigger LIVE od
+ADR-0036 (count >= 1000 events OR interval >= 24h, env-tunable, idempotency
+check przed compute). Endpoint `GET /api/audit/merkle/verify/:eventId`
+LIVE od ADR-0036 - audytor pobiera samowystarczalny ProofBundle przez
+HTTPS i weryfikuje offline. UI viewer dla audytora = rezerwacja ADR-0040
+(blocked-by ADR-0034 RBAC admin). Zewnetrzny znacznik czasu
 (RFC 3161 / OpenTimestamps) = rezerwacja ADR-0037.
 
 ### 5.2.2. Whitelist event_type i infrastruktura migracji (ADR-0035, WDROZONY 2026-05-27)
@@ -348,6 +352,7 @@ Consequences: <co się zmienia>
 
 | Wersja | Data | Zmiana |
 |---|---|---|
+| 1.2.5 | 2026-05-27 | Sekcja 5.2.1 zaktualizowana - manualny trigger Merkle rozszerzony o hybrid auto-trigger (ADR-0036, LIVE). Compute Merkle root nastepuje automatycznie gdy nowych eventow >= 1000 LUB ostatni root sprzed >= 24h (whichever first, env-tunable). Endpoint `GET /api/audit/merkle/verify/:eventId` LIVE - audytor pobiera samowystarczalny ProofBundle przez HTTPS, weryfikuje offline przez `audit-merkle-verifier.ts`. setInterval w backend startup (single-instance self-host), manualny CLI fallback `npm run merkle:trigger`. PATCH (rozszerzenie zasady audytowalnosci - automatyzacja istniejacego mechanizmu, brak zmiany kontraktow API ani semantyki Merkle hash). |
 | 1.2.4 | 2026-05-27 | Sekcja 5.1 (Co jest zapisywane) rozszerzona o 5 event_type ktore weszly do produkcji w iteracjach 1.2.2-1.2.3 (input_security_scan, mcp_security.gateway, ring_policy.decision, rodo.delete, rodo.export). Nowa sekcja 5.2.2 (Whitelist event_type i infrastruktura migracji) - ADR-0035, CHECK constraint `audit_log_event_type_whitelist` z 7 produkcyjnymi wartosciami + governance-friendly runner migracji. PATCH (doprecyzowanie istniejacej zasady audytowalnosci, brak zmiany kontraktow API; zgodnie z § 6.1 wystarcza commit i changelog). |
 | 1.2.3 | 2026-05-27 | Nowa sekcja 5.2.1 (Merkle audit chain, ADR-0026, WDROZONY 2026-05-27). Drzewo Merkle nad hash-chain (ADR-0001) jako rownolegla warstwa weryfikacji - audytor dostaje proof-of-inclusion w O(log n) zamiast O(n). Drugi pattern z trojki cherry-pick Microsoft AGT (po ADR-0025 MCP Security Gateway i ADR-0027 Privilege Rings). PATCH (rozszerzenie zasady audytowalnosci bez zmiany kontraktow, korpus pozostalych zasad bez zmian). |
 | 1.2.2 | 2026-05-24 | Nowy Zalacznik C (OWASP Agentic Top 10 - mapping na Artykuly Konstytucji Patrona). Pokrycie 10/10 ryzyk ASI-01..ASI-10. Formalna deklaracja ze Patron jako produkt regulowany adresuje uznane branzowo ryzyka, nie tylko wlasne. PATCH (dodanie zalacznika referencyjnego, korpus zasad bez zmian). |

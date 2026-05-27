@@ -1,8 +1,10 @@
-// Storage layer dla Merkle roots (ADR-0026).
+// Storage layer dla Merkle roots (ADR-0026 + ADR-0036).
 // Komplementarny do `audit.ts` (hash-chain). Ten modul nie pisze do audit_log -
 // czyta hash'e z bloku eventow i zapisuje root do `audit_merkle_roots`.
 //
-// Manualny trigger w ADR-0026. Automatyzacja (hook on N events) = ADR-0036.
+// Manualny trigger LIVE od ADR-0026. Hybrid auto-trigger LIVE od ADR-0036
+// (count >= N events OR interval >= T godzin) - patrz `runAutoCompute`
+// + pure decision w `audit-merkle-scheduler.ts`.
 
 import type { createServerSupabase } from "./supabase";
 import {
@@ -10,6 +12,10 @@ import {
     buildMerkleRoot,
     type MerkleProofStep,
 } from "./audit-merkle";
+import {
+    shouldComputeNextRoot,
+    type SchedulerDecision,
+} from "./audit-merkle-scheduler";
 
 export interface MerkleRootRow {
     id: number;
@@ -61,10 +67,10 @@ async function fetchHashesInBlock(
  * UWAGA - brak ON CONFLICT: tabela `audit_merkle_roots` nie ma unique
  * constraint na zakres bloku. Wywolanie dwa razy dla tego samego
  * (blockStart, blockEnd) zapisze dwa wiersze z tym samym `merkle_root`
- * (deterministyczny algorytm RFC 6962). To NIE jest idempotentne; auto-trigger
- * po N events (ADR-0036) bedzie musial sprawdzic przed compute czy root juz
- * istnieje dla zakresu. W tej iteracji manual trigger - administrator
- * kancelarii odpowiada za jednokrotnosc wywolania.
+ * (deterministyczny algorytm RFC 6962). To NIE jest idempotentne. Manual
+ * trigger - administrator kancelarii odpowiada za jednokrotnosc wywolania.
+ * Auto-trigger (ADR-0036, `runAutoCompute` ponizej) robi idempotency check
+ * przed wywolaniem tej funkcji przez `shouldComputeNextRoot`.
  *
  * `computedBy`: "service" gdy wywolane przez system (przyszly hook ADR-0036),
  * lub user_id (jako string) gdy administrator kancelarii odpalil manualnie.
@@ -117,6 +123,100 @@ export async function computeAndStoreRoot(
         const msg = e instanceof Error ? e.message : String(e);
         return { ok: false, error: msg };
     }
+}
+
+// ---------------------------------------------------------------------------
+// Auto-trigger wrapper (ADR-0036)
+// ---------------------------------------------------------------------------
+
+export interface RunAutoComputeResult {
+    /** Decyzja schedulera (compute/skip + reason). */
+    decision: SchedulerDecision;
+    /** Wynik compute - obecny gdy decyzja byla compute=true. */
+    computeResult?: ComputeRootResult;
+}
+
+/**
+ * Pobiera aktualny stan systemu (max event id, ostatni root) i wola
+ * `shouldComputeNextRoot` (pure decision). Jezeli decyzja = compute,
+ * woła `computeAndStoreRoot` dla wybranego zakresu bloku.
+ *
+ * Wywolywane przez setInterval w `backend/src/index.ts` (default co 1h)
+ * oraz manualny CLI `npm run merkle:trigger` (`scripts/trigger-merkle.ts`).
+ *
+ * Nigdy nie rzuca - bledy odczytu zwracane jako `decision.reason = "no_new_events"`
+ * z polem error w computeResult. Audit jest druga warstwa weryfikacji,
+ * scheduler nie moze blokowac sciezki produktowej ani crashowac procesu.
+ *
+ * Patrz ADR-0036.
+ */
+export async function runAutoCompute(
+    db: ReturnType<typeof createServerSupabase>,
+    options: {
+        countThreshold: number;
+        intervalMs: number;
+        computedBy: string;
+        now?: number;
+    },
+): Promise<RunAutoComputeResult> {
+    // 1. max(id) z audit_log (lub 0 gdy pusta)
+    let maxEventId = 0;
+    try {
+        const { data, error } = await db
+            .from("audit_log")
+            .select("id")
+            .order("id", { ascending: false })
+            .limit(1);
+        if (!error && data && data.length > 0) {
+            maxEventId = (data[0] as { id: number }).id;
+        }
+    } catch {
+        // Bezpiecznie - traktujemy jako "brak eventow", scheduler zwroci skip.
+    }
+
+    // 2. ostatni root (chain_block_end + computed_at) - lub baseline 0 gdy brak
+    let lastCoveredEventId = 0;
+    let lastRootComputedAt = 0;
+    try {
+        const { data, error } = await db
+            .from("audit_merkle_roots")
+            .select("chain_block_end, computed_at")
+            .order("chain_block_end", { ascending: false })
+            .limit(1);
+        if (!error && data && data.length > 0) {
+            const row = data[0] as { chain_block_end: number; computed_at: string };
+            lastCoveredEventId = row.chain_block_end;
+            lastRootComputedAt = Date.parse(row.computed_at);
+            if (!Number.isFinite(lastRootComputedAt)) {
+                lastRootComputedAt = 0;
+            }
+        }
+    } catch {
+        // Bezpiecznie - traktujemy jako "brak roota", scheduler decyduje wg innych progow.
+    }
+
+    // 3. pure decision
+    const decision = shouldComputeNextRoot({
+        lastCoveredEventId,
+        maxEventId,
+        lastRootComputedAt,
+        now: options.now ?? Date.now(),
+        countThreshold: options.countThreshold,
+        intervalMs: options.intervalMs,
+    });
+
+    if (!decision.compute || decision.blockStart === undefined || decision.blockEnd === undefined) {
+        return { decision };
+    }
+
+    // 4. compute + store
+    const computeResult = await computeAndStoreRoot(
+        db,
+        decision.blockStart,
+        decision.blockEnd,
+        options.computedBy,
+    );
+    return { decision, computeResult };
 }
 
 export interface ProofBundle {

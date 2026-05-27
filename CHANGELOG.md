@@ -9,6 +9,33 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ### Added
 
+- **ADR-0036 - Auto-trigger Merkle audit root + REST endpoint dla audytora**
+  (2026-05-27). Realizacja rezerwacji z ADR-0026 (manual trigger -> hybrid
+  auto-trigger). Compute Merkle root nastepuje gdy nowych eventow >= 1000
+  LUB ostatni root sprzed >= 24h, whichever first (env-tunable:
+  `PATRON_MERKLE_AUTO_COUNT_THRESHOLD`, `PATRON_MERKLE_AUTO_INTERVAL_HOURS`,
+  `PATRON_MERKLE_CHECK_INTERVAL_MS`). Idempotency check przed compute
+  rozwiazuje TODO z `audit-merkle-roots.ts:64-67`. Pure decision function
+  `shouldComputeNextRoot` w nowym module `lib/audit-merkle-scheduler.ts`
+  (zero IO, testowalna bez DB). Wrapper IO `runAutoCompute` w
+  `lib/audit-merkle-roots.ts` (storage layer, czyta max(id) z audit_log
+  i ostatni root z audit_merkle_roots). setInterval bootstrap w
+  `src/index.ts` (default tick co 1h). Manualny CLI fallback
+  `npm run merkle:trigger` (`scripts/trigger-merkle.ts`) - administrator
+  wymusza compute przed audytem (np. dzien przed wizyta UODO).
+  Nowy router `routes/audit.ts` z endpointem
+  `GET /api/audit/merkle/verify/:eventId` chronionym middleware `requireAuth`
+  (twarda RBAC admin-only = rezerwacja ADR-0034). Endpoint zwraca
+  samowystarczalny ProofBundle (event_hash + proof + merkle_root + zakres
+  bloku). Audytor weryfikuje offline przez `audit-merkle-verifier.ts`
+  bez dalszego dostepu do bazy kancelarii. Zero nowych zaleznosci npm
+  (Konstytucja Art. 4) - setInterval z biblioteki standardowej Node.
+  +21 testow w `audit-merkle-scheduler.test.ts` (pure functions, 0 mockow).
+  503/508 testow pass (+21 nowych vs baseline 482/487 z ADR-0035), TSC clean.
+  Konstytucja Patrona v1.2.4 -> v1.2.5 PATCH (sekcja 5.2.1 zaktualizowana
+  o auto-trigger + REST endpoint). Rezerwacje: ADR-0040 (UI viewer dla
+  audytora, blocked-by ADR-0034 RBAC), ADR-0041 (distributed lock dla
+  multi-instance backend).
 - **ADR-0035 - Infrastruktura migracji + CHECK constraint na audit_log.event_type**
   (2026-05-27). Domyka dlug techniczny ADR-0001 (kolumna `event_type` byla
   wolny text bez CHECK). Whitelist 7 produkcyjnych wartosci: `chat.message.user`,
