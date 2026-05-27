@@ -16,7 +16,7 @@
     "migrate:status": "tsx scripts/run-migrations.ts status"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.90.0",
+    "@anthropic-ai/sdk": "^0.99.0",
     "@aws-sdk/client-s3": "^3.787.0",
     "@aws-sdk/s3-request-presigner": "^3.787.0",
     "@google/genai": "^1.50.1",
