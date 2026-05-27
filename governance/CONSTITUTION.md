@@ -1,6 +1,6 @@
 # Konstytucja AI Patrona
 
-Wersja: 1.2.5
+Wersja: 1.2.6
 Data: 2026-05-27
 Status: obowiązująca
 Wydawca: MateMatic / Wiesław Mazur
@@ -221,6 +221,24 @@ Odpowiada za:
 Nie odpowiada za: model LLM (dostawca modelu), infrastrukturę kancelarii,
 treść porad prawnych generowanych przez Patrona.
 
+### 4.6. Admin (ADR-0034, LIVE 2026-05-27)
+
+Podzbiór roli Administrator z dostępem do zaostrzonych endpointów backend
+(np. `GET /api/audit/merkle/verify/:eventId` - audyt Merkle dla UODO/biegłego).
+Admin pool zarządzany przez whitelist emaili w env `PATRON_ADMIN_EMAILS`
+(CSV, lowercase, trim). Edycja wymaga restartu kontenera. Audyt zmian =
+git history `.env.example` w repo deployment.
+
+Middleware `requireAdmin` w `backend/src/middleware/auth.ts` - ZAWSZE po
+`requireAuth` w łańcuchu (czyta `res.locals.userEmail`). Strukturyzowane logi
+`[ADMIN] grant|denied` na stdout. Audit_log eventu `admin.access` = rezerwacja
+ADR-0043 (wymaga migracji 002 ALTER CHECK whitelist event_type).
+
+Typowy admin pool kancelarii: 1-3 osoby (operator + wspólnik + IT). MVP
+whitelist email akceptowalny dla tej skali. Migracja na DB-backed role
+(kolumna `is_admin` lub tabela `admin_users`) = przyszły ADR gdy kancelaria
+przekroczy 10+ adminów.
+
 ---
 
 ## 5. Audyt i record-keeping
@@ -352,6 +370,7 @@ Consequences: <co się zmienia>
 
 | Wersja | Data | Zmiana |
 |---|---|---|
+| 1.2.6 | 2026-05-27 | Nowa rola 4.6 Admin (ADR-0034, LIVE) - podzbiór Administratora z dostępem do zaostrzonych endpointów backend (audyt Merkle, w przyszłości UI viewer dla audytora ADR-0040 i UI banner mcp-security ADR-0042). Admin pool zarządzany przez whitelist emaili w env `PATRON_ADMIN_EMAILS` (CSV, lowercase, trim). Middleware `requireAdmin` w `backend/src/middleware/auth.ts` po `requireAuth` w łańcuchu. Endpoint `GET /api/audit/merkle/verify/:eventId` (ADR-0036) zaostrzony z "każdy zalogowany" na admin-only. Strukturyzowane logi `[ADMIN] grant|denied` na stdout (audit_log eventu `admin.access` = rezerwacja ADR-0043). PATCH (dodanie podzbioru roli istniejącej, brak zmiany kontraktów API innych endpointów). |
 | 1.2.5 | 2026-05-27 | Sekcja 5.2.1 zaktualizowana - manualny trigger Merkle rozszerzony o hybrid auto-trigger (ADR-0036, LIVE). Compute Merkle root nastepuje automatycznie gdy nowych eventow >= 1000 LUB ostatni root sprzed >= 24h (whichever first, env-tunable). Endpoint `GET /api/audit/merkle/verify/:eventId` LIVE - audytor pobiera samowystarczalny ProofBundle przez HTTPS, weryfikuje offline przez `audit-merkle-verifier.ts`. setInterval w backend startup (single-instance self-host), manualny CLI fallback `npm run merkle:trigger`. PATCH (rozszerzenie zasady audytowalnosci - automatyzacja istniejacego mechanizmu, brak zmiany kontraktow API ani semantyki Merkle hash). |
 | 1.2.4 | 2026-05-27 | Sekcja 5.1 (Co jest zapisywane) rozszerzona o 5 event_type ktore weszly do produkcji w iteracjach 1.2.2-1.2.3 (input_security_scan, mcp_security.gateway, ring_policy.decision, rodo.delete, rodo.export). Nowa sekcja 5.2.2 (Whitelist event_type i infrastruktura migracji) - ADR-0035, CHECK constraint `audit_log_event_type_whitelist` z 7 produkcyjnymi wartosciami + governance-friendly runner migracji. PATCH (doprecyzowanie istniejacej zasady audytowalnosci, brak zmiany kontraktow API; zgodnie z § 6.1 wystarcza commit i changelog). |
 | 1.2.3 | 2026-05-27 | Nowa sekcja 5.2.1 (Merkle audit chain, ADR-0026, WDROZONY 2026-05-27). Drzewo Merkle nad hash-chain (ADR-0001) jako rownolegla warstwa weryfikacji - audytor dostaje proof-of-inclusion w O(log n) zamiast O(n). Drugi pattern z trojki cherry-pick Microsoft AGT (po ADR-0025 MCP Security Gateway i ADR-0027 Privilege Rings). PATCH (rozszerzenie zasady audytowalnosci bez zmiany kontraktow, korpus pozostalych zasad bez zmian). |
@@ -409,7 +428,7 @@ Akceptacja Vendora (MateMatic): Wiesław Mazur, 2026-05-20
 
 ## Załącznik C: OWASP Agentic Top 10 - mapping na Artykuły Konstytucji Patrona
 
-Cherry-pick referencji z [OWASP Top 10 for Agentic Applications (2026)](https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/) - branzowy konsensus 10 ryzyk dla aplikacji agentowych AI. Pattern mappingu cherry-picked z [microsoft/agent-governance-toolkit](https://github.com/microsoft/agent-governance-toolkit) (MIT, snapshot 2026-05-24, audyt RODO 🟢 ZIELONY - patrz [[ADR-0024]]). Mapping adaptowany do Patrona pod realia polskich kancelarii prawnych.
+Cherry-pick referencji z [OWASP Top 10 for Agentic Applications (2026)](https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/) - branzowy konsensus 10 ryzyk dla aplikacji agentowych AI. Pattern mappingu cherry-picked z [microsoft/agent-governance-toolkit](https://github.com/microsoft/agent-governance-toolkit) (MIT, snapshot 2026-05-24, audyt RODO 🟢 ZIELONY - patrz ADR-0024). Mapping adaptowany do Patrona pod realia polskich kancelarii prawnych.
 
 | OWASP | Ryzyko (skrot) | Artykul Konstytucji Patrona | Komponent Patrona |
 |---|---|---|---|

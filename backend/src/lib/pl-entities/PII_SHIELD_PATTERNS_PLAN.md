@@ -3,11 +3,11 @@
 **Status**: UNCOMMITTED design doc, NIE rusza kodu
 **Data**: 2026-05-21
 **Powiazane**: [governance/adr/0013-pii-shield-patterns-cherry-pick.md](../../../../governance/adr/0013-pii-shield-patterns-cherry-pick.md)
-**Decyzja oczekiwana**: Wieslaw + Marko 2x runda PRZED dotknieciem production code
+**Decyzja oczekiwana**: Wieslaw + wewnetrzny review 2x runda PRZED dotknieciem production code
 
 ## Cel
 
-Konkretyzacja ADR-0013 z proponowanymi nazwami plikow + sygnaturami funkcji + planem testow. Czyta sie ten dokument PRZED otwarciem PR. Po Marko 2x runda i akceptacji - implementacja per pattern w izolacji.
+Konkretyzacja ADR-0013 z proponowanymi nazwami plikow + sygnaturami funkcji + planem testow. Czyta sie ten dokument PRZED otwarciem PR. Po wewnetrzny review 2x runda i akceptacji - implementacja per pattern w izolacji.
 
 ## Obecny stan pl-entities/ (chronione)
 
@@ -24,7 +24,7 @@ backend/src/lib/pl-entities/
   types.ts            - typy
 ```
 
-**44 testy pass** (z [[session_summary_2026-05-21_patron-6adr]]). **Bramka**: cale test suite musi nadal pass po kazdym patternu.
+**44 testy pass** (z sesja 2026-05-21 (6 ADR)). **Bramka**: cale test suite musi nadal pass po kazdym patternu.
 
 ## Plan implementacji per pattern (T1-T5)
 
@@ -304,19 +304,19 @@ const POLISH_RECOGNIZERS: RecognizerDef[] = [
 ];
 ```
 
-Blast-radius: cala biblioteka `regex.ts` (~500 lin?) i `gazetteers.ts` - **wymaga marko-pl 2x runda + Wieslaw decyzja**.
+Blast-radius: cala biblioteka `regex.ts` (~500 lin?) i `gazetteers.ts` - **wymaga wewnetrzny review 2x runda + Wieslaw decyzja**.
 
 ## Bramki implementacji (kolejnosc commitow)
 
-Kazdy pattern = **osobny commit + osobny Marko 2x runda**. Sekwencja:
+Kazdy pattern = **osobny commit + osobny wewnetrzny review 2x runda**. Sekwencja:
 
-1. **T1.1 Pattern 1 (TTL)** - commit, marko, push (3 testy: TTL nie wygasl / TTL wygasl / cleanup)
-2. **T1.2 Pattern 2 (source_hash)** - commit, marko, push (2 testy: determinizm + streaming)
-3. **T1.3 Pattern 5 (audit log)** - commit, marko, push (3 testy: format + walidacja PII residual + rotation)
-4. **T2 Pattern 3 (docx session_id)** - commit, marko, push (3 testy: zapis + odczyt + null)
-5. **T3 Pattern 4 (AES-GCM archive)** - commit, marko, push (4 testy: round-trip + zle haslo + slabe haslo + manifest)
-6. **T4 Patterny 6-7 (drugi tier)** - commit, marko, push (testy regression + nowe)
-7. **T5 Refactor (opcjonalny)** - commit, marko 2x runda PELNY przeglad, push (44 testy regression + reorganizacja)
+1. **T1.1 Pattern 1 (TTL)** - commit, wewnetrzny review, push (3 testy: TTL nie wygasl / TTL wygasl / cleanup)
+2. **T1.2 Pattern 2 (source_hash)** - commit, wewnetrzny review, push (2 testy: determinizm + streaming)
+3. **T1.3 Pattern 5 (audit log)** - commit, wewnetrzny review, push (3 testy: format + walidacja PII residual + rotation)
+4. **T2 Pattern 3 (docx session_id)** - commit, wewnetrzny review, push (3 testy: zapis + odczyt + null)
+5. **T3 Pattern 4 (AES-GCM archive)** - commit, wewnetrzny review, push (4 testy: round-trip + zle haslo + slabe haslo + manifest)
+6. **T4 Patterny 6-7 (drugi tier)** - commit, wewnetrzny review, push (testy regression + nowe)
+7. **T5 Refactor (opcjonalny)** - commit, wewnetrzny review 2x runda PELNY przeglad, push (44 testy regression + reorganizacja)
 
 ## Estymacja calkowita
 
@@ -326,7 +326,7 @@ Kazdy pattern = **osobny commit + osobny Marko 2x runda**. Sekwencja:
 - T4: 1.5h dev (1 commit)
 - T5: 1.5h dev (1 commit, opcjonalny)
 
-**Total: 10h dev** rozlozone na **2-3 sesje**, z marko-pl 2x runda kazda. Bramka jakosci: 44 testy pl-entities nadal pass po kazdym commicie.
+**Total: 10h dev** rozlozone na **2-3 sesje**, z wewnetrzny review 2x runda kazda. Bramka jakosci: 44 testy pl-entities nadal pass po kazdym commicie.
 
 ## Atrybucja
 
@@ -356,7 +356,7 @@ ADR-0008 zero-LLM przy zapisie).
 1. **Czy idziemy z T1 (3h, patterny 1+2+5)** w najblizszej sesji jako szybki win - **niezalezne** od reszty Patrona, daje audit-friendly proof "no PII leaves"?
 2. **T2 + T3 (4h razem)** - w tej samej sesji czy osobno? Pattern 3 (docx session_id) jest user-facing (otwiera workflow "reopen-session"), Pattern 4 (AES-GCM archive) jest niche (transfer miedzy maszynami).
 3. **T4 (1.5h)** - patterny drugiego tieru. Wzgledne pominiecie nie boli, ale dodanie context boost potencjalnie zwieksza recall dla PERSON entities (ktore sa najbardziej miekkie).
-4. **T5 (1.5h, opcjonalny)** - refactor architektury RecognizerDef ma blast-radius cale `pl-entities/`. Tylko jezeli dosc czasu na pelny marko-pl 2x runda + Wieslaw weryfikacja diff'u.
-5. **Marko-pl 2x runda** PRZED kazdym commitem patternu (zgodnie z [[feedback_marko_2x_runda_pattern]] - po kazdym, nie zbiorczy na koniec).
+4. **T5 (1.5h, opcjonalny)** - refactor architektury RecognizerDef ma blast-radius cale `pl-entities/`. Tylko jezeli dosc czasu na pelny wewnetrzny review 2x runda + Wieslaw weryfikacja diff'u.
+5. **wewnetrzny review 2x runda** PRZED kazdym commitem patternu (zgodnie z 2x runda wewnetrznego review tresci - po kazdym, nie zbiorczy na koniec).
 
 Po Twoim decyzji - **otwieram osobna sesje** na implementacje, nie tej (zbyt wiele faz juz, zbyt dlugi context).

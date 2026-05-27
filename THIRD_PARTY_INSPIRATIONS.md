@@ -444,7 +444,7 @@ falszywe NONE; zawsze czytaj plik). Bierzemy KONCEPT, nie kod.
 **Pattern wzorcowany**: narzedzie `time_travel` - auto-diff przepisu miedzy dwiema
 datami (anti-halucynacja przez mechaniczne porownanie zrodel, nie streszczenie modelu).
 Korea opakowuje 41 panstwowych API KR; my mamy wlasny konektor ISAP na polskim ELI.
-**Wdrozenie**: ADR-0021 (time-travel diff nowelizacji) - SZKIC, czeka marko-pl 2x + decyzje Wieslawa.
+**Wdrozenie**: ADR-0021 (time-travel diff nowelizacji) - SZKIC, czeka wewnetrzny review tresci 2x + decyzje Wieslawa.
 
 **Co Patron bierze (wzor)**:
 - **Model "dwa punkty w czasie -> diff"** + mapowanie zmiany na akt nowelizujacy

@@ -1,7 +1,7 @@
 // Testy warstwy skanu dokumentu wejsciowego (ADR-0019).
 //
 // Najwazniejszy test: REALNY polski dokument z pelnymi diakrytykami daje ZERO
-// findings (dowod PL-safety - patrz [[feedback_smoke_test_realny_przyklad]]).
+// findings (dowod PL-safety - patrz smoke test na realnym przykladzie).
 // To bramka, ktora odroznia nasza implementacje od wzorca Atticusa (English-only,
 // false-positive na kazdym polskim zdaniu).
 

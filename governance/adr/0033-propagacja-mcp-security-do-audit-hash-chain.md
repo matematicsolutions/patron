@@ -6,7 +6,7 @@
 
 **Data**: 2026-05-24
 
-**Powiazane zasady Konstytucji Patrona v1.2.2** (zweryfikowane grepem - [[feedback_grep_constitution_pre_cite]]):
+**Powiazane zasady Konstytucji Patrona v1.2.2** (zweryfikowane grepem - weryfikacja grepem Konstytucji przed cytatem):
 - **Art. 3 - Audytowalnosc (AI Act art. 12, RODO art. 30)** - GLOWNA zasada tego ADR. Decyzja MCP Security Gateway to artefakt governance pierwszego rzedu: blokada konektora MCP z powodu drift / typosquat / hidden-instructions / tool-poisoning wplywa na to, jakie narzedzia LLM moze uzyc. Bez sladu w audit hash-chain ten artefakt zyje tylko w `console.warn` (`lib/mcp/index.ts:284,297`) - ulotny, nieweryfikowalny, niewspolny dla rejestru AI Act art. 12.
 - **Art. 6 - Granica bledu (human in the loop)** - decyzja `human_review` wymaga reakcji Operatora. Audit hash-chain to pierwszy krok ku UI ktore ten review umozliwi (ADR-0034). Nawet bez UI Operator moze recznie sprawdzic stan przez SQL/scripts/verify-audit-chain (zalozenie pesymistyczne).
 - **Art. 8 - Stalosc kontraktow** - propagacja do audit nie zmienia API publicznego `lib/mcp/index.ts` (`getMcpTools()`, `isMcpTool()`, `runMcpTool()`, `extractMcpCitations()` bez zmian). Audit dziala fire-and-forget: porazka audit_log NIE blokuje rejestracji toolow (bo Konstytucja Art. 8 oczekuje stabilnego kontraktu MCP).
@@ -158,8 +158,8 @@ Branch w `lib/mcp/index.ts:282` to `if (result.action === "audit" || result.find
 
 - Testy backend: **396/401 pass + nowe 5 testow audit-bridge** = 401/406 pass (5 todo).
 - TSC clean.
-- 2x runda marko-pl (per [[feedback_marko_2x_runda_pattern]]).
-- Tajemnica zawodowa: zaden test/fixture/komentarz nie zawiera danych z realnych spraw (per [[feedback_tajemnica_adwokacka_radcowska_NIGDY]]).
+- 2x runda wewnetrznego review tresci.
+- Tajemnica zawodowa: zaden test/fixture/komentarz nie zawiera danych z realnych spraw (per regula tajemnicy zawodowej (art. 6 PrAdw, art. 3 RadcPrU)).
 
 ---
 

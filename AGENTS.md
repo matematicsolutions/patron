@@ -47,7 +47,7 @@ Testy: 396/401 pass na 2026-05-24 (5 todo, 0 fail). TSC clean. **Nie commituj je
 - **Merkle audit chain** - nad istniejacym hash-chain (ADR-0001) zbudowane jest drzewo Merkle (RFC 6962). Audytor dostaje proof-of-inclusion w O(log n) zamiast O(n) lancucha. Tabela `audit_merkle_roots` (block_start, block_end, merkle_root, event_count). 3 moduly w `backend/src/lib/`: `audit-merkle.ts` (pure functions), `audit-merkle-roots.ts` (storage layer, nie modyfikuje audit_log), `audit-merkle-verifier.ts` (offline verifier dla audytora). Manualny trigger w tej iteracji (compute root przy administratorze kancelarii); automatyzacja + UI viewer = rezerwacja ADR-0036; RFC 3161 timestamping = rezerwacja ADR-0037. Patrz [ADR-0026](./governance/adr/0026-merkle-audit-chain-upgrade.md).
 - **i18n** - tlumaczenia w `frontend/messages/`. Slownik PRZED komponenty.
 - **Bez polskich znakow w commit messages** - konwencja organizacji (a -> a, e -> e, l -> l, o -> o, s -> s, n -> n, c -> c, z -> z).
-- **ADR przed kazda nietrwialnaa decyzja architektoniczna** - `governance/adr/NNNN-slug.md`. Marko-pl review 2x runda PRZED merge.
+- **ADR przed kazda nietrwialnaa decyzja architektoniczna** - `governance/adr/NNNN-slug.md`. wewnetrzny review tresci 2x runda PRZED merge.
 
 ## Czego NIE robic (twarde reguly)
 

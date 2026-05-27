@@ -14,7 +14,7 @@
 // (blocked-by ADR-0034 RBAC).
 
 import { Router, type Request, type Response } from "express";
-import { requireAuth } from "../middleware/auth";
+import { requireAuth, requireAdmin } from "../middleware/auth";
 import { createServerSupabase } from "../lib/supabase";
 import { fetchProofForEvent } from "../lib/audit-merkle-roots";
 
@@ -31,12 +31,14 @@ export const auditRouter = Router();
  *         merkle_root, chain_block_start, chain_block_end)
  *   400 - eventId nie jest liczba calkowita > 0
  *   401 - brak/niepoprawny JWT (z requireAuth middleware)
+ *   403 - user zalogowany ale nie admin (z requireAdmin middleware, ADR-0034)
  *   404 - event nie istnieje lub brak Merkle root pokrywajacego event
  *   500 - blad DB lub nieoczekiwany wyjatek
  */
 auditRouter.get(
     "/merkle/verify/:eventId",
     requireAuth,
+    requireAdmin,
     async (req: Request, res: Response): Promise<void> => {
         const eventIdRaw = req.params.eventId;
         const eventId = Number.parseInt(eventIdRaw, 10);

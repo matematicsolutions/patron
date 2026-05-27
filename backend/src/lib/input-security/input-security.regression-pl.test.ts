@@ -3,7 +3,7 @@
 // produkcji. Wszystkie fragmenty z pelnymi diakrytykami, rozne obszary prawa.
 //
 // BRAMKA: kazdy czysty dokument PL -> action "allowed" (zero blokowania
-// legalnej tresci). Kazdy preparat -> wykryty. Patrz [[feedback_smoke_test_realny_przyklad]].
+// legalnej tresci). Kazdy preparat -> wykryty. Patrz smoke test na realnym przykladzie.
 //
 // Fragmenty sa fikcyjne/zanonimizowane - dane osobowe wymyslone, sygnatury
 // przykladowe. Celowo zawieraja zwroty stresujace detektory (np. "zignorowac

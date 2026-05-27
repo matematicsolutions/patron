@@ -9,6 +9,27 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ### Added
 
+- **ADR-0034 - RBAC admin oparty na whitelist emaili w env** (2026-05-27).
+  Realizacja rezerwacji "admin RBAC + UI banner mcp-security" w wezszym
+  zakresie (scope-down) - tylko backend RBAC; UI banner mcp-security =
+  rezerwacja ADR-0042, UI viewer dla audytora = rezerwacja ADR-0040.
+  Admin pool zarzadzany przez env `PATRON_ADMIN_EMAILS` (CSV, lowercase,
+  trim). Pusta wartosc = brak adminow (`requireAdmin` zwraca 403). Edycja
+  wymaga restartu kontenera. Audyt zmian = git history `.env.example`.
+  Pure helpers `parseAdminEmails` + `isAdminEmail` (testowalne bez DB/env)
+  + middleware `requireAdmin` (zawsze po `requireAuth` w lancuchu) w
+  `backend/src/middleware/auth.ts`. Strukturyzowane logi
+  `[ADMIN] grant|denied` na stdout. Audit_log eventu `admin.access` =
+  rezerwacja ADR-0043 (wymaga migracji 002 ALTER CHECK whitelist
+  event_type). Endpoint `GET /api/audit/merkle/verify/:eventId` (ADR-0036)
+  zaostrzony z "kazdy zalogowany" do admin-only przez dodanie
+  `requireAdmin` w lancuchu middleware. ADR-0036 explicite wzmiankowal ten
+  scope-down w sekcji "Autoryzacja". Zero nowych zaleznosci npm (Konstytucja
+  Art. 4). +13 testow w `middleware/auth.test.ts` (pure functions, 0 mockow).
+  516/521 pass (+13 nowych vs baseline 503/508 z ADR-0036), TSC clean.
+  Konstytucja v1.2.5 -> v1.2.6 PATCH (nowa rola 4.6 Admin). Rezerwacje:
+  ADR-0040 (UI viewer dla audytora), ADR-0042 (UI banner mcp-security),
+  ADR-0043 (audit_log eventu `admin.access`).
 - **ADR-0036 - Auto-trigger Merkle audit root + REST endpoint dla audytora**
   (2026-05-27). Realizacja rezerwacji z ADR-0026 (manual trigger -> hybrid
   auto-trigger). Compute Merkle root nastepuje gdy nowych eventow >= 1000

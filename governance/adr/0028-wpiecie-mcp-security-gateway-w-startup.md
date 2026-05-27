@@ -6,7 +6,7 @@
 
 **Data**: 2026-05-24
 
-**Powiazane zasady** (Konstytucja Patrona v1.2.1, zweryfikowane grepem - [[feedback_grep_constitution_pre_cite]]):
+**Powiazane zasady** (Konstytucja Patrona v1.2.1, zweryfikowane grepem - weryfikacja grepem Konstytucji przed cytatem):
 - **Art. 8 - Stalosc kontraktow** - GLOWNA zasada tego ADR. Wpiecie Gateway'a w `getMcpTools()` wzmacnia stalosc kontraktu MCP, bo decyzja `denied` lub `human_review` blokuje registracje konektora ktorego definicja narzedzi wzbudza podejrzenia (typosquat, drift, hidden-instructions, tool-poisoning). Pre-existujace tool calls pozostaja nienaruszone - filter dziala TYLKO przy ladowaniu nowego/zmienionego konektora.
 - **Art. 3 - Audytowalnosc** (AI Act art. 12) - kazda decyzja Gateway'a (`allowed`/`audit`/`human_review`/`denied`) logowana przez `console.warn` ze strukturyzowanym tagiem `[MCP-SECURITY]`, kandydat do propagacji w audit hash-chain (ADR-0001) w przyszlosci.
 - **Art. 6 - Granica bledu** (human in the loop) - decyzja `human_review` NIE rejestruje toolow automatycznie. Operator widzi w logach co zostalo zablokowane i moze swiadomie zatwierdzic (recznie ustawic `enabled: true` po review + dodac do `approvedNames` lub zmienic baseline po analizie diff'u).
@@ -169,7 +169,7 @@ Powody:
 ### Bramki PO wpieciu (potwierdzone w tej sesji)
 - Testy backend: **396/401 pass** (+7 nowych baseline tests vs baseline 389/394 z ADR-0025).
 - TSC clean.
-- 2x runda marko-pl - zalatwione przed commitem.
+- 2x runda wewnetrznego review tresci - zalatwione przed commitem.
 
 ---
 

@@ -6,7 +6,7 @@
 
 **Data**: 2026-05-24
 
-**Powiazane zasady** (Konstytucja Patrona v1.2.1, zweryfikowane grepem - [[feedback_grep_constitution_pre_cite]]):
+**Powiazane zasady** (Konstytucja Patrona v1.2.1, zweryfikowane grepem - weryfikacja grepem Konstytucji przed cytatem):
 - **Art. 1 - Lokalność danych** (RODO art. 25, AI Act art. 10) - GLOWNA zasada. ICME Preflight wysyla `structured action` (matter, input, tool) i `policy_id` do `api.icme.io` (US, cloud-only). To narusza Art. 1 wprost - kazda kancelaria polska musialaby zawrzec DPA + transfer poza EOG (DPF/SCC). Brak self-hostingu, brak EU region. **Twardy zakaz dla Patrona jako zaleznosc**.
 - **Art. 5 - Tajemnica zawodowa** (Pr.Adw. art. 6, Pr.RP art. 3) - bezwzgledna. `structured action` zawierajacy `matter` (sygnatura, identyfikator sprawy) opuszczajacy maszyne kancelarii bez aktywnej zgody klienta = naruszenie. Nawet "Private Venice tier zero data retention contractually" to gwarancja umowna (na zaufaniu), nie techniczna.
 - **Art. 3 - Audytowalnosc** (AI Act art. 12) - tu ICME ma cos co my **chcemy zaadaptowac lokalnie**: deterministyczne werdykty + verifiable proof receipt (`check_id` + `policy_hash` + `zk_proof_id`) ktore audytor moze zweryfikowac post-hoc. Pattern uzupelnia nasz hash-chain (ADR-0001) + planowany Merkle (ADR-0026 rezerwacja z ADR-0024) o **dowod KAŻDEJ pojedynczej decyzji**, nie tylko integralność lancucha.
@@ -125,7 +125,7 @@ To **unit tests dla polityk**. Polityka traktowana jak kod - kompilowana, testow
 - **DB schema dla proof receipt** (nowe kolumny w `audit_events` lub osobna tabela `policy_verdicts`).
 - **CLI tool `patron-verify`** dla regulatora (Node binary z embedded solver, weryfikuje `proofs.tar.gz` offline).
 - **UI badge "verified"** + UNSAT explanation flow.
-- 2x runda marko-pl przed merge ([[feedback_marko_2x_runda_pattern]]).
+- 2x runda wewnetrznego review tresci przed merge.
 - Testy: kazdy modul (compiler, solver, verifier, iterator) z testem przed wpieciem do prod path.
 
 ---

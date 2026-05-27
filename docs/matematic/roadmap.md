@@ -31,7 +31,7 @@ pokazywac produktu kancelarii.
 - [x] 2.6 package.json: rename `mike` -> `patron` - ZAMKNIETE w poprzedniej sesji.
 - [ ] 2.7 Schema kancelaria - model danych: sprawa/matter, klient, dokumenty per sprawa
 
-Brama: marko-pl / przeglad jakosci kodu + zielone testy.
+Brama: wewnetrzny review tresci + przeglad jakosci kodu + zielone testy.
 
 ## FAZA 3 - Konektory (moat MateMatic)
 
@@ -192,7 +192,7 @@ Cel: Patron jest sprzedawalny.
 
 - [ ] 6.1 Branding Patron - logo, identyfikacja, landing page (matematic.co)
 - [ ] 6.2 Pilotaz z kancelaria - wdrozenie + feedback
-- [ ] 6.3 Pricing (skill matematic-pricing) - model wdrozenia + ew. retainer
+- [ ] 6.3 Pricing - model wdrozenia + ew. retainer
 - [ ] 6.4 Narracja "Made by Poland" - aktualnosc/post LI, pozycja vs BetterCallMitch/Harvey
 
 ---

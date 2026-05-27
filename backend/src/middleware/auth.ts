@@ -94,3 +94,69 @@ export async function requireAuth(
   res.locals.token = token;
   next();
 }
+
+// ---------------------------------------------------------------------------
+// Admin RBAC (ADR-0034)
+// ---------------------------------------------------------------------------
+// Whitelist emaili w env PATRON_ADMIN_EMAILS (CSV, lowercase, trim).
+// Pusta lista = brak adminow (kazde wywolanie requireAdmin -> 403).
+// Operator kancelarii edytuje .env, restart kontenera = nowa lista.
+//
+// Audit log eventu admin.access = rezerwacja ADR-0043 (wymaga migracji 002
+// ALTER CHECK whitelist event_type). W tym ADR tylko console.warn ze
+// structured tag [ADMIN].
+
+/**
+ * Parsuje wartosc env PATRON_ADMIN_EMAILS do Set lowercase emaili.
+ * Pure function - testowalna bez env. Pusty/undefined wejscie = pusty Set.
+ */
+export function parseAdminEmails(envValue: string | undefined): Set<string> {
+  if (!envValue) return new Set();
+  return new Set(
+    envValue
+      .split(",")
+      .map((s) => s.trim().toLowerCase())
+      .filter(Boolean),
+  );
+}
+
+const ADMIN_EMAILS = parseAdminEmails(process.env.PATRON_ADMIN_EMAILS);
+
+/**
+ * Sprawdza czy email nalezy do whitelist adminow.
+ * Pure function - testowalna z fixture Set. Domyslnie uzywa modulowego cache
+ * ADMIN_EMAILS (parse raz przy starcie).
+ */
+export function isAdminEmail(
+  email: string,
+  admins: Set<string> = ADMIN_EMAILS,
+): boolean {
+  return admins.has(email.trim().toLowerCase());
+}
+
+/**
+ * Middleware Express: dopuszcza tylko adminow z whitelist
+ * PATRON_ADMIN_EMAILS. ZAWSZE po requireAuth w lancuchu (potrzebuje
+ * res.locals.userEmail z requireAuth).
+ *
+ * 403 + structured log [ADMIN] gdy nie admin. Audit log eventu
+ * admin.access = rezerwacja ADR-0043.
+ */
+export function requireAdmin(
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): void {
+  const userEmail = (res.locals.userEmail as string | undefined) ?? "";
+  if (!userEmail || !isAdminEmail(userEmail)) {
+    console.warn(
+      `[ADMIN] denied: ${userEmail || "(no email)"} -> ${req.method} ${req.path}`,
+    );
+    res.status(403).json({ detail: "Admin role required" });
+    return;
+  }
+  console.warn(
+    `[ADMIN] grant: ${userEmail} -> ${req.method} ${req.path}`,
+  );
+  next();
+}

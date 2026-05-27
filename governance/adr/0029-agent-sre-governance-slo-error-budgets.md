@@ -6,7 +6,7 @@
 
 **Data**: 2026-05-24
 
-**Powiazane zasady** (Konstytucja Patrona v1.2.1, zweryfikowane grepem - [[feedback_grep_constitution_pre_cite]]):
+**Powiazane zasady** (Konstytucja Patrona v1.2.1, zweryfikowane grepem - weryfikacja grepem Konstytucji przed cytatem):
 - **Art. 3 - Audytowalnosc** (AI Act art. 12) - GLOWNA zasada. SLO i SLI Patrona dziela istniejaca infrastrukture audit hash-chain (ADR-0001): kazda obserwacja SLI to event, kazda decyzja circuit breakera to event. Audyt SRE = audyt zgodnosci.
 - **Art. 6 - Granica bledu** (human in the loop) - circuit breaker NIE wylacza Patrona autonomicznie. Decyzja "wstrzymujemy use case" trafia do Operatora kancelarii (UI + audit log). Patron sygnalizuje, czlowiek decyduje.
 - **Art. 2 - Weryfikowalnosc zrodel** - jeden z naszych SLI (CitationCoverage SLI) mierzy procent odpowiedzi LLM zawierajacych weryfikowalne cytaty z konektorow MCP. Spadek tego SLI = sygnal SRE.
@@ -153,7 +153,7 @@ Z [microsoft/agent-governance-toolkit `docs/specs/AGENT-SRE-GOVERNANCE-1.0.md`](
 ### Bramki przed wpieciem (ADR-0030 implementacyjny)
 - Decyzja: Postgres schema vs in-memory + plik. Rekomendacja: Postgres (audit z hash-chain juz tam jest).
 - UI design: dashboard 4 metryk. Decyzja: prostota (Next.js komponent w `frontend/src/app/admin/`) vs zewnetrzny tool (Metabase/Grafana).
-- 2x runda marko-pl przed merge ([[feedback_marko_2x_runda_pattern]]).
+- 2x runda wewnetrznego review tresci przed merge.
 
 ---
 

@@ -107,9 +107,9 @@ Decyzja: **cherry-pick formatu JSONL i patternu in-place branching, caly kod Pat
 
 **Bumpa Konstytucji**: NIE. Ten ADR **wzmacnia** Art. 3 i Art. 6 ktore juz sa w v1.1.1, nie zmienia tresci. Po implementacji T1-T9 dopisujemy w `governance/CONSTITUTION.md` § "Implementacja Art. 3 i Art. 6" wskaznik do ADR-0015 - PATCH v1.1.3 (lub razem z ADR-0014 jako v1.1.2).
 
-## Marko-pl scope (przed merge)
+## Scope review (przed merge)
 
-ADR-0015 dostaje **2x runda Marko-pl** (regula [feedback_marko_2x_runda_pattern](../../../.claude/projects/C--Users-Wieslaw/memory/feedback_marko_2x_runda_pattern.md)). Zakres review:
+ADR-0015 dostaje **2x runda wewnetrznego review** (regula wewnetrzny review tresci). Zakres review:
 
 1. Czy format JSONL z `parentId` faktycznie obsluguje wszystkie use-cases Patrona (chat, contract review, research, due diligence)?
 2. Czy migracja Postgres → JSONL ma rollback? Co jak po 30 dniach okaze sie ze JSONL ma luki?

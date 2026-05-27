@@ -8,7 +8,7 @@ Art. 8 (przejrzystosc - operator wie, co Patron zrobil)
 **Powiązane**: ADR-0001 (hash-chain audit log), ADR-0004 (debate),
 ADR-0005 (citation grounding), wzorzec architektoniczny
 [AnttiHero/lavern](https://github.com/AnttiHero/lavern) (Apache 2.0)
-+ [[reference_matematic_video_governance]] (4 fazy walidacji wideo,
++ wzorzec 4-faz walidacji wideo MateMatic (4 fazy walidacji wideo,
 audit log AI Act art. 12)
 
 ## Decyzja
@@ -96,7 +96,7 @@ o:
 - **Bundle_manifest signature** (podpis serwera Patrona kluczem
   prywatnym, weryfikacja przez `npm run audit:verify`)
 
-[[reference_matematic_video_governance]] niesie wzorzec **4-faz walidacji
+wzorzec 4-faz walidacji wideo MateMatic niesie wzorzec **4-faz walidacji
 + audit log AI Act art. 12** dla wideo MateMatic - ten sam pattern
 przenosimy do legal-tech. Spojnosc patternow miedzy produktami
 MateMatic.
@@ -168,7 +168,7 @@ maja przycisk "Wygeneruj audit bundle" w UI.
 - **Asymetria odpowiedzialnosci** - klient kancelarii mial dostep do
   bundle, swiadomie polegal na deliverable, kancelaria ma dowod
 - **Spojnosc patternow MateMatic** - ten sam wzorzec co
-  [[reference_matematic_video_governance]] dla wideo
+  wzorzec 4-faz walidacji wideo MateMatic dla wideo
 - **Niezalezna weryfikowalnosc** - `npm run audit:verify --bundle=...`
   uruchamia: (a) hash-chain integrity audit_log_excerpt,
   (b) bundle_manifest signature verification, (c) recheck cytatow

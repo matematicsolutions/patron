@@ -1,6 +1,6 @@
 # ADR-0019: Cherry-pick wzorca Input Document Security Pipeline (PL-aware) z Atticusa
 
-> **Uwaga numeracja**: ostatni zajety ADR to 0018 (precedent-board). Przed bumpem sprawdzono `ls governance/adr/` oraz brak rownoleglej rezerwacji - zgodnie z [[feedback_sesje_rownolegle_semver]]. Jezeli rownolegla sesja zajmie 0019, przenumerowac na pierwszy wolny.
+> **Uwaga numeracja**: ostatni zajety ADR to 0018 (precedent-board). Przed bumpem sprawdzono `ls governance/adr/` oraz brak rownoleglej rezerwacji - zgodnie z regula sesji rownoleglych. Jezeli rownolegla sesja zajmie 0019, przenumerowac na pierwszy wolny.
 
 **Status**: Przyjety (2026-05-22 - skeleton zakodowany i przetestowany; wpiecie produkcyjne wg ADR-0020, zaakceptowane przez Wieslawa)
 **Data**: 2026-05-22
@@ -10,7 +10,7 @@
 - **Art. 3 - Audytowalnosc** (AI Act art. 12, RODO art. 30) - decyzja skanu (`allowed` / `quarantined` / `human_review` / `blocked`) + skrot pliku + lista findings trafia do hash-chain audit logu (ADR-0001). To NIE jest nowy mechanizm audytu, to nowy typ zdarzenia w istniejacym.
 - **Art. 5 - Tajemnica zawodowa** (Pr.Adw. art. 6, Pr.RP art. 3) - prompt-injection w dokumencie klienta moze sklonic model do ujawnienia tresci innej sprawy / zignorowania regul. Skan wejscia jest technicznym wzmocnieniem tajemnicy, nie tylko PII-wychodzacego (ADR-0003/0013).
 - **Art. 6 - Granica bledu / human in the loop** - akcja `human_review` mapuje sie wprost na te zasade. Pipeline NIGDY nie jest autonomicznym, twardym blokiem na sciezce uzytkownika; ciezsze findings kieruja do czlowieka (Inspektor / Operator), nie kasuja dokumentu po cichu.
-- **Art. 8 - Stalosc kontraktow** - ten ADR celowo NIE wpina pipeline w `streamChatWithTools` ani w `upload.ts`/RAG. Wpiecie w istniejacy kontrakt to osobna decyzja (przyszly ADR-0020), zgodnie z [[feedback_adr_granica_skeleton_vs_produkcja]].
+- **Art. 8 - Stalosc kontraktow** - ten ADR celowo NIE wpina pipeline w `streamChatWithTools` ani w `upload.ts`/RAG. Wpiecie w istniejacy kontrakt to osobna decyzja (przyszly ADR-0020), zgodnie z granica skeleton vs produkcja.
 
 **Powiazane ADR**:
 - ADR-0001 (hash-chain audit trail) - skan zapisuje zdarzenie do tego samego logu.
@@ -19,7 +19,7 @@
 - ADR-0008 (entity extraction zero-LLM) - **respektowane**: detektory PL sa deterministyczne (regex/heurystyka), bez modelu w sciezce skanu.
 - ADR-0014 (multi-provider) - skan jest pre-provider, agnostyczny wobec dostawcy LLM.
 
-**Inspiracja cherry-pick**: [jdai-ca/atticus](https://github.com/jdai-ca/atticus) (`Apache-2.0 OR Commercial`, autor John Kost / JDAI.ca, snapshot **2026-05-22**, 38 gwiazdek, v0.9.20). **NIE forkujemy.** Bierzemy WZORZEC architektoniczny pliku `src/services/fileSecurityPipeline.ts` + `src/services/security/`. Caly kod detektorow piszemy od zera pod jezyk polski. Trademark "Atticus" zastrzezony - nazwy nie uzywamy. Zgodnie z [[feedback_format_cherry_pick_kanon]] - snapshot Apache zachowany, atrybucja w 3 miejscach (patrz sekcja Atrybucja).
+**Inspiracja cherry-pick**: [jdai-ca/atticus](https://github.com/jdai-ca/atticus) (`Apache-2.0 OR Commercial`, autor John Kost / JDAI.ca, snapshot **2026-05-22**, 38 gwiazdek, v0.9.20). **NIE forkujemy.** Bierzemy WZORZEC architektoniczny pliku `src/services/fileSecurityPipeline.ts` + `src/services/security/`. Caly kod detektorow piszemy od zera pod jezyk polski. Trademark "Atticus" zastrzezony - nazwy nie uzywamy. Zgodnie z kanon cherry-pick MateMatic - snapshot Apache zachowany, atrybucja w 3 miejscach (patrz sekcja Atrybucja).
 
 ---
 
@@ -36,7 +36,7 @@ Patron dostaje warstwe **Input Document Security Pipeline** - deterministyczny s
 ### Co piszemy od zera (to jest nasza dodana wartosc)
 Audyt kodu Atticusa (2026-05-22) ujawnil, ze detektory sa **English-only i czesciowo wrogie polszczyznie** - nie nadaja sie do przeniesienia 1:1:
 
-1. **Listy sygnalow PL**: `PROMPT_INJECTION_SIGNALS`, `JAILBREAK_PATTERNS`, `sensitiveTerms`, slowa kotwiczace ROT13 - w Atticusie wylacznie angielskie. Polskie "zignoruj poprzednie instrukcje", "dzialaj jako", "tryb dewelopera", "nowe polecenie:" przechodza bez wykrycia. Piszemy polski korpus sygnalow (ta sama lekcja co przy PII - [[feedback_polskie_pii_nie_jest_en_pii]]).
+1. **Listy sygnalow PL**: `PROMPT_INJECTION_SIGNALS`, `JAILBREAK_PATTERNS`, `sensitiveTerms`, slowa kotwiczace ROT13 - w Atticusie wylacznie angielskie. Polskie "zignoruj poprzednie instrukcje", "dzialaj jako", "tryb dewelopera", "nowe polecenie:" przechodza bez wykrycia. Piszemy polski korpus sygnalow (ta sama lekcja co przy PII - lekcja "PL PII != EN PII").
 2. **Homoglify swiadome polskich znakow**: detektor Atticusa traktuje znaki nie-ASCII jako podejrzane (`detectHomoglyphs` lapie cyrylice, `detectEmbeddingAnomalies` ma `[^\x00-\x7F]{3,}`). Na polskim tekscie z **a/e/o/l/z/z/c/n/s** dawaloby to false-positive na kazdym zdaniu. Implementujemy mape confusable (cyrylica/grecka -> lacinka) ktora NIE flaguje legalnych polskich diakrytykow.
 3. **Heurystyki jako warstwa flagujaca, nie twardy gate**: "perplexity" w Atticusie to zwykla entropia slow (nie model jezykowy), test LSB liczy chi-kwadrat na surowych bajtach pliku (autor pisze "simplified"), detektor base64 lapie legalny base64. Nasze progi kalibrujemy tak, by ciezsze findings szly do `human_review` (Art. 6), a nie do autonomicznego `blocked` poza przypadkami jednoznacznymi (malicious magic-byte, ukryta akcja `/OpenAction` w PDF).
 
@@ -57,7 +57,7 @@ Atticus rozwiazal ten problem dla rynku anglojezycznego. Wzorzec jest dobry, imp
 
 ## Alternatywy odrzucone
 
-1. **Fork Atticusa / przeniesienie kodu 1:1** - odrzucone. Detektory English-only + wrogie polskim diakrytykom (false-positive na kazdym zdaniu PL). Tlumaczenie 1:1 to wciaz angielskie zalozenia. Lamie [[feedback_format_cherry_pick_kanon]] (pattern bierzemy, tresc od zera).
+1. **Fork Atticusa / przeniesienie kodu 1:1** - odrzucone. Detektory English-only + wrogie polskim diakrytykom (false-positive na kazdym zdaniu PL). Tlumaczenie 1:1 to wciaz angielskie zalozenia. Lamie kanon cherry-pick MateMatic (pattern bierzemy, tresc od zera).
 2. **Skan oparty o LLM** (zapytaj model "czy ten dokument zawiera prompt-injection") - odrzucone. Lamie Art. 8 (zero-LLM w sciezce skanu, jak ADR-0008), doklada latency i koszt, i jest podatny na te sama manipulacje, ktora ma wykryc.
 3. **Nic nie robimy, polegamy na SYSTEM_PROMPT** - odrzucone. Prompt obronny to nie kontrola wejscia; nie zostawia sladu audytowego (Art. 3) i nie chroni RAG-indeksu przed zatruciem.
 4. **Twardy autonomiczny blok** dokumentow z dowolnym finding - odrzucone. Lamie Art. 6 (human in the loop) i generowalby falszywe alarmy na legalnych dokumentach (np. pismo cytujace "zignoruj poprzednie ustalenia stron" w sensie merytorycznym).
@@ -83,7 +83,7 @@ Atticus rozwiazal ten problem dla rynku anglojezycznego. Wzorzec jest dobry, imp
 
 - **T1 - Skeleton modulu** [ZROBIONE 2026-05-22] `backend/src/lib/input-security/` (AGPL-3.0 dziedziczone po patron): `pipeline.ts` (orchestrator `analyzeInput()`), `detectors/` (adversarial-pl, steganography, obfuscation, evasion), `scorer.ts`, `report.ts`, `types.ts`, barrel. Bezstanowe, bez wpiecia. Testy Vitest: 9/9 zielone, bramka PL-safety przechodzi (legalny dokument PL z diakrytykami = ZERO findings; spreparowany = wykryty). TSC czysty, pelna suita 341 pass / 0 fail.
 - **T2 - Korpus sygnalow PL** + mapa confusable swiadoma polskich diakrytykow. Regression set na anonimizowanych fragmentach (pozew, umowa, e-mail z zalacznikiem).
-- **T3 - Kalibracja progow** na realnym korpusie; cel: false-positive rate < ustalony prog na legalnych dokumentach PL (smoke test wg [[feedback_smoke_test_realny_przyklad]]).
+- **T3 - Kalibracja progow** na realnym korpusie; cel: false-positive rate < ustalony prog na legalnych dokumentach PL (smoke test wg smoke test na realnym przykladzie).
 - **T4 - ADR-0020 (wpiecie)**: decyzja gdzie w `upload.ts` / przed RAG-indeksacja / przed `streamChatWithTools`; sync vs async; default-on vs opt-in; mapowanie akcji na role governance (kto dostaje `human_review`). Osobny ADR - kontrakt Art. 8.
 - **T5 - Konstytucja**: rozwazyc MINOR bump (Art. 5 dostaje punkt "kontrola wejscia / skan dokumentow pod katem manipulacji modelu" w Mechanizmach technicznych). Osobna decyzja governance.
 
@@ -91,7 +91,7 @@ Atticus rozwiazal ten problem dla rynku anglojezycznego. Wzorzec jest dobry, imp
 
 ## Atrybucja patternu i niezaleznosc tresci
 
-Zgodnie z [[feedback_format_cherry_pick_kanon]] (atrybucja w 3 miejscach), przy realizacji T1 cherry-pick MUSI byc oznaczony w:
+Zgodnie z kanon cherry-pick MateMatic (atrybucja w 3 miejscach), przy realizacji T1 cherry-pick MUSI byc oznaczony w:
 - **LICENSE / NOTICE Patrona** - nota: wzorzec orchestracji pipeline z [jdai-ca/atticus](https://github.com/jdai-ca/atticus) (Apache-2.0, John Kost, snapshot 2026-05-22). Tresc detektorow napisana od zera pod jezyk polski.
 - **README modulu** `input-security/README.md` - sekcja Pochodzenie: co konkretnie wzorzec (5-faz, model akcji, taksonomia findings), co NASZE (detektory PL, korpus sygnalow, mapa confusable). NIE tlumaczenie 1:1.
 - **Ten ADR** - powyzej.
@@ -108,4 +108,4 @@ Atticus jest dual-license; bierzemy galaz **Apache-2.0** (snapshot 2026-05-22). 
 - [x] Licencja Atticusa zweryfikowana: `Apache-2.0 OR Commercial`, galaz Apache w kanonie cherry-pick.
 - [x] **Realizacja T1 (skeleton modulu)** - ZROBIONE 2026-05-22: `backend/src/lib/input-security/`, 9/9 testow, TSC czysty, zero regresji.
 - [ ] **Decyzja Wieslawa: wpiecie w kontrakt (upload/RAG/stream)** - wymaga osobnego ADR-0020.
-- [ ] **Marko-pl review 2x runda** przed merge (regula AGENTS.md).
+- [ ] **wewnetrzny review tresci 2x runda** przed merge (regula AGENTS.md).

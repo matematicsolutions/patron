@@ -171,4 +171,4 @@ Wpis do `THIRD_PARTY_INSPIRATIONS.md` przy commicie tego ADR - sekcja "isaacus-d
 1. **Czy taxonomia `col_type` ograniczona do `span | entity` (jak isaacus)** czy rozszerzona o `boolean | enum` (jak proponujemy) - decyzja zakres v1?
 2. **Czy threshold cosine domyslny 0.4** (isaacus default) czy 0.5 (strict default dla legal)? Kalibracja w T2 zweryfikuje, ale potrzebujemy startowej wartosci.
 3. **Kolory indykatora** zielony >=0.7, zolty 0.4-0.7, czerwony <0.4 - akceptujemy czy zmienic progi?
-4. **Wpiecie ADR** + Marko-pl 2x runda PRZED commitem (zgodnie z `feedback_marko_2x_runda_pattern`).
+4. **Wpiecie ADR** + wewnetrzny review 2x runda PRZED commitem (zgodnie z wewnetrznego review tresci).

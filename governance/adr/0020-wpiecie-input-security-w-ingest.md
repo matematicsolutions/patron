@@ -9,7 +9,7 @@
 - **Art. 5 - Tajemnica zawodowa** - skan wejscia chroni przed dokumentem, ktory probuje sklonic model do ujawnienia kontekstu innej sprawy. Wpiecie czyni te ochrone domyslna, nie opcjonalna.
 - **Art. 6 - Granica bledu / human in the loop** - `human_review` i `blocked` zatrzymuja sciezke i oddaja decyzje czlowiekowi (Operator / Inspektor). Skan NIGDY nie kasuje dokumentu po cichu.
 - **Art. 3 - Audytowalnosc** (AI Act art. 12) - kazdy skan loguje zdarzenie `input_security_scan` do hash-chain audit logu (ADR-0001).
-- **Art. 8 - Stalosc kontraktow** - to jest WLASNIE ten ADR. Zmieniamy zachowanie sciezki uploadu (`handleDocumentUpload`) - publiczna powierzchnia. Decyzja wymaga osobnego ADR (zgodnie z [[feedback_adr_granica_skeleton_vs_produkcja]]) i akceptacji Administratora kancelarii.
+- **Art. 8 - Stalosc kontraktow** - to jest WLASNIE ten ADR. Zmieniamy zachowanie sciezki uploadu (`handleDocumentUpload`) - publiczna powierzchnia. Decyzja wymaga osobnego ADR (zgodnie z granica skeleton vs produkcja) i akceptacji Administratora kancelarii.
 
 **Powiazane ADR**: ADR-0019 (skeleton input-security - bezposrednio wpinany), ADR-0001 (audit log - cel logowania), ADR-0003/0013 (pseudonimizacja - kolejnosc w potoku, patrz nizej), ADR-0007/0008 (RAG/graf - skan PRZED indeksacja).
 

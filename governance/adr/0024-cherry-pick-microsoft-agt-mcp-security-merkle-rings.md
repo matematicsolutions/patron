@@ -1,12 +1,12 @@
 # ADR-0024: Cherry-pick wzorcow z microsoft/agent-governance-toolkit - MCP Security Gateway, Merkle audit chain, privilege rings
 
-> **Uwaga numeracja**: ostatni zajety ADR to 0023 (wpiecie mcp-eu-compliance). Sprawdzono `Get-ChildItem governance/adr/` 2026-05-24 - 0024 wolne. Jezeli rownolegla sesja zajmie 0024, przenumerowac ([[feedback_sesje_rownolegle_semver]]).
+> **Uwaga numeracja**: ostatni zajety ADR to 0023 (wpiecie mcp-eu-compliance). Sprawdzono `Get-ChildItem governance/adr/` 2026-05-24 - 0024 wolne. Jezeli rownolegla sesja zajmie 0024, przenumerowac (regula sesji rownoleglych).
 
-**Status**: PROPONOWANY (ADR-research). Nie zaimplementowany - definiuje trzy patterny do adopcji w odrebnych PR-ach/ADR-ach implementacyjnych. Cherry-pick **patternow** ze wzoru, NIE wpiecie zaleznosci Microsoft AGT do Patrona ([[feedback_pattern_zrodlo_vs_dom_wykonania]]).
+**Status**: PROPONOWANY (ADR-research). Nie zaimplementowany - definiuje trzy patterny do adopcji w odrebnych PR-ach/ADR-ach implementacyjnych. Cherry-pick **patternow** ze wzoru, NIE wpiecie zaleznosci Microsoft AGT do Patrona (regula pattern-zrodlo vs domena wykonania).
 
 **Data**: 2026-05-24
 
-**Powiazane zasady** (Konstytucja Patrona v1.2.0, zweryfikowane grepem - [[feedback_grep_constitution_pre_cite]]):
+**Powiazane zasady** (Konstytucja Patrona v1.2.0, zweryfikowane grepem - weryfikacja grepem Konstytucji przed cytatem):
 - **Art. 3 - Audytowalnosc** (AI Act art. 12, RODO art. 30) - GLOWNA zasada tego ADR. Microsoft AGT pokazuje, ze SHA256 per artefakt (nasz obecny standard, ADR-0001) ma upgrade-path do Merkle-chain. Pattern tamper-evident silniejszy niz hash-per-plik, bo modyfikacja jednego eventu lamie chain calej historii, nie tylko jednego rekordu.
 - **Art. 8 - Stalosc kontraktow** - MCP Security Gateway dotyczy WALIDACJI definicji narzedzi (tool poisoning, description drift, typosquatting, hidden instructions) PRZED ich zaladowaniem do kontraktu. Wzmacnia stalosc kontraktow nie zmieniajac ich.
 - **Art. 4 - Neutralnosc wobec dostawcow** - Microsoft AGT to wzor, nie dostawca. Cherry-pickujemy patterny, NIE wpinamy AGT jako zaleznosci. Patron pozostaje vendor-neutral.
@@ -21,7 +21,7 @@
 
 ## Decyzja
 
-Patron adoptuje **trzy patterny** ze wzoru [microsoft/agent-governance-toolkit](https://github.com/microsoft/agent-governance-toolkit) (MIT, Microsoft Corp., 2026-03-02, 1904 star, 992 testow conformance, OWASP Agentic Top 10 10/10). Wzor zostal sklasyfikowany jako TRAFIONE warunkowo - patrz `~/.claude/projects/C--Users-Wieslaw/memory/reference_narzedzia_oceny_2026-05-14.md` poz. #67.
+Patron adoptuje **trzy patterny** ze wzoru [microsoft/agent-governance-toolkit](https://github.com/microsoft/agent-governance-toolkit) (MIT, Microsoft Corp., 2026-03-02, 1904 star, 992 testow conformance, OWASP Agentic Top 10 10/10). Wzor zostal sklasyfikowany jako TRAFIONE warunkowo - patrz rejestr ocen narzedzi MateMatic, pozycja #67.
 
 **Pattern 1 - MCP Security Gateway** (skanowanie definicji narzedzi MCP):
 - Detekcja **tool poisoning** (zmodyfikowane opisy narzedzi proszace o dodatkowe uprawnienia).
@@ -111,14 +111,14 @@ To strategicznie wazne dla MateMatic:
 
 ### Bramki przed implementacja
 - **[ZAMKNIETE 2026-05-24]** `legal-ai-plugin-governance` audit pluginu `agent-governance-claude-code` v3.6.0 - werdykt 🟢 ZIELONY, dopuszczony do PATRON dev environment z pin wersji + .agt/ w gitignore. Pelny raport w memory: `audit_agent_governance_claude_code_2026-05-24.md`. Zero HTTP/telemetrii w hooks+lib+server (zweryfikowane grepem), SDK deps czyste (@noble/* + js-yaml), hash-chain audit lokalny. NIE dopuszczony do maszyn kancelarii klienckich bez osobnego DPA z Microsoft.
-- 2x runda marko-pl przed merge kazdego z ADR-0025/0026/0027 ([[feedback_marko_2x_runda_pattern]]).
+- 2x runda wewnetrznego review tresci przed merge kazdego z ADR-0025/0026/0027.
 - Testy: kazdy nowy modul (mcp-security, merkle-verifier, ring-policy) z testem przed wpieciem do prod path.
 
 ---
 
 ## Atrybucja
 
-Patterny zainspirowane przez [microsoft/agent-governance-toolkit](https://github.com/microsoft/agent-governance-toolkit) (MIT, Microsoft Corp., 2026). Adopcja zgodna z kanonem cherry-pick MateMatic ([[feedback_format_cherry_pick_kanon]]):
+Patterny zainspirowane przez [microsoft/agent-governance-toolkit](https://github.com/microsoft/agent-governance-toolkit) (MIT, Microsoft Corp., 2026). Adopcja zgodna z kanonem cherry-pick MateMatic (kanon cherry-pick MateMatic):
 - Snapshot licencji: MIT, commit pushedAt `2026-05-24T17:02:19Z`, star count `1904`.
 - Patron pisze trzy moduly od zera w TypeScript pod swoje realia (Postgres, MCP stdio, Node 20+).
 - Atrybucja: ten ADR + wpis w `THIRD_PARTY_INSPIRATIONS.md` (do dopisania razem z ADR-0025) + komentarz naglowkowy w kazdym nowym module.

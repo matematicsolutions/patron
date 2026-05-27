@@ -1,11 +1,11 @@
 # ADR-0023: Wpiecie konektora mcp-eu-compliance w kontrakt MCP Patrona
 
-> **Uwaga numeracja**: ostatni zajety ADR to 0022 (warstwa compliance UE). Sprawdzono `ls governance/adr/` 2026-05-22 - 0023 wolne. Jezeli rownolegla sesja zajmie 0023, przenumerowac ([[feedback_sesje_rownolegle_semver]]).
+> **Uwaga numeracja**: ostatni zajety ADR to 0022 (warstwa compliance UE). Sprawdzono `ls governance/adr/` 2026-05-22 - 0023 wolne. Jezeli rownolegla sesja zajmie 0023, przenumerowac (regula sesji rownoleglych).
 
-**Status**: ZREALIZOWANY (2026-05-22). Realizuje odlozone wpiecie z ADR-0022. Wpiecie wykonane i zweryfikowane: `mcp-servers.json` (local) + `mcp-servers.example.json` + `bundle-mcp.cjs` (SERVERS + kopiowanie `data/`). Bundle Docker przetestowany end-to-end - zbundlowany konektor otwiera korpus ze spłaszczonej sciezki (`/app/mcp-bundled/eu-compliance/data/regulations.db`). Przechodzi przez 2x runde marko-pl ([[feedback_marko_2x_runda_pattern]]) przed commitem.
+**Status**: ZREALIZOWANY (2026-05-22). Realizuje odlozone wpiecie z ADR-0022. Wpiecie wykonane i zweryfikowane: `mcp-servers.json` (local) + `mcp-servers.example.json` + `bundle-mcp.cjs` (SERVERS + kopiowanie `data/`). Bundle Docker przetestowany end-to-end - zbundlowany konektor otwiera korpus ze spłaszczonej sciezki (`/app/mcp-bundled/eu-compliance/data/regulations.db`). Przechodzi przez 2x runde wewnetrznego review tresci przed commitem.
 **Data**: 2026-05-22
 
-**Powiazane zasady** (Konstytucja Patrona, zweryfikowane grepem - [[feedback_grep_constitution_pre_cite]]):
+**Powiazane zasady** (Konstytucja Patrona, zweryfikowane grepem - weryfikacja grepem Konstytucji przed cytatem):
 - **Art. 8 - Stalosc kontraktow** - GLOWNA zasada tego ADR. Dodanie konektora do `mcp-servers.json` rozszerza kontrakt MCP. Dodanie jest wstecznie kompatybilne (nowy serwer, zadne istniejace narzedzie sie nie zmienia) - to MINOR, nie MAJOR. Kazda kancelaria moze konektor wylaczyc (`enabled: false`).
 - **Art. 4 - Neutralnosc wobec dostawcow** - mcp-eu-compliance to osobny proces stdio, wymienialny/wylaczalny jak kazdy z 5 istniejacych. Konstytucja wprost wymienia EUR-Lex jako konektor.
 - **Art. 3 - Audytowalnosc** (AI Act art. 12, RODO art. 30) - wywolania narzedzi konektora ida przez istniejaca sciezke audytu MCP (hash-chain ADR-0001, event z nazwa toola). Wpiecie NIE wymaga nowego kodu audytu - dziedziczy istniejacy.
@@ -38,7 +38,7 @@ mcp-eu-compliance (v0.1.0, repo osobne, MIT) zostaje **6. konektorem** Patrona, 
 
 ## Kontekst
 
-ADR-0022 zbudowal konektor jako skeleton i swiadomie odlozyl wpiecie w kontrakt (Art. 8). Konektor jest gotowy (v0.1.0, smoke PASS, 5 toolow). Wpiecie to rejestracja w configu - mechanicznie proste, ale dotyka kontraktu MCP, stad osobny ADR zgodnie z [[feedback_adr_granica_skeleton_vs_produkcja]].
+ADR-0022 zbudowal konektor jako skeleton i swiadomie odlozyl wpiecie w kontrakt (Art. 8). Konektor jest gotowy (v0.1.0, smoke PASS, 5 toolow). Wpiecie to rejestracja w configu - mechanicznie proste, ale dotyka kontraktu MCP, stad osobny ADR zgodnie z granica skeleton vs produkcja.
 
 Roznica wzgledem 5 istniejacych konektorow: mcp-eu-compliance niesie lokalny korpus (`data/regulations.db`, ~36 MB, poza repo - pobierany skryptem). To wymagalo rozszerzenia bundla Docker o kopiowanie `data/` obok `dist/` - wczesniej `bundle-mcp.cjs` kopiowal tylko dist + package.json + node_modules (zmiana w sekcji Decyzja, weryfikacja w Ryzyka).
 

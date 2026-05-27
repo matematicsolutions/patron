@@ -122,7 +122,7 @@ Regex (`^[a-z]+(\.[a-z_]+)+$`) dopuszczalby kazdy semantycznie spojny string ("c
 - typo w nowym callsite ("rodo.delite" zamiast "rodo.delete") - typo przechodzi bo pasuje do wzorca.
 - silent shift taksonomii (deweloper dodaje nowy event_type bez ADR, audytor widzi go dopiero w produkcji).
 
-Whitelist wymusza twarda granice: nowy event_type = nowa migracja = review przez Marko-PL + commit z atrybucja. Koszt elastycznosci akceptowalny dla produktu regulowanego.
+Whitelist wymusza twarda granice: nowy event_type = nowa migracja = wewnetrzny review tresci + commit z atrybucja. Koszt elastycznosci akceptowalny dla produktu regulowanego.
 
 ### Lokalizacja schema_migrations w publicznym schemacie
 

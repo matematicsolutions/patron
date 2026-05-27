@@ -1,6 +1,6 @@
 # ADR-0013: Cherry-pick patternow PII-Shield do pl-entities/
 
-> **Uwaga numeracja**: pierwotnie zarezerwowany jako 0011, zmieniony na **0013** po wykryciu kolizji z rownolegla sesja (ADR-0011 span-level-offsets-column-types + ADR-0012 self-contained-viewer-html). Zgodnie z [[feedback_sesje_rownolegle_semver]] - sprawdz `git status` PRZED bumpem.
+> **Uwaga numeracja**: pierwotnie zarezerwowany jako 0011, zmieniony na **0013** po wykryciu kolizji z rownolegla sesja (ADR-0011 span-level-offsets-column-types + ADR-0012 self-contained-viewer-html). Zgodnie z regula sesji rownoleglych - sprawdz `git status` PRZED bumpem.
 
 **Status**: Proponowany (cherry-pick blueprint, niewpiety w stack produkcyjny)
 **Data**: 2026-05-21
@@ -40,7 +40,7 @@ Plus 4 mniejsze patternu (drugi tier):
 ## Kontekst
 
 Hey Jude (ADR-0003 + ADR-0008) implementuje polskie PII deterministycznie:
-PESEL z algorytmem wag 1-3-7-9 (zgodnie z [[feedback_adr_cite_algorithm_standard]]),
+PESEL z algorytmem wag 1-3-7-9 (zgodnie z standard cytatu algorytmu w ADR),
 NIP z mod 11, REGON, IBAN PL, sygnatury sadow polskich, gazetteer polskich
 imion. Pokrycie zakresu kancelaria-procesowa zwalidowane testami regression
 w `pl-entities/checksums.test.ts`.
@@ -217,7 +217,7 @@ RODO/AI Act przez wizualne sprawdzenie 5-minutowe).
 
 - **T5 (1.5h) Refactor architektury `RecognizerDef` (pattern 9, opcjonalny)**:
   - Jezeli zatwierdzony - refactor pl-entities/recognizers/ pod jednolity interface `{ entityType, patterns, context }` zgodny z Presidio
-  - Testy regression (44 testy pl-entities z [[session_summary_2026-05-21_patron-6adr]])
+  - Testy regression (44 testy pl-entities z sesja 2026-05-21 (6 ADR))
 
 Bramki:
 - Po T1 - Administrator ma policy.yaml dla TTL, Inspektor moze otworzyc plain-text audit log i przeczytac
@@ -237,7 +237,7 @@ Bramki:
 
 **Negatywne / koszty:**
 
-- ~10h dev rozlozone na 2-3 sesje (T1 + T2 + T3 oddzielnie z marko-pl 2x runda kazda)
+- ~10h dev rozlozone na 2-3 sesje (T1 + T2 + T3 oddzielnie z wewnetrzny review 2x runda kazda)
 - 2 schema migrations Postgresa (TTL field + source_hash field) = wymaga ostroznosci na production
 - Refactor `RecognizerDef` (T5, opcjonalny) ma blast-radius na cale pl-entities/ test suite
 
@@ -277,4 +277,4 @@ architecture NIE adoptowane (respektowanie ADR-0008 zero-LLM przy zapisie).
 1. **Czy idziemy z ADR-0013 jako Faza 7+** (po Fazie 6 pamieci gbrain, rownolegle do ADR-0010 Contract Review Module)? Patterny 1, 2, 5 priorytet 1 (T1, 3h dev) sa **niezalezne** od reszty Patrona i moga byc zaimplementowane w izolacji - dobry kandydat na **szybki win**.
 2. **Priorytet patternow** - cala paczka T1-T5 czy tylko T1-T3 (must-have) plus T4-T5 jako stretch?
 3. **Wpiecie ADR + bump Konstytucji** - jezeli zatwierdzony, ADR-0013 idzie do MINOR bump v1.2.0, ale **bez dodawania Art. 10** (Konstytucja v1.1.1 ma juz 9 zasad wyczerpujacych zakres "max 9 artykulow" z sekcji 2). Patterny mapuja sie na istniejace Art. 1/3/4/7 - opisac to w changelog Konstytucji + zalaczniku A "Mapa do aktow prawnych" (RODO art. 5/25/32, AI Act art. 12/13). Alternatywa: zostawiamy ADR-0013 osobno bez bumpu Konstytucji (default).
-4. **Marko-pl 2x runda** ZAREZERWOWANA PRZED commitem (zgodnie z [[feedback_marko_2x_runda_pattern]]).
+4. **wewnetrzny review 2x runda** ZAREZERWOWANA PRZED commitem (zgodnie z 2x runda wewnetrznego review tresci).

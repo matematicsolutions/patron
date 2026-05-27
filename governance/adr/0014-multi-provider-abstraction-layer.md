@@ -114,11 +114,11 @@ Decyzja: **cherry-pick patternu abstrakcji, caly kod Patrona pisze od zera** pod
 
 **Lacznie**: ~5.5 tygodnia dev (T2b adapter tool-calling +4 dni; moze isc rownolegle z T3 routerem). Najlepsze okno: po zamknieciu T1 ADR-0013 (PII-Shield patterns) - obie zmiany dotykaja `lib/`, nie wchodzimy sobie w paradne.
 
-**Bumpa Konstytucji**: NIE. Ten ADR **operacjonalizuje** Art. 4 ktory juz jest w v1.1.1, nie zmienia tresci zasady. Po implementacji T1-T6 (+ T2b) dopisujemy w `governance/CONSTITUTION.md` § "Implementacja Art. 4" wskaznik do ADR-0014 - to PATCH v1.1.2 (zgodnie z [feedback_sesje_rownolegle_semver](../../../.claude/projects/C--Users-Wieslaw/memory/feedback_sesje_rownolegle_semver.md)).
+**Bumpa Konstytucji**: NIE. Ten ADR **operacjonalizuje** Art. 4 ktory juz jest w v1.1.1, nie zmienia tresci zasady. Po implementacji T1-T6 (+ T2b) dopisujemy w `governance/CONSTITUTION.md` § "Implementacja Art. 4" wskaznik do ADR-0014 - to PATCH v1.1.2 (zgodnie z regula sesji rownoleglych).
 
-## Marko-pl scope (przed merge)
+## Scope review (przed merge)
 
-ADR-0014 dostaje **2x runda Marko-pl** (regula [feedback_marko_2x_runda_pattern](../../../.claude/projects/C--Users-Wieslaw/memory/feedback_marko_2x_runda_pattern.md)). Zakres review:
+ADR-0014 dostaje **2x runda wewnetrznego review** (regula wewnetrzny review tresci). Zakres review:
 
 1. Czy interfejs `LLMProvider` faktycznie pokrywa wszystkie use-cases (chat, tool calling przez `ToolRegistry`/T2b, streaming, structured output, vision)? Dziury w sygnaturze.
 2. Czy capability flags pokrywaja wszystkie wymogi RODO/AI Act (egress + region + retention provider-side)?

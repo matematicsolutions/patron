@@ -4,7 +4,7 @@
 // Atticusie sa WYLACZNIE angielskie. Polskie "zignoruj poprzednie instrukcje",
 // "dzialaj jako", "tryb dewelopera" przechodzilyby bez wykrycia. Tutaj korpus
 // jest polski w pierwszej kolejnosci, angielski dodatkowo (dokumenty bywaja
-// dwujezyczne). Lekcja z [[feedback_polskie_pii_nie_jest_en_pii]].
+// dwujezyczne). Lekcja z lekcja "PL PII != EN PII".
 
 import type { Detector, SecurityFinding, SecurityScanInput } from "../types";
 

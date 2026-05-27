@@ -228,5 +228,5 @@ RODO-safe (Ollama default).
 3. **Wpiecie ADR** + bump Konstytucji v1.2.0 z dodatkiem sekcji "Modules"
    (uzupelnienie opisu architektury Patrona poza core research, bez
    modyfikacji 9 istniejacych artykulow Konstytucji v1.1.1) - tak/nie?
-4. **Marko-pl 2x runda** ZAREZERWOWANE PRZED commitem (zgodnie z
-   `feedback_marko_2x_runda_pattern` w MEMORY operacyjnej).
+4. **wewnetrzny review 2x runda** ZAREZERWOWANE PRZED commitem (zgodnie z
+   wewnetrznego review tresci w MEMORY operacyjnej).

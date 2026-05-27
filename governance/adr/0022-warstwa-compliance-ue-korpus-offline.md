@@ -1,17 +1,17 @@
 # ADR-0022: Warstwa compliance UE - offline korpus EUR-Lex (verbatim FTS5) + narzedzia compliance (wzorzec z EU_compliance_MCP)
 
-> **Uwaga numeracja**: ostatni zajety ADR to 0021 (time-travel diff nowelizacji). Przed bumpem sprawdzono `ls governance/adr/` 2026-05-22 - 0022 wolne, brak rownoleglej rezerwacji, zgodnie z [[feedback_sesje_rownolegle_semver]]. Jezeli rownolegla sesja zajmie 0022, przenumerowac na pierwszy wolny.
+> **Uwaga numeracja**: ostatni zajety ADR to 0021 (time-travel diff nowelizacji). Przed bumpem sprawdzono `ls governance/adr/` 2026-05-22 - 0022 wolne, brak rownoleglej rezerwacji, zgodnie z regula sesji rownoleglych. Jezeli rownolegla sesja zajmie 0022, przenumerowac na pierwszy wolny.
 
-**Status**: ZAIMPLEMENTOWANY v0.1.0 (2026-05-22) - osobny konektor `mcp-eu-compliance` (repo ~/mcp-eu-compliance, MIT), 5 toolow, smoke test PASS. NIE wpiety w `mcp-servers.json` ani w kontrakt rozmowy (Art. 8 - to osobna decyzja/przyszly ADR). 2x runda marko-pl ([[feedback_marko_2x_runda_pattern]]) na ADR zaliczona (ok). Cztery pytania rozstrzygniete - patrz "Rozstrzygniecia". Bramka licencji ZWALIDOWANA 2026-05-22.
+**Status**: ZAIMPLEMENTOWANY v0.1.0 (2026-05-22) - osobny konektor `mcp-eu-compliance` (repo ~/mcp-eu-compliance, MIT), 5 toolow, smoke test PASS. NIE wpiety w `mcp-servers.json` ani w kontrakt rozmowy (Art. 8 - to osobna decyzja/przyszly ADR). 2x runda wewnetrznego review tresci na ADR zaliczona (ok). Cztery pytania rozstrzygniete - patrz "Rozstrzygniecia". Bramka licencji ZWALIDOWANA 2026-05-22.
 **Data**: 2026-05-22
 
-**Powiazane zasady** (Konstytucja Patrona, zweryfikowane grepem wzgledem `governance/CONSTITUTION.md` - [[feedback_grep_constitution_pre_cite]]):
+**Powiazane zasady** (Konstytucja Patrona, zweryfikowane grepem wzgledem `governance/CONSTITUTION.md` - weryfikacja grepem Konstytucji przed cytatem):
 - **Art. 1 - Lokalnosc danych** (RODO art. 25, AI Act art. 10) - korpus to offline SQLite na infrastrukturze kancelarii. Zero wywolan sieciowych w runtime, zero zaleznosci od hostowanego gateway dostawcy. To wzmacnia lokalnosc wzgledem konektora eu-sparql (ktory odpytuje Cellar na zywo).
 - **Art. 2 - Weryfikowalnosc zrodel** - GLOWNA zasada tego ADR. Snippety FTS5 sa **verbatim** z bazy (zero LLM w sciezce retrievalu), kazdy z identyfikatorem CELEX + URL do EUR-Lex. Prawnik klika i otwiera oryginal. Konstytucja wprost wymienia EUR-Lex jako konektor objety ta zasada.
 - **Art. 3 - Audytowalnosc** (AI Act art. 12, RODO art. 30) - wywolanie narzedzia compliance (compare/applicability/evidence) trafia do hash-chain audit logu (ADR-0001) jako zdarzenie typu `eu_compliance_query`; zasila audit bundle (ADR-0006).
 - **Art. 4 - Neutralnosc wobec dostawcow** - retrieval deterministyczny (FTS5 BM25), agnostyczny wobec LLM. Konektor jak kazdy inny: osobny proces, wymienialny/wylaczalny (Konstytucja Art. 4 wprost wymienia EUR-Lex).
 - **Art. 7 - Minimalnosc danych** (RODO art. 5 ust. 1 lit. c) - korpus to publiczne prawo UE, ZERO danych klienta. Snippety 64-token zamiast ladowania calego aktu (niektore art. = 70k tok).
-- **Art. 8 - Stalosc kontraktow** - ten ADR celowo NIE wpina narzedzi w `streamChatWithTools` ani UI. Skeleton: konektor + korpus + narzedzia MCP. Wpiecie w kontrakt rozmowy to osobna decyzja (przyszly ADR), zgodnie z [[feedback_adr_granica_skeleton_vs_produkcja]].
+- **Art. 8 - Stalosc kontraktow** - ten ADR celowo NIE wpina narzedzi w `streamChatWithTools` ani UI. Skeleton: konektor + korpus + narzedzia MCP. Wpiecie w kontrakt rozmowy to osobna decyzja (przyszly ADR), zgodnie z granica skeleton vs produkcja.
 - **Art. 9 - Dostepnosc wiedzy** - "ktora regulacja UE dotyczy sektora X", "porownaj obowiazki incydentowe DORA vs NIS2" to pytania dzis wymagajace recznego zestawiania PDF-ow z EUR-Lex. Warstwa compliance je udostepnia.
 
 **Powiazane ADR**:
@@ -22,7 +22,7 @@
 - ADR-0008 (entity extraction zero-LLM) - **respektowane**: ingest i retrieval bez modelu w sciezce.
 - ADR-0001 / ADR-0006 - zdarzenie i artefakt zgodnosci.
 
-**Inspiracja cherry-pick**: [Ansvar-Systems/EU_compliance_MCP](https://github.com/Ansvar-Systems/EU_compliance_MCP) (`Apache-2.0`, snapshot **2026-05-22**, 16 gwiazdek, TypeScript). **NIE forkujemy.** Bierzemy WZORZEC architektoniczny (offline korpus EUR-Lex -> SQLite FTS5 -> snippet verbatim -> MCP) oraz KONCEPTY narzedzi compliance (`compare`, `check_applicability`, `evidence`). Schematy danych (applicability/guide/evidence) jako szablon JSON. Implementacja od zera na stacku Patrona. Atrybucja w 3 miejscach (THIRD_PARTY_INSPIRATIONS.md + ten ADR + CHANGELOG przy commicie), zgodnie z [[feedback_format_cherry_pick_kanon]]. Pelny blueprint: [[eu-compliance-mcp-blueprint-2026-05-22]].
+**Inspiracja cherry-pick**: [Ansvar-Systems/EU_compliance_MCP](https://github.com/Ansvar-Systems/EU_compliance_MCP) (`Apache-2.0`, snapshot **2026-05-22**, 16 gwiazdek, TypeScript). **NIE forkujemy.** Bierzemy WZORZEC architektoniczny (offline korpus EUR-Lex -> SQLite FTS5 -> snippet verbatim -> MCP) oraz KONCEPTY narzedzi compliance (`compare`, `check_applicability`, `evidence`). Schematy danych (applicability/guide/evidence) jako szablon JSON. Implementacja od zera na stacku Patrona. Atrybucja w 3 miejscach (THIRD_PARTY_INSPIRATIONS.md + ten ADR + CHANGELOG przy commicie), zgodnie z kanon cherry-pick MateMatic. Pelny blueprint: blueprint eu-compliance MCP z 2026-05-22.
 
 ---
 

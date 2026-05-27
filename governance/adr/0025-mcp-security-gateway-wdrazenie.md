@@ -6,7 +6,7 @@
 
 **Data**: 2026-05-24
 
-**Powiazane zasady** (Konstytucja Patrona v1.2.1, zweryfikowane grepem - [[feedback_grep_constitution_pre_cite]]):
+**Powiazane zasady** (Konstytucja Patrona v1.2.1, zweryfikowane grepem - weryfikacja grepem Konstytucji przed cytatem):
 - **Art. 8 - Stalosc kontraktow** - GLOWNA zasada tego ADR. MCP Security Gateway dziala PRZED zaladowaniem konektora do kontraktu MCP (`mcp-servers.json` -> backend startup). Wzmacnia stalosc kontraktow nie zmieniajac ich, bo blokuje wpiecie konektora ktory zmienia kontrakt (typosquat istniejacej nazwy, drift opisu, zywione instrukcje).
 - **Art. 3 - Audytowalnosc** (AI Act art. 12) - kazda decyzja Gateway'a (allowed / audit / human_review / denied) trafia do audit log Patrona przez istniejacy hash-chain.
 - **Art. 6 - Granica bledu** (human in the loop) - decyzja `human_review` kieruje konektor do recznego zatwierdzenia Operatora kancelarii. Pelny `denied` zarezerwowany dla sygnalow jednoznacznych (typosquat dokladny, hidden-instruction critical).
@@ -142,7 +142,7 @@ Z [microsoft/agent-governance-toolkit](https://github.com/microsoft/agent-govern
 ### Bramki przed wpieciem (ADR-0028)
 - Testy PATRON musza zostac zielone (vitest run); baseline po wdrozeniu ADR-0025 = 389/394 pass
 - TSC clean (`npm run build`)
-- 2x runda marko-pl review ([[feedback_marko_2x_runda_pattern]])
+- 2x runda wewnetrznego review tresci
 - Wpis w `THIRD_PARTY_INSPIRATIONS.md` LIVE (zalatwione w tym ADR)
 
 ---

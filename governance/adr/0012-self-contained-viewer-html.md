@@ -139,4 +139,4 @@ Wpis do `THIRD_PARTY_INSPIRATIONS.md` przy commicie tego ADR - sekcja "isaacus-d
 2. **Czy embedduje JSON inline** (`window.__INLINE_DOC__`) - sam plik HTML zawiera dane, czy **dwa pliki** (`viewer.html` + `data.json` w jednym ZIP) dla mniejszego pliku HTML i mozliwosci podmiany danych bez regenerowania viewer?
 3. **Czy footer ma link "Powered by Patron / matematicsolutions"** (sprzedazowo TAK) czy white-label (kancelaria moze podstawic swoje logo)?
 4. **Kiedy w roadmapie**: razem z T6 ADR-0010 (od poczatku jako 4. format eksportu) czy jako Faza 8 dla dopracowania UX po pilocie ADR-0010?
-5. **Marko-pl 2x runda** ZAREZERWOWANE PRZED commitem.
+5. **wewnetrzny review 2x runda** ZAREZERWOWANE PRZED commitem.

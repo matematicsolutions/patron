@@ -156,7 +156,7 @@ Bez Merkle audytor musi czytac caly log od genesis. Z Merkle - 19 hashy.
 
 - TSC clean.
 - Test suite +30 testow (20 audit-merkle + 10 verifier-bundle), baseline 429/434 -> 459/464 pass.
-- 2x runda marko-pl na ADR i komentarze kodu.
+- 2x runda wewnetrznego review tresci na ADR i komentarze kodu.
 - Self-review 6 rules.
 
 ---

@@ -83,9 +83,9 @@ interface PrecedentEntry {
 
 **Bumpa Konstytucji**: NIE. Ten ADR realizuje istniejace zasady (Art. 1/3/5/6/7), nie zmienia ich tresci.
 
-## Marko-pl scope (przed merge)
+## Scope review (przed merge)
 
-ADR-0018 dostaje **2x runda Marko-pl** (regula [feedback_marko_2x_runda_pattern](../../../.claude/projects/C--Users-Wieslaw/memory/feedback_marko_2x_runda_pattern.md)). Zakres review:
+ADR-0018 dostaje **2x runda wewnetrznego review** (regula wewnetrzny review tresci). Zakres review:
 
 1. Czy izolacja per klient jest faktycznie twarda (namespace), a nie filtrem aplikacyjnym do obejscia?
 2. Czy "precedens sugeruje, nie decyduje" jest egzekwowane w przeplywie (Art. 6), czy tylko zadeklarowane?
