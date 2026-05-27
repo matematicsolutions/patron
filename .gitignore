@@ -20,3 +20,7 @@ next-env.d.ts
 .DS_Store
 .vercel
 coverage
+
+.claude/*.local.*
+.claude/settings.local.json
+.claude/security/
