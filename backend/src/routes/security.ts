@@ -16,6 +16,7 @@
 import { Router, type Request, type Response } from "express";
 import { requireAuth, requireAdmin } from "../middleware/auth";
 import { createServerSupabase } from "../lib/supabase";
+import { recordAdminAccess } from "../lib/audit-admin-access";
 
 export const securityRouter = Router();
 
@@ -114,7 +115,22 @@ securityRouter.get(
     "/mcp-status",
     requireAuth,
     requireAdmin,
-    async (_req: Request, res: Response): Promise<void> => {
+    async (req: Request, res: Response): Promise<void> => {
+        // ADR-0043: log admin access (meta-audit AI Act art. 12)
+        try {
+            const dbForLog = createServerSupabase();
+            void recordAdminAccess({
+                db: dbForLog,
+                event_type: "admin.access.security_banner",
+                actor_user_id: (res.locals.userId as string | null) ?? null,
+                actor_email: (res.locals.userEmail as string | null) ?? null,
+                method: req.method,
+                path: req.originalUrl,
+            });
+        } catch {
+            /* graceful per ADR-0043 */
+        }
+
         const mode = readGatewayMode();
         const emptyCounts: AuditCounts = { audit: 0, human_review: 0, denied: 0 };
 

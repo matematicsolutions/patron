@@ -60,6 +60,14 @@ export const EVENT_TYPES = [
     "ring_policy.decision",
     "rodo.delete",
     "rodo.export",
+    // ADR-0043: meta-audit dla AI Act art. 12 - dostep admin do endpointow
+    // chronionych RBAC (audit viewer, banner status, metrics scrape).
+    // Wymaga migracji 002 ALTER CHECK whitelist.
+    "admin.access.audit_viewer",
+    "admin.access.security_banner",
+    "admin.access.metrics",
+    // ADR-0038 rezerwacja: log rollbacku migracji (DOWN aplikacja).
+    "migrate.rollback",
 ] as const;
 
 /** Union literal lustrzany dla CHECK constraint w audit_log. */

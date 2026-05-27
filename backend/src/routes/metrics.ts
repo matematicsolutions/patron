@@ -11,6 +11,7 @@ import { Router, type Request, type Response } from "express";
 import { requireMetricsAllowed } from "../middleware/metrics-allow";
 import { createServerSupabase } from "../lib/supabase";
 import { renderPrometheus, type MetricsSnapshot } from "../lib/metrics-render";
+import { recordAdminAccess } from "../lib/audit-admin-access";
 
 export const metricsRouter = Router();
 
@@ -29,7 +30,23 @@ const VALID_EVENT_TYPES = [
 metricsRouter.get(
     "/",
     requireMetricsAllowed,
-    async (_req: Request, res: Response): Promise<void> => {
+    async (req: Request, res: Response): Promise<void> => {
+        // ADR-0043: log admin access (IP whitelist scrape do audit_log)
+        try {
+            const dbForLog = createServerSupabase();
+            void recordAdminAccess({
+                db: dbForLog,
+                event_type: "admin.access.metrics",
+                actor_user_id: null,
+                actor_email: null,
+                method: req.method,
+                path: req.originalUrl,
+                remote_ip: req.ip ?? req.socket?.remoteAddress,
+            });
+        } catch {
+            /* graceful per ADR-0043 */
+        }
+
         const uptime_seconds = Math.floor(
             (Date.now() - BACKEND_START_TIME) / 1000,
         );

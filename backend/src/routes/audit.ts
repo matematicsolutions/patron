@@ -24,6 +24,7 @@ import {
     parseAuditLogQuery,
     type AuditLogRow,
 } from "../lib/audit-log-query";
+import { recordAdminAccess } from "../lib/audit-admin-access";
 
 export const auditRouter = Router();
 
@@ -103,6 +104,22 @@ auditRouter.get(
     requireAuth,
     requireAdmin,
     async (req: Request, res: Response): Promise<void> => {
+        // ADR-0043: log admin access do audit_log (meta-audit AI Act art. 12)
+        try {
+            const db = createServerSupabase();
+            void recordAdminAccess({
+                db,
+                event_type: "admin.access.audit_viewer",
+                actor_user_id: (res.locals.userId as string | null) ?? null,
+                actor_email: (res.locals.userEmail as string | null) ?? null,
+                method: req.method,
+                path: req.originalUrl,
+                query: req.query as Record<string, unknown>,
+            });
+        } catch {
+            /* graceful per ADR-0043 - audit_log fail nie blokuje endpointu */
+        }
+
         const parsed = parseAuditLogQuery(req.query as Record<string, unknown>);
         if (!parsed.ok || !parsed.filter) {
             res.status(400).json({
