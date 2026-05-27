@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { ChatHistoryProvider } from "@/app/contexts/ChatHistoryContext";
 import { SidebarContext } from "@/app/contexts/SidebarContext";
 import { AppSidebar } from "@/app/components/shared/AppSidebar";
+import { McpSecurityBanner } from "@/components/mcp-security-banner";
 import { t } from "@/i18n";
 
 export default function MikeLayout({
@@ -103,6 +104,7 @@ export default function MikeLayout({
                                     <PanelLeft className="h-4 w-4" />
                                 </button>
                             </div>
+                            <McpSecurityBanner />
                             <main className="flex-1 overflow-y-auto md:overflow-hidden w-full h-full">
                                 {children}
                             </main>
