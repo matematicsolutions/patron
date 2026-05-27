@@ -1,6 +1,6 @@
 # Konstytucja AI Patrona
 
-Wersja: 1.2.3
+Wersja: 1.2.4
 Data: 2026-05-27
 Status: obowiązująca
 Wydawca: MateMatic / Wiesław Mazur
@@ -227,16 +227,21 @@ treść porad prawnych generowanych przez Patrona.
 
 ### 5.1. Co jest zapisywane
 
-| Zdarzenie | Pola w `audit_log` |
-|---|---|
-| `chat.message.user` | user_id, chat_id, content_len, file_count, workflow_id |
-| `chat.message.assistant` | chat_id, model, full_text_len, event_count, citation_count, mcp_citation_count, mcp_tools_called[] |
-| (planowane Faza 4.2) `doc.read` | document_id, user_id, version_id |
-| (planowane) `doc.export` | document_id, user_id, destination |
+Whitelist event_type egzekwowana przez CHECK constraint `audit_log_event_type_whitelist` (ADR-0035, migracja 001). Dodanie nowego event_type wymaga osobnej migracji + ADR.
+
+| Zdarzenie | Pola w `payload` jsonb | ADR |
+|---|---|---|
+| `chat.message.user` | user_id, chat_id, content_len, file_count, workflow_id | ADR-0001 |
+| `chat.message.assistant` | chat_id, model, full_text_len, event_count, citation_count, mcp_citation_count, mcp_tools_called[] | ADR-0001 |
+| `input_security_scan` | document_id, security_status, findings[category, technique, severity, confidence] | ADR-0019/0020 |
+| `mcp_security.gateway` | server_name, action, risk_score, findings_count, findings[detector, severity, message] | ADR-0033 |
+| `ring_policy.decision` | tool_name, server_name, ring, action, reason | ADR-0027 |
+| `rodo.delete` | actor_user_id (NULL po anonimizacji) | RODO art. 17 |
+| `rodo.export` | user_id, destination | RODO art. 20 |
 
 Pola w `payload` jsonb są celowo bez pełnej treści. Przechowujemy
 długości, liczniki, identyfikatory. Pełna treść jest w `chat_messages`
-(z kasowaniem na żądanie RODO art. 17).
+albo `documents` (z kasowaniem na żądanie RODO art. 17).
 
 ### 5.2. Hash-chain
 
@@ -270,6 +275,25 @@ kancelarii (chroni tajemnice zawodowa innych klientow).
 Manualny trigger compute w tej iteracji; automatyczny hook po N events +
 UI viewer dla audytora = rezerwacja ADR-0036; zewnetrzny znacznik czasu
 (RFC 3161 / OpenTimestamps) = rezerwacja ADR-0037.
+
+### 5.2.2. Whitelist event_type i infrastruktura migracji (ADR-0035, WDROZONY 2026-05-27)
+
+Kolumna `audit_log.event_type` ma CHECK constraint z whitelist 7 produkcyjnych
+wartosci (tabela 5.1). Lustrzane typowanie w TypeScript przez `EVENT_TYPES`
++ `EventType` union (`backend/src/lib/audit.ts`). Dwie warstwy obrony:
+TypeScript wylapuje blad dewelopera w compile time, CHECK constraint wylapuje
+blad runtime (raw SQL, mock supabase, atak SQL injection).
+
+Dodanie nowego event_type wymaga: (1) migracji `backend/migrations/NNN_*.sql`
+z ALTER CHECK, (2) ADR (jezeli nietrywialne semantycznie), (3) bump `EVENT_TYPES`
+w `lib/audit.ts`, (4) wpis w tabeli 5.1 tej Konstytucji.
+
+Infrastruktura migracji: governance-friendly runner `backend/scripts/run-migrations.ts`
+(komendy `plan`/`mark`/`status`). Operator kancelarii aplikuje DDL manualnie
+w Supabase SQL Editor / psql / pgAdmin, potem oznacza w rejestrze
+`schema_migrations`. Audytowalne (DDL widoczny w Supabase Audit Logs).
+Zero nowych zaleznosci npm. Down/rollback = rezerwacja ADR-0038. CI gate
+na drift schema.sql vs migrations = rezerwacja ADR-0039.
 
 ### 5.3. Retencja i usunięcie
 
@@ -324,6 +348,9 @@ Consequences: <co się zmienia>
 
 | Wersja | Data | Zmiana |
 |---|---|---|
+| 1.2.4 | 2026-05-27 | Sekcja 5.1 (Co jest zapisywane) rozszerzona o 5 event_type ktore weszly do produkcji w iteracjach 1.2.2-1.2.3 (input_security_scan, mcp_security.gateway, ring_policy.decision, rodo.delete, rodo.export). Nowa sekcja 5.2.2 (Whitelist event_type i infrastruktura migracji) - ADR-0035, CHECK constraint `audit_log_event_type_whitelist` z 7 produkcyjnymi wartosciami + governance-friendly runner migracji. PATCH (doprecyzowanie istniejacej zasady audytowalnosci, brak zmiany kontraktow API; zgodnie z § 6.1 wystarcza commit i changelog). |
+| 1.2.3 | 2026-05-27 | Nowa sekcja 5.2.1 (Merkle audit chain, ADR-0026, WDROZONY 2026-05-27). Drzewo Merkle nad hash-chain (ADR-0001) jako rownolegla warstwa weryfikacji - audytor dostaje proof-of-inclusion w O(log n) zamiast O(n). Drugi pattern z trojki cherry-pick Microsoft AGT (po ADR-0025 MCP Security Gateway i ADR-0027 Privilege Rings). PATCH (rozszerzenie zasady audytowalnosci bez zmiany kontraktow, korpus pozostalych zasad bez zmian). |
+| 1.2.2 | 2026-05-24 | Nowy Zalacznik C (OWASP Agentic Top 10 - mapping na Artykuly Konstytucji Patrona). Pokrycie 10/10 ryzyk ASI-01..ASI-10. Formalna deklaracja ze Patron jako produkt regulowany adresuje uznane branzowo ryzyka, nie tylko wlasne. PATCH (dodanie zalacznika referencyjnego, korpus zasad bez zmian). |
 | 1.2.1 | 2026-05-24 | Lista konektorów MCP w Art. 9 rozszerzona z 5 do 6 - dodany `mcp-eu-compliance` (offline korpus EUR-Lex: GDPR, AI Act, DORA, NIS2, eIDAS 2.0, CRA; MIT). Wpięcie w Patrona zdecydowane przez ADR-0022/0023 (2026-05-22). PATCH (doprecyzowanie listy referencyjnej, korpus zasady i model licencyjny bez zmian; zgodnie z § 6.1 wystarcza commit i changelog). |
 | 1.2.0 | 2026-05-22 | Art. 5 rozszerzony o mechanizm „kontrola wejścia" - skan dokumentów wejściowych pod kątem manipulacji modelu (prompt-injection / ukryte akcje PDF / zaciemnienie) przed wejściem do modelu lub RAG (ADR-0019, ADR-0020). MINOR (rozszerzenie zasady, brak łamania kontraktów). |
 | 1.1.1 | 2026-05-20 | Art. 4 przemianowany z „Vendor neutrality" na „Neutralność wobec dostawców", rola 4.5 z „Vendor" na „Dostawca". PATCH (doprecyzowanie terminologii PL, korpus zasady i wszystkie kontrakty bez zmian; zgodnie z § 6.1 wystarcza commit i changelog). |

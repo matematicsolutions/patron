@@ -85,7 +85,7 @@ export function toAuditPayload(result: SecurityScanResult): Record<string, unkno
     };
 }
 
-export const INPUT_SECURITY_AUDIT_EVENT = "input_security_scan";
+export const INPUT_SECURITY_AUDIT_EVENT = "input_security_scan" as const;
 
 /**
  * Twardy sygnal manipulacji - kwalifikuje do wstrzymania na sciezce read-time

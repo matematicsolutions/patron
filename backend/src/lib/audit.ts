@@ -15,17 +15,27 @@
 //     payload: { model, full_text_len: fullText.length, citation_count, mcp_count },
 //   });
 //
-// Konwencja nazewnictwa event_type w Patronie - uzywane oraz zarezerwowane.
-// Kolumna `event_type` w schemacie to wolny text bez CHECK constraint -
-// planowane wzmocnienie w rezerwowanym ADR-0035 (infrastruktura migracji).
+// Konwencja nazewnictwa event_type w Patronie (ADR-0035).
+// Kolumna `event_type` w schemacie ma CHECK constraint `audit_log_event_type_whitelist`
+// (migracja 001_audit_log_event_type_check.sql). Lista ponizej JEST lustrem tego
+// CHECK - kazda zmiana wymaga nowej migracji + ADR + bump tej staloj.
+//
 // Status "uzywane" znaczy: istnieje wywolanie appendAuditEvent z ta wartoscia
 // w produkcyjnym kodzie (poza testami).
 //
-//   - "chat.message.user"       UZYWANE - routes/chat.ts, routes/projectChat.ts
-//   - "chat.message.assistant"  UZYWANE - routes/chat.ts, routes/projectChat.ts
-//   - "mcp_security.gateway"    UZYWANE - lib/mcp/audit-bridge.ts (ADR-0033)
-//   - "chat.created"            REZERWACJA - obecnie tylko w audit.test.ts (sample)
-//   - "tool.call"               REZERWACJA - obecnie tylko w audit.test.ts (sample)
+// W CHECK constraint (whitelist 7 produkcyjnych):
+//   - "chat.message.user"        UZYWANE - routes/chat.ts, routes/projectChat.ts
+//   - "chat.message.assistant"   UZYWANE - routes/chat.ts, routes/projectChat.ts
+//   - "input_security_scan"      UZYWANE - routes/documents.ts via lib/input-security (ADR-0020)
+//   - "mcp_security.gateway"     UZYWANE - lib/mcp/audit-bridge.ts (ADR-0033)
+//   - "ring_policy.decision"     UZYWANE - lib/mcp/audit-bridge.ts (ADR-0027)
+//   - "rodo.delete"              UZYWANE - scripts/rodo-delete.ts (RODO art. 17)
+//   - "rodo.export"              UZYWANE - scripts/rodo-export.ts (RODO art. 20)
+//
+// NIE w CHECK (rezerwacje pod przyszle migracje):
+//   - "chat.created"             REZERWACJA - obecnie tylko w audit.test.ts (sample hash-chain)
+//   - "tool.call"                REZERWACJA - obecnie tylko w audit.test.ts (sample hash-chain)
+//   - "entities.extracted"       REZERWACJA - planowane w lib/graph/extractor.ts (komentarz)
 //
 // UWAGA: payload trafia do bazy w pelnej formie - nie wkladaj tam pelnych
 // tresci dokumentow ani osobowych danych klientow kancelarii. Domyslnie
@@ -36,9 +46,37 @@ import type { createServerSupabase } from "./supabase";
 
 export const GENESIS_HASH = "0".repeat(64);
 
+/**
+ * Whitelist event_type dla `appendAuditEvent` - lustro CHECK constraint
+ * `audit_log_event_type_whitelist` w bazie (ADR-0035, migracja 001).
+ * Dodanie nowej wartosci wymaga: (1) migracji ALTER CHECK, (2) ADR, (3)
+ * uzupelnienia komentarza konwencji powyzej.
+ */
+export const EVENT_TYPES = [
+    "chat.message.user",
+    "chat.message.assistant",
+    "input_security_scan",
+    "mcp_security.gateway",
+    "ring_policy.decision",
+    "rodo.delete",
+    "rodo.export",
+] as const;
+
+/** Union literal lustrzany dla CHECK constraint w audit_log. */
+export type EventType = (typeof EVENT_TYPES)[number];
+
+/**
+ * Runtime guard - zwraca `true` gdy wartosc nalezy do whitelist. Sluzy
+ * jako miekka bramka w punktach gdzie `event_type` przychodzi jako string
+ * (np. z external API albo z replay'a audit_log).
+ */
+export function isEventType(value: string): value is EventType {
+    return (EVENT_TYPES as ReadonlyArray<string>).includes(value);
+}
+
 export interface AuditEventInput {
-    /** Krotka nazwa zdarzenia, np. "chat.message.user", "tool.call.saos__search". */
-    event_type: string;
+    /** Krotka nazwa zdarzenia z whitelist (ADR-0035). Patrz `EVENT_TYPES`. */
+    event_type: EventType;
     /** UUID uzytkownika z auth.users (jesli zdarzenie pochodzi od czlowieka). */
     actor_user_id?: string | null;
     /** UUID czatu w kontekscie ktorego zaszlo zdarzenie. */

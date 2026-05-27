@@ -9,6 +9,31 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ### Added
 
+- **ADR-0035 - Infrastruktura migracji + CHECK constraint na audit_log.event_type**
+  (2026-05-27). Domyka dlug techniczny ADR-0001 (kolumna `event_type` byla
+  wolny text bez CHECK). Whitelist 7 produkcyjnych wartosci: `chat.message.user`,
+  `chat.message.assistant`, `input_security_scan` (ADR-0020), `mcp_security.gateway`
+  (ADR-0033), `ring_policy.decision` (ADR-0027), `rodo.delete`, `rodo.export`.
+  Dodawanie nowego event_type wymaga osobnej migracji + ADR. Dwie warstwy
+  obrony: TypeScript union literal `EventType` w `lib/audit.ts` (compile time)
+  + CHECK constraint `audit_log_event_type_whitelist` w bazie (runtime).
+  Nowa infrastruktura migracji: governance-friendly runner
+  `backend/scripts/run-migrations.ts` (komendy `plan`/`mark`/`status`) +
+  helper pure functions `backend/src/lib/migrations.ts` (parseFilename / sort
+  leksykalny / sha256 checksum / dedup po id / selectPending). Operator
+  kancelarii aplikuje DDL manualnie w Supabase SQL Editor / psql / pgAdmin,
+  potem `npm run migrate:mark NNN` oznacza w rejestrze `public.schema_migrations`
+  (id, name, applied_at, checksum). Audytowalne (DDL w Supabase Audit Logs),
+  zero nowych zaleznosci npm (Konstytucja Art. 4). Pierwsza migracja
+  `backend/migrations/001_audit_log_event_type_check.sql` (idempotent przez
+  `pg_constraint` lookup). Nowe skrypty `migrate`, `migrate:mark`,
+  `migrate:status` w `package.json`. Konstytucja Patrona v1.2.3 -> v1.2.4
+  PATCH (rozszerzenie sekcji 5.1 o 5 event_type, nowa sekcja 5.2.2 o whitelist
+  + infrastrukturze migracji + uzupelnienie brakujacych wpisow changelog 1.2.2
+  i 1.2.3 z poprzednich iteracji). +23 testy w `migrations.test.ts` (pure
+  functions, zero mockow). 482/487 testow pass (+23 nowych vs baseline 459/464),
+  TSC clean. Rezerwacje: ADR-0038 (down/rollback migracji), ADR-0039 (CI gate
+  na drift schema.sql vs migrations).
 - **ADR-0026 - Merkle audit chain upgrade nad hash-chainem** (2026-05-27).
   Implementacja drugiego patternu z ADR-0024 (cherry-pick Microsoft AGT) -
   pattern 1 (MCP Security Gateway) zrobiony w ADR-0025/0028, pattern 3

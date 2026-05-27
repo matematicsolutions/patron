@@ -1,7 +1,8 @@
--- Mike Supabase schema
--- Based on supabase-migration.sql plus the later backend/migrations/*.sql files.
--- Use this for a fresh Supabase database. Existing deployments should continue
--- to apply the incremental migration files instead.
+-- Patron Supabase schema (fresh setup).
+-- ADR-0035: schema.sql odzwierciedla stan po aplikacji wszystkich migracji
+-- z `backend/migrations/`. Fresh deployment uruchamia ten plik raz; existing
+-- deployment aplikuje przyrostowe migracje przez `npm run migrate`
+-- (governance-friendly runner z manualna aplikacja DDL przez Operatora).
 
 create extension if not exists "pgcrypto";
 
@@ -405,7 +406,19 @@ create table if not exists public.audit_log (
   prev_hash    text not null,
   hash         text not null unique,
   constraint audit_log_hash_format check (hash ~ '^[0-9a-f]{64}$'),
-  constraint audit_log_prev_hash_format check (prev_hash ~ '^[0-9a-f]{64}$')
+  constraint audit_log_prev_hash_format check (prev_hash ~ '^[0-9a-f]{64}$'),
+  -- ADR-0035: whitelist event_type. Dodawanie nowego event_type wymaga
+  -- osobnej migracji + ADR. Lista odzwierciedla migracje
+  -- backend/migrations/001_audit_log_event_type_check.sql.
+  constraint audit_log_event_type_whitelist check (event_type in (
+    'chat.message.user',
+    'chat.message.assistant',
+    'input_security_scan',
+    'mcp_security.gateway',
+    'ring_policy.decision',
+    'rodo.delete',
+    'rodo.export'
+  ))
 );
 
 create index if not exists idx_audit_log_chat
@@ -451,3 +464,28 @@ create index if not exists idx_audit_merkle_roots_computed_at
 -- backend (fetchProofForEvent), nie ma bezposredniego dostepu do tabeli.
 alter table public.audit_merkle_roots enable row level security;
 revoke all on public.audit_merkle_roots from anon, authenticated;
+
+-- ---------------------------------------------------------------------------
+-- Schema migrations registry (ADR-0035)
+-- ---------------------------------------------------------------------------
+-- Rejestr migracji zaaplikowanych przez `npm run migrate:mark`. Operator
+-- kancelarii aplikuje DDL manualnie (Supabase SQL Editor / psql / pgAdmin),
+-- potem oznacza w rejestrze. Checksum SHA-256 pliku migracji chroni przed
+-- silent modyfikacja juz oznaczonej migracji - `npm run migrate:status`
+-- pokaze DRIFT.
+--
+-- Fresh deployment z tego schema.sql dostaje tabele od razu. Existing
+-- deployments (pre-ADR-0035) musza wykonac powyzszy CREATE jednorazowo
+-- z bootstrap SQL z ADR-0035.
+
+create table if not exists public.schema_migrations (
+  id           text primary key,
+  name         text not null,
+  applied_at   timestamptz not null default now(),
+  checksum     text not null,
+  constraint schema_migrations_id_format check (id ~ '^\d{3}$'),
+  constraint schema_migrations_checksum_format check (checksum ~ '^[0-9a-f]{64}$')
+);
+
+alter table public.schema_migrations enable row level security;
+revoke all on public.schema_migrations from anon, authenticated;

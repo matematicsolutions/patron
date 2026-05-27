@@ -16,8 +16,8 @@ import { createServerSupabase } from "../supabase";
 import type { McpAction, McpFinding } from "../mcp-security";
 import type { RingDecision } from "./ring-policy";
 
-export const MCP_SECURITY_EVENT_TYPE = "mcp_security.gateway";
-export const RING_POLICY_EVENT_TYPE = "ring_policy.decision";
+export const MCP_SECURITY_EVENT_TYPE = "mcp_security.gateway" as const;
+export const RING_POLICY_EVENT_TYPE = "ring_policy.decision" as const;
 
 export interface RecordMcpSecurityEventArgs {
     serverName: string;
