@@ -10,6 +10,7 @@ import { X, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { MerkleVerifyButton } from "@/components/merkle-verify-button";
+import { AuditExportButton } from "@/components/audit-export-button";
 import type { AuditLogResponseEvent } from "@/hooks/useAuditLog";
 
 export interface AuditEventDetailProps {
@@ -129,6 +130,18 @@ export function AuditEventDetail({ event, onClose }: AuditEventDetailProps) {
                         Weryfikacja Merkle proof (ADR-0026, ADR-0036)
                     </h3>
                     <MerkleVerifyButton eventId={event.id} />
+                </section>
+
+                <section>
+                    <h3 className="mb-2 text-sm font-semibold text-gray-700">
+                        Eksport audit pack (ADR-0047)
+                    </h3>
+                    <p className="mb-2 text-xs text-gray-600">
+                        Samowystarczalny pakiet JSON dla audytora: event z zamaskowanym
+                        payloadem, Merkle proof bundle i SHA-256 integrity. Weryfikacja
+                        offline przez <code>npm run audit:verify-pack -- &lt;plik.json&gt;</code>.
+                    </p>
+                    <AuditExportButton eventId={event.id} />
                 </section>
             </div>
         </div>

@@ -25,6 +25,11 @@ import {
     type AuditLogRow,
 } from "../lib/audit-log-query";
 import { recordAdminAccess } from "../lib/audit-admin-access";
+import {
+    buildAuditPack,
+    buildAuditPackFilename,
+    type AuditPackEvent,
+} from "../lib/audit-pack";
 
 export const auditRouter = Router();
 
@@ -180,5 +185,135 @@ auditRouter.get(
                 detail: err instanceof Error ? err.message : "unknown",
             });
         }
+    },
+);
+
+/**
+ * GET /api/audit/export/:eventId
+ *
+ * Eksport samowystarczalnego audit pack JSON dla audytora zewnetrznego
+ * (UODO, rewident kancelarii, biegly w postepowaniu). Pack zawiera:
+ *   - event z audit_log (payload zamaskowany server-side per ADR-0040)
+ *   - Merkle proof bundle (ADR-0026, ADR-0036) - audytor weryfikuje offline
+ *   - SHA-256 integrity manifestu - wykrywa modyfikacje pliku po wyniesieniu
+ *
+ * Patrz ADR-0047. CLI weryfikator: `npx tsx scripts/verify-audit-pack.ts`.
+ *
+ * Loguje admin.access.audit_export do audit_log (ADR-0043 meta-audit).
+ *
+ * Status codes:
+ *   200 - audit pack JSON, Content-Disposition: attachment z filename
+ *   400 - eventId nie jest liczba calkowita > 0
+ *   401 - brak/niepoprawny JWT
+ *   403 - non-admin
+ *   404 - event nie istnieje LUB brak Merkle root pokrywajacego event
+ *         (audytor musi poczekac na auto-trigger ADR-0036 lub manualny
+ *         compute root przez admina kancelarii)
+ *   500 - blad DB
+ */
+auditRouter.get(
+    "/export/:eventId",
+    requireAuth,
+    requireAdmin,
+    async (req: Request, res: Response): Promise<void> => {
+        const eventIdRaw = req.params.eventId;
+        const eventId = Number.parseInt(eventIdRaw, 10);
+        if (!Number.isFinite(eventId) || eventId <= 0 || `${eventId}` !== eventIdRaw) {
+            res.status(400).json({
+                error: "invalid_event_id",
+                detail: "eventId musi byc liczba calkowita > 0",
+            });
+            return;
+        }
+
+        let db: ReturnType<typeof createServerSupabase>;
+        try {
+            db = createServerSupabase();
+        } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            res.status(500).json({ error: "supabase_unavailable", detail: msg });
+            return;
+        }
+
+        // ADR-0043: log dostepu admin (graceful, NIE blokuje eksportu)
+        void recordAdminAccess({
+            db,
+            event_type: "admin.access.audit_export",
+            actor_user_id: (res.locals.userId as string | null) ?? null,
+            actor_email: (res.locals.userEmail as string | null) ?? null,
+            method: req.method,
+            path: req.originalUrl,
+            query: { eventId: String(eventId) },
+        });
+
+        // 1. Pobierz event z audit_log (pelny rzad, do zbudowania AuditPackEvent)
+        let eventRow: AuditLogRow;
+        try {
+            const evRes = await db
+                .from("audit_log")
+                .select(
+                    "id, event_type, actor_user_id, chat_id, document_id, ts, hash, prev_hash, payload",
+                )
+                .eq("id", eventId)
+                .single();
+            if (evRes.error || !evRes.data) {
+                res.status(404).json({
+                    error: "not_found",
+                    detail: `event ${eventId} nie istnieje`,
+                });
+                return;
+            }
+            eventRow = evRes.data as AuditLogRow;
+        } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            res.status(500).json({ error: "fetch_failed", detail: msg });
+            return;
+        }
+
+        // 2. Pobierz Merkle proof bundle (per ADR-0036)
+        const proofResult = await fetchProofForEvent(db, eventId);
+        if (!proofResult.ok || !proofResult.bundle) {
+            const error = proofResult.error ?? "unknown_error";
+            if (error.includes("nie istnieje") || error.includes("brak Merkle root")) {
+                res.status(404).json({ error: "not_found", detail: error });
+                return;
+            }
+            res.status(500).json({ error: "fetch_failed", detail: error });
+            return;
+        }
+
+        // 3. Zbuduj AuditPackEvent (payload zamaskowany server-side)
+        const packEvent: AuditPackEvent = {
+            id: eventRow.id,
+            event_type: eventRow.event_type,
+            ts: eventRow.ts,
+            actor_user_id: eventRow.actor_user_id,
+            chat_id: eventRow.chat_id,
+            document_id: eventRow.document_id,
+            hash: eventRow.hash,
+            prev_hash: eventRow.prev_hash,
+            payload_masked: maskPayload(eventRow.payload),
+        };
+
+        // 4. Sklej pack z integrity SHA256
+        const exportedAt = new Date().toISOString();
+        const pack = buildAuditPack({
+            exporter: {
+                user_id: (res.locals.userId as string | null) ?? null,
+                email: (res.locals.userEmail as string | null) ?? null,
+            },
+            event: packEvent,
+            bundle: proofResult.bundle,
+            exportedAt,
+        });
+
+        // 5. Zwroc jako downloadable JSON
+        const filename = buildAuditPackFilename(eventId, exportedAt);
+        res.setHeader("Content-Type", "application/json; charset=utf-8");
+        res.setHeader(
+            "Content-Disposition",
+            `attachment; filename="${filename}"`,
+        );
+        res.status(200).send(JSON.stringify(pack, null, 2));
     },
 );

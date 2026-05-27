@@ -9,6 +9,47 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ### Added
 
+- **ADR-0047 - Eksport audit pack JSON** (2026-05-27). Realizacja rezerwacji
+  z ADR-0046 (sekcja "Co NIE jest w ADR-0046"). Nowy endpoint
+  `GET /api/audit/export/:eventId` (requireAuth + requireAdmin per ADR-0034)
+  zwraca samowystarczalny pakiet JSON dla audytora zewnetrznego (UODO,
+  rewident kancelarii, biegly w postepowaniu). Pack zawiera: event z
+  `audit_log` (payload zamaskowany server-side przez `maskPayload` z
+  ADR-0040 faza 1), Merkle proof bundle (reuse `fetchProofForEvent` z
+  ADR-0036), SHA-256 integrity manifestu nad kanoniczna serializacja JSON z
+  deterministycznym alfabetycznym porzadkiem kluczy. Pure helper
+  `backend/src/lib/audit-pack.ts` z 5 funkcjami eksportowanymi
+  (`buildAuditPack`, `canonicalJsonStringify`, `canonicalSha256`,
+  `verifyAuditPackIntegrity`, `buildAuditPackFilename`) - wszystkie pure,
+  testowalne bez mockow. 24 testy w `audit-pack.test.ts`
+  (canonicalJson 6, canonicalSha256 4, buildAuditPack 3,
+  verifyAuditPackIntegrity 8, buildAuditPackFilename 3). Skrypt CLI
+  `backend/scripts/verify-audit-pack.ts` dwustopniowy
+  (`npm run audit:verify-pack -- <plik.json>`) - integrity SHA-256 wykrywa
+  modyfikacje pliku po wyniesieniu, Merkle proof bundle wykrywa modyfikacje
+  eventu w bazie kancelarii. Audytor weryfikuje offline bez polaczenia z baza
+  ani internetem. Frontend `<AuditExportButton />` (nowy komponent
+  `frontend/src/components/audit-export-button.tsx`) wpiety w
+  `<AuditEventDetail />` jako sekcja "Eksport audit pack (ADR-0047)". Native
+  `fetch` + `Blob` + `URL.createObjectURL` + `<a download>`, parse filename
+  z `Content-Disposition` header. Migracja 003 ALTER CHECK whitelist
+  `event_type` w `audit_log` (dodanie `admin.access.audit_export`, format
+  UP/DOWN per ADR-0038, idempotent `pg_constraint` check). Lustrzane wpisy
+  w `EVENT_TYPES` (`lib/audit.ts`) + `AdminAccessEventType`
+  (`lib/audit-admin-access.ts`) + `schema.sql`. Logowanie
+  `admin.access.audit_export` przez `recordAdminAccess` per ADR-0043
+  (graceful, nie blokuje endpointu). Zero nowych zaleznosci npm
+  (Konstytucja Art. 4) - backend uzywa `node:crypto` wbudowany Node 20+,
+  frontend native browser API. 630 vitest pass / 5 todo / 0 fail
+  (+24 nowe w `audit-pack.test.ts`, z 606 przed ADR). TSC clean backend +
+  frontend. PDF jako audit raport ludzki i bulk export ZIP = rezerwacja
+  ADR-0048; podpis kryptograficzny Ed25519 + RFC 3161 timestamping =
+  rezerwacja ADR-0049. Konstytucja Patrona v1.3.0 -> v1.3.1 PATCH
+  (rozszerzenie istniejacej funkcjonalnosci UI viewera audytora o eksport,
+  nie zmienia kontraktu rol - audytor mial juz pelny wglad przez UI z
+  ADR-0046; nowy endpoint REST oraz nowy `event_type` w whitelist
+  meta-audit).
+
 - **ADR-0038 - Down/rollback dla infrastruktury migracji** (2026-05-27).
   Realizacja rezerwacji z ADR-0035 ("down/rollback migracji = ADR-0038
   proponowany"). Format `-- UP` / `-- DOWN` sekcji w jednym pliku migracji

@@ -410,7 +410,8 @@ create table if not exists public.audit_log (
   -- ADR-0035: whitelist event_type. Dodawanie nowego event_type wymaga
   -- osobnej migracji + ADR. Lista odzwierciedla migracje
   -- backend/migrations/001_audit_log_event_type_check.sql (7 wartosci)
-  -- + 002_audit_log_admin_access_event_types.sql (ADR-0043, +4 wartosci).
+  -- + 002_audit_log_admin_access_event_types.sql (ADR-0043, +4 wartosci)
+  -- + 003_audit_log_event_type_export.sql (ADR-0047, +1 wartosc).
   constraint audit_log_event_type_whitelist check (event_type in (
     'chat.message.user',
     'chat.message.assistant',
@@ -420,6 +421,7 @@ create table if not exists public.audit_log (
     'rodo.delete',
     'rodo.export',
     'admin.access.audit_viewer',
+    'admin.access.audit_export',
     'admin.access.security_banner',
     'admin.access.metrics',
     'migrate.rollback'
