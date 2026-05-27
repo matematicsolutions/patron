@@ -13,6 +13,7 @@ import { userRouter } from "./routes/user";
 import { downloadsRouter } from "./routes/downloads";
 import { auditRouter } from "./routes/audit";
 import { securityRouter } from "./routes/security";
+import { metricsRouter } from "./routes/metrics";
 import { createServerSupabase } from "./lib/supabase";
 import { runAutoCompute } from "./lib/audit-merkle-roots";
 import {
@@ -157,6 +158,7 @@ app.use("/users", userRouter);
 app.use("/download", downloadsRouter);
 app.use("/api/audit", auditRouter);
 app.use("/api/security", securityRouter);
+app.use("/metrics", metricsRouter);
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
 

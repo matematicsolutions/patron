@@ -556,6 +556,31 @@ prawa - to wartosc, nie wstyd.
 
 **Atrybucja w kodzie**: naglowek w kazdym pliku Patrona dotyczacym tej warstwy + ADR-0031 + dokumentacja `matematic-konstytucja-ai` Appendix G + ten plik.
 
+## ai-infra-curriculum/ai-infra-engineer-learning (MIT)
+
+**Repo**: [ai-infra-curriculum/ai-infra-engineer-learning](https://github.com/ai-infra-curriculum/ai-infra-engineer-learning) (snapshot 2026-05-27, 423 star, ~7 mies aktywne, Python).
+**Licencja**: MIT, Copyright 2024 AI Infrastructure Learning - kompatybilna z AGPL-3.0-only shell Patrona.
+**Co**: 10-modulowe curriculum AI Infrastructure Engineer (foundations / cloud / containers / k8s / data pipelines / mlops / GPU / monitoring observability / IaC / LLM infrastructure) + 3 projekty production-ready + 62 labs + 265 quizow.
+
+**Cherry-pick w ADR-0037 (mod-108 Monitoring and Observability)**: pattern Prometheus metrics endpoint + Grafana dashboard JSON dla AI/ML system observability. NIE kod, NIE dependency npm - pattern (czyli "co eksponowac jako metryki, w jakim formacie, jak dashboardowac") adaptowany do specyfiki Patrona (audit chain monitoring zamiast LLM inference monitoring; zero-cloud single-tenant zamiast cloud-native multi-tenant).
+
+**Konkretnie wykorzystane patterny**:
+- Endpoint `/metrics` w Prometheus exposition format (text/plain, publiczny protokol).
+- Counter + gauge metrics z labelami (event_type, action).
+- Dashboard JSON: timeseries (rate), stat (current count), gauge (threshold colors), uptime.
+- Brak push gateway - scrape-based (zgodne z Konstytucja Art. 1 lokalnosc).
+
+**Czego NIE wzielismy**:
+- prom-client npm dependency (Patron renderuje exposition format natywnie, ~80 linii kodu w `lib/metrics-render.ts`).
+- Cloud-native framing (FAANG/Netflix/OpenAI use cases nie pasuja do kancelarii self-host).
+- OpenTelemetry collector stack (overengineered dla single-instance Patrona).
+
+**Atrybucja w kodzie**: naglowek w `backend/src/routes/metrics.ts` + ADR-0037 + ten plik.
+
+**Watch list dla przyszlych iteracji**:
+- Module 110 (RAG / vLLM / Vector DB patterns) jako inspiracja `matematic-stack-zero-cloud` blueprint (Bielik / PLLuM lokalnie + Vector DB).
+- 10-modulowa struktura jako wzorzec dydaktyczny dla `matematic-konstytucja-ai` workshop syllabus (NIE copy, inspiracja).
+
 ## ICME-Lab/jolt-atlas (Other license)
 
 **Repo**: [ICME-Lab/jolt-atlas](https://github.com/ICME-Lab/jolt-atlas) (snapshot 2026-05-24, push 2026-05-18, 64 star, Rust)

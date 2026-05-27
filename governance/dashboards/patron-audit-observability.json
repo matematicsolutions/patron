@@ -1,0 +1,146 @@
+{
+  "annotations": { "list": [] },
+  "description": "PATRON audit chain observability dashboard - hash chain, Merkle anchors, MCP Security Gateway decisions. ADR-0037 cherry-pick z mod-108. Import w Grafana - kancelaria adaptuje datasource UID do swojej instancji Prometheus.",
+  "editable": true,
+  "graphTooltip": 1,
+  "id": null,
+  "schemaVersion": 38,
+  "tags": ["patron", "matematic", "audit", "compliance"],
+  "time": { "from": "now-24h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "PATRON Audit Observability",
+  "uid": "patron-audit-observability",
+  "version": 1,
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "Audit log activity (events/sec by type)",
+      "gridPos": { "x": 0, "y": 0, "w": 24, "h": 8 },
+      "targets": [
+        {
+          "expr": "rate(patron_audit_log_total[5m])",
+          "legendFormat": "{{event_type}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "ops" }
+      },
+      "options": {
+        "legend": { "showLegend": true, "displayMode": "table", "placement": "right" },
+        "tooltip": { "mode": "multi", "sort": "none" }
+      },
+      "description": "Tempo logowania eventow do audit_log per event_type. Sygnal aktywnosci uzytkownikow i decyzji security gateway."
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Merkle anchors total",
+      "gridPos": { "x": 0, "y": 8, "w": 8, "h": 6 },
+      "targets": [
+        {
+          "expr": "patron_merkle_root_count",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "green", "value": 10 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+      },
+      "description": "Liczba kotwic Merkle w audit_merkle_roots. Rosnie z hybrid auto-trigger ADR-0036 (>=1000 events lub >=24h)."
+    },
+    {
+      "id": 3,
+      "type": "gauge",
+      "title": "Time since last Merkle anchor",
+      "gridPos": { "x": 8, "y": 8, "w": 8, "h": 6 },
+      "targets": [
+        {
+          "expr": "patron_merkle_last_anchor_seconds",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "max": 172800,
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 86400 },
+              { "color": "red", "value": 90000 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true,
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+      },
+      "description": "Czas od ostatniego anchor. Threshold 86400s (24h) = expected interval z ADR-0036. >90000s = mozliwa awaria schedulera."
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Backend uptime",
+      "gridPos": { "x": 16, "y": 8, "w": 8, "h": 6 },
+      "targets": [
+        {
+          "expr": "patron_uptime_seconds",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "s" }
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+      },
+      "description": "Czas dzialania procesu backend. Resety = restart kontenera (np. po zmianie env)."
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "MCP Security Gateway decisions (rate/5m)",
+      "gridPos": { "x": 0, "y": 14, "w": 24, "h": 8 },
+      "targets": [
+        {
+          "expr": "rate(patron_mcp_security_decisions_total[5m])",
+          "legendFormat": "{{action}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": { "unit": "ops" }
+      },
+      "options": {
+        "legend": { "showLegend": true, "displayMode": "table", "placement": "right" },
+        "tooltip": { "mode": "multi", "sort": "none" }
+      },
+      "description": "Decyzje MCP Security Gateway w czasie per akcja. audit = logged-but-allowed, human_review = wymagana inspekcja operatora, denied = zablokowane."
+    }
+  ]
+}
