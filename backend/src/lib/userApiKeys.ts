@@ -135,6 +135,9 @@ export async function getUserApiKeys(
         claude: envApiKey("claude"),
         gemini: envApiKey("gemini"),
         openai: envApiKey("openai"),
+        // OpenRouter (ADR-0059): klucz tylko z env w v1 (per-user w DB =
+        // rezerwacja, wymaga rozszerzenia enuma provider w schemacie).
+        openrouter: process.env.OPENROUTER_API_KEY?.trim() || null,
     };
 
     const { data, error } = await db

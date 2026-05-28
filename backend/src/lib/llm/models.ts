@@ -42,7 +42,26 @@ const ALL_MODELS = new Set<string>([
 // Provider inference
 // ---------------------------------------------------------------------------
 
+// OpenRouter (ADR-0059): modele oznaczane prefiksem "openrouter/", po ktorym
+// nastepuje natywny id OpenRoutera "vendor/model" (np.
+// "openrouter/anthropic/claude-3.7-sonnet", "openrouter/speakleash/bielik-11b").
+// Jeden klucz OPENROUTER_API_KEY -> wszystkie modele. Prefiks jednoznacznie
+// odroznia je od kanonicznych modeli natywnych (te nie maja "/").
+export const OPENROUTER_PREFIX = "openrouter/";
+
+export function isOpenRouterModel(model: string): boolean {
+    return model.startsWith(OPENROUTER_PREFIX);
+}
+
+/** Zdejmuje prefiks "openrouter/" -> natywny id OpenRoutera "vendor/model". */
+export function openRouterModelId(model: string): string {
+    return model.startsWith(OPENROUTER_PREFIX)
+        ? model.slice(OPENROUTER_PREFIX.length)
+        : model;
+}
+
 export function providerForModel(model: string): Provider {
+    if (isOpenRouterModel(model)) return "openrouter";
     if (model.startsWith("claude")) return "claude";
     if (model.startsWith("gemini")) return "gemini";
     if (model.startsWith("gpt-")) return "openai";
@@ -50,6 +69,6 @@ export function providerForModel(model: string): Provider {
 }
 
 export function resolveModel(id: string | null | undefined, fallback: string): string {
-    if (id && ALL_MODELS.has(id)) return id;
+    if (id && (ALL_MODELS.has(id) || isOpenRouterModel(id))) return id;
     return fallback;
 }
