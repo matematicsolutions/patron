@@ -1,12 +1,16 @@
 /**
- * Cloudflare R2 storage utilities for Mike document management.
- * R2 is S3-compatible — uses @aws-sdk/client-s3.
+ * Storage dokumentow PATRON. Dwa backendy (PATRON_STORAGE):
  *
- * Required env vars:
- *   R2_ENDPOINT_URL     — https://<account-id>.r2.cloudflarestorage.com
- *   R2_ACCESS_KEY_ID    — R2 API token (Access Key ID)
- *   R2_SECRET_ACCESS_KEY — R2 API token (Secret Access Key)
- *   R2_BUCKET_NAME      — bucket name (default: "mike")
+ *   "fs" (default desktop) — lokalny filesystem pod %APPDATA%/PATRON/sprawy/
+ *      (lub PATRON_STORAGE_DIR). Zero chmury, RODO-safe single-user.
+ *      getSignedUrl zwraca wewnetrzny link /download/<HMAC-token> (downloadTokens).
+ *
+ *   "r2" (multi-tenant SaaS) — Cloudflare R2 (S3-compatible, @aws-sdk/client-s3).
+ *      Env: R2_ENDPOINT_URL, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY,
+ *      R2_BUCKET_NAME (default "patron").
+ *
+ * Domyslnie "fs", chyba ze skonfigurowano R2 albo PATRON_STORAGE wymusza tryb.
+ * Sygnatury eksportow sa stabilne - 30 call-site nie wie ktory backend dziala.
  */
 
 import {
@@ -16,6 +20,25 @@ import {
   DeleteObjectCommand,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl as awsGetSignedUrl } from "@aws-sdk/s3-request-presigner";
+import fs from "fs";
+import os from "os";
+import path from "path";
+import { buildDownloadUrl } from "./downloadTokens";
+
+const r2Configured = Boolean(
+  process.env.R2_ENDPOINT_URL &&
+    process.env.R2_ACCESS_KEY_ID &&
+    process.env.R2_SECRET_ACCESS_KEY,
+);
+
+const STORAGE_MODE = (
+  process.env.PATRON_STORAGE || (r2Configured ? "r2" : "fs")
+).toLowerCase();
+
+const BUCKET = process.env.R2_BUCKET_NAME ?? "patron";
+
+// Tryb fs jest zawsze "wlaczony" (FS lokalny dostepny); tryb r2 wymaga env.
+export const storageEnabled = STORAGE_MODE === "fs" ? true : r2Configured;
 
 let cachedClient: S3Client | undefined;
 
@@ -34,20 +57,30 @@ function getClient(): S3Client {
   return cachedClient;
 }
 
-const BUCKET = process.env.R2_BUCKET_NAME ?? "mike";
+// ---------------------------------------------------------------------------
+// FS backend helpers
+// ---------------------------------------------------------------------------
 
-export const storageEnabled = Boolean(
-  process.env.R2_ENDPOINT_URL &&
-  process.env.R2_ACCESS_KEY_ID &&
-  process.env.R2_SECRET_ACCESS_KEY,
-);
+function fsRoot(): string {
+  if (process.env.PATRON_STORAGE_DIR) return process.env.PATRON_STORAGE_DIR;
+  const base =
+    process.platform === "win32"
+      ? process.env.APPDATA || path.join(os.homedir(), "AppData", "Roaming")
+      : path.join(os.homedir(), ".patron");
+  return path.join(base, "PATRON", "sprawy");
+}
 
-function requireStorageConfig(): void {
-  if (!storageEnabled) {
-    throw new Error(
-      "R2_ENDPOINT_URL, R2_ACCESS_KEY_ID, and R2_SECRET_ACCESS_KEY must be set",
-    );
+/**
+ * Mapuje klucz storage (np. "documents/<u>/<d>/source.pdf") na bezpieczna
+ * sciezke pod fsRoot. Chroni przed path traversal (klucz spoza roota -> blad).
+ */
+function fsPathForKey(key: string): string {
+  const root = path.resolve(fsRoot());
+  const full = path.resolve(root, key);
+  if (full !== root && !full.startsWith(root + path.sep)) {
+    throw new Error(`[storage] niedozwolony klucz (path traversal): ${key}`);
   }
+  return full;
 }
 
 // ---------------------------------------------------------------------------
@@ -59,7 +92,17 @@ export async function uploadFile(
   content: ArrayBuffer,
   contentType: string,
 ): Promise<void> {
-  requireStorageConfig();
+  if (STORAGE_MODE === "fs") {
+    const full = fsPathForKey(key);
+    await fs.promises.mkdir(path.dirname(full), { recursive: true });
+    await fs.promises.writeFile(full, Buffer.from(content));
+    return;
+  }
+  if (!r2Configured) {
+    throw new Error(
+      "R2_ENDPOINT_URL, R2_ACCESS_KEY_ID, and R2_SECRET_ACCESS_KEY must be set",
+    );
+  }
   const client = getClient();
   await client.send(
     new PutObjectCommand({
@@ -76,7 +119,18 @@ export async function uploadFile(
 // ---------------------------------------------------------------------------
 
 export async function downloadFile(key: string): Promise<ArrayBuffer | null> {
-  if (!storageEnabled) return null;
+  if (STORAGE_MODE === "fs") {
+    try {
+      const buf = await fs.promises.readFile(fsPathForKey(key));
+      return buf.buffer.slice(
+        buf.byteOffset,
+        buf.byteOffset + buf.byteLength,
+      ) as ArrayBuffer;
+    } catch {
+      return null;
+    }
+  }
+  if (!r2Configured) return null;
   try {
     const client = getClient();
     const response = await client.send(
@@ -95,13 +149,21 @@ export async function downloadFile(key: string): Promise<ArrayBuffer | null> {
 // ---------------------------------------------------------------------------
 
 export async function deleteFile(key: string): Promise<void> {
-  if (!storageEnabled) return;
+  if (STORAGE_MODE === "fs") {
+    try {
+      await fs.promises.unlink(fsPathForKey(key));
+    } catch {
+      /* ENOENT - juz nie istnieje, ignoruj */
+    }
+    return;
+  }
+  if (!r2Configured) return;
   const client = getClient();
   await client.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: key }));
 }
 
 // ---------------------------------------------------------------------------
-// Signed URL (pre-signed for temporary direct access)
+// Signed URL (tryb fs: wewnetrzny HMAC-link; tryb r2: presigned S3 URL)
 // ---------------------------------------------------------------------------
 
 export async function getSignedUrl(
@@ -109,7 +171,12 @@ export async function getSignedUrl(
   expiresIn = 3600,
   downloadFilename?: string,
 ): Promise<string | null> {
-  if (!storageEnabled) return null;
+  if (STORAGE_MODE === "fs") {
+    // Link wewnetrzny /download/<token> - route streamuje z FS przez downloadFile.
+    // HMAC-podpisany, bez wygasania (CORS/presign niepotrzebne lokalnie).
+    return buildDownloadUrl(key, downloadFilename ?? path.basename(key));
+  }
+  if (!r2Configured) return null;
   try {
     const client = getClient();
     // Override the response Content-Disposition so the browser uses this

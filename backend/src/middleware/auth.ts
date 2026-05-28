@@ -1,5 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { isSqliteBackend } from "../lib/supabase";
+import { LOCAL_USER_EMAIL, LOCAL_USER_ID } from "../lib/db/supabase-shim";
 
 // Single admin client, created once instead of per request.
 let adminClient: SupabaseClient | undefined;
@@ -57,6 +59,16 @@ export async function requireAuth(
   res: Response,
   next: NextFunction,
 ): Promise<void> {
+  // Tryb sqlite (single-user desktop): auth bypass. Jeden lokalny user,
+  // brak JWT, brak wywolan sieciowych. Opcjonalny PIN/Windows Hello pozniej.
+  if (isSqliteBackend()) {
+    res.locals.userId = LOCAL_USER_ID;
+    res.locals.userEmail = LOCAL_USER_EMAIL;
+    res.locals.token = "local";
+    next();
+    return;
+  }
+
   const auth = req.headers.authorization ?? "";
   if (!auth.startsWith("Bearer ")) {
     res.status(401).json({ detail: "Missing or invalid Authorization header" });
@@ -147,6 +159,16 @@ export function requireAdmin(
   res: Response,
   next: NextFunction,
 ): void {
+  // Tryb sqlite (single-user desktop): lokalny user jest jednoczesnie
+  // Operatorem/Adminem kancelarii (to jego maszyna i dane). Grant logowany.
+  if (isSqliteBackend()) {
+    console.warn(
+      `[ADMIN] grant (single-user): ${res.locals.userEmail ?? "(local)"} -> ${req.method} ${req.path}`,
+    );
+    next();
+    return;
+  }
+
   const userEmail = (res.locals.userEmail as string | undefined) ?? "";
   if (!userEmail || !isAdminEmail(userEmail)) {
     console.warn(

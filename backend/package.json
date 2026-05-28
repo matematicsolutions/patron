@@ -24,8 +24,11 @@
     "@aws-sdk/client-s3": "^3.1054.0",
     "@aws-sdk/s3-request-presigner": "^3.1054.0",
     "@google/genai": "^1.50.1",
+    "@huggingface/transformers": "^4.2.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@supabase/supabase-js": "^2.106.1",
+    "@types/better-sqlite3": "^7.6.13",
+    "better-sqlite3": "^12.10.0",
     "cors": "^2.8.5",
     "docx": "^9.5.0",
     "dotenv": "^17.4.1",
@@ -40,6 +43,7 @@
     "multer": "^1.4.5-lts.2",
     "pdfjs-dist": "^4.10.38",
     "resend": "^4.5.1",
+    "sqlite-vec": "^0.1.9",
     "zod": "^4.4.3"
   },
   "devDependencies": {
