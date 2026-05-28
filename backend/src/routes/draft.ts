@@ -4,6 +4,8 @@
 
 import { Router } from "express";
 import { requireAuth } from "../middleware/auth";
+import { singleFileUpload } from "../lib/upload";
+import { parseDocxRoundtrip } from "../lib/docxRoundtrip";
 import { createServerSupabase } from "../lib/supabase";
 import { getUserApiKeys } from "../lib/userApiKeys";
 import { DEFAULT_MAIN_MODEL, resolveModel } from "../lib/llm";
@@ -64,3 +66,24 @@ draftRouter.post("/refine", requireAuth, async (req, res) => {
       .json({ detail: `Draft refine failed: ${String(e)}` });
   }
 });
+
+// POST /draft/roundtrip - parsuje edytowany DOCX wracajacy z Worda (ADR-0060):
+// tracked changes (czego uczy sie Bibliotekarz) + komentarze + instrukcje
+// [PATRON: ...]. Multipart: pole "file".
+draftRouter.post(
+  "/roundtrip",
+  requireAuth,
+  singleFileUpload("file"),
+  async (req, res) => {
+    const file = req.file;
+    if (!file) return void res.status(400).json({ detail: "file is required" });
+    try {
+      const result = await parseDocxRoundtrip(file.buffer);
+      res.json(result);
+    } catch (e) {
+      res
+        .status(500)
+        .json({ detail: `Roundtrip parse failed: ${String(e)}` });
+    }
+  },
+);
