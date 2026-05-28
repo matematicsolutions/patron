@@ -15,6 +15,7 @@ import { auditRouter } from "./routes/audit";
 import { securityRouter } from "./routes/security";
 import { metricsRouter } from "./routes/metrics";
 import { foldersRouter } from "./routes/folders";
+import { draftRouter } from "./routes/draft";
 import { createServerSupabase } from "./lib/supabase";
 import { runAutoCompute } from "./lib/audit-merkle-roots";
 import {
@@ -144,6 +145,7 @@ app.post("/tabular-review/:reviewId/chat", chatLimiter);
 app.post("/tabular-review/:reviewId/generate", chatLimiter);
 app.post("/chat/create", chatCreateLimiter);
 app.post("/chat/:chatId/generate-title", chatCreateLimiter);
+app.post("/draft/refine", chatLimiter);
 app.post("/single-documents", uploadLimiter);
 app.post("/single-documents/:documentId/versions", uploadLimiter);
 app.post("/projects/:projectId/documents", uploadLimiter);
@@ -161,6 +163,7 @@ app.use("/api/audit", auditRouter);
 app.use("/api/security", securityRouter);
 app.use("/metrics", metricsRouter);
 app.use("/folders", foldersRouter);
+app.use("/draft", draftRouter);
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
 

@@ -1,0 +1,184 @@
+// Pipeline obrony (Invisible AI, ADR-0058). Bierze draft pisma i przepuszcza go
+// przez lancuch etapow doskonalacych - kazdy etap zwraca POPRAWIONA wersje
+// (output jednego etapu = wejscie nastepnego). Prawnik widzi jeden guzik
+// "Draft odpowiedzi"; pod spodem dziala kilka wyspecjalizowanych przebiegow LLM.
+//
+//   Recenzent      - konstruktywny senior, wzmacnia slabe argumenty, struktura.
+//   Adwokat diabla - adversarial; 3 tryby (strona przeciwna / sad / prokurator),
+//                    uprzedza kontrargumenty i uodparnia pismo.
+//   Pisz po ludzku - usuwa AI-slop, naturalny jezyk prawniczy, zachowuje precyzje.
+//
+// Buildery promptow sa czyste (testowalne bez LLM). Orkiestrator przyjmuje
+// wstrzykiwana funkcje LLM (default completeText) - testy podaja fake.
+
+import { completeText, type UserApiKeys } from "../llm";
+
+export type AdwokatMode = "strona-przeciwna" | "sad" | "prokurator";
+export type DefenseStage = "recenzent" | "adwokat" | "pisz-po-ludzku";
+
+export const ALL_STAGES: DefenseStage[] = [
+  "recenzent",
+  "adwokat",
+  "pisz-po-ludzku",
+];
+
+export interface DefenseConfig {
+  /** Ktore etapy uruchomic, w kolejnosci. Default: wszystkie trzy. */
+  stages?: DefenseStage[];
+  /** Tryb adwokata diabla. Default: strona-przeciwna. */
+  adwokatMode?: AdwokatMode;
+  model: string;
+  apiKeys?: UserApiKeys;
+  /** Opcjonalny kontekst sprawy (rodzaj pisma, instancja) - wstrzykiwany w prompt. */
+  context?: string;
+}
+
+export interface StageResult {
+  stage: DefenseStage;
+  mode?: AdwokatMode;
+  output: string;
+}
+
+export interface DefenseResult {
+  final: string;
+  stages: StageResult[];
+}
+
+export interface DefensePrompt {
+  system: string;
+  user: string;
+}
+
+const BASE_RULES =
+  "Pracujesz na polskim pismie procesowym/prawnym. Zachowaj wszystkie fakty, " +
+  "daty, kwoty, sygnatury i powolane przepisy bez zmian - nie wymyslaj nowych. " +
+  "Nie dodawaj danych osobowych. Zwroc WYLACZNIE poprawiona wersje pisma, bez " +
+  "komentarza, bez naglowka 'oto poprawiona wersja', bez metaopisu.";
+
+function withContext(user: string, context?: string): string {
+  return context ? `Kontekst sprawy: ${context}\n\n${user}` : user;
+}
+
+export function buildRecenzentPrompt(
+  draft: string,
+  context?: string,
+): DefensePrompt {
+  return {
+    system:
+      "Jestes doswiadczonym radca prawnym recenzujacym pismo kolegi. Twoja rola " +
+      "jest konstruktywna: wzmacniasz slabe argumenty, poprawiasz strukture i " +
+      "logike wywodu, usuwasz powtorzenia i niejasnosci, dbasz o poprawne " +
+      "powolania przepisow i orzecznictwa. Nie oslabiasz mocnych miejsc. " +
+      BASE_RULES,
+    user: withContext(
+      `Zrecenzuj i popraw ponizsze pismo. Wzmocnij argumentacje tam gdzie jest slaba, ` +
+        `popraw strukture i jezyk prawniczy.\n\n---\n${draft}`,
+      context,
+    ),
+  };
+}
+
+const ADWOKAT_ROLE: Record<AdwokatMode, string> = {
+  "strona-przeciwna":
+    "Wcielasz sie w pelnomocnika strony PRZECIWNEJ. Znajdz najmocniejsze " +
+    "kontrargumenty, luki dowodowe i slabe ogniwa tego pisma.",
+  sad: "Wcielasz sie w sklad orzekajacy. Wskaz watpliwosci, braki formalne i " +
+    "merytoryczne, pytania ktore zada sad oraz miejsca wymagajace uzupelnienia.",
+  prokurator:
+    "Wcielasz sie w prokuratora/linie oskarzenia (sprawa karna). Wskaz gdzie " +
+    "obrona jest podatna na atak i jakie argumenty podniesie oskarzenie.",
+};
+
+export function buildAdwokatPrompt(
+  draft: string,
+  mode: AdwokatMode,
+  context?: string,
+): DefensePrompt {
+  return {
+    system:
+      `Jestes adwokatem diabla dla autora pisma. ${ADWOKAT_ROLE[mode]} ` +
+      "Najpierw (wewnetrznie, bez wypisywania) zidentyfikuj te kontrargumenty, " +
+      "a nastepnie przepisz pismo tak, by je UPRZEDZALO i uodparnialo wywod - " +
+      "domykajac luki, wzmacniajac slabe miejsca, dodajac kontrargumentacje tam " +
+      "gdzie trzeba. " +
+      BASE_RULES,
+    user: withContext(
+      `Uodpornij ponizsze pismo na atak. Zwroc wzmocniona wersje, ktora ` +
+        `przewiduje i zbija kontrargumenty.\n\n---\n${draft}`,
+      context,
+    ),
+  };
+}
+
+export function buildPiszPoLudzkuPrompt(
+  draft: string,
+  context?: string,
+): DefensePrompt {
+  return {
+    system:
+      "Jestes redaktorem, ktory sprawia ze pisma prawnicze brzmia naturalnie i " +
+      "ludzko, a nie jak generowane maszynowo. Usun AI-slop: pompatyczne frazy, " +
+      "puste wzmacniacze, sztuczna liste trojek, nadmiar imieslowow, kalki. " +
+      "Zachowaj jezyk prawniczy, terminy, precyzje i ton odpowiedni do pisma " +
+      "procesowego. Nie skracaj merytoryki. " +
+      BASE_RULES,
+    user: withContext(
+      `Przepisz ponizsze pismo tak, by czytalo sie naturalnie i profesjonalnie, ` +
+        `bez znamion tekstu generowanego przez AI.\n\n---\n${draft}`,
+      context,
+    ),
+  };
+}
+
+function promptForStage(
+  stage: DefenseStage,
+  draft: string,
+  config: DefenseConfig,
+): { prompt: DefensePrompt; mode?: AdwokatMode } {
+  if (stage === "recenzent") {
+    return { prompt: buildRecenzentPrompt(draft, config.context) };
+  }
+  if (stage === "adwokat") {
+    const mode = config.adwokatMode ?? "strona-przeciwna";
+    return { prompt: buildAdwokatPrompt(draft, mode, config.context), mode };
+  }
+  return { prompt: buildPiszPoLudzkuPrompt(draft, config.context) };
+}
+
+export type LlmCompleteFn = (params: {
+  model: string;
+  systemPrompt?: string;
+  user: string;
+  maxTokens?: number;
+  apiKeys?: UserApiKeys;
+}) => Promise<string>;
+
+/**
+ * Uruchamia lancuch obrony. Kazdy etap dostaje aktualny draft i zwraca
+ * poprawiona wersje, ktora staje sie wejsciem nastepnego etapu. Zwraca finalny
+ * draft + wynik kazdego etapu (transparency). LLM wstrzykiwany (test = fake).
+ */
+export async function runDefensePipeline(
+  draft: string,
+  config: DefenseConfig,
+  llm: LlmCompleteFn = completeText,
+): Promise<DefenseResult> {
+  const stages = config.stages ?? ALL_STAGES;
+  let current = draft;
+  const results: StageResult[] = [];
+  for (const stage of stages) {
+    const { prompt, mode } = promptForStage(stage, current, config);
+    const output = await llm({
+      model: config.model,
+      systemPrompt: prompt.system,
+      user: prompt.user,
+      maxTokens: 8000,
+      apiKeys: config.apiKeys,
+    });
+    const trimmed = (output ?? "").trim();
+    // Pusta odpowiedz etapu nie kasuje draftu - zachowaj poprzedni.
+    if (trimmed) current = trimmed;
+    results.push({ stage, mode, output: trimmed });
+  }
+  return { final: current, stages: results };
+}
