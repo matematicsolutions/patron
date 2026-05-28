@@ -17,6 +17,7 @@ import {
   resolveTrackedChange,
 } from "../lib/docxTrackedChanges";
 import { extractPdfText } from "../lib/chat/pdf";
+import { indexDocument } from "../lib/retrieval/indexer";
 import { appendAuditEvent } from "../lib/audit";
 import {
   analyzeInput,
@@ -1001,6 +1002,16 @@ async function handleDocumentUpload(
         updated_at: new Date().toISOString(),
       })
       .eq("id", docId);
+
+    // ADR-0054: indeksacja do hybrid retrieval + graf cytowan. Tylko gdy skan
+    // bezpieczenstwa dopuscil (outcome.allowIndex) - quarantined/human_review
+    // NIE trafiaja do indeksu. Best-effort w tle: embedding trwa kilka sekund,
+    // nie blokujemy odpowiedzi uploadu (dokument jest juz 'ready' i utrwalony).
+    if (outcome.allowIndex && scanText.trim()) {
+      void indexDocument(docId, scanText).catch((err) => {
+        console.error(`[upload] RAG index failed for ${docId}:`, err);
+      });
+    }
 
     const { data: updated } = await db
       .from("documents")
