@@ -8,6 +8,7 @@ import React, {
     ReactNode,
 } from "react";
 import { supabase } from "@/lib/supabase";
+import { IS_LOCAL_MODE, LOCAL_USER } from "@/lib/localMode";
 
 interface User {
     id: string;
@@ -28,6 +29,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const [authLoading, setAuthLoading] = useState(true);
 
     useEffect(() => {
+        // Tryb local (single-user desktop): jeden mecenas, zero Supabase.
+        if (IS_LOCAL_MODE) {
+            setUser(LOCAL_USER);
+            setAuthLoading(false);
+            return;
+        }
         const checkUser = async () => {
             const {
                 data: { session },
@@ -64,6 +71,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, []);
 
     const signOut = async () => {
+        // Tryb local: brak wylogowania (jeden lokalny user, brak sesji Supabase).
+        if (IS_LOCAL_MODE) return;
         await supabase.auth.signOut();
         setUser(null);
     };
