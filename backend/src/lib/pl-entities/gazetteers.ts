@@ -117,6 +117,8 @@ export function findSignaturePrefix(prefix: string): SignaturePrefix | undefined
  * "KIO 1234/24" -> "KIO"
  * "KIO/UZP 56/23" -> "KIO/UZP"
  * "K 12/19" -> "K"
+ * "I C 100/26" -> "I C" (sad powszechny - kod jednoliterowy)
+ * "I ACa 1234/23" -> "I ACa" (sad apelacyjny - kod mieszany)
  *
  * Zwraca null jezeli nie da sie rozpoznac. Wywolujacy moze wtedy
  * fallowac na `findSignaturePrefix(firstToken)` jezeli to wystarcza.
@@ -135,5 +137,14 @@ export function parseSignaturePrefix(signature: string): string | null {
     // TK: "K 12/19", "SK 5/22", "Kpt 1/19"
     const tkMatch = trimmed.match(/^(K|P|U|SK|Kp|Kpt|Pp|Tw)\b/);
     if (tkMatch) return tkMatch[1]!;
+    // Sady powszechne / apelacyjne: "I C 100/26" -> "I C", "I ACa 1234/23"
+    // -> "I ACa". Po SN/NSA, bo te wymagaja kodu 2-4 wielkich liter; tu kod
+    // jednoliterowy lub mieszany. Negatywny lookahead `(?![A-Z]{2,4}\s)`
+    // wyklucza kody SN/NSA (spojny z SAD_POWSZECHNY_SIGNATURE_RE w regex.ts).
+    // Rzymska I-XXXIX spojna z ROMAN_1_39 w regex.ts.
+    const spMatch = trimmed.match(
+        /^(X{1,3}(?:IX|IV|VI{0,3}|I{1,3})?|IX|IV|VI{0,3}|I{1,3})\s+(?![A-Z]{2,4}\s)([A-Z][A-Za-z]{0,3})\b/,
+    );
+    if (spMatch) return `${spMatch[1]} ${spMatch[2]}`;
     return null;
 }

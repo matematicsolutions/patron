@@ -77,6 +77,29 @@ describe("extractEntitiesAndEdges - sygnatury orzeczen", () => {
         const sigEdges = r.edges.filter((e) => e.relation === "cytuje_orzeczenie");
         expect(sigEdges.length).toBeGreaterThanOrEqual(2);
     });
+
+    it("sygnatura sadu powszechnego (I C 100/26) generuje encje - regresja pustej tabeli", () => {
+        // Regresja: wczesniej kod jednoliterowy "I C" nie byl lapany (SN_RE
+        // wymaga 2-4 wielkich liter), wiec extracted_entities pozostawalo puste.
+        const text = "Sygn. akt I C 100/26 - pozew o zaplate przeciwko pozwanemu.";
+        const r = extractEntitiesAndEdges("doc-sr", text);
+        const sig = r.entities.find((e) => e.type === "SYGNATURA_ORZECZENIA");
+        expect(sig).toBeDefined();
+        expect(sig!.value).toBe("I C 100/26");
+        expect(sig!.ruleId).toBe("signature-sad-powszechny");
+        // slowo-trigger "sygn. akt" w sasiedztwie -> krawedz cytuje_orzeczenie
+        const edge = r.edges.find((e) => e.relation === "cytuje_orzeczenie");
+        expect(edge).toBeDefined();
+    });
+
+    it("sygnatura apelacyjna (I ACa) wzbogaca metadata o sad apelacyjny z gazetteera", () => {
+        const text = "Wyrok SA, sygn. akt I ACa 1234/23, oddalil apelacje.";
+        const r = extractEntitiesAndEdges("doc-sa", text);
+        const sig = r.entities.find((e) => e.type === "SYGNATURA_ORZECZENIA");
+        expect(sig).toBeDefined();
+        expect(sig!.metadata?.prefix).toBe("I ACa");
+        expect(sig!.metadata?.court).toBe("sa-*");
+    });
 });
 
 describe("extractEntitiesAndEdges - akty prawne CELEX/ELI", () => {

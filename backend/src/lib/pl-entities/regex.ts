@@ -93,6 +93,49 @@ const KIO_SIGNATURE_RE = /\bKIO(?:\/UZP)?\s+\d{1,5}\/\d{2,4}\b/g;
 const TK_SIGNATURE_RE = /\b(?:K|P|U|SK|Kp|Kpt|Pp)\s+\d{1,4}\/\d{2,4}\b/g;
 
 /**
+ * Liczba rzymska wydzialu/izby w zakresie I-XXXIX (1-39). Duze sady
+ * (np. Warszawa) maja wydzialy o wysokich numerach (XXV, XXVII), wiec
+ * nie wystarcza zakres 1-7 jak w SN. Fragment wspoldzielony - patrz tez
+ * `parseSignaturePrefix` w gazetteers.ts (musi pozostac spojny).
+ */
+const ROMAN_1_39 = "(?:X{1,3}(?:IX|IV|VI{0,3}|I{1,3})?|IX|IV|VI{0,3}|I{1,3})";
+
+/**
+ * Sygnatury sadow powszechnych (rejonowe, okregowe) oraz apelacyjnych.
+ *
+ * Format: `<wydzial_rzymski> <kod_repertorium> <numer>/<rok>`
+ * gdzie kod_repertorium to:
+ *   - jednoliterowy kod sprawy: C (cywilny), K (karny), P (pracy),
+ *     U (ubezpieczeniowy), W (wykroczeniowy)
+ *   - kod mieszany (wielka litera + dalsze litery): Ns, Nc, Ca, Cz, Co,
+ *     RC, GC, GNc, Ka, Kz, Pa, Ua oraz apelacyjne ACa, ACz, AKa, AKz,
+ *     APa, AGa
+ *
+ * Negatywny lookahead `(?![A-Z]{2,4}\s)` wyklucza kody zlozone z 2-4
+ * WIELKICH liter (CZP, CSK, FSK, OSK, KK, PK) - to teren SN/NSA, lapany
+ * przez SN_SIGNATURE_RE / NSA_SIGNATURE_RE. Dzieki temu reguly sie nie
+ * pokrywaja i nie generuja duplikatow encji na tym samym spanie.
+ *
+ * WSA ("II SA/Wa 100/26") nie jest lapany - po kodzie "SA" wystepuje
+ * "/" zamiast spacji, wiec wzorzec `\s+\d` zawodzi (obsluga w WSA_RE).
+ *
+ * Przyklady:
+ *   "I C 100/26"      - cywilny proces I instancji (najczestszy format)
+ *   "I Ns 50/25"      - postepowanie nieprocesowe
+ *   "II K 200/24"     - karny
+ *   "XXV C 1500/23"   - cywilny, wysoki numer wydzialu (duzy sad)
+ *   "I ACa 1234/23"   - apelacja cywilna (sad apelacyjny)
+ *
+ * Base confidence nizsze niz SN (kody krotsze = wieksze ryzyko
+ * false-positive); extractor podnosi przy slowie-trigger ("sygn. akt")
+ * oraz gdy prefix jest znany w gazetteerze.
+ */
+const SAD_POWSZECHNY_SIGNATURE_RE = new RegExp(
+    `\\b${ROMAN_1_39}\\s+(?![A-Z]{2,4}\\s)[A-Z][A-Za-z]{0,3}\\s+\\d{1,5}\\/\\d{2,4}\\b`,
+    "g",
+);
+
+/**
  * CELEX - identyfikator aktow prawa UE.
  *
  * Format: 10-cyfrowy kod, np. "32024R1689" (AI Act), "32016R0679" (RODO).
@@ -228,6 +271,18 @@ export const PL_EXTRACTION_RULES: ExtractionRule[] = [
         pattern: TK_SIGNATURE_RE,
         baseConfidence: 0.6,
         normalize: (v) => v.replace(/\s+/g, " ").trim().toUpperCase(),
+    },
+    {
+        id: "signature-sad-powszechny",
+        type: "SYGNATURA_ORZECZENIA",
+        // Sady rejonowe / okregowe / apelacyjne - kody jednoliterowe
+        // (I C 100/26) i mieszane (I Ns 50/25, I ACa 1234/23). Najczestszy
+        // format spraw I instancji, dotychczas nie pokryty (SN_RE wymaga
+        // kodu 2-4 wielkich liter). Normalize NIE wymusza UPPERCASE - kody
+        // sadow powszechnych sa case-sensitive ("Ns" != "NS", "ACa" != "ACA").
+        pattern: SAD_POWSZECHNY_SIGNATURE_RE,
+        baseConfidence: 0.7,
+        normalize: (v) => v.replace(/\s+/g, " ").trim(),
     },
 
     // === Sygnatury aktow prawa UE i PL ===
