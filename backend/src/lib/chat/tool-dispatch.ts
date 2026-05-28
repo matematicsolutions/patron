@@ -18,6 +18,7 @@ import { extractPdfText } from "./pdf";
 import { analyzeInput, isHardThreat } from "../input-security";
 import { generateDocx } from "./docx-generate";
 import { loadCurrentVersionBytes, runEditDocument } from "./docx-edit";
+import { retrieve } from "../retrieval/retrieval";
 import type {
     DocIndex,
     DocStore,
@@ -443,7 +444,64 @@ export async function runToolCalls(
             /* ignore */
         }
 
-        if (tc.function.name === "read_document") {
+        if (tc.function.name === "search_corpus") {
+            const query = (args.query as string) ?? "";
+            const maxResults =
+                typeof args.max_results === "number" ? args.max_results : 8;
+            // Scope: dokumenty projektu (jezeli projektowy czat), inaczej caly
+            // korpus usera. retrieve() sam degraduje do BM25+graf bez wektora.
+            let docFilter: string[] | undefined;
+            if (projectId) {
+                const { data: projDocs } = await db
+                    .from("documents")
+                    .select("id")
+                    .eq("project_id", projectId)
+                    .eq("status", "ready");
+                docFilter = ((projDocs ?? []) as { id: string }[]).map(
+                    (d) => d.id,
+                );
+            }
+            let content: string;
+            try {
+                const hits = await retrieve(query, maxResults, {
+                    documentIds: docFilter,
+                });
+                const ids = [...new Set(hits.map((h) => h.documentId))];
+                const fnMap = new Map<string, string>();
+                if (ids.length) {
+                    const { data: docs } = await db
+                        .from("documents")
+                        .select("id, filename")
+                        .in("id", ids);
+                    for (const d of (docs ?? []) as {
+                        id: string;
+                        filename: string;
+                    }[]) {
+                        fnMap.set(d.id, d.filename);
+                    }
+                }
+                content = JSON.stringify({
+                    query,
+                    results: hits.map((h) => ({
+                        document_id: h.documentId,
+                        filename: fnMap.get(h.documentId) ?? h.documentId,
+                        chunk_index: h.chunkIndex,
+                        score: Number(h.score.toFixed(4)),
+                        text: h.content,
+                    })),
+                    note: hits.length
+                        ? undefined
+                        : "Brak trafien w korpusie dla tego zapytania.",
+                });
+            } catch (e) {
+                content = JSON.stringify({
+                    query,
+                    results: [],
+                    error: e instanceof Error ? e.message : String(e),
+                });
+            }
+            toolResults.push({ role: "tool", tool_call_id: tc.id, content });
+        } else if (tc.function.name === "read_document") {
             const rawDocId = args.doc_id as string;
             const docId =
                 resolveDocLabel(rawDocId, docStore, docIndex) ?? rawDocId;

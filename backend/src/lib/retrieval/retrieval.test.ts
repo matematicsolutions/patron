@@ -114,6 +114,23 @@ describe("indexDocument + retrieve (BM25 + graf + encje)", () => {
     }
   });
 
+  it("documentIds scope: zwraca tylko fragmenty z dozwolonych dokumentow", async () => {
+    const res = await retrieval.retrieve("III CZP 11/13", 5, {
+      vec: false,
+      documentIds: ["doc-A"],
+    });
+    expect(res.length).toBeGreaterThan(0);
+    expect(res.every((r) => r.documentId === "doc-A")).toBe(true);
+  });
+
+  it("documentIds puste -> brak trafien", async () => {
+    const res = await retrieval.retrieve("III CZP 11/13", 5, {
+      vec: false,
+      documentIds: [],
+    });
+    expect(res).toEqual([]);
+  });
+
   it("re-index jest idempotentny (brak duplikatow chunkow)", async () => {
     const db = conn.getDb();
     await indexer.indexDocument("doc-C", "Nowa tresc notatki o RODO i art. 13.");
@@ -128,5 +145,43 @@ describe("indexDocument + retrieve (BM25 + graf + encje)", () => {
       .prepare("select count(*) as c from doc_chunks")
       .get() as { c: number };
     expect(fts.c).toBe(chunks.c); // FTS w sync z doc_chunks po re-index
+  });
+});
+
+describe("narzedzie search_corpus (dispatch, bez LLM)", () => {
+  it("zwraca fragmenty z korpusu w tool_result", async () => {
+    const { runToolCalls } = await import("../chat/tool-dispatch");
+    const { createServerSupabase } = await import("../supabase");
+    const db = createServerSupabase();
+    const out = await runToolCalls(
+      [
+        {
+          id: "tc-1",
+          function: {
+            name: "search_corpus",
+            arguments: JSON.stringify({ query: "III CZP 11/13" }),
+          },
+        },
+      ],
+      new Map(),
+      "u1",
+      db,
+      () => {},
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      null,
+    );
+    const tr = out.toolResults[0] as { content: string };
+    const parsed = JSON.parse(tr.content) as {
+      results: { document_id: string; text: string }[];
+    };
+    expect(parsed.results.length).toBeGreaterThan(0);
+    expect(
+      parsed.results.some(
+        (r) => r.document_id === "doc-A" || /CZP/i.test(r.text),
+      ),
+    ).toBe(true);
   });
 });

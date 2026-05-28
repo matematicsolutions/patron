@@ -21,7 +21,16 @@ export interface RetrieveOptions {
   graph?: boolean;
   /** Limit kandydatow per silnik przed fuzja (default k*3). */
   perEngine?: number;
+  /**
+   * Scope: tylko fragmenty z tych dokumentow (np. dokumenty projektu).
+   * Pusta tablica = brak trafien. undefined = caly korpus usera.
+   * Filtr aplikowany po stronie aplikacji (vec0 KNN nie laczy sie z JOIN),
+   * wiec silniki dobieraja perEngine*FILTER_OVERFETCH kandydatow.
+   */
+  documentIds?: string[];
 }
+
+const FILTER_OVERFETCH = 4;
 
 export interface RetrievedChunk {
   chunkId: number;
@@ -147,6 +156,19 @@ function graphRankCandidates(candidateChunkIds: number[]): number[] {
     .map((c) => c.id);
 }
 
+/** Mapuje chunk id -> document_id (do scope filtering). */
+function chunkDocMap(chunkIds: number[]): Map<number, string> {
+  const map = new Map<number, string>();
+  if (chunkIds.length === 0) return map;
+  const db = getDb();
+  const ph = chunkIds.map(() => "?").join(",");
+  const rows = db
+    .prepare(`select id, document_id from doc_chunks where id in (${ph})`)
+    .all(...chunkIds) as { id: number; document_id: string }[];
+  for (const r of rows) map.set(r.id, r.document_id);
+  return map;
+}
+
 /**
  * Hybrid retrieve. Zwraca top-k fragmentow z wynikiem fuzji RRF.
  */
@@ -158,7 +180,9 @@ export async function retrieve(
   const useVec = opts.vec !== false && isVecEnabled();
   const useBm25 = opts.bm25 !== false;
   const useGraph = opts.graph !== false;
-  const perEngine = opts.perEngine ?? k * 3;
+  const scoped = opts.documentIds !== undefined;
+  if (scoped && opts.documentIds!.length === 0) return [];
+  const perEngine = (opts.perEngine ?? k * 3) * (scoped ? FILTER_OVERFETCH : 1);
 
   const lists: number[][] = [];
   let vecIds: number[] = [];
@@ -168,7 +192,6 @@ export async function retrieve(
     try {
       const qv = await embedOne(query, "query");
       vecIds = vecSearch(qv, perEngine);
-      if (vecIds.length) lists.push(vecIds);
     } catch (e) {
       console.warn(
         "[retrieval] vec search skipped:",
@@ -178,8 +201,17 @@ export async function retrieve(
   }
   if (useBm25) {
     bmIds = bm25Search(query, perEngine);
-    if (bmIds.length) lists.push(bmIds);
   }
+
+  // Scope: odfiltruj kandydatow spoza dozwolonych dokumentow.
+  if (scoped) {
+    const allowed = new Set(opts.documentIds);
+    const docMap = chunkDocMap([...new Set([...vecIds, ...bmIds])]);
+    vecIds = vecIds.filter((id) => allowed.has(docMap.get(id) ?? ""));
+    bmIds = bmIds.filter((id) => allowed.has(docMap.get(id) ?? ""));
+  }
+  if (vecIds.length) lists.push(vecIds);
+  if (bmIds.length) lists.push(bmIds);
   if (useGraph) {
     const candidates = [...new Set([...vecIds, ...bmIds])];
     const graphIds = graphRankCandidates(candidates);

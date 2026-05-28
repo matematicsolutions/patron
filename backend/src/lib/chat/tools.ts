@@ -126,6 +126,30 @@ export const TOOLS = [
     {
         type: "function",
         function: {
+            name: "search_corpus",
+            description:
+                "Semantic + keyword search over the user's saved document corpus (RAG). Use this to find relevant passages across documents that are NOT attached to the current chat - e.g. earlier case files, opinions, or rulings the user has uploaded before. Combines vector similarity, exact-term (BM25) and citation-graph signals. Returns the most relevant fragments with their source filename so you can quote and name the source. For documents already attached to this chat, prefer read_document / find_in_document.",
+            parameters: {
+                type: "object",
+                properties: {
+                    query: {
+                        type: "string",
+                        description:
+                            "Natural-language question or key terms (e.g. a ruling signature like 'III CZP 11/13', a legal concept, or a party name).",
+                    },
+                    max_results: {
+                        type: "integer",
+                        description:
+                            "Maximum number of fragments to return (default 8).",
+                    },
+                },
+                required: ["query"],
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
             name: "read_document",
             description:
                 "Read the full text content of a document attached by the user. Always call this before answering questions about, summarising, or citing from a document.",
