@@ -19,6 +19,7 @@ import { analyzeInput, isHardThreat } from "../input-security";
 import { generateDocx } from "./docx-generate";
 import { loadCurrentVersionBytes, runEditDocument } from "./docx-edit";
 import { retrieve } from "../retrieval/retrieval";
+import { saveMemory, listMemories, readMemory } from "../brain/store";
 import type {
     DocIndex,
     DocStore,
@@ -444,7 +445,56 @@ export async function runToolCalls(
             /* ignore */
         }
 
-        if (tc.function.name === "search_corpus") {
+        if (tc.function.name === "remember") {
+            const scope = projectId ?? "personal";
+            const title = ((args.title as string) ?? "").trim();
+            const body = ((args.body as string) ?? "").trim();
+            const type = (args.type as string) ?? "notatka";
+            const slug = ((args.slug as string) ?? title).trim();
+            let content: string;
+            if (!title || !body) {
+                content = JSON.stringify({
+                    error: "title i body sa wymagane",
+                });
+            } else {
+                try {
+                    const r = saveMemory({ scope, slug, type, title, body });
+                    content = JSON.stringify({
+                        ok: true,
+                        action: r.action,
+                        slug: r.slug,
+                        scope: r.scope,
+                    });
+                } catch (e) {
+                    content = JSON.stringify({
+                        error: e instanceof Error ? e.message : String(e),
+                    });
+                }
+            }
+            toolResults.push({ role: "tool", tool_call_id: tc.id, content });
+        } else if (tc.function.name === "recall") {
+            const scope = projectId ?? "personal";
+            const slug = (args.slug as string | undefined)?.trim();
+            let content: string;
+            try {
+                if (slug) {
+                    const m = readMemory(scope, slug);
+                    content = m
+                        ? JSON.stringify({ slug, meta: m.meta, body: m.body })
+                        : JSON.stringify({ note: "Brak wpisu o tym slug." });
+                } else {
+                    content = JSON.stringify({
+                        scope,
+                        memories: listMemories(scope),
+                    });
+                }
+            } catch (e) {
+                content = JSON.stringify({
+                    error: e instanceof Error ? e.message : String(e),
+                });
+            }
+            toolResults.push({ role: "tool", tool_call_id: tc.id, content });
+        } else if (tc.function.name === "search_corpus") {
             const query = (args.query as string) ?? "";
             const maxResults =
                 typeof args.max_results === "number" ? args.max_results : 8;

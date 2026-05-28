@@ -150,6 +150,57 @@ export const TOOLS = [
     {
         type: "function",
         function: {
+            name: "remember",
+            description:
+                "Save a durable fact, decision, deadline, party detail, or the user's style preference to PATRON's case memory (Bibliotekarz). Use this when you learn something that should persist across future chats about this matter - e.g. 'klient woli pisma w formie bezosobowej', a settled fact, a procedural deadline, a key party. Do NOT save full document text (that is in the corpus) or transient chat details. Memory is scoped to the current case (project) or personal if no case.",
+            parameters: {
+                type: "object",
+                properties: {
+                    type: {
+                        type: "string",
+                        description:
+                            "Memory type: 'fakt-sprawy', 'preferencja', 'decyzja', 'kontakt', 'termin', or 'notatka'.",
+                    },
+                    title: {
+                        type: "string",
+                        description: "Short title of the memory (one line).",
+                    },
+                    body: {
+                        type: "string",
+                        description:
+                            "The memory content. Concise and self-contained; include why it matters.",
+                    },
+                    slug: {
+                        type: "string",
+                        description:
+                            "Optional stable identifier (kebab-case). Reuse the same slug to UPDATE an existing memory instead of creating a duplicate.",
+                    },
+                },
+                required: ["title", "body"],
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
+            name: "recall",
+            description:
+                "Read PATRON's case memory (Bibliotekarz) for the current matter. Call with no arguments to list saved memories (titles + types), or with a slug to read one in full. Use this at the start of work on a matter to recover what PATRON already knows (facts, decisions, the user's style preferences).",
+            parameters: {
+                type: "object",
+                properties: {
+                    slug: {
+                        type: "string",
+                        description:
+                            "Optional slug of a specific memory to read in full. Omit to list all memories in scope.",
+                    },
+                },
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
             name: "read_document",
             description:
                 "Read the full text content of a document attached by the user. Always call this before answering questions about, summarising, or citing from a document.",
