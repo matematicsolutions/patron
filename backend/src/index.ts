@@ -16,6 +16,7 @@ import { securityRouter } from "./routes/security";
 import { metricsRouter } from "./routes/metrics";
 import { foldersRouter } from "./routes/folders";
 import { draftRouter } from "./routes/draft";
+import { rodoRouter } from "./routes/rodo";
 import { createServerSupabase } from "./lib/supabase";
 import { runAutoCompute } from "./lib/audit-merkle-roots";
 import {
@@ -164,6 +165,7 @@ app.use("/api/security", securityRouter);
 app.use("/metrics", metricsRouter);
 app.use("/folders", foldersRouter);
 app.use("/draft", draftRouter);
+app.use("/rodo", rodoRouter);
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
 
