@@ -14,6 +14,7 @@ import { downloadsRouter } from "./routes/downloads";
 import { auditRouter } from "./routes/audit";
 import { securityRouter } from "./routes/security";
 import { metricsRouter } from "./routes/metrics";
+import { foldersRouter } from "./routes/folders";
 import { createServerSupabase } from "./lib/supabase";
 import { runAutoCompute } from "./lib/audit-merkle-roots";
 import {
@@ -159,6 +160,7 @@ app.use("/download", downloadsRouter);
 app.use("/api/audit", auditRouter);
 app.use("/api/security", securityRouter);
 app.use("/metrics", metricsRouter);
+app.use("/folders", foldersRouter);
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
 
@@ -209,6 +211,6 @@ function startMerkleScheduler(): void {
 }
 
 app.listen(PORT, () => {
-  console.log(`Mike backend running on port ${PORT}`);
+  console.log(`PATRON backend running on port ${PORT}`);
   startMerkleScheduler();
 });

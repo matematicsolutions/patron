@@ -1,13 +1,20 @@
-// Kanoniczny handler uploadu dokumentu - wspolny dla single-document
-// (routes/documents.ts) i dokumentow projektowych (routes/projects.ts).
+// Kanoniczny ingest dokumentu - wspolny dla single-document (routes/documents.ts),
+// dokumentow projektowych (routes/projects.ts) ORAZ importu z folderu lokalnego
+// (Folder Sprawy - ADR-0056).
 //
-// Historycznie istnialy dwie kopie tej logiki, ktore rozjechaly sie:
-// sciezka projektowa NIE uruchamiala skanu input-security (ADR-0019/0020),
-// przez co dokumenty wgrane do projektu omijaly detekcje prompt-injection /
-// steganografii / homoglifow i nie mialy wpisu audytowego skanu. Pojedyncze
-// zrodlo prawdy eliminuje te klase regresji (ADR rozszerzajacy ADR-0020 na
-// sciezke projektowa).
+// Warstwy:
+//   ingestDocument(params)  - headless rdzen: skan -> persist -> RAG-index.
+//                             Zwraca {httpStatus, body, documentId}. Bez req/res.
+//   handleDocumentUpload()  - cienki wrapper HTTP (multer req -> ingestDocument).
+//   ingestFolder()          - import wszystkich wspieranych plikow z katalogu.
+//
+// Historycznie istnialy dwie kopie logiki uploadu, ktore rozjechaly sie: sciezka
+// projektowa NIE robila skanu input-security (ADR-0019/0020). Jedno zrodlo prawdy
+// (ADR-0055) eliminuje te klase regresji; ADR-0056 dokłada headless ingest +
+// import z folderu (zero HTTP, backend czyta dysk lokalnie w trybie desktop).
 
+import fs from "fs";
+import path from "path";
 import { uploadFile, storageKey } from "./storage";
 import { docxToPdf, convertedPdfKey } from "./convert";
 import { extractDocxBodyText } from "./docxTrackedChanges";
@@ -24,28 +31,46 @@ import { createServerSupabase } from "./supabase";
 
 const ALLOWED_TYPES = new Set(["pdf", "docx", "doc"]);
 
-export async function handleDocumentUpload(
-  req: import("express").Request,
-  res: import("express").Response,
-  userId: string,
-  projectId: string | null,
-  db: ReturnType<typeof createServerSupabase>,
-) {
-  const file = req.file;
-  if (!file) return void res.status(400).json({ detail: "file is required" });
+export interface IngestParams {
+  content: Buffer;
+  filename: string;
+  userId: string;
+  projectId: string | null;
+  db: ReturnType<typeof createServerSupabase>;
+}
 
-  const filename = file.originalname;
-  const suffix = filename.includes(".")
+export interface IngestResponse {
+  httpStatus: number;
+  body: unknown;
+  /** Ustawione gdy dokument zostal utrwalony (allowed/quarantined/human_review). */
+  documentId?: string;
+}
+
+function suffixOf(filename: string): string {
+  return filename.includes(".")
     ? filename.split(".").pop()!.toLowerCase()
     : "";
-  if (!ALLOWED_TYPES.has(suffix))
-    return void res
-      .status(400)
-      .json({
-        detail: `Unsupported file type: ${suffix}. Allowed: pdf, docx, doc`,
-      });
+}
 
-  const content = file.buffer;
+/**
+ * Headless rdzen ingestu. Skan input-security (ADR-0019/0020) -> utrwalenie ->
+ * wersja V1 -> RAG-index (ADR-0054, gate allowIndex). Deterministyczny, lokalny.
+ * Nie dotyka req/res - zwraca status + body do wyslania przez wywolujacego.
+ */
+export async function ingestDocument(
+  params: IngestParams,
+): Promise<IngestResponse> {
+  const { content, filename, userId, projectId, db } = params;
+  const suffix = suffixOf(filename);
+  if (!ALLOWED_TYPES.has(suffix)) {
+    return {
+      httpStatus: 400,
+      body: {
+        detail: `Unsupported file type: ${suffix}. Allowed: pdf, docx, doc`,
+      },
+    };
+  }
+
   const { data: doc, error: insertErr } = await db
     .from("documents")
     .insert({
@@ -58,13 +83,15 @@ export async function handleDocumentUpload(
     })
     .select("*")
     .single();
-  if (insertErr || !doc)
-    return void res
-      .status(500)
-      .json({ detail: "Failed to create document record" });
+  if (insertErr || !doc) {
+    return {
+      httpStatus: 500,
+      body: { detail: "Failed to create document record" },
+    };
+  }
 
+  const docId = doc.id as string;
   try {
-    const docId = doc.id as string;
     const key = storageKey(userId, docId, filename);
     const contentType =
       suffix === "pdf"
@@ -112,14 +139,18 @@ export async function handleDocumentUpload(
           security_report_id: scan.reportId,
         })
         .eq("id", docId);
-      return void res.status(outcome.httpStatus).json({
-        detail: "Dokument odrzucony: wykryto zagrozenie bezpieczenstwa wejscia.",
-        security: {
-          action: scan.action,
-          threat_level: scan.threatLevel,
-          report_id: scan.reportId,
+      return {
+        httpStatus: outcome.httpStatus,
+        body: {
+          detail:
+            "Dokument odrzucony: wykryto zagrozenie bezpieczenstwa wejscia.",
+          security: {
+            action: scan.action,
+            threat_level: scan.threatLevel,
+            report_id: scan.reportId,
+          },
         },
-      });
+      };
     }
 
     await uploadFile(key, rawBuf, contentType);
@@ -144,7 +175,7 @@ export async function handleDocumentUpload(
         pdfStoragePath = pdfKey;
       } catch (err) {
         console.error(
-          `[upload] DOCX→PDF conversion failed for ${filename}:`,
+          `[ingest] DOCX→PDF conversion failed for ${filename}:`,
           err,
         );
       }
@@ -152,9 +183,8 @@ export async function handleDocumentUpload(
       pdfStoragePath = key;
     }
 
-    // storage_path / pdf_storage_path live on document_versions now —
-    // create the V1 "upload" row and point documents.current_version_id
-    // at it.
+    // storage_path / pdf_storage_path live on document_versions now — create
+    // the V1 "upload" row and point documents.current_version_id at it.
     const { data: versionRow, error: verErr } = await db
       .from("document_versions")
       .insert({
@@ -190,10 +220,10 @@ export async function handleDocumentUpload(
     // ADR-0054: indeksacja do hybrid retrieval + graf cytowan. Tylko gdy skan
     // bezpieczenstwa dopuscil (outcome.allowIndex) - quarantined/human_review
     // NIE trafiaja do indeksu. Best-effort w tle: embedding trwa kilka sekund,
-    // nie blokujemy odpowiedzi uploadu (dokument jest juz 'ready' i utrwalony).
+    // nie blokujemy odpowiedzi (dokument jest juz 'ready' i utrwalony).
     if (outcome.allowIndex && scanText.trim()) {
       void indexDocument(docId, scanText).catch((err) => {
-        console.error(`[upload] RAG index failed for ${docId}:`, err);
+        console.error(`[ingest] RAG index failed for ${docId}:`, err);
       });
     }
 
@@ -217,13 +247,81 @@ export async function handleDocumentUpload(
       : updated;
     // 202 dla human_review (utrwalony, czeka na decyzje Operatora/Inspektora),
     // 201 dla allowed/quarantined. allowIndex=false => RAG ma pominac.
-    return void res.status(outcome.httpStatus).json(responseDoc);
+    return { httpStatus: outcome.httpStatus, body: responseDoc, documentId: docId };
   } catch (e) {
-    await db.from("documents").update({ status: "error" }).eq("id", doc.id);
-    return void res
-      .status(500)
-      .json({ detail: `Document processing failed: ${String(e)}` });
+    await db.from("documents").update({ status: "error" }).eq("id", docId);
+    return {
+      httpStatus: 500,
+      body: { detail: `Document processing failed: ${String(e)}` },
+    };
   }
+}
+
+/**
+ * Wrapper HTTP nad ingestDocument. Wyciaga plik z multera i mapuje wynik na res.
+ */
+export async function handleDocumentUpload(
+  req: import("express").Request,
+  res: import("express").Response,
+  userId: string,
+  projectId: string | null,
+  db: ReturnType<typeof createServerSupabase>,
+) {
+  const file = req.file;
+  if (!file) return void res.status(400).json({ detail: "file is required" });
+  const result = await ingestDocument({
+    content: file.buffer,
+    filename: file.originalname,
+    userId,
+    projectId,
+    db,
+  });
+  return void res.status(result.httpStatus).json(result.body);
+}
+
+export interface FolderIngestEntry {
+  file: string;
+  httpStatus: number;
+  documentId?: string;
+}
+
+/**
+ * Importuje wszystkie wspierane pliki (pdf/docx/doc) z katalogu lokalnego przez
+ * ingestDocument. Fundament Folder Sprawy (ADR-0056): backend dziala lokalnie w
+ * trybie desktop, wiec czyta dysk bezposrednio - bez HTTP/multipart. Niewspierane
+ * rozszerzenia i podkatalogi sa pomijane. Kazdy plik przechodzi pelny skan +
+ * RAG-index jak zwykly upload.
+ */
+export async function ingestFolder(
+  folderPath: string,
+  userId: string,
+  projectId: string | null,
+  db: ReturnType<typeof createServerSupabase>,
+): Promise<FolderIngestEntry[]> {
+  const entries = await fs.promises.readdir(folderPath, {
+    withFileTypes: true,
+  });
+  const results: FolderIngestEntry[] = [];
+  for (const entry of entries) {
+    if (!entry.isFile()) continue;
+    if (!ALLOWED_TYPES.has(suffixOf(entry.name))) continue;
+    const content = await fs.promises.readFile(
+      path.join(folderPath, entry.name),
+    );
+    const r = await ingestDocument({
+      content,
+      filename: entry.name,
+      userId,
+      projectId,
+      db,
+    });
+    results.push({
+      file: entry.name,
+      httpStatus: r.httpStatus,
+      documentId: r.documentId,
+    });
+  }
+  return results;
 }
 
 async function countPdfPages(buf: ArrayBuffer): Promise<number | null> {
