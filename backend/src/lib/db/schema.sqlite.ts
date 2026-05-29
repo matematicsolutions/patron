@@ -266,7 +266,8 @@ create table if not exists audit_log (
     'admin.access.security_banner',
     'admin.access.metrics',
     'migrate.rollback',
-    'llm_route'
+    'llm_route',
+    'defense.pipeline.run'
   )),
   chat_id text,
   document_id text,

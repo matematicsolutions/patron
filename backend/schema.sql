@@ -417,7 +417,8 @@ create table if not exists public.audit_log (
   -- + 002_audit_log_admin_access_event_types.sql (ADR-0043, +4 wartosci)
   -- + 003_audit_log_event_type_export.sql (ADR-0047, +1 wartosc)
   -- + 004_audit_log_event_type_compute_now.sql (ADR-0048, +1 wartosc)
-  -- + 005_audit_log_event_type_llm_route.sql (ADR-0067, +1 wartosc).
+  -- + 005_audit_log_event_type_llm_route.sql (ADR-0067, +1 wartosc)
+  -- + 007_audit_log_event_type_defense_pipeline.sql (ADR-0068, +1 wartosc).
   constraint audit_log_event_type_whitelist check (event_type in (
     'chat.message.user',
     'chat.message.assistant',
@@ -432,7 +433,8 @@ create table if not exists public.audit_log (
     'admin.access.security_banner',
     'admin.access.metrics',
     'migrate.rollback',
-    'llm_route'
+    'llm_route',
+    'defense.pipeline.run'
   ))
 );
 

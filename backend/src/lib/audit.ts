@@ -76,6 +76,11 @@ export const EVENT_TYPES = [
     // egzekwowanie tajemnicy zawodowej. Wymaga migracji 005 ALTER CHECK whitelist.
     // Lustro: schema.sqlite.ts, schema.sql, migrations/005. Patrz lib/routing/.
     "llm_route",
+    // ADR-0068: uruchomienie pipeline obrony /draft/refine (Recenzent/Adwokat
+    // diabla/Pisz po ludzku) - kto/kiedy/etapy/model/klasyfikacja high-stakes/
+    // czas, bez tresci draftu. AI Act art. 12. Wymaga migracji 007 ALTER CHECK.
+    // Lustro: schema.sqlite.ts, schema.sql, migrations/007. Patrz routes/draft.ts.
+    "defense.pipeline.run",
 ] as const;
 
 /** Union literal lustrzany dla CHECK constraint w audit_log. */

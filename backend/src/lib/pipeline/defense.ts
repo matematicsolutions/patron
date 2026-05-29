@@ -12,6 +12,9 @@
 // wstrzykiwana funkcje LLM (default completeText) - testy podaja fake.
 
 import { completeText, type UserApiKeys } from "../llm";
+import { egressForModel } from "../routing/egress";
+import { createPseudonimMap } from "../pseudonim/map";
+import { wrapInto, unwrap } from "../pseudonim/wrap";
 
 export type AdwokatMode = "strona-przeciwna" | "sad" | "prokurator";
 export type DefenseStage = "recenzent" | "adwokat" | "pisz-po-ludzku";
@@ -55,8 +58,33 @@ const BASE_RULES =
   "Nie dodawaj danych osobowych. Zwroc WYLACZNIE poprawiona wersje pisma, bez " +
   "komentarza, bez naglowka 'oto poprawiona wersja', bez metaopisu.";
 
+/** Limit dlugosci kontekstu sprawy (H12 - DoS i prompt injection). */
+export const MAX_CONTEXT_CHARS = 2000;
+
+/**
+ * Sanityzacja pola context (H12). Pole pochodzi od uzytkownika i jest
+ * interpolowane do user promptu wszystkich 3 etapow - bez kontroli podatne na
+ * prompt injection ("Ignoruj poprzednie instrukcje..."), zwlaszcza w adwokacie
+ * diabla. Usuwamy znaki kontrolne (poza zwyklym whitespace) i tniemy dlugosc.
+ */
+export function sanitizeContext(context: string): string {
+  let out = "";
+  for (const ch of context) {
+    const c = ch.codePointAt(0);
+    // pomin znaki kontrolne (zachowaj tab/newline/cr jako zwykly whitespace)
+    if (c !== undefined && c < 0x20 && c !== 0x09 && c !== 0x0a && c !== 0x0d) continue;
+    if (c === 0x7f) continue;
+    out += ch;
+  }
+  return out.slice(0, MAX_CONTEXT_CHARS).trim();
+}
+
 function withContext(user: string, context?: string): string {
-  return context ? `Kontekst sprawy: ${context}\n\n${user}` : user;
+  if (!context) return user;
+  const safe = sanitizeContext(context);
+  if (!safe) return user;
+  // Otoczenie separatorem - model traktuje kontekst jako dane, nie instrukcje.
+  return `<kontekst_sprawy>\n${safe}\n</kontekst_sprawy>\n\n${user}`;
 }
 
 export function buildRecenzentPrompt(
@@ -164,7 +192,17 @@ export async function runDefensePipeline(
   llm: LlmCompleteFn = completeText,
 ): Promise<DefenseResult> {
   const stages = config.stages ?? ALL_STAGES;
-  let current = draft;
+  // H14 (ADR-0068): maskuj PII PRZED wyjsciem do chmury. Pipeline robi do 3
+  // wywolan LLM na drogim modelu - draft z PESEL/NIP nie moze isc jawnie do
+  // dostawcy chmurowego. Model lokalny (no-egress, pilotaz Ollama) pomijany.
+  // Wylacznik PATRON_PSEUDONIM_EGRESS=false. Imiona LLM-noop = dlug FAZA 1 (B1).
+  const mask =
+    process.env.PATRON_PSEUDONIM_EGRESS !== "false" &&
+    egressForModel(config.model) !== "no-egress";
+  const map = mask ? createPseudonimMap() : null;
+  // `current` plynie zamaskowany przez wszystkie etapy (wspolna mapa = spojne
+  // tokeny); output kazdego etapu pokazujemy odwrocony.
+  let current = map ? await wrapInto(map, draft) : draft;
   const results: StageResult[] = [];
   for (const stage of stages) {
     const { prompt, mode } = promptForStage(stage, current, config);
@@ -178,7 +216,10 @@ export async function runDefensePipeline(
     const trimmed = (output ?? "").trim();
     // Pusta odpowiedz etapu nie kasuje draftu - zachowaj poprzedni.
     if (trimmed) current = trimmed;
-    results.push({ stage, mode, output: trimmed });
+    results.push({ stage, mode, output: map ? unwrap(trimmed, map) : trimmed });
   }
-  return { final: current, stages: results };
+  return {
+    final: map ? unwrap(current, map) : current,
+    stages: results,
+  };
 }
