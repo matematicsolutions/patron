@@ -107,11 +107,16 @@ export function canonicalJsonStringify(value: unknown): string {
         return `[${items.join(",")}]`;
     }
     if (typeof value === "object") {
-        const keys = Object.keys(value as Record<string, unknown>).sort();
-        const parts = keys.map((k) => {
-            const v = (value as Record<string, unknown>)[k];
-            return `${JSON.stringify(k)}:${canonicalJsonStringify(v)}`;
-        });
+        const obj = value as Record<string, unknown>;
+        // Pomijamy klucze o wartosci undefined - tak samo robi JSON.stringify, wiec
+        // hash z pamieci zgadza sie z hashem po round-tripie przez plik JSON
+        // (inaczej falszywy "tampered" dla pol opcjonalnych w audit-bundle).
+        const keys = Object.keys(obj)
+            .filter((k) => obj[k] !== undefined)
+            .sort();
+        const parts = keys.map(
+            (k) => `${JSON.stringify(k)}:${canonicalJsonStringify(obj[k])}`,
+        );
         return `{${parts.join(",")}}`;
     }
     // Fallback dla bigint/symbol/function - nieobslugiwane w audit pack.

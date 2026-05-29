@@ -17,7 +17,7 @@ import { metricsRouter } from "./routes/metrics";
 import { foldersRouter } from "./routes/folders";
 import { draftRouter } from "./routes/draft";
 import { rodoRouter } from "./routes/rodo";
-import { createServerSupabase } from "./lib/supabase";
+import { createServerSupabase, isSqliteBackend } from "./lib/supabase";
 import { runAutoCompute } from "./lib/audit-merkle-roots";
 import {
   parseIntervalHours,
@@ -215,7 +215,10 @@ function startMerkleScheduler(): void {
   );
 }
 
-app.listen(PORT, () => {
-  console.log(`PATRON backend running on port ${PORT}`);
+// Bind loopback w trybie desktop (sqlite, auth bypass) - inaczej API kancelarii
+// jest dostepne w calej sieci LAN. Tryb serwerowy zachowuje 0.0.0.0; override env.
+const HOST = process.env.PATRON_HOST ?? (isSqliteBackend() ? "127.0.0.1" : "0.0.0.0");
+app.listen(Number(PORT), HOST, () => {
+  console.log(`PATRON backend running on ${HOST}:${PORT}`);
   startMerkleScheduler();
 });

@@ -8,6 +8,8 @@ import { Router } from "express";
 import { requireAuth } from "../middleware/auth";
 import { createServerSupabase, isSqliteBackend } from "../lib/supabase";
 import { ingestFolder } from "../lib/documentIngest";
+import { promises as fs } from "node:fs";
+import path from "node:path";
 
 export const foldersRouter = Router();
 
@@ -26,10 +28,28 @@ foldersRouter.post("/ingest", requireAuth, async (req, res) => {
   if (!folderPath || typeof folderPath !== "string") {
     return void res.status(400).json({ detail: "path is required" });
   }
+  // Walidacja sciezki: czytelny blad 400 zamiast nieczytelnego 500 (naprawia
+  // znany bug "import folderu nie dziala w buildzie" - zla sciezka leciala jako
+  // wyjatek -> 500). Ochrona przed zdalnym odczytem dowolnego katalogu zapewnia
+  // bind loopback w trybie desktop (index.ts); tu single-user czyta wlasny dysk.
+  const resolvedPath = path.resolve(folderPath);
+  let stat;
+  try {
+    stat = await fs.stat(resolvedPath);
+  } catch {
+    return void res
+      .status(400)
+      .json({ detail: `Katalog nie istnieje lub brak dostepu: ${folderPath}` });
+  }
+  if (!stat.isDirectory()) {
+    return void res
+      .status(400)
+      .json({ detail: `Sciezka nie jest katalogiem: ${folderPath}` });
+  }
   const db = createServerSupabase();
   try {
     const results = await ingestFolder(
-      folderPath,
+      resolvedPath,
       userId,
       project_id ?? null,
       db,

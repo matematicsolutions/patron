@@ -115,12 +115,15 @@ export function canonicalJsonStringify(value: unknown): string {
     if (Array.isArray(value)) {
         return `[${value.map(canonicalJsonStringify).join(",")}]`;
     }
-    const keys = Object.keys(value as Record<string, unknown>).sort();
+    const obj = value as Record<string, unknown>;
+    // Pomijamy klucze o wartosci undefined - JSON.stringify tez je pomija, wiec
+    // round-trip przez JSON.parse nie rozjedzie sie z kanonicznym hashem (inaczej
+    // falszywy "tampered" w weryfikacji audit-bundle/pack dla pol opcjonalnych).
+    const keys = Object.keys(obj)
+        .filter((k) => obj[k] !== undefined)
+        .sort();
     const parts = keys.map(
-        (k) =>
-            `${JSON.stringify(k)}:${canonicalJsonStringify(
-                (value as Record<string, unknown>)[k],
-            )}`,
+        (k) => `${JSON.stringify(k)}:${canonicalJsonStringify(obj[k])}`,
     );
     return `{${parts.join(",")}}`;
 }
