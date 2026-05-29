@@ -28,8 +28,35 @@ import {
   INPUT_SECURITY_AUDIT_EVENT,
 } from "./input-security";
 import { createServerSupabase } from "./supabase";
+import { convertToMarkdown } from "./convert/toMarkdown";
+import { runOcr, isOcrConfigured } from "./convert/ocrRunner";
 
-const ALLOWED_TYPES = new Set(["pdf", "docx", "doc"]);
+// ADR-0074: typy bazowe zawsze; obrazy/skany akceptowane tylko gdy OCR (Chandra)
+// jest skonfigurowany - build bez OCR zachowuje sie jak dotad (czyste odrzucenie).
+const BASE_TYPES = new Set(["pdf", "docx", "doc"]);
+const IMAGE_TYPES = new Set(["jpg", "jpeg", "png", "tiff", "tif", "bmp", "webp"]);
+
+function isAllowedType(suffix: string): boolean {
+  if (BASE_TYPES.has(suffix)) return true;
+  if (IMAGE_TYPES.has(suffix)) return isOcrConfigured();
+  return false;
+}
+
+function contentTypeFor(suffix: string): string {
+  if (suffix === "pdf") return "application/pdf";
+  if (suffix === "docx" || suffix === "doc")
+    return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+  const img: Record<string, string> = {
+    jpg: "image/jpeg",
+    jpeg: "image/jpeg",
+    png: "image/png",
+    tiff: "image/tiff",
+    tif: "image/tiff",
+    bmp: "image/bmp",
+    webp: "image/webp",
+  };
+  return img[suffix] ?? "application/octet-stream";
+}
 
 export interface IngestParams {
   content: Buffer;
@@ -62,12 +89,13 @@ export async function ingestDocument(
 ): Promise<IngestResponse> {
   const { content, filename, userId, projectId, db } = params;
   const suffix = suffixOf(filename);
-  if (!ALLOWED_TYPES.has(suffix)) {
+  if (!isAllowedType(suffix)) {
+    const allowed = isOcrConfigured()
+      ? "pdf, docx, doc, jpg, png, tiff (skany/zdjecia przez OCR)"
+      : "pdf, docx, doc";
     return {
       httpStatus: 400,
-      body: {
-        detail: `Unsupported file type: ${suffix}. Allowed: pdf, docx, doc`,
-      },
+      body: { detail: `Unsupported file type: ${suffix}. Allowed: ${allowed}` },
     };
   }
 
@@ -93,10 +121,7 @@ export async function ingestDocument(
   const docId = doc.id as string;
   try {
     const key = storageKey(userId, docId, filename);
-    const contentType =
-      suffix === "pdf"
-        ? "application/pdf"
-        : "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    const contentType = contentTypeFor(suffix);
 
     const rawBuf = content.buffer.slice(
       content.byteOffset,
@@ -107,15 +132,27 @@ export async function ingestDocument(
     // RAG-indeksacja. Deterministyczny, lokalny, zero-LLM. Wynik -> kolumny
     // documents.security_* + audit_log (zdarzenie input_security_scan).
     // blocked => bajty NIE trafiaja do storage (return przed uploadFile).
+    // ADR-0074: konwersja wejscia -> Markdown przez silnik konwersji. Zachowawcze
+    // dla pdf/docx (te same extractPdfText/extractDocxBodyText), a skany-PDF bez
+    // warstwy tekstu i obrazy ida przez OCR (Chandra, lokalnie). Best-effort:
+    // blad konwersji/OCR nie wywala ingestu (dokument utrwalony, detektory binarne
+    // dzialaja na buforze niezaleznie).
     let scanText = "";
     try {
-      scanText =
-        suffix === "pdf"
-          ? await extractPdfText(rawBuf)
-          : await extractDocxBodyText(content);
-    } catch {
-      // Ekstrakcja tekstu do skanu jest best-effort (np. skan bez warstwy
-      // tekstowej); detektory binarne dzialaja na buforze niezaleznie.
+      const conv = await convertToMarkdown(
+        { buffer: content, filename },
+        {
+          extractPdfText,
+          extractDocxText: extractDocxBodyText,
+          ocr: runOcr,
+        },
+      );
+      scanText = conv.markdown;
+    } catch (e) {
+      console.warn(
+        `[ingest] konwersja->MD nieudana dla ${filename}:`,
+        e instanceof Error ? e.message : String(e),
+      );
     }
     const scan = analyzeInput({
       text: scanText,
@@ -304,7 +341,7 @@ export async function ingestFolder(
   const results: FolderIngestEntry[] = [];
   for (const entry of entries) {
     if (!entry.isFile()) continue;
-    if (!ALLOWED_TYPES.has(suffixOf(entry.name))) continue;
+    if (!isAllowedType(suffixOf(entry.name))) continue;
     const content = await fs.promises.readFile(
       path.join(folderPath, entry.name),
     );
