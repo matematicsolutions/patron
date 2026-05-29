@@ -1,7 +1,9 @@
 # ADR-0005: Mechaniczna weryfikacja cytatow (citation grounding)
 
-**Status**: Proponowany (cherry-pick blueprint, niewpiety w stack produkcyjny)
-**Data**: 2026-05-20
+**Status**: Czesciowo wdrozony 2026-05-29 (poziom 1 - dokumenty klienta - LIVE,
+wpiety w chat/stream.ts; poziomy 2/3 - orzeczenia SAOS / przepisy ISAP-EUR-Lex -
+rezerwacja). Konstytucja v1.3.3.
+**Data**: 2026-05-20 (blueprint), 2026-05-29 (wdrozenie poziom 1)
 **Powiązane zasady**: Konstytucja AI Patrona, Art. 2 (weryfikowalność),
 Art. 5 (tajemnica zawodowa - cytat z orzeczenia musi byc realnym
 cytatem, nie wymyslonym przez LLM), Art. 7 (minimalnosc - jezeli LLM
@@ -9,6 +11,18 @@ wymysla cytat, prawnik szuka go w bazach i marnuje czas)
 **Powiązane**: ADR-0004 (debate), ADR-0006 (audit bundle), wzorzec
 architektoniczny [AnttiHero/lavern](https://github.com/AnttiHero/lavern)
 (Apache 2.0)
+
+> **Uwaga wdrozeniowa (2026-05-29):** cialo tego ADR (Wariant C, Plan
+> migracji) opisuje 2 stopnie z progiem "match >= 0.95 similarity". Wdrozony
+> modul `lib/citation/grounding.ts` realizuje to jako **3 stopnie** liczone od
+> edit-ratio (znormalizowany Levenshtein roznicy / dlugosc, per segment cytatu):
+> dopasowanie DOKLADNE (ratio 0) = ZWERYFIKOWANY (prog ostrzejszy niz 0.95 -
+> wymaga zgodnosci co do znaku po normalizacji); ratio <= 0.15 = ZMODYFIKOWANY
+> (odpowiednik "unverified, blisko" - literowka/uciecie); ratio > 0.15
+> (~podobienstwo < 0.85) = NIEZWERYFIKOWANY (blocked - podmiana slowa, halucynacja).
+> Cutoff blokady (0.85) jest luzniejszy niz pierwotne 0.95, ale "verified"
+> wymaga dokladnosci - swiadomy kompromis: mniej falszywych blokad, zero
+> falszywych "verified". Tuning po pilotazu - patrz Status weryfikacji.
 
 ## Decyzja
 
@@ -217,10 +231,10 @@ Jezeli match < 0.95 - flaga w UI. Jezeli zrodlo nie istnieje - blok.
 
 ### Tydzien 4 - UI flagi unverified / blocked
 
-- [ ] `AssistantMessage` - badge per cytat: zielony (verified),
-      pomaranczowy (unverified, kliknij zrodlo), czerwony (blocked,
-      Patron nie znalazl zrodla)
-- [ ] Pierwszy widok 3-stopniowy signal w czacie
+- [x] `AssistantMessage` - badge per cytat: zielony (verified),
+      bursztynowy (unverified, sprawdz zrodlo), czerwony (blocked,
+      Patron nie potwierdzil cytatu) - zrealizowane w ADR-0065
+- [x] Pierwszy widok 3-stopniowy signal w czacie - ADR-0065
 
 ### Tydzien 5 - cytaty z dokumentow klienta
 
@@ -238,18 +252,36 @@ Jezeli match < 0.95 - flaga w UI. Jezeli zrodlo nie istnieje - blok.
 
 ## Status weryfikacji
 
-- [ ] Skeleton modulu `backend/src/lib/citation/`
-- [ ] Parser cytatow (regex + LLM-assisted)
-- [ ] Fuzzy matcher (Levenshtein)
-- [ ] Cache parsed orzeczen (Redis / Postgres, TTL 7 dni)
-- [ ] Integracja z mcp-saos, mcp-isap, mcp-eurlex
-- [ ] UI badge per cytat (verified / unverified / blocked)
-- [ ] Audit log integration
-- [ ] Decyzja Wieslawa: cache w Redis czy Postgres (Postgres = ten
-      sam stack co audit_log; Redis = szybszy, nowy serwis)
-- [ ] Decyzja Wieslawa: blokowac odpowiedz przy zrodle-not-found czy
-      tylko flagowac (rekomendacja: blokowac jezeli >=1 cytatu bez
-      zrodla; flagowac jezeli cytat istnieje ale match < threshold)
+Wdrozenie 2026-05-29 (poziom 1 - dokumenty klienta) ODBIEGA od planu 6-tyg
+blueprintu i jest prostsze - wykorzystano istniejaca infrastrukture Patrona:
+
+- [x] Modul `backend/src/lib/citation/grounding.ts` - czysty deterministyczny
+      weryfikator (`verifyCitations` / `verifyOne` / `normalize`). Zamiast
+      osobnego parser.ts: reuzyto istniejacy `chat/citations.ts parseCitations`
+      (blok `<CITATIONS>` jest juz ustrukturyzowany - LLM-assisted parser zbedny)
+- [x] Fuzzy matcher (Levenshtein znormalizowany). UWAGA: prog **0.15 edit-ratio**
+      (segmenty cytatu), nie 0.95 similarity - rownowaznie, ale liczone od
+      roznicy. Odroznia literowke (ZMODYFIKOWANY) od podmiany slowa (NIEZWERYFIKOWANY)
+- [x] Warstwa wpiecia `backend/src/lib/chat/ground-citations.ts` - prefetch
+      tekstu raz na doc_id + synchroniczny resolver na mapie
+- [x] Cache: NIE potrzebny dla poziomu 1 - tekst dokumentu klienta czytany
+      lokalnie przez `getDocumentTextForGrounding` (reuse read_document, offline).
+      Cache parsed orzeczen wroci dla poziomu 2 (SAOS przez siec)
+- [x] Wpiecie w `chat/stream.ts` - werdykt w evencie SSE `citations` (pole `grounding`)
+- [x] 21 testow (15 verifier + 6 wiring) + eval harness LEDGAR (351 case),
+      725/730 vitest pass, tsc clean
+- [ ] Integracja z mcp-saos (poziom 2 - orzeczenia) - resolver dopinany analogicznie
+- [ ] Integracja z mcp-isap / mcp-eurlex (poziom 3 - przepisy)
+- [x] UI badge per cytat (verified / unverified / blocked) w `AssistantMessage.tsx`
+      + i18n - **ADR-0065**
+- [x] Persystencja werdyktu na reload (extractAnnotations -> citation_data) - **ADR-0065**
+- [x] Audit: podsumowanie grounding w payloadzie `chat.message.assistant` (zamiast
+      3 osobnych event_type - odstepstwo udokumentowane w **ADR-0065**)
+- [x] Decyzja: cache - zbedny dla dokumentow klienta (offline), patrz wyzej
+- [ ] Decyzja Wieslawa: czy `blocked` (NIEZWERYFIKOWANY/BRAK_ZRODLA) ma TWARDO
+      blokowac render cytatu, czy tylko czerwona flaga. Obecnie: tylko sygnal
+      w evencie, render decyduje UI (rekomendacja: flaga czerwona, nie blok -
+      prawnik widzi ze Patron nie potwierdzil, sam decyduje)
 
 ## Licencja blueprintu
 

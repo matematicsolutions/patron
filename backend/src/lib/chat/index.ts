@@ -13,4 +13,5 @@ export * from "./persistence";
 export * from "./docx-generate";
 export * from "./docx-edit";
 export * from "./tool-dispatch";
+export * from "./ground-citations";
 export * from "./stream";

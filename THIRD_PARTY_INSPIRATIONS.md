@@ -68,8 +68,11 @@ zadan high-stakes; mechaniczna weryfikacja cytatow; audit bundle.
 **Czego Patron NIE bierze**:
 - 67 promptow agentow (Lavern celuje w US contract review,
   semantyka anglosaska common law - irrelevant dla PL)
-- 5 datasetow contract review (CUAD, MAUD, ACORD, UNFAIR-ToS, LEDGAR -
-  korpus anglosaski, IRR dla PL)
+- 5 datasetow contract review jako RUNTIME / tresc PL (CUAD, MAUD, ACORD,
+  UNFAIR-ToS, LEDGAR - korpus anglosaski, IRR dla polskiego prawa). Wyjatek:
+  LEDGAR uzyty WYLACZNIE jako zbior testowy mechanizmu groundingu w osobnym
+  projekcie eval (nie w runtime Patrona, nie redystrybuowany) - patrz "Status
+  wdrozenia" nizej
 - Workflow templates contract review (US-centric)
 - Branding Clawern, menubar UI
 - Kodu TypeScript Lavern (Patron implementuje od zera w wlasnym
@@ -78,6 +81,20 @@ zadan high-stakes; mechaniczna weryfikacja cytatow; audit bundle.
 **Wdrozenie**: ADR-0004 (debate + verification), ADR-0005 (citation
 grounding), ADR-0006 (audit bundle), ADR-0014 T2b (adapter tool-calling),
 ADR-0018 (precedent board). Implementacja PL od zera, nie port kodu.
+
+**Status wdrozenia (2026-05-29)**: ADR-0005 poziom 1 (dokumenty klienta) LIVE -
+deterministyczny weryfikator `lib/citation/grounding.ts` wpiety w `chat/stream.ts`,
+walidowany na eval harness (LEDGAR/lex_glue CC BY-SA 4.0 uzyte WYLACZNIE jako
+zbior testowy mechanizmu w osobnym projekcie legal-eval-harness, NIE jako runtime
+PL ani redystrybuowane dane - patrz nizej "NIE bierze 5 datasetow"). Domkniete
+warstwami widocznymi (ADR-0065): UI badge 3-stopniowy + persystencja werdyktu +
+audit summary. Konstytucja v1.3.4. Poziomy 2/3 (SAOS / ISAP-EUR-Lex) rezerwacja.
+ADR-0006 RDZEN (audit bundle) LIVE - `lib/audit-bundle.ts` builder + offline
+verifier CLI `audit:verify-bundle`, integralnosc SHA-256 (reuse audit-pack), bundle
+sklejajacy deliverable + grounding + audit_log_excerpt; bez podpisu (rezerwacja
+ADR-0049), bez auto-trigger/UI/schema (rezerwacja). Konstytucja v1.3.5 (ADR-0066).
+Pozostale ADR z blueprintu: 0004 (debate), 0014 (adapter, prawie zywy przez
+OpenRouter ADR-0059), 0018 (precedent board) - nadal blueprint.
 
 **Watch**: v0.16+ Lavern czy autor dorobi EU connectors (EUR-Lex /
 CJEU) - roadmap wspomina bez timeline. Status 2026-06-17 do 07-01 -

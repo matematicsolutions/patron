@@ -10,6 +10,7 @@
     "test:watch": "vitest",
     "audit:verify": "tsx scripts/verify-audit-chain.ts",
     "audit:verify-pack": "tsx scripts/verify-audit-pack.ts",
+    "audit:verify-bundle": "tsx scripts/verify-audit-bundle.ts",
     "rodo:export": "tsx scripts/rodo-export.ts",
     "rodo:delete": "tsx scripts/rodo-delete.ts",
     "migrate": "tsx scripts/run-migrations.ts plan",

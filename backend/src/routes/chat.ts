@@ -7,6 +7,7 @@ import {
     enrichWithPriorEvents,
     buildWorkflowStore,
     extractAnnotations,
+    groundingSummary,
     runLLMStream,
     type ChatMessage,
 } from "../lib/chatTools";
@@ -574,18 +575,19 @@ chatRouter.post("/", requireAuth, async (req, res) => {
     try {
         write(`data: ${JSON.stringify({ type: "chat_id", chatId })}\n\n`);
 
-        const { fullText, events, mcpCitations } = await runLLMStream({
-            apiMessages,
-            docStore,
-            docIndex,
-            userId,
-            db,
-            write,
-            workflowStore,
-            model,
-            apiKeys,
-            projectId: resolvedProjectId,
-        });
+        const { fullText, events, mcpCitations, grounding } =
+            await runLLMStream({
+                apiMessages,
+                docStore,
+                docIndex,
+                userId,
+                db,
+                write,
+                workflowStore,
+                model,
+                apiKeys,
+                projectId: resolvedProjectId,
+            });
 
         devLog("[chat/stream] LLM stream finished", {
             fullTextLen: fullText?.length ?? 0,
@@ -597,6 +599,7 @@ chatRouter.post("/", requireAuth, async (req, res) => {
             docIndex,
             events,
             mcpCitations,
+            grounding,
         );
         await db.from("chat_messages").insert({
             chat_id: chatId,
@@ -625,6 +628,8 @@ chatRouter.post("/", requireAuth, async (req, res) => {
                 ).length,
                 mcp_citation_count: mcpCitations.length,
                 mcp_tools_called: mcpToolsCalled,
+                // ADR-0005: wynik mechanicznej weryfikacji cytatow w tej turze.
+                grounding: groundingSummary(grounding),
             },
         });
 

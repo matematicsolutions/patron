@@ -1,7 +1,10 @@
 # ADR-0006: Audit bundle dla zgodnosci z AI Act art. 12
 
-**Status**: Proponowany (cherry-pick blueprint, niewpiety w stack produkcyjny)
-**Data**: 2026-05-20
+**Status**: Czesciowo wdrozony 2026-05-29 (RDZEN - builder + offline verifier +
+CLI - LIVE przez ADR-0066; auto-trigger high-stakes / UI / endpoint eksportu /
+podpis Ed25519 / schema / pseudonim_map / debate_transcript - rezerwacja).
+Konstytucja v1.3.5.
+**Data**: 2026-05-20 (blueprint), 2026-05-29 (rdzen przez ADR-0066)
 **Powiązane zasady**: Konstytucja AI Patrona, Art. 3 (audytowalność),
 Art. 6 (human in the loop - prawnik widzi caly tok pracy Patrona),
 Art. 8 (przejrzystosc - operator wie, co Patron zrobil)
@@ -265,15 +268,20 @@ maja przycisk "Wygeneruj audit bundle" w UI.
 
 ## Status weryfikacji
 
-- [ ] Skeleton modulu `backend/src/lib/audit/bundle.ts`
-- [ ] Schema SQL `audit_bundle_metadata`
-- [ ] Generator bundle (deliverable + transcript + verification +
-      audit_log_excerpt + cost_log + pseudonim_map_excerpt +
-      prompts + model_versions + manifest + signature)
-- [ ] CLI `audit:bundle:generate`, `audit:bundle:verify`,
-      `audit:bundle:export`
-- [ ] UI badge + manual trigger button
-- [ ] `governance/TRUSTED_KEYS.md` z fingerprint klucza
+Rdzen zrealizowany w **ADR-0066** (2026-05-29), ze swiadomymi odstepstwami od
+tego blueprintu (plaska nazwa modulu, single-JSON zamiast folderu, SHA-256
+zamiast podpisu - patrz tabela odstepstw w ADR-0066):
+
+- [x] Modul `backend/src/lib/audit-bundle.ts` (nie `audit/bundle.ts` - konwencja repo) - ADR-0066
+- [ ] Schema SQL `audit_bundle_metadata` - bundle generowany na zadanie, nie persystowany (rezerwacja)
+- [x] Generator bundle: deliverable + citation_verification (grounding ADR-0005)
+      + audit_log_excerpt + cost_log (best-effort) + model_versions + manifest
+      SHA-256 per czesc + integrity. BEZ: transcript (ADR-0004 niewpiety),
+      pseudonim_map (rezerwacja), signature (ADR-0049) - ADR-0066
+- [x] CLI `audit:verify-bundle` (offline verifier, round-trip OK) - ADR-0066.
+      `audit:bundle:generate/export` (auto + ZIP) = rezerwacja
+- [ ] UI badge + manual trigger button (rezerwacja)
+- [ ] `governance/TRUSTED_KEYS.md` z fingerprint klucza (dopiero z podpisem ADR-0049)
 - [ ] Decyzja Wieslawa: storage path - lokalnie obok `audit_log`
       czy osobny mount? (rekomendacja: lokalnie, ten sam volume,
       cold storage po 1 roku)

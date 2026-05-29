@@ -196,6 +196,41 @@ async function readDocumentContent(
     }
 }
 
+// Sentinele zwracane przez readDocumentContent gdy tresci NIE udalo sie podac
+// do modelu (brak dokumentu, blad odczytu, wstrzymanie przez input-security).
+// Dla groundingu (ADR-0005) traktujemy je jak brak zrodla -> null.
+function isReadFailureSentinel(text: string): boolean {
+    return (
+        text === "Document not found." ||
+        text === "Document could not be read." ||
+        text.startsWith("Dokument \"") // komunikat wstrzymania input-security
+    );
+}
+
+/**
+ * ADR-0005: cichy odczyt pelnego tekstu dokumentu klienta dla mechanicznej
+ * weryfikacji cytatow (citation grounding). Reuzywa readDocumentContent (ta sama
+ * sciezka co read_document widziana przez model: wersja tracked-changes,
+ * ekstrakcja PDF/DOCX, guard input-security), ale BEZ emisji eventow SSE.
+ * Zwraca null gdy zrodla nie da sie pobrac - grounding oznaczy wtedy BRAK_ZRODLA.
+ */
+export async function getDocumentTextForGrounding(
+    docLabel: string,
+    docStore: DocStore,
+    docIndex?: DocIndex,
+    db?: ReturnType<typeof createServerSupabase>,
+): Promise<string | null> {
+    const text = await readDocumentContent(
+        docLabel,
+        docStore,
+        () => {},
+        docIndex,
+        db,
+        { emitEvents: false },
+    );
+    return isReadFailureSentinel(text) ? null : text;
+}
+
 /**
  * Build a whitespace-collapsed, lowercased copy of `text`, plus a map from
  * each character index in the normalized form back to the corresponding

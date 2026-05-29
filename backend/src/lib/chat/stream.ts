@@ -12,6 +12,8 @@ import {
 import { getMcpTools, isMcpTool, runMcpTool, type McpCitation } from "../mcp";
 import { createServerSupabase } from "../supabase";
 import { CITATIONS_OPEN_TAG, parseCitations, resolveDoc } from "./citations";
+import { groundCitationsByRef } from "./ground-citations";
+import type { GroundingResult } from "../citation/grounding";
 import { TOOLS, WORKFLOW_TOOLS } from "./tools";
 import { runToolCalls, type TurnEditState } from "./tool-dispatch";
 import type {
@@ -90,6 +92,8 @@ export async function runLLMStream(params: {
     events: AssistantEvent[];
     /** Cytaty z serwerow MCP - do zapisania w DB jako adnotacje. */
     mcpCitations: McpCitation[];
+    /** ADR-0005: werdykt mechanicznej weryfikacji cytatow per ref. */
+    grounding: Record<number, GroundingResult>;
 }> {
     const {
         apiMessages,
@@ -399,7 +403,12 @@ export async function runLLMStream(params: {
                   quote: c.quote,
               };
           });
-    write(`data: ${JSON.stringify({ type: "citations", citations })}\n\n`);
+    // ADR-0005: mechaniczna weryfikacja cytatow (citation grounding) przed
+    // zwrotem - kazdy cytat z dokumentu klienta sprawdzany string-matchem
+    // wzgledem tresci. Werdykt (verified/unverified/blocked) leci obok cytatow,
+    // UI renderuje 3-stopniowy signal. Deterministyczne, offline, zero LLM.
+    const grounding = await groundCitationsByRef(citations, docStore, docIndex, db);
+    write(`data: ${JSON.stringify({ type: "citations", citations, grounding })}\n\n`);
     // Cytaty z serwerow MCP (np. SAOS) - osobny event, zeby panel UI
     // mogl je renderowac jako "Powiazane zrodla" obok dokumentowych.
     if (mcpCitations.length > 0) {
@@ -409,6 +418,6 @@ export async function runLLMStream(params: {
     }
     write("data: [DONE]\n\n");
 
-    return { fullText, events, mcpCitations };
+    return { fullText, events, mcpCitations, grounding };
 }
 

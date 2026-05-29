@@ -4,6 +4,7 @@
 import { attachActiveVersionPaths } from "../documentVersions";
 import type { McpCitation } from "../mcp";
 import { createServerSupabase } from "../supabase";
+import type { GroundingResult } from "../citation/grounding";
 import { parseCitations, resolveDoc } from "./citations";
 import type {
     ChatMessage,
@@ -22,9 +23,14 @@ export function extractAnnotations(
     docIndex: DocIndex,
     events?: ({ type: string } & Record<string, unknown>[]) | unknown[],
     mcpCitations?: McpCitation[],
+    // ADR-0005: werdykt mechanicznej weryfikacji cytatow per ref. Gdy podany,
+    // dokleja `grounding` (verified/unverified/blocked) do citation_data - dzieki
+    // temu badge przetrwa reload czatu (annotations zapisywane w DB).
+    grounding?: Record<number, GroundingResult>,
 ): unknown[] {
     const out: unknown[] = parseCitations(fullText).map((c) => {
         const docInfo = resolveDoc(c.doc_id, docIndex);
+        const verdict = grounding?.[c.ref];
         return {
             type: "citation_data",
             ref: c.ref,
@@ -35,6 +41,9 @@ export function extractAnnotations(
             filename: docInfo?.filename ?? c.doc_id,
             page: c.page,
             quote: c.quote,
+            ...(verdict
+                ? { grounding: verdict.decision, grounding_status: verdict.status }
+                : {}),
         };
     });
     if (Array.isArray(events)) {
