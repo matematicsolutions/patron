@@ -22,10 +22,24 @@ silnikow (2026-05-29):
 GLM-OCR rozwiazuje JEDNOCZESNIE problem licencji (MIT > OpenRAIL-M Chandry), jakosci (SOTA), wagi
 (lekki 0.9B) i integracji (Ollama - Patron juz ma te infrastrukture lokalna).
 
-## Decyzja
+## Decyzja (recalibrowana po walidacji na realnej sprawie)
 
-**Silnik bazowy OCR = GLM-OCR (MIT).** Budujemy WLASNY OCR na tej architekturze w 3 poziomach
-(swiadomie NIE poziom 3):
+DWA silniki przez engine-agnostic PATRON_OCR_CMD (ADR-0074):
+- **BASELINE = Tesseract `pol` + poppler (pdftoppm), parallelized `-P 6`.** PROVEN: to wasz `ocr.sh`,
+  ktorym zrobiliscie cala sprawe Beaty (2755 skanow / 7.36GB) na TEJ maszynie CPU w kilka minut.
+  Apache 2.0 (Tesseract) - czysty komercyjnie; CPU, BEZ GPU - dziala na laptopie mecenasa.
+  **Walidacja content-blind na realnych skanach Koziatek (2026-05-29):** ~1s/obraz CPU, dobra jakosc
+  na stronach tekstowych (alpha/graph 84-90% = czytelny polski, nie krzaki); strony puste/zlozone
+  (pieczec/zdjecie) -> 0 znakow, lapane przez nasz assessOcrQuality jako "niska jakosc, sprawdz
+  oryginal". To jest baseline ktory SHIPUJEMY.
+- **UPGRADE (opcjonalny, GPU) = GLM-OCR (wagi MIT).** SOTA dla trudnych stron gdzie Tesseract zwraca
+  pusto/slabo (pismo odreczne, pieczecie, zlozony layout, tabele). 0.9B, przez Ollama, ale VLM na CPU
+  wolny -> pakiet z GPU (Pro/Sovereign) albo opt-in "gleboki OCR". MIT = czysty na komerce.
+
+Przewaga rynkowa potwierdzona: **Libra w ogole NIE przyjmuje zdjec/skanow** - my przyjmujemy cokolwiek
+i OCR-ujemy lokalnie (RODO-safe). To headline.
+
+Budujemy WLASNY OCR na tej architekturze w 3 poziomach (swiadomie NIE poziom 3), PONAD oboma silnikami:
 
 1. **Poziom 1 - wlasny PIPELINE (`patron-ocr`):** owijka GLM-OCR (przez Ollama/transformers) +
    nasze post-processing pod polskie prawo: normalizacja sygnatur (reuse lib/pl-entities), sanity-check
