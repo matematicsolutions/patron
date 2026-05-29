@@ -10,6 +10,7 @@ import {
     type OpenAIToolSchema,
 } from "../llm";
 import { getMcpTools, isMcpTool, runMcpTool, type McpCitation } from "../mcp";
+import { guardEgress, appendLlmRouteEvent } from "../routing";
 import { createServerSupabase } from "../supabase";
 import { CITATIONS_OPEN_TAG, parseCitations, resolveDoc } from "./citations";
 import { groundCitationsByRef } from "./ground-citations";
@@ -212,7 +213,33 @@ export async function runLLMStream(params: {
 
     const selectedModel = resolveModel(model, DEFAULT_MAIN_MODEL);
 
-    await streamChatWithTools({
+    // ADR-0067: straznik data-residency PRZED wyjsciem do providera. Blokuje
+    // wyslanie tresci sprawy do strefy egress niedozwolonej dla jej klasyfikacji
+    // (tajemnica zawodowa -> tylko model lokalny). Decyzja idzie do audit_log.
+    const guard = await guardEgress({ db, model: selectedModel, projectId });
+    if (!guard.allowed) {
+        await appendLlmRouteEvent(db, {
+            actorUserId: userId,
+            caseId: projectId ?? null,
+            model: selectedModel,
+            provider: guard.provider,
+            egress: guard.decision.egress,
+            classification: guard.decision.classification,
+            action: "block",
+            reason: guard.decision.reason,
+        });
+        const msg =
+            guard.blockMessage ??
+            "Routing zablokowany przez polityke data-residency.";
+        write(
+            `data: ${JSON.stringify({ type: "error", message: msg, code: "egress_blocked" })}\n\n`,
+        );
+        write("data: [DONE]\n\n");
+        return { fullText: "", events: [], mcpCitations: [], grounding: {} };
+    }
+
+    const routeStartedAt = Date.now();
+    const streamResult = await streamChatWithTools({
         model: selectedModel,
         systemPrompt,
         messages: chatMessages,
@@ -386,6 +413,21 @@ export async function runLLMStream(params: {
     });
 
     flushText();
+
+    // ADR-0067: per-call audit po zakonczeniu wywolania (decyzja allow) z realnym
+    // kosztem (OpenRouter) i latencja. Dowod nalezytej starannosci AI Act art. 12.
+    await appendLlmRouteEvent(db, {
+        actorUserId: userId,
+        caseId: projectId ?? null,
+        model: selectedModel,
+        provider: guard.provider,
+        egress: guard.decision.egress,
+        classification: guard.decision.classification,
+        action: "allow",
+        reason: guard.decision.reason,
+        latencyMs: Date.now() - routeStartedAt,
+        usage: streamResult.usage,
+    });
 
     // Parse and emit citations from <CITATIONS> block
     const citations = buildCitations

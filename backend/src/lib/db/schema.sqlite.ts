@@ -63,6 +63,12 @@ create table if not exists projects (
   cm_number text,
   visibility text not null default 'private',
   shared_with text not null default '[]',
+  -- ADR-0067: klasyfikacja danych sprawy (straznik data-residency).
+  -- Default fail-closed: 'attorney_client_privileged' (tajemnica -> tylko model
+  -- lokalny). Mecenas swiadomie obniza poziom, by uzyc modelu chmurowego.
+  -- Lustro enum: lib/llm/provider.ts DataClassification + provider.schema.ts.
+  classification text not null default 'attorney_client_privileged'
+    check (classification in ('public','internal','client_general','attorney_client_privileged')),
   created_at text not null,
   updated_at text not null
 );
@@ -259,7 +265,8 @@ create table if not exists audit_log (
     'admin.access.merkle_compute_now',
     'admin.access.security_banner',
     'admin.access.metrics',
-    'migrate.rollback'
+    'migrate.rollback',
+    'llm_route'
   )),
   chat_id text,
   document_id text,

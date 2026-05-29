@@ -76,9 +76,38 @@ export function getDb(): Database.Database {
   db.pragma("journal_mode = WAL");
   db.pragma("foreign_keys = ON");
   db.exec(SQLITE_SCHEMA);
+  ensureSchemaUpgrades(db);
   setupRetrievalTables(db);
   seedLocalUser(db);
   return db;
+}
+
+/**
+ * Idempotentne upgrade'y schematu dla ISTNIEJACYCH baz SQLite. `create table
+ * if not exists` (SQLITE_SCHEMA) nie dodaje kolumn do tabel ktore juz istnieja,
+ * a desktop nie ma runnera migracji (migrations/*.sql ida tylko na Postgres).
+ * Tu dokladamy brakujace kolumny przez ALTER TABLE ADD COLUMN, sprawdzajac
+ * najpierw PRAGMA table_info. Bezpieczne do wielokrotnego uruchomienia.
+ *
+ * UWAGA: ALTER dodaje kolumne z samym DEFAULT (bez CHECK) - CHECK constraint
+ * istnieje tylko w swiezo tworzonej tabeli (SQLITE_SCHEMA). Walidacje wartosci
+ * egzekwuje warstwa aplikacji (provider.schema.ts DataClassification).
+ */
+function ensureSchemaUpgrades(conn: Database.Database): void {
+  const hasColumn = (table: string, column: string): boolean => {
+    const cols = conn.prepare(`PRAGMA table_info(${table})`).all() as {
+      name: string;
+    }[];
+    return cols.some((c) => c.name === column);
+  };
+
+  // ADR-0067: projects.classification (straznik data-residency). Backfill
+  // istniejacych spraw na fail-closed 'attorney_client_privileged' (DEFAULT).
+  if (!hasColumn("projects", "classification")) {
+    conn.exec(
+      "alter table projects add column classification text not null default 'attorney_client_privileged'",
+    );
+  }
 }
 
 /**

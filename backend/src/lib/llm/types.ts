@@ -63,4 +63,16 @@ export type StreamChatParams = {
 
 export type StreamChatResult = {
     fullText: string;
+    /**
+     * Realne zuzycie zwrocone przez dostawce, gdy dostepne. OpenRouter zwraca
+     * tokeny + realny koszt (usage.cost). Pozostali dostawcy zwykle nie podaja
+     * kosztu - wtedy pole jest undefined i audyt oznacza koszt jako szacunkowy
+     * (ADR-0067). Patrz lib/routing/auditLlmRoute.ts.
+     */
+    usage?: {
+        promptTokens?: number | null;
+        completionTokens?: number | null;
+        /** Realny koszt w USD z odpowiedzi dostawcy. */
+        costUsd?: number | null;
+    };
 };

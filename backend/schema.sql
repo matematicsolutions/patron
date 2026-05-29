@@ -74,6 +74,10 @@ create table if not exists public.projects (
   cm_number text,
   visibility text not null default 'private',
   shared_with jsonb not null default '[]'::jsonb,
+  -- ADR-0067: klasyfikacja danych sprawy (straznik data-residency). Default
+  -- fail-closed 'attorney_client_privileged'. Patrz migration 006.
+  classification text not null default 'attorney_client_privileged'
+    check (classification in ('public','internal','client_general','attorney_client_privileged')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -412,7 +416,8 @@ create table if not exists public.audit_log (
   -- backend/migrations/001_audit_log_event_type_check.sql (7 wartosci)
   -- + 002_audit_log_admin_access_event_types.sql (ADR-0043, +4 wartosci)
   -- + 003_audit_log_event_type_export.sql (ADR-0047, +1 wartosc)
-  -- + 004_audit_log_event_type_compute_now.sql (ADR-0048, +1 wartosc).
+  -- + 004_audit_log_event_type_compute_now.sql (ADR-0048, +1 wartosc)
+  -- + 005_audit_log_event_type_llm_route.sql (ADR-0067, +1 wartosc).
   constraint audit_log_event_type_whitelist check (event_type in (
     'chat.message.user',
     'chat.message.assistant',
@@ -426,7 +431,8 @@ create table if not exists public.audit_log (
     'admin.access.merkle_compute_now',
     'admin.access.security_banner',
     'admin.access.metrics',
-    'migrate.rollback'
+    'migrate.rollback',
+    'llm_route'
   ))
 );
 

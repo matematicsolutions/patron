@@ -79,6 +79,10 @@ export function buildChatBody(params: {
     tools: params.tools?.length ? params.tools : undefined,
     stream: params.stream,
     max_tokens: params.maxTokens ?? MAX_TOKENS,
+    // ADR-0067: prosimy OpenRouter o realne zuzycie + koszt (usage.cost).
+    // Streaming zwraca usage w ostatnim chunku przed [DONE]. Per-call audit
+    // (lib/routing/auditLlmRoute.ts) zapisuje go jako koszt rzeczywisty.
+    usage: { include: true },
   };
 }
 
@@ -160,6 +164,10 @@ export async function streamOpenRouter(
   const key = apiKey(params.apiKeys?.openrouter);
   const messages = buildMessages(systemPrompt, params.messages);
   let fullText = "";
+  // ADR-0067: realne zuzycie + koszt z ostatniego chunku usage (usage.include).
+  let capturedUsage:
+    | { prompt_tokens?: number; completion_tokens?: number; cost?: number }
+    | undefined;
 
   for (let iter = 0; iter < maxIter; iter++) {
     const response = await fetch(OPENROUTER_URL, {
@@ -193,7 +201,13 @@ export async function streamOpenRouter(
       buffer += decoder.decode(value, { stream: true });
       const { events, rest } = splitSse(buffer);
       buffer = rest;
-      for (const ev of events as { choices?: StreamChoice[] }[]) {
+      for (const ev of events as {
+        choices?: StreamChoice[];
+        usage?: { prompt_tokens?: number; completion_tokens?: number; cost?: number };
+      }[]) {
+        // Chunk usage (ostatni przed [DONE]) ma puste choices - zlap zanim
+        // odrzucimy event przez `if (!choice) continue`.
+        if (ev.usage) capturedUsage = ev.usage;
         const choice = ev.choices?.[0];
         if (!choice) continue;
         if (typeof choice.delta?.reasoning === "string" && choice.delta.reasoning) {
@@ -238,7 +252,16 @@ export async function streamOpenRouter(
       });
   }
 
-  return { fullText };
+  return {
+    fullText,
+    usage: capturedUsage
+      ? {
+          promptTokens: capturedUsage.prompt_tokens ?? null,
+          completionTokens: capturedUsage.completion_tokens ?? null,
+          costUsd: capturedUsage.cost ?? null,
+        }
+      : undefined,
+  };
 }
 
 export async function completeOpenRouterText(params: {

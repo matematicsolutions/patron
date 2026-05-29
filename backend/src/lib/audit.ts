@@ -70,6 +70,12 @@ export const EVENT_TYPES = [
     "admin.access.metrics",
     // ADR-0038 rezerwacja: log rollbacku migracji (DOWN aplikacja).
     "migrate.rollback",
+    // ADR-0067: governance routingu LLM - per-call audit straznika data-residency
+    // (model, dostawca, strefa egress, klasyfikacja danych, decyzja allow/block,
+    // realny koszt, latencja). Dowod nalezytej starannosci AI Act art. 12 +
+    // egzekwowanie tajemnicy zawodowej. Wymaga migracji 005 ALTER CHECK whitelist.
+    // Lustro: schema.sqlite.ts, schema.sql, migrations/005. Patrz lib/routing/.
+    "llm_route",
 ] as const;
 
 /** Union literal lustrzany dla CHECK constraint w audit_log. */
