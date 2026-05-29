@@ -11,6 +11,10 @@ import {
 } from "../llm";
 import { getMcpTools, isMcpTool, runMcpTool, type McpCitation } from "../mcp";
 import { guardEgress, appendLlmRouteEvent } from "../routing";
+import {
+    wrapConversation,
+    PseudonimStreamUnwrapper,
+} from "../pseudonim";
 import { createServerSupabase } from "../supabase";
 import { CITATIONS_OPEN_TAG, parseCitations, resolveDoc } from "./citations";
 import { groundCitationsByRef } from "./ground-citations";
@@ -152,6 +156,10 @@ export async function runLLMStream(params: {
     let fullText = "";
     let iterText = "";
     let iterVisibleText = "";
+    // ADR-0067 (B1): unwrapper pseudonimow dla odpowiedzi, ustawiany ponizej gdy
+    // konwersacja idzie zamaskowana do chmury. null = brak maskowania (lokalny
+    // model lub dane publiczne) -> przeplyw bez zmian.
+    let unwrapper: PseudonimStreamUnwrapper | null = null;
     let iterReasoning = "";
     let visibleTailBuffer = "";
     let citationsOpenSeen = false;
@@ -199,6 +207,15 @@ export async function runLLMStream(params: {
     };
 
     const flushText = () => {
+        // Domknij ewentualny wstrzymany ogon pseudonimu (rozciety token na
+        // granicy tury/strumienia) zanim sfinalizujemy tekst.
+        if (unwrapper) {
+            const tail = unwrapper.flush();
+            if (tail) {
+                iterText += tail;
+                streamVisibleContent(tail);
+            }
+        }
         if (!iterText) return;
         fullText += iterText;
         flushVisibleTail();
@@ -238,17 +255,39 @@ export async function runLLMStream(params: {
         return { fullText: "", events: [], mcpCitations: [], grounding: {} };
     }
 
+    // ADR-0067 (B1): maskuj PII PRZED wyjsciem do chmury (defense-in-depth nad
+    // brama egress B2). Pomijamy model lokalny (no-egress - dane nie wychodza) i
+    // dane publiczne. Wylacznik awaryjny: PATRON_PSEUDONIM_EGRESS=false.
+    let outboundSystemPrompt = systemPrompt;
+    let outboundMessages = chatMessages;
+    const pseudonimEgressOn = process.env.PATRON_PSEUDONIM_EGRESS !== "false";
+    if (
+        pseudonimEgressOn &&
+        guard.decision.egress !== "no-egress" &&
+        guard.decision.classification !== "public"
+    ) {
+        const wrapped = await wrapConversation(systemPrompt, chatMessages);
+        outboundSystemPrompt = wrapped.systemPrompt;
+        outboundMessages = wrapped.messages;
+        unwrapper = new PseudonimStreamUnwrapper(wrapped.map);
+    }
+
     const routeStartedAt = Date.now();
     const streamResult = await streamChatWithTools({
         model: selectedModel,
-        systemPrompt,
-        messages: chatMessages,
+        systemPrompt: outboundSystemPrompt,
+        messages: outboundMessages,
         tools: activeTools as OpenAIToolSchema[],
         maxIterations: 10,
         apiKeys,
         enableThinking: true,
         callbacks: {
-            onContentDelta: (delta) => {
+            onContentDelta: (rawDelta) => {
+                // ADR-0067 (B1): odwroc tokeny pseudonimow w strumieniu (hold-back
+                // dla tokenow rozcietych na granicy chunkow). Bez maskowania
+                // unwrapper jest null i delta przechodzi bez zmian.
+                const delta = unwrapper ? unwrapper.push(rawDelta) : rawDelta;
+                if (!delta) return;
                 iterText += delta;
                 streamVisibleContent(delta);
             },

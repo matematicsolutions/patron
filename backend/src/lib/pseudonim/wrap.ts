@@ -34,6 +34,22 @@ export interface WrapOptions {
  */
 export async function wrap(input: string, opts: WrapOptions = {}): Promise<WrapResult> {
     const map = createPseudonimMap();
+    const prompt = await wrapInto(map, input, opts);
+    return { prompt, map };
+}
+
+/**
+ * Jak `wrap`, ale podmienia PII do JUZ ISTNIEJACEJ mapy zamiast tworzyc nowa.
+ * Pozwala objac wiele tekstow (system prompt + kolejne wiadomosci) jedna
+ * mapa - to samo nazwisko dostaje ten sam token w calej konwersacji
+ * (deduplikacja w `addPseudonim`). Zwraca sam tekst po podmianie.
+ * Patrz ADR-0067 wpiecie egress (lib/pseudonim/egress.ts).
+ */
+export async function wrapInto(
+    map: PseudonimMap,
+    input: string,
+    opts: WrapOptions = {},
+): Promise<string> {
     const llm = opts.llmDetector ?? noopLlmDetector;
 
     const regexHits = detectRegex(input, opts.rules);
@@ -89,7 +105,7 @@ export async function wrap(input: string, opts: WrapOptions = {}): Promise<WrapR
         prompt = prompt.slice(0, h.start) + entry.token + prompt.slice(h.end);
     }
 
-    return { prompt, map };
+    return prompt;
 }
 
 /**

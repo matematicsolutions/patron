@@ -19,8 +19,13 @@ export {
     createPseudonimMap,
     resolveToken,
 } from "./map";
-export { unwrap, wrap } from "./wrap";
+export { unwrap, wrap, wrapInto } from "./wrap";
 export type { WrapOptions } from "./wrap";
+export {
+    wrapConversation,
+    PseudonimStreamUnwrapper,
+    type WrappedConversation,
+} from "./egress";
 export {
     LLM_CATEGORIES,
     POLISH_DETECTION_PROMPT,
