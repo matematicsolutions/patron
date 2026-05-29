@@ -10,8 +10,10 @@ export async function getPdfJs() {
     return pdfjsLib;
 }
 
-export const STANDARD_FONT_DATA_URL =
-    "https://unpkg.com/pdfjs-dist@4.10.38/standard_fonts/";
+// Self-host standardowych czcionek pdf.js (zamiast CDN unpkg.com w USA) - zero
+// wyciekow przy otwieraniu PDF, zgodne z zero-cloud (audyt 2026-05-29 H9). Pliki
+// kopiowane do public/pdfjs-fonts/ (statyczne assety serwowane lokalnie).
+export const STANDARD_FONT_DATA_URL = "/pdfjs-fonts/";
 
 const HIGHLIGHT_CLASS = "pdf-text-highlight";
 const ORIGINAL_TEXT_ATTR = "data-original-text";
