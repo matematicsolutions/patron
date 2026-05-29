@@ -37,6 +37,21 @@ describe("buildery promptow (pure)", () => {
     expect(p.system).toContain("precyzje");
   });
 
+  it("Recenzent niesie twardy prog jakosci (fidelity marko, ADR-0074)", () => {
+    const p = buildRecenzentPrompt("d");
+    expect(p.system).toContain("twardego progu jakosci");
+    expect(p.system).toMatch(/hype|marketingowy belkot/);
+    expect(p.system).toContain("subsumpcja"); // struktura prawnicza
+  });
+
+  it("Pisz po polsku niesie konkretne wzorce anty-slop PL (fidelity humanizer-pl, ADR-0074)", () => {
+    const p = buildPiszPoLudzkuPrompt("d");
+    expect(p.system).toContain("imieslowy"); // wzorzec 3
+    expect(p.system).toContain("kalki anglicyzmow"); // wzorzec 29
+    expect(p.system).toContain("regula trojki"); // wzorzec 10
+    expect(p.system).toContain("em-dash"); // typografia MateMatic
+  });
+
   it("kontekst wstrzykiwany w user prompt (otoczony separatorem H12)", () => {
     const p = buildRecenzentPrompt("d", "apelacja cywilna");
     expect(p.user).toContain("apelacja cywilna");

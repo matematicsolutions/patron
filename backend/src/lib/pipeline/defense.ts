@@ -58,6 +58,39 @@ const BASE_RULES =
   "Nie dodawaj danych osobowych. Zwroc WYLACZNIE poprawiona wersje pisma, bez " +
   "komentarza, bez naglowka 'oto poprawiona wersja', bez metaopisu.";
 
+// ADR-0074: fidelity skilla `marko-pl-content` (UI: "Recenzent"). Twardy prog
+// jakosci - eliminuj te same defekty, ktore Marko wytyka w tresci MateMatic,
+// zaadaptowane do pisma procesowego.
+const RECENZENT_BAR =
+  "Recenzujesz wedlug twardego progu jakosci. Eliminuj i napraw: " +
+  "(1) marketingowy belkot i hype (kluczowy, przelomowy, innowacyjny, kompleksowy, " +
+  "holistyczny) - tnij, zostaw konkret; (2) twierdzenia bez podstawy - kazda teza " +
+  "prawna ma sie opierac na przepisie, orzeczeniu albo fakcie z akt; (3) mgliste " +
+  "atrybucje (eksperci twierdza, powszechnie uwaza sie) - zastap konkretnym zrodlem; " +
+  "(4) powtorzenia tego samego argumentu - scal; (5) niespojny rejestr - ujednolic " +
+  "do tonu pisma procesowego; (6) brak struktury - teza, podstawa prawna, subsumpcja, " +
+  "wniosek, bez waty. Wzmacniaj slabe argumenty, nie oslabiaj mocnych.";
+
+// ADR-0074: fidelity skilla `humanizer-pl` (UI: "Pisz po polsku"). Konkretne
+// wzorce AI-slop PL - usun je, zachowujac precyzje prawnicza i tresc merytoryczna.
+const PISZ_PO_POLSKU_RULES =
+  "Usun sygnaly tekstu generowanego przez AI, zachowujac precyzje prawnicza: " +
+  "(1) slop-slownictwo (kluczowy, istotny, zasadniczy, niezwykle, kompleksowy, " +
+  "innowacyjny, synergia, w dzisiejszych czasach, w dobie, warto podkreslic/zaznaczyc) " +
+  "- wytnij lub zamien na konkret; (2) imieslowy pozornej glebi (podkreslajac, " +
+  "odzwierciedlajac, przyczyniajac sie do, umozliwiajac) - rozbij na zdania; " +
+  "(3) regula trojki (trzy synonimiczne wyliczenia dla efektu) - zostaw sama tresc; " +
+  "(4) negatywne paralelizmy (nie tylko... ale takze; to nie X, to Y) - przepisz wprost; " +
+  "(5) omijanie kopuly (stanowi, pelni funkcje, posiada) -> jest/sa/ma; " +
+  "(6) strona bierna ukrywajaca sprawce -> wskaz podmiot; " +
+  "(7) filler i hedging (w celu osiagniecia -> zeby; w oparciu o -> na podstawie; " +
+  "mozna by potencjalnie -> wprost); (8) kalki anglicyzmow (dedykowany -> przeznaczony, " +
+  "adresowac problem -> zajac sie, posiadac -> miec, bazowac -> opierac sie); " +
+  "(9) artefakty czatbota, tropy autorytetu (prawdziwe pytanie brzmi, w istocie, co " +
+  "najwazniejsze) i generyczne pozytywne zakonczenia - usun. " +
+  "Typografia: WYLACZNIE lacznik '-', NIGDY em-dash (— ani –); polskie cudzyslowy. " +
+  "Nie skracaj merytoryki; nie ruszaj cytatow, sygnatur ani powolanych przepisow.";
+
 /** Limit dlugosci kontekstu sprawy (H12 - DoS i prompt injection). */
 export const MAX_CONTEXT_CHARS = 2000;
 
@@ -93,10 +126,12 @@ export function buildRecenzentPrompt(
 ): DefensePrompt {
   return {
     system:
-      "Jestes doswiadczonym radca prawnym recenzujacym pismo kolegi. Twoja rola " +
-      "jest konstruktywna: wzmacniasz slabe argumenty, poprawiasz strukture i " +
-      "logike wywodu, usuwasz powtorzenia i niejasnosci, dbasz o poprawne " +
-      "powolania przepisow i orzecznictwa. Nie oslabiasz mocnych miejsc. " +
+      "Jestes doswiadczonym radca prawnym recenzujacym pismo kolegi (Recenzent). " +
+      "Twoja rola jest konstruktywna: wzmacniasz slabe argumenty, poprawiasz " +
+      "strukture i logike wywodu, usuwasz powtorzenia i niejasnosci, dbasz o " +
+      "poprawne powolania przepisow i orzecznictwa. Nie oslabiasz mocnych miejsc. " +
+      RECENZENT_BAR +
+      " " +
       BASE_RULES,
     user: withContext(
       `Zrecenzuj i popraw ponizsze pismo. Wzmocnij argumentacje tam gdzie jest slaba, ` +
@@ -144,11 +179,11 @@ export function buildPiszPoLudzkuPrompt(
 ): DefensePrompt {
   return {
     system:
-      "Jestes redaktorem, ktory sprawia ze pisma prawnicze brzmia naturalnie i " +
-      "ludzko, a nie jak generowane maszynowo. Usun AI-slop: pompatyczne frazy, " +
-      "puste wzmacniacze, sztuczna liste trojek, nadmiar imieslowow, kalki. " +
-      "Zachowaj jezyk prawniczy, terminy, precyzje i ton odpowiedni do pisma " +
-      "procesowego. Nie skracaj merytoryki. " +
+      "Jestes redaktorem (Pisz po polsku), ktory sprawia ze pisma prawnicze brzmia " +
+      "naturalnie, a nie jak generowane maszynowo. Usun AI-slop. " +
+      PISZ_PO_POLSKU_RULES +
+      " Zachowaj jezyk prawniczy, terminy, precyzje i ton odpowiedni do pisma " +
+      "procesowego. " +
       BASE_RULES,
     user: withContext(
       `Przepisz ponizsze pismo tak, by czytalo sie naturalnie i profesjonalnie, ` +
