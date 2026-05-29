@@ -33,7 +33,27 @@ Warstwa konwersji->Markdown PRZED istniejacym ingestem. Drabinka jakosc-najpierw
 | Obraz (jpg/png/tiff) | **Chandra OCR** | lokalny |
 | PDF z tabelami/kolumnami | opendataloader-pdf (Java) | reading order + tabele |
 
-**Silnik OCR kanon: Chandra** (lokalna inferencja, polski 85.3%, RODO-safe). Decyzja Wieslawa.
+**Silnik OCR: ENGINE-AGNOSTIC przez env `PATRON_OCR_CMD`** - wybor silnika to config + bundle,
+ZERO zmian kodu. Runner dwutrybowy (stdout / katalog-out) obsluguje rozne silniki.
+
+### Bramka licencji silnika OCR (KRYTYCZNA - do decyzji przy bundlu)
+
+Wieslaw wskazal Chandre (jakosc PL 85.3%). Recon licencji (2026-05-29, github.com/datalab-to/chandra):
+- **Kod Chandry: Apache 2.0** (OK). **MODEL: modified OpenRAIL-M** - "free for research, personal use,
+  and startups under $2M funding/revenue, **cannot be used competitively with our API**".
+- **PROBLEM:** Patron to produkt KOMERCYJNY sprzedawany kancelariom (setup 5-10k + retainer). OCR
+  dokumentow moze byc uznany za konkurencyjny wobec API OCR Datalab; dodatkowo zakladamy prog
+  przychodowy. Dla produktu, ktorego value-prop to ZGODNOSC, zbundlowanie modelu z restrykcyjna
+  antykonkurencyjna licencja = ryzyko prawne i wizerunkowe. Trafia w bramke licencji Konstytucji
+  (whitelist MIT/Apache/BSD/AGPL; OpenRAIL-M poza nia).
+- **CLI Chandry (gdyby wybrana):** `chandra {input} {outdir} --method hf` -> katalog z `<plik>.md`;
+  offline przez `HF_HUB_OFFLINE` + zbundlowane wagi; backend HF wymaga torch (ciezki, GPU/CPU).
+
+**Rekomendacja CTO:** dla bundla komercyjnego silnik z czysta licencja - **Tesseract** (Apache 2.0,
+lekki, `pol` traineddata; `tesseract {input} stdout -l pol`) albo **PaddleOCR** (Apache 2.0, lepszy
+na uklad/tabele). Chandra tylko jesli (a) uzyskamy komercyjna licencje od Datalab albo (b) potwierdzimy
+ze mieszczemy sie w wyjatku i nie jest to uzycie konkurencyjne - decyzja prawna Wieslawa. Architektura
+engine-agnostic czyni te zmiane jednolinijkowa (PATRON_OCR_CMD + bundle), wiec NIE blokuje to kodu.
 
 **Architektura:** moduł `lib/convert/toMarkdown.ts` - czysta detekcja typu + routing, a wywolanie konwerterow
 przez **subprocess** (`spawn`) za WSTRZYKIWANYM runnerem (wzorzec `defense.ts` z injected llm -> testy bez

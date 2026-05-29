@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from "vitest";
-import { buildOcrArgv, isOcrConfigured, runOcr } from "./ocrRunner";
+import { buildOcrArgv, isOcrConfigured, runOcr, usesDirMode } from "./ocrRunner";
 
 const ENV = process.env.PATRON_OCR_CMD;
 afterEach(() => {
@@ -27,6 +27,26 @@ describe("buildOcrArgv (pure)", () => {
     it("brak {input} w szablonie -> sciezka doklejona na koniec", () => {
         const argv = buildOcrArgv("chandra.exe", "/tmp/in.pdf");
         expect(argv).toEqual(["chandra.exe", "/tmp/in.pdf"]);
+    });
+
+    it("dir-mode (Chandra): {input} + {outdir} podstawione", () => {
+        const argv = buildOcrArgv(
+            "chandra {input} {outdir} --method hf",
+            "/tmp/in.png",
+            "/tmp/out",
+        );
+        expect(argv).toEqual([
+            "chandra",
+            "/tmp/in.png",
+            "/tmp/out",
+            "--method",
+            "hf",
+        ]);
+    });
+
+    it("usesDirMode: wykrywa {outdir} (Chandra) vs stdout (Tesseract)", () => {
+        expect(usesDirMode("chandra {input} {outdir} --method hf")).toBe(true);
+        expect(usesDirMode("tesseract {input} stdout -l pol")).toBe(false);
     });
 });
 
