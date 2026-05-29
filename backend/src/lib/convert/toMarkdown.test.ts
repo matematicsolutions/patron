@@ -91,6 +91,19 @@ describe("convertToMarkdown - routing", () => {
         expect(r.markdown).toContain("kserowki");
     });
 
+    it("OCR -> post-processing flaguje podejrzana date (ADR-0075)", async () => {
+        const r = await convertToMarkdown(
+            { buffer: buf(), filename: "skan.jpg" },
+            {
+                extractPdfText: async () => "",
+                extractDocxText: async () => "",
+                ocr: async () => "Postanowienie z dnia 12.03.3013 r. w sprawie...",
+            },
+        );
+        expect(r.engine).toBe("ocr");
+        expect(r.flags?.some((f) => f.kind === "suspect-date")).toBe(true);
+    });
+
     it("nieobslugiwany format -> rzuca", async () => {
         const d = deps();
         await expect(

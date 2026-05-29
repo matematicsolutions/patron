@@ -9,6 +9,8 @@
 // czysty i testowalny BEZ obecnosci binariow/modelu. Runner produkcyjny (spawn
 // subprocess) wstrzykuje sie w punkcie wpiecia (documentIngest).
 
+import { postProcessOcr, type OcrFlag } from "./postprocess";
+
 export type ConvertEngine = "docx" | "pdf-text" | "ocr";
 
 export interface ConvertResult {
@@ -18,6 +20,9 @@ export interface ConvertResult {
     engine: ConvertEngine;
     /** Czy uzyto OCR (skan/zdjecie). */
     ocrUsed: boolean;
+    /** ADR-0075: flagi post-processingu OCR (podejrzane daty, niska jakosc) -
+     * mecenas widzi gdzie zweryfikowac. Pusta/undefined dla pdf-text/docx. */
+    flags?: OcrFlag[];
 }
 
 /** Zaleznosci ekstrakcji - produkcyjnie pdfjs/mammoth/Chandra, w testach fake. */
@@ -92,8 +97,9 @@ export async function convertToMarkdown(
     }
 
     if (IMAGE_EXT.has(suffix)) {
-        const markdown = await deps.ocr(input.buffer, "image", input.filename);
-        return { markdown, engine: "ocr", ocrUsed: true };
+        const raw = await deps.ocr(input.buffer, "image", input.filename);
+        const pp = postProcessOcr(raw);
+        return { markdown: pp.markdown, engine: "ocr", ocrUsed: true, flags: pp.flags };
     }
 
     if (suffix === "pdf") {
@@ -101,9 +107,10 @@ export async function convertToMarkdown(
         if (hasEnoughText(text)) {
             return { markdown: text, engine: "pdf-text", ocrUsed: false };
         }
-        // Skan bez warstwy tekstu -> OCR lokalny (Chandra).
-        const markdown = await deps.ocr(input.buffer, "pdf", input.filename);
-        return { markdown, engine: "ocr", ocrUsed: true };
+        // Skan bez warstwy tekstu -> OCR lokalny.
+        const raw = await deps.ocr(input.buffer, "pdf", input.filename);
+        const pp = postProcessOcr(raw);
+        return { markdown: pp.markdown, engine: "ocr", ocrUsed: true, flags: pp.flags };
     }
 
     throw new Error(`Nieobslugiwany format konwersji: ${suffix || "(brak)"}`);
