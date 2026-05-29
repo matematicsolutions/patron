@@ -81,6 +81,11 @@ export const EVENT_TYPES = [
     // czas, bez tresci draftu. AI Act art. 12. Wymaga migracji 007 ALTER CHECK.
     // Lustro: schema.sqlite.ts, schema.sql, migrations/007. Patrz routes/draft.ts.
     "defense.pipeline.run",
+    // ADR-0070: rozstrzygniecie tracked-change (accept/reject) nadpisuje bajty
+    // dokumentu prawnego in-place - kto/kiedy/ktora zmiana/tryb. AI Act art. 12
+    // (dotad mutacja bez sladu). Wymaga migracji 008 ALTER CHECK.
+    // Lustro: schema.sqlite.ts, schema.sql, migrations/008. Patrz routes/documents.ts.
+    "document.edit_resolved",
 ] as const;
 
 /** Union literal lustrzany dla CHECK constraint w audit_log. */

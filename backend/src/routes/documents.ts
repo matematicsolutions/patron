@@ -13,8 +13,17 @@ import { docxToPdf } from "../lib/convert";
 import {
   extractTrackedChangeIds,
   resolveTrackedChange,
+  extractDocxBodyText,
 } from "../lib/docxTrackedChanges";
 import { handleDocumentUpload } from "../lib/documentIngest";
+import { appendAuditEvent } from "../lib/audit";
+import {
+  analyzeInput,
+  resolveIngestOutcome,
+  toAuditPayload,
+  INPUT_SECURITY_AUDIT_EVENT,
+} from "../lib/input-security";
+import { extractPdfText } from "../lib/chat/pdf";
 import { buildDownloadUrl } from "../lib/downloadTokens";
 import {
   attachActiveVersionPaths,
@@ -412,6 +421,60 @@ documentsRouter.post(
       });
     }
 
+    // ADR-0070 (H5): skan input-security PRZED utrwaleniem bajtow nowej wersji.
+    // Parytet z kanonicznym ingestem (ADR-0055/0019/0020) - dotad /versions
+    // omijal skan, wiec dokument z prompt injection / ukrytymi akcjami trafial
+    // do storage (i pozniej do podgladu/RAG) bez flagi bezpieczenstwa.
+    const rawArrayBuf = file.buffer.buffer.slice(
+      file.buffer.byteOffset,
+      file.buffer.byteOffset + file.buffer.byteLength,
+    ) as ArrayBuffer;
+    const scanContentType =
+      suffix === "pdf"
+        ? "application/pdf"
+        : "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    let versionScanText = "";
+    try {
+      versionScanText =
+        suffix === "pdf"
+          ? await extractPdfText(rawArrayBuf)
+          : await extractDocxBodyText(file.buffer);
+    } catch {
+      // ekstrakcja tekstu best-effort; detektory binarne dzialaja na buforze
+    }
+    const versionScan = analyzeInput({
+      text: versionScanText,
+      fileName: file.originalname,
+      declaredType: scanContentType,
+      buffer: new Uint8Array(rawArrayBuf),
+    });
+    const versionOutcome = resolveIngestOutcome(versionScan);
+    await appendAuditEvent(db, {
+      event_type: INPUT_SECURITY_AUDIT_EVENT,
+      actor_user_id: userId,
+      document_id: documentId,
+      payload: toAuditPayload(versionScan),
+    });
+    if (!versionOutcome.persist) {
+      // blocked => bajty NIE trafiaja do storage; oznacz dokument i zwroc 422.
+      await db
+        .from("documents")
+        .update({
+          security_status: versionOutcome.securityStatus,
+          security_report_id: versionScan.reportId,
+        })
+        .eq("id", documentId);
+      return void res.status(versionOutcome.httpStatus).json({
+        detail:
+          "Nowa wersja odrzucona: wykryto zagrozenie bezpieczenstwa wejscia.",
+        security: {
+          action: versionScan.action,
+          threat_level: versionScan.threatLevel,
+          report_id: versionScan.reportId,
+        },
+      });
+    }
+
     // Peg the new version into a predictable /versions/:id path under the
     // existing document folder so ops can spot the history in storage.
     const versionSlug = crypto.randomUUID().replace(/-/g, "");
@@ -779,6 +842,22 @@ async function handleEditResolution(
     ab,
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   );
+
+  // ADR-0070 (H6): mutacja bajtow dokumentu prawnego (accept/reject tracked
+  // change) wchodzi do hash-chain audytu. Decyzja anty-churn (nadpisanie
+  // in-place, bez nowej wersji per klik) zachowana - brakowalo wylacznie sladu
+  // kto/kiedy/co zmienil. Payload bez tresci dokumentu. AI Act art. 12.
+  await appendAuditEvent(db, {
+    event_type: "document.edit_resolved",
+    actor_user_id: userId,
+    document_id: documentId,
+    payload: {
+      edit_id: editId,
+      change_id: edit.change_id ?? null,
+      mode,
+      version_id: doc.current_version_id ?? null,
+    },
+  });
 
   const { error: statusErr } = await db
     .from("document_edits")
