@@ -126,10 +126,38 @@ function createWindow() {
     show: false,
   });
 
-  // Otwieraj linki zewnętrzne w przeglądarce systemowej
+  // Otwieraj linki zewnętrzne w przeglądarce systemowej.
+  // ADR-0071: walidacja schematu PRZED openExternal. Bez niej model (przez
+  // prompt injection w tresci dokumentu/odpowiedzi) moze wstawic link
+  // file:// / javascript: / inny, ktorego klik otworzylby dowolny handler OS
+  // (lancuch E2E z audytu). Dozwolone tylko bezpieczne schematy nawigacji.
+  const SAFE_EXTERNAL_SCHEMES = new Set(['https:', 'http:', 'mailto:']);
   win.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
+    try {
+      const scheme = new URL(url).protocol;
+      if (SAFE_EXTERNAL_SCHEMES.has(scheme)) {
+        shell.openExternal(url);
+      } else {
+        console.warn('[security] zablokowano openExternal dla schematu:', scheme);
+      }
+    } catch {
+      console.warn('[security] zablokowano openExternal dla niepoprawnego URL');
+    }
     return { action: 'deny' };
+  });
+
+  // Defense-in-depth: blokuj nawigacje glownego okna poza lokalny origin
+  // aplikacji (renderer nie moze zostac przekierowany na zewnetrzny URL).
+  win.webContents.on('will-navigate', (event, navUrl) => {
+    try {
+      const host = new URL(navUrl).hostname;
+      if (host !== 'localhost' && host !== '127.0.0.1') {
+        event.preventDefault();
+        console.warn('[security] zablokowano nawigacje okna do:', navUrl);
+      }
+    } catch {
+      event.preventDefault();
+    }
   });
 
   win.once('ready-to-show', () => win.show());

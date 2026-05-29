@@ -1,19 +1,35 @@
 // Lokalny embedder (ADR-0054, realizacja wektorowej warstwy ADR-0007).
 //
 // Zero-cloud: model uruchamiany w procesie przez transformers.js (ONNX),
-// dane nie opuszczaja maszyny (Konstytucja Art. 2). Default model
-// multilingual-e5-small (384d) - pobierany raz przy pierwszym uzyciu, potem
-// z cache. Zmiana modelu na inny wymiar wymaga re-index (DROP vec_chunks +
-// PATRON_EMBED_DIM zgodny z modelem).
+// dane przy inferencji nie opuszczaja maszyny (Konstytucja Art. 2).
+//
+// ADR-0071: domyslnie ZAKAZ pobierania wag modelu z sieci (HF Hub w US). Bez
+// tego pierwszy start na czystej maszynie cicho fetchowal multilingual-e5-small
+// z CDN HuggingFace - ukryty egress lamiacy zero-cloud (metadane: IP/UA/timestamp).
+// Lokalny cache / model dostarczony lokalnie nadal dziala offline. Jednorazowe
+// pobranie = swiadoma zgoda Operatora przez PATRON_EMBED_ALLOW_DOWNLOAD=true
+// (analogicznie do ALLOW_US_PROVIDERS). Gdy model niedostepny lokalnie i pobieranie
+// wylaczone - embedder rzuca, retrieval degraduje sie do BM25 + grafu (ADR-0007).
 //
 // e5 wymaga prefiksow "query: " / "passage: " - INNE prefiksy psuja jakosc
 // retrievalu (asymetria pytanie vs fragment). Patrz karta modelu e5.
 
-import { pipeline, type FeatureExtractionPipeline } from "@huggingface/transformers";
+import {
+  pipeline,
+  env,
+  type FeatureExtractionPipeline,
+} from "@huggingface/transformers";
 import { EMBED_DIM } from "../db/sqlite-connection";
 
 export const EMBED_MODEL =
   process.env.PATRON_EMBED_MODEL || "Xenova/multilingual-e5-small";
+
+// Zero-cloud fail-closed: zadnych zdalnych pobran modelu, chyba ze Operator
+// jawnie wlaczyl. Lokalny cache (env.cacheDir) i localModelPath dzialaja dalej.
+env.allowRemoteModels = process.env.PATRON_EMBED_ALLOW_DOWNLOAD === "true";
+if (process.env.PATRON_EMBED_MODELS_PATH) {
+  env.localModelPath = process.env.PATRON_EMBED_MODELS_PATH;
+}
 
 export type EmbedKind = "query" | "passage";
 
