@@ -12,6 +12,7 @@
 import { createServerSupabase, isSqliteBackend } from "../supabase";
 import { clearDocumentIndex } from "../retrieval/indexer";
 import { forgetScope } from "../brain/store";
+import { deleteFile } from "../storage";
 
 export interface ForgetReport {
   projectId: string;
@@ -19,6 +20,7 @@ export interface ForgetReport {
   chats: number;
   tabularReviews: number;
   ragCleared: number;
+  storageFilesDeleted: number;
   brainCleared: boolean;
 }
 
@@ -85,8 +87,31 @@ export async function forgetCase(
   }
   await db.from("tabular_reviews").delete().eq("project_id", projectId);
 
-  // 4. Dokumenty: edits -> versions -> documents.
+  // 4. Dokumenty: NAJPIERW kasuj pliki z FS storage (RODO art. 17 - dane musza
+  //    zniknac fizycznie, nie tylko rekordy w bazie), potem edits -> versions ->
+  //    documents. storage_path / pdf_storage_path zyja na document_versions.
+  let storageFilesDeleted = 0;
   if (docIds.length) {
+    const { data: versions } = await db
+      .from("document_versions")
+      .select("storage_path, pdf_storage_path")
+      .in("document_id", docIds);
+    const keys = (
+      (versions ?? []) as {
+        storage_path: string | null;
+        pdf_storage_path: string | null;
+      }[]
+    )
+      .flatMap((v) => [v.storage_path, v.pdf_storage_path])
+      .filter((k): k is string => !!k);
+    for (const key of keys) {
+      try {
+        await deleteFile(key);
+        storageFilesDeleted++;
+      } catch {
+        // idempotentne - plik moze juz nie istniec
+      }
+    }
     await db.from("document_edits").delete().in("document_id", docIds);
     await db.from("document_versions").delete().in("document_id", docIds);
     await db.from("documents").delete().eq("project_id", projectId);
@@ -108,6 +133,7 @@ export async function forgetCase(
     chats: chatIds.length,
     tabularReviews: reviewIds.length,
     ragCleared,
+    storageFilesDeleted,
     brainCleared,
   };
 }
