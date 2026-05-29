@@ -18,6 +18,7 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import { SQLITE_SCHEMA } from "./schema.sqlite";
+import { applyEncryptionKey } from "./atrest";
 
 /**
  * Wymiar embeddingu wektorowego (ADR-0054). Musi byc zgodny z modelem
@@ -73,6 +74,10 @@ export function getDb(): Database.Database {
   const file = dbFilePath();
   fs.mkdirSync(path.dirname(file), { recursive: true });
   db = new Database(file);
+  // ADR-0072: szyfrowanie at-rest. MUSI byc pierwsza operacja po otwarciu
+  // (PRAGMA key przed odczytem naglowka). No-op gdy klucz nieustawiony;
+  // fail-loud gdy klucz ustawiony, a sterownik nie szyfruje.
+  applyEncryptionKey(db);
   db.pragma("journal_mode = WAL");
   db.pragma("foreign_keys = ON");
   db.exec(SQLITE_SCHEMA);

@@ -1,4 +1,4 @@
-const { app, BrowserWindow, shell, Menu } = require('electron');
+const { app, BrowserWindow, shell, Menu, safeStorage } = require('electron');
 const { spawn } = require('child_process');
 const path = require('path');
 const http = require('http');
@@ -30,10 +30,42 @@ function getOrCreateSecret(name) {
   return secret;
 }
 
+// ADR-0072: klucz szyfrowania at-rest bazy SQLite chroniony przez OS keychain /
+// DPAPI (Electron safeStorage). W przeciwienstwie do getOrCreateSecret (plik
+// plaintext 0600) klucz bazy NIGDY nie lezy na dysku w jawnej postaci - tylko
+// jako blob zaszyfrowany przez OS. Zwraca jawny klucz (do wstrzykniecia w env
+// backendu) albo null gdy szyfrowanie wylaczone.
+//
+// Aktywne tylko gdy PATRON_DB_ENCRYPTION=on. Wymaga w backendzie sterownika
+// cipher-capable (better-sqlite3-multiple-ciphers) - inaczej backend rzuci
+// fail-loud (lib/db/atrest.ts). Domyslnie OFF = baza plaintext jak dotad.
+function getOrCreateDbKey() {
+  if (process.env.PATRON_DB_ENCRYPTION !== 'on') return null;
+  if (!safeStorage.isEncryptionAvailable()) {
+    throw new Error(
+      '[PATRON] PATRON_DB_ENCRYPTION=on, ale OS keychain/DPAPI niedostepny - ' +
+      'NIE utworze klucza w plaintext. Przerwij lub wylacz szyfrowanie.',
+    );
+  }
+  const dir = path.join(app.getPath('userData'), 'secrets');
+  fs.mkdirSync(dir, { recursive: true });
+  const blobFile = path.join(dir, 'db_key.enc');
+  try {
+    const enc = fs.readFileSync(blobFile);
+    const key = safeStorage.decryptString(enc);
+    if (key) return key;
+  } catch {
+    /* brak/nieczytelny blob - wygeneruj nowy ponizej */
+  }
+  const key = crypto.randomBytes(32).toString('hex');
+  fs.writeFileSync(blobFile, safeStorage.encryptString(key), { mode: 0o600 });
+  return key;
+}
+
 // Env wstrzykiwany do backendu: SQLite + storage FS + dane w userData + sekrety.
 function backendLocalEnv() {
   const ud = app.getPath('userData');
-  return {
+  const env = {
     PATRON_DB_BACKEND: 'sqlite',
     PATRON_STORAGE: 'fs',
     PATRON_DB_PATH: path.join(ud, 'patron.db'),
@@ -42,6 +74,9 @@ function backendLocalEnv() {
     DOWNLOAD_SIGNING_SECRET: getOrCreateSecret('download_signing_secret'),
     USER_API_KEYS_ENCRYPTION_SECRET: getOrCreateSecret('api_keys_encryption_secret'),
   };
+  const dbKey = getOrCreateDbKey();
+  if (dbKey) env.PATRON_DB_ENCRYPTION_KEY = dbKey;
+  return env;
 }
 
 let win = null;
