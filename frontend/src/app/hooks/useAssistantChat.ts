@@ -2,18 +2,19 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { streamChat, streamProjectChat } from "@/app/lib/mikeApi";
+import { streamChat, streamProjectChat } from "@/app/lib/patronApi";
 import { useChatHistoryContext } from "@/app/contexts/ChatHistoryContext";
 import { useGenerateChatTitle } from "./useGenerateChatTitle";
 import type {
     AssistantEvent,
-    MikeCitationAnnotation,
-    MikeMcpCitation,
-    MikeMessage,
+    PATRONCitationAnnotation,
+    PATRONGroundingDecision,
+    PATRONMcpCitation,
+    PATRONMessage,
 } from "@/app/components/shared/types";
 
 interface UseAssistantChatOptions {
-    initialMessages?: MikeMessage[];
+    initialMessages?: PATRONMessage[];
     chatId?: string;
     projectId?: string;
 }
@@ -40,7 +41,7 @@ export function useAssistantChat({
     } = useChatHistoryContext();
     const { generate: generateTitle } = useGenerateChatTitle();
 
-    const [messages, setMessages] = useState<MikeMessage[]>(initialMessages);
+    const [messages, setMessages] = useState<PATRONMessage[]>(initialMessages);
     const [isResponseLoading, setIsResponseLoading] = useState(false);
     const [isLoadingCitations, setIsLoadingCitations] = useState(false);
     const [chatId, setChatId] = useState<string | undefined>(initialChatId);
@@ -61,10 +62,10 @@ export function useAssistantChat({
     };
 
     const updateLastContentEvent = (
-        prev: MikeMessage[],
+        prev: PATRONMessage[],
         text: string,
         isStreaming?: boolean,
-    ): MikeMessage[] => {
+    ): PATRONMessage[] => {
         const updated = [...prev];
         const last = updated[updated.length - 1];
         if (last?.role !== "assistant") return prev;
@@ -293,7 +294,7 @@ export function useAssistantChat({
     };
 
     const handleChat = async (
-        message: MikeMessage,
+        message: PATRONMessage,
         opts?: {
             displayedDoc?: { filename: string; documentId: string } | null;
         },
@@ -308,7 +309,7 @@ export function useAssistantChat({
             lastMessage.role === "user" &&
             lastMessage.content === message.content;
 
-        const newMessages: MikeMessage[] = isMessageAlreadyAdded
+        const newMessages: PATRONMessage[] = isMessageAlreadyAdded
             ? messages
             : [...messages, message];
 
@@ -763,7 +764,7 @@ export function useAssistantChat({
                                     download_url:
                                         (data.download_url as string) ?? "",
                                     annotations: Array.isArray(data.annotations)
-                                        ? (data.annotations as import("@/app/components/shared/types").MikeEditAnnotation[])
+                                        ? (data.annotations as import("@/app/components/shared/types").PATRONEditAnnotation[])
                                         : [],
                                     error:
                                         typeof data.error === "string"
@@ -781,8 +782,19 @@ export function useAssistantChat({
                             // placeholders so they don't persist into the
                             // finalised message.
                             clearStreamingPlaceholders();
-                            const incoming = (data.citations ??
-                                []) as MikeCitationAnnotation[];
+                            // ADR-0005: werdykt groundingu przychodzi rownolegle
+                            // jako mapa ref -> { decision }. Skladamy go w pole
+                            // `grounding` kazdego cytatu, by UI pokazal badge.
+                            const groundingMap = (data.grounding ?? {}) as Record<
+                                string,
+                                { decision?: PATRONGroundingDecision }
+                            >;
+                            const incoming = (
+                                (data.citations ?? []) as PATRONCitationAnnotation[]
+                            ).map((c) => {
+                                const decision = groundingMap[String(c.ref)]?.decision;
+                                return decision ? { ...c, grounding: decision } : c;
+                            });
                             setMessages((prev) => {
                                 const updated = [...prev];
                                 const last = updated[updated.length - 1];
@@ -801,7 +813,7 @@ export function useAssistantChat({
                             // Cytaty z serwerow MCP (np. SAOS) - powiazane zrodla,
                             // renderowane w panelu obok cytatow dokumentowych.
                             const incoming = (data.citations ??
-                                []) as MikeMcpCitation[];
+                                []) as PATRONMcpCitation[];
                             setMessages((prev) => {
                                 const updated = [...prev];
                                 const last = updated[updated.length - 1];
@@ -945,7 +957,7 @@ export function useAssistantChat({
     };
 
     const handleNewChat = async (
-        message: MikeMessage,
+        message: PATRONMessage,
         projectId?: string,
     ): Promise<string | null> => {
         if (!message.content.trim()) return null;
