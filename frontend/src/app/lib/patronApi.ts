@@ -976,3 +976,42 @@ export async function deleteWorkflowShare(
         method: "DELETE",
     });
 }
+
+// --- Panel zuzycia i kosztow AI (ADR-0076) - reader nad /api/usage -------------
+
+export interface UsageSummary {
+    calls: number;
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+    costRealUsd: number;
+    costEstimatedUsd: number;
+    unpricedCalls: number;
+}
+
+export interface UsageGroup extends UsageSummary {
+    key: string;
+}
+
+export interface UsageResponse<T> {
+    from: string;
+    until: string;
+    count: number;
+    data: T;
+}
+
+export async function getUsageSummary(): Promise<UsageResponse<UsageSummary>> {
+    return apiRequest(`/api/usage/summary`);
+}
+
+export async function getUsageByModel(): Promise<UsageResponse<UsageGroup[]>> {
+    return apiRequest(`/api/usage/by-model`);
+}
+
+export async function getUsageByCase(): Promise<UsageResponse<UsageGroup[]>> {
+    return apiRequest(`/api/usage/by-case`);
+}
+
+export async function getUsageTimeseries(): Promise<UsageResponse<UsageGroup[]>> {
+    return apiRequest(`/api/usage/timeseries`);
+}

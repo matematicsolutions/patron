@@ -15,6 +15,7 @@ interface TabDef {
 const TABS: TabDef[] = [
     { id: "general", label: t("account.profile"), href: "/account" },
     { id: "models", label: t("account.models"), href: "/account/models" },
+    { id: "usage", label: t("account.usage"), href: "/account/usage" },
 ];
 
 export default function AccountLayout({

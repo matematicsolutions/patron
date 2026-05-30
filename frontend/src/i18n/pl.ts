@@ -236,11 +236,37 @@ export const pl = {
     // ---------------------------------------------------------------------
     // Account / settings
     // ---------------------------------------------------------------------
+    usage: {
+        title: "Zużycie i koszty AI",
+        subtitle:
+            "Lokalny podgląd zużycia modeli i kosztów. Dane nie opuszczają tej maszyny.",
+        windowNote: "Ostatnie 30 dni",
+        calls: "Wywołania",
+        totalTokens: "Tokeny łącznie",
+        promptTokens: "Wejściowe",
+        completionTokens: "Wyjściowe",
+        costReal: "Koszt rzeczywisty",
+        costEstimated: "Koszt szacowany",
+        unpricedCalls: "Wywołania bez ceny",
+        byModel: "Wg modelu",
+        byCase: "Wg sprawy",
+        overTime: "Tokeny w czasie",
+        model: "Model",
+        case: "Sprawa",
+        tokens: "Tokeny",
+        cost: "Koszt",
+        noCase: "(brak sprawy)",
+        noData: "Brak zarejestrowanych wywołań w tym oknie.",
+        estimatedNote:
+            "Koszt szacowany pochodzi z lokalnej tabeli cen (orientacyjnej, źródło OpenRouter), nie z rozliczenia dostawcy. Rzeczywisty koszt dotyczy wywołań, dla których dostawca zwrócił kwotę.",
+        loadError: "Nie udało się wczytać danych zużycia.",
+    },
     account: {
         title: "Konto",
         profile: "Profil",
         email: "Email",
         models: "Modele i klucze API",
+        usage: "Zużycie",
         provider: "Dostawca",
         apiKey: "Klucz API",
         apiKeyMissing: "Brakuje klucza API dla tego modelu.",
