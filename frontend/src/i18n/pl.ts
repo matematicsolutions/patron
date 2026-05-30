@@ -227,6 +227,10 @@ export const pl = {
         // Fallback dla nieznanego serwera MCP - `{server}` jest podstawiane
         // recznie w mcpServerLabel() (nie mamy w t() interpolacji).
         unknownServer: "Powiązane źródła",
+        // ADR-0005: etykiety werdyktu mechanicznej weryfikacji cytatu (badge w prozie).
+        groundingVerified: "zweryfikowany w źródle",
+        groundingUnverified: "drobne różnice - sprawdź w źródle",
+        groundingBlocked: "niezweryfikowany - źródło nie potwierdza cytatu",
     },
 
     // ---------------------------------------------------------------------
@@ -644,6 +648,67 @@ export const pl = {
         projectsLabel: "Projekty",
         // noMatches: reuse common.noMatches
         // noProjectsYet: reuse nav.noProjectsYet
+    },
+
+    // ---------------------------------------------------------------------
+    // Draft odpowiedzi - pipeline obrony (Invisible AI, ADR-0058/0063)
+    // ---------------------------------------------------------------------
+    draft: {
+        open: "Draft odpowiedzi",
+        title: "Draft odpowiedzi",
+        subtitle:
+            "Pismo przejdzie przez recenzję, adwokata diabła i redakcję pod kątem naturalnego języka.",
+        textLabel: "Tekst pisma",
+        textPlaceholder: "Wklej lub wpisz treść pisma do doskonalenia…",
+        modeLabel: "Adwokat diabła — z czyjej perspektywy",
+        refine: "Doskonal pismo",
+        refining: "Doskonalę pismo…",
+        resultTitle: "Gotowy draft",
+        stagesTitle: "Jak powstał draft",
+        copy: "Kopiuj",
+        copied: "Skopiowano",
+        emptyText: "Wpisz lub wklej tekst pisma.",
+        error: "Nie udało się doskonalić pisma. Spróbuj ponownie.",
+        disclaimer:
+            "AI może się mylić. Sprawdź pismo przed wysłaniem — to nie jest porada prawna.",
+        close: "Zamknij",
+        stage: {
+            recenzent: "Recenzent",
+            adwokat: "Adwokat diabła",
+            "pisz-po-ludzku": "Pisz po ludzku",
+        },
+        mode: {
+            "strona-przeciwna": "Strona przeciwna",
+            sad: "Skład orzekający",
+            prokurator: "Prokurator",
+        },
+    },
+
+    // ---------------------------------------------------------------------
+    // Folder Sprawy - import lokalnego katalogu (ADR-0056/0064)
+    // ---------------------------------------------------------------------
+    folderIngest: {
+        open: "Importuj folder sprawy",
+        title: "Importuj folder sprawy",
+        subtitle:
+            "Wskaż katalog z aktami. Patron wciągnie pliki lokalnie, przeskanuje pod kątem bezpieczeństwa i zindeksuje do wyszukiwania.",
+        pathLabel: "Ścieżka do folderu",
+        pathPlaceholder: "np. C:\\Sprawy\\Kowalski-2026",
+        pathHint: "Obsługiwane pliki: PDF, DOCX, DOC. Podkatalogi są pomijane.",
+        importBtn: "Importuj",
+        importing: "Importuję pliki…",
+        resultTitle: "Wynik importu",
+        summary: "Zaimportowano {indexed} z {total}",
+        empty: "Wpisz ścieżkę do folderu.",
+        noFiles: "W folderze nie znaleziono obsługiwanych plików.",
+        error: "Nie udało się zaimportować folderu. Sprawdź ścieżkę i spróbuj ponownie.",
+        close: "Zamknij",
+        status: {
+            imported: "Zaimportowano",
+            review: "Do decyzji",
+            blocked: "Zablokowano (skan)",
+            error: "Błąd",
+        },
     },
 } as const;
 

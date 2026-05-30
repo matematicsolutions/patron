@@ -6,16 +6,17 @@ import remarkMath from "remark-math";
 import remarkGfm from "remark-gfm";
 import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
-import { Copy, Check, ChevronDown, Download, Loader2 } from "lucide-react";
-import { MikeIcon } from "@/components/chat/mike-icon";
+import { Copy, Check, ChevronDown, Download, Loader2, Sparkles } from "lucide-react";
+import { PATRONIcon } from "@/components/chat/patron-icon";
 import { displayCitationQuote, formatCitationPage } from "../shared/types";
 import type {
     AssistantEvent,
-    MikeCitationAnnotation,
-    MikeEditAnnotation,
-    MikeMcpCitation,
+    PATRONCitationAnnotation,
+    PATRONEditAnnotation,
+    PATRONMcpCitation,
 } from "../shared/types";
 import { EditCard, applyOptimisticResolution } from "./EditCard";
+import { DraftRefinePanel } from "./DraftRefinePanel";
 import { PreResponseWrapper } from "../shared/PreResponseWrapper";
 import { supabase } from "@/lib/supabase";
 import { t } from "@/i18n";
@@ -53,11 +54,11 @@ function BulkEditActions({
     onError,
 }: {
     pending: {
-        annotation: MikeEditAnnotation;
+        annotation: PATRONEditAnnotation;
         filename: string;
     }[];
     filenameByDocId: Map<string, string>;
-    onViewClick?: (ann: MikeEditAnnotation, filename: string) => void;
+    onViewClick?: (ann: PATRONEditAnnotation, filename: string) => void;
     onResolveStart?: (args: {
         editId: string;
         documentId: string;
@@ -235,13 +236,13 @@ function EditCardsSection({
     onError,
 }: {
     pending: {
-        annotation: MikeEditAnnotation;
+        annotation: PATRONEditAnnotation;
         filename: string;
     }[];
     filenameByDocId: Map<string, string>;
     cards: React.ReactNode[];
     resolvedCount: number;
-    onViewClick?: (ann: MikeEditAnnotation, filename: string) => void;
+    onViewClick?: (ann: PATRONEditAnnotation, filename: string) => void;
     onResolveStart?: (args: {
         editId: string;
         documentId: string;
@@ -348,11 +349,11 @@ function ResponseStatus({ status }: { status: StatusState }) {
 
     return (
         <div className="w-full h-9 flex items-center mb-2">
-            <MikeIcon
+            <PATRONIcon
                 spin={isActive}
                 done={showDone && doneVisible}
                 error={isError}
-                mike={!isError && !(showDone && doneVisible)}
+                patron={!isError && !(showDone && doneVisible)}
                 size={22}
             />
         </div>
@@ -833,8 +834,8 @@ function DocEditedBlock({
 
 function preprocessCitations(
     text: string,
-    annotations: MikeCitationAnnotation[],
-    citationsList: MikeCitationAnnotation[],
+    annotations: PATRONCitationAnnotation[],
+    citationsList: PATRONCitationAnnotation[],
 ): string {
     // Replace [N] or [N, M, ...] inline markers with internal §idx§ tokens backed by annotations
     return text.replace(/\[(\d+(?:,\s*\d+)*)\]/g, (full, refsStr) => {
@@ -863,8 +864,8 @@ function MarkdownContent({
     divRef,
 }: {
     text: string;
-    citationsList: MikeCitationAnnotation[];
-    onCitationClick?: (c: MikeCitationAnnotation) => void;
+    citationsList: PATRONCitationAnnotation[];
+    onCitationClick?: (c: PATRONCitationAnnotation) => void;
     divRef?: React.RefObject<HTMLDivElement | null>;
 }) {
     return (
@@ -973,7 +974,27 @@ function MarkdownContent({
                             const idx = parseInt(citMatch[1]);
                             const annotation = citationsList[idx];
                             if (annotation) {
-                                const tooltipText = `${formatCitationPage(annotation)}: "${displayCitationQuote(annotation)}"`;
+                                // ADR-0005: kolor badge wg werdyktu mechanicznej
+                                // weryfikacji cytatu. Brak werdyktu = neutralny szary
+                                // (np. cytat MCP albo starszy czat bez groundingu).
+                                const grounding = annotation.grounding;
+                                const groundingClass =
+                                    grounding === "verified"
+                                        ? "bg-green-100 text-green-900 hover:bg-green-200"
+                                        : grounding === "unverified"
+                                          ? "bg-amber-100 text-amber-900 hover:bg-amber-200"
+                                          : grounding === "blocked"
+                                            ? "bg-red-100 text-red-900 hover:bg-red-200"
+                                            : "bg-gray-100 text-gray-900 hover:bg-gray-200";
+                                const groundingLabel =
+                                    grounding === "verified"
+                                        ? t("citations.groundingVerified")
+                                        : grounding === "unverified"
+                                          ? t("citations.groundingUnverified")
+                                          : grounding === "blocked"
+                                            ? t("citations.groundingBlocked")
+                                            : "";
+                                const tooltipText = `${formatCitationPage(annotation)}: "${displayCitationQuote(annotation)}"${groundingLabel ? ` (${groundingLabel})` : ""}`;
                                 return (
                                     <button
                                         onClick={() => {
@@ -983,7 +1004,7 @@ function MarkdownContent({
                                             );
                                             onCitationClick?.(annotation);
                                         }}
-                                        className="mx-0.5 inline-flex items-center justify-center rounded-full w-4 h-4 text-[10px] font-medium transition-colors align-super bg-gray-100 text-gray-900 hover:bg-gray-200"
+                                        className={`mx-0.5 inline-flex items-center justify-center rounded-full w-4 h-4 text-[10px] font-medium transition-colors align-super ${groundingClass}`}
                                         title={tooltipText}
                                     >
                                         {idx + 1}
@@ -1037,18 +1058,18 @@ interface Props {
     events?: AssistantEvent[];
     isStreaming?: boolean;
     isError?: boolean;
-    /** Human-readable error text rendered alongside the red Mike icon. */
+    /** Human-readable error text rendered alongside the red PATRON icon. */
     errorMessage?: string;
-    annotations?: MikeCitationAnnotation[];
-    onCitationClick?: (citation: MikeCitationAnnotation) => void;
+    annotations?: PATRONCitationAnnotation[];
+    onCitationClick?: (citation: PATRONCitationAnnotation) => void;
     /**
      * Cytaty z serwerow MCP (np. SAOS) - powiazane zrodla renderowane
      * pod prozą wiadomości jako sekcja "Powiązane orzeczenia".
      */
-    mcpCitations?: MikeMcpCitation[];
+    mcpCitations?: PATRONMcpCitation[];
     minHeight?: string;
     onWorkflowClick?: (workflowId: string) => void;
-    onEditViewClick?: (ann: MikeEditAnnotation, filename: string) => void;
+    onEditViewClick?: (ann: PATRONEditAnnotation, filename: string) => void;
     /**
      * Opens the editor panel for a document without auto-highlighting any
      * specific edit. Used by the download card click — opening a doc to
@@ -1123,11 +1144,26 @@ export function AssistantMessage({
     const messageKey = useId();
     const contentDivRef = useRef<HTMLDivElement | null>(null);
     const [isCopied, setIsCopied] = useState(false);
+    // Draft odpowiedzi (pipeline obrony, ADR-0058/0063) - panel + tekst zrodlowy.
+    const [showDraft, setShowDraft] = useState(false);
+    const [draftText, setDraftText] = useState("");
     // Per-document override of the download URL, set as Accept/Reject resolves
     // each tracked change and produces a new version.
     const [resolvedOverrides, setResolvedOverrides] = useState<
         Record<string, string>
     >({});
+
+    const handleOpenDraft = () => {
+        // Proza wyrenderowana (textContent) wiernie oddaje pismo; fallback do
+        // surowego content gdy ref jeszcze nie podpiety (np. wiadomosc event-only).
+        const text = (
+            contentDivRef.current?.textContent ??
+            _content ??
+            ""
+        ).trim();
+        setDraftText(text);
+        setShowDraft(true);
+    };
 
     const handleEditResolved = (args: {
         editId: string;
@@ -1155,7 +1191,7 @@ export function AssistantMessage({
     // Pre-process citations for all content events. Each [N] marker resolves
     // to exactly one annotation (models are instructed to use shared refs
     // only for cross-page continuations via the [[PAGE_BREAK]] sentinel).
-    const citationsList: MikeCitationAnnotation[] = [];
+    const citationsList: PATRONCitationAnnotation[] = [];
     const processedTexts: string[] = [];
     if (events) {
         for (const event of events) {
@@ -1448,7 +1484,7 @@ export function AssistantMessage({
                                     { type: "doc_edited" }
                                 >[];
                                 const pending: {
-                                    annotation: MikeEditAnnotation;
+                                    annotation: PATRONEditAnnotation;
                                     filename: string;
                                 }[] = [];
                                 const filenameByDocId = new Map<
@@ -1456,7 +1492,7 @@ export function AssistantMessage({
                                     string
                                 >();
                                 // Effective status = external override if any, else the annotation's DB status.
-                                const statusOf = (ann: MikeEditAnnotation) =>
+                                const statusOf = (ann: PATRONEditAnnotation) =>
                                     resolvedEditStatuses?.[ann.edit_id] ??
                                     ann.status;
                                 for (const e of editedEvents) {
@@ -1655,7 +1691,7 @@ export function AssistantMessage({
                         </div>
                     )}
 
-                {/* Copy button */}
+                {/* Copy + Draft odpowiedzi */}
                 <div className="flex items-center gap-2 pt-2 pb-4 md:pb-8 font-sans justify-start">
                     {!isStreaming && (
                         <button
@@ -1669,8 +1705,23 @@ export function AssistantMessage({
                             )}
                         </button>
                     )}
+                    {!isStreaming && !isError && (
+                        <button
+                            onClick={handleOpenDraft}
+                            className="inline-flex items-center gap-1.5 rounded px-2 py-1 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+                            title={t("draft.subtitle")}
+                        >
+                            <Sparkles className="h-3.5 w-3.5" />
+                            {t("draft.open")}
+                        </button>
+                    )}
                 </div>
             </div>
+            <DraftRefinePanel
+                open={showDraft}
+                onClose={() => setShowDraft(false)}
+                initialText={draftText}
+            />
         </div>
     );
 }
@@ -1703,12 +1754,12 @@ function mcpServerLabel(server: string): string {
 }
 
 interface McpCitationsPanelProps {
-    citations: MikeMcpCitation[];
+    citations: PATRONMcpCitation[];
 }
 
 function McpCitationsPanel({ citations }: McpCitationsPanelProps) {
     // Grupuj po serwerze - sekcja per konektor.
-    const groups = new Map<string, MikeMcpCitation[]>();
+    const groups = new Map<string, PATRONMcpCitation[]>();
     for (const c of citations) {
         const arr = groups.get(c.server) ?? [];
         arr.push(c);

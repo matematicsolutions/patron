@@ -3,14 +3,16 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/contexts/UserProfileContext";
-import { MikeIcon } from "@/components/chat/mike-icon";
+import { PATRONIcon } from "@/components/chat/patron-icon";
+import { FolderOpen } from "lucide-react";
 import { ChatInput } from "./ChatInput";
 import { SelectAssistantProjectModal } from "./SelectAssistantProjectModal";
-import type { MikeMessage } from "../shared/types";
+import { FolderIngestModal } from "./FolderIngestModal";
+import type { PATRONMessage } from "../shared/types";
 import { t } from "@/i18n";
 
 interface InitialViewProps {
-    onSubmit: (message: MikeMessage) => void;
+    onSubmit: (message: PATRONMessage) => void;
 }
 
 const ICON_SIZE = 35;
@@ -21,6 +23,7 @@ export function InitialView({ onSubmit }: InitialViewProps) {
     const { profile } = useUserProfile();
     const [loaded, setLoaded] = useState(false);
     const [projectModalOpen, setProjectModalOpen] = useState(false);
+    const [folderIngestOpen, setFolderIngestOpen] = useState(false);
     const [iconOffset, setIconOffset] = useState(0);
     const [textOffset, setTextOffset] = useState(0);
     const textRef = useRef<HTMLHeadingElement>(null);
@@ -59,7 +62,7 @@ export function InitialView({ onSubmit }: InitialViewProps) {
                                     "transform 900ms cubic-bezier(0.25, 0.46, 0.45, 0.94)",
                             }}
                         >
-                            <MikeIcon size={ICON_SIZE} />
+                            <PATRONIcon size={ICON_SIZE} />
                         </div>
                         <h1
                             ref={textRef}
@@ -86,6 +89,13 @@ export function InitialView({ onSubmit }: InitialViewProps) {
                     />
 
                     <div className="text-center">
+                        <button
+                            onClick={() => setFolderIngestOpen(true)}
+                            className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors"
+                        >
+                            <FolderOpen className="h-3.5 w-3.5" />
+                            {t("folderIngest.open")}
+                        </button>
                         <p className="text-xs py-3 mb-3 text-gray-500">
                             {t("chat.legalDisclaimer")}
                         </p>
@@ -96,6 +106,10 @@ export function InitialView({ onSubmit }: InitialViewProps) {
             <SelectAssistantProjectModal
                 open={projectModalOpen}
                 onClose={() => setProjectModalOpen(false)}
+            />
+            <FolderIngestModal
+                open={folderIngestOpen}
+                onClose={() => setFolderIngestOpen(false)}
             />
         </div>
     );

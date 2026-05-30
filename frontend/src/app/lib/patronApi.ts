@@ -582,6 +582,66 @@ export async function streamProjectChat(payload: {
 }
 
 // ---------------------------------------------------------------------------
+// Draft odpowiedzi - pipeline obrony (Invisible AI, ADR-0058)
+// ---------------------------------------------------------------------------
+
+export type DefenseStage = "recenzent" | "adwokat" | "pisz-po-ludzku";
+export type AdwokatMode = "strona-przeciwna" | "sad" | "prokurator";
+
+export interface DraftStageResult {
+    stage: DefenseStage;
+    mode?: AdwokatMode;
+    output: string;
+}
+
+export interface DraftRefineResult {
+    final: string;
+    stages: DraftStageResult[];
+}
+
+export async function refineDraft(payload: {
+    text: string;
+    stages?: DefenseStage[];
+    adwokat_mode?: AdwokatMode;
+    model?: string;
+    context?: string;
+}): Promise<DraftRefineResult> {
+    return apiRequest<DraftRefineResult>("/draft/refine", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+    });
+}
+
+// ---------------------------------------------------------------------------
+// Folder Sprawy - import lokalnego katalogu (ADR-0056, desktop-only)
+// ---------------------------------------------------------------------------
+
+export interface FolderIngestEntry {
+    file: string;
+    httpStatus: number;
+    documentId?: string;
+}
+
+export interface FolderIngestResult {
+    folder: string;
+    total: number;
+    indexed: number;
+    results: FolderIngestEntry[];
+}
+
+export async function ingestCaseFolder(
+    path: string,
+    projectId?: string | null,
+): Promise<FolderIngestResult> {
+    return apiRequest<FolderIngestResult>("/folders/ingest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path, project_id: projectId ?? null }),
+    });
+}
+
+// ---------------------------------------------------------------------------
 // Tabular Review
 // ---------------------------------------------------------------------------
 
