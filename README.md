@@ -1,17 +1,17 @@
 # Patron
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](./LICENSE)
-[![Tests](https://img.shields.io/badge/tests-69%2F69_passing-brightgreen)](./backend)
+[![Tests](https://img.shields.io/badge/tests-817%2F822_passing-brightgreen)](./backend)
 [![AI Act](https://img.shields.io/badge/AI_Act-Art._12_record--keeping-orange)](./governance/CONSTITUTION.md)
 [![RODO](https://img.shields.io/badge/RODO-art._5%2F25%2F30%2F32-orange)](./governance/CONSTITUTION.md)
 [![Stack](https://img.shields.io/badge/stack-zero--cloud-success)](./governance/CONSTITUTION.md)
 [![MCP](https://img.shields.io/badge/MCP-6_connectors-blue)](https://github.com/matematicsolutions)
 [![Node](https://img.shields.io/badge/Node-20%2B-brightgreen)](https://nodejs.org)
 
-> **Lokalny agent AI dla polskiej kancelarii prawnej.** Self-host
-> zero-cloud (Postgres + MinIO), 6 konektorów polskiego i unijnego prawa
+> **Lokalny agent AI dla polskiej kancelarii prawnej.** Aplikacja desktop (Electron)
+> zero-cloud, single-user: domyślnie lokalny SQLite ([ADR-0053](./governance/adr/0053-sqlite-single-user-zero-cloud.md)), 6 konektorów polskiego i unijnego prawa
 > (SAOS / NSA / ISAP / KRS / EUR-Lex / EU-Compliance), audit trail z hash-chain (AI Act art. 12),
-> bring-your-own-model (Gemini / Claude / Ollama lokalny).
+> bring-your-own-model (Gemini / Claude / Ollama lokalny / OpenRouter). Tryb serwerowy (Postgres + MinIO) pozostaje jako alternatywa.
 
 Patron jest forkiem [Mike](https://github.com/willchen96/mike) (dokumentowy
 asystent prawny, MIT). Dodaje polonizację, polski legal stack i wymogi
@@ -24,7 +24,7 @@ compliance, których potrzebuje kancelaria. Pełne zasady opisuje
 - `backend/` - Express API, klient MCP, audit trail, dispatch narzędzi
 - `backend/src/lib/input-security/` - lokalny, deterministyczny skan dokumentów wejściowych (prompt-injection / ukryte akcje PDF / zaciemnienie) przed wejściem do modelu lub RAG (ADR-0019/0020)
 - `backend/src/lib/mcp-security/` - lokalny, deterministyczny skan definicji konektorów MCP (typosquat / drift opisu / hidden-instructions / tool-poisoning) PRZED ich załadowaniem do kontraktu MCP (ADR-0025/0028)
-- `backend/schema.sql` - schemat Postgresa (Supabase-compatible)
+- `backend/schema.sql` - schemat Postgresa (tryb serwerowy, Supabase-compatible); tryb desktop używa lokalnego SQLite (ADR-0053)
 - `governance/` - **Konstytucja AI Patrona** + Implementation Playbook + ADR
 - `deploy/` - runbook wdrożeniowy (`docker-compose`)
 - `scripts/bundle-mcp.cjs` - bundler 6 serwerów MCP do obrazu backendu

@@ -6,14 +6,14 @@ Plik standardu [agents.md](https://agents.md) (Linux Foundation / Agentic AI Fou
 
 ## Cel projektu
 
-Patron to **lokalny RODO-safe agent AI dla polskiej kancelarii prawnej**. Self-host zero-cloud (Postgres + MinIO + 6 konektorow MCP polskiego i unijnego prawa), audit trail z hash-chain (AI Act art. 12), bring-your-own-model (Gemini / Claude / Ollama lokalny). Forka [willchen96/mike](https://github.com/willchen96/mike) (MIT) na powloce AGPL-3.0 - patrz [ADR-0002](./governance/adr/0002-dual-license-agpl-shell-mit-connectors.md).
+Patron to **lokalny RODO-safe agent AI dla polskiej kancelarii prawnej**. Aplikacja desktop (Electron) zero-cloud, single-user: domyslnie lokalny SQLite ([ADR-0053](./governance/adr/0053-sqlite-single-user-zero-cloud.md)) + 6 konektorow MCP polskiego i unijnego prawa, audit trail z hash-chain (AI Act art. 12), bring-your-own-model (Gemini / Claude / Ollama lokalny / OpenRouter). Tryb serwerowy (Postgres + MinIO + Supabase) pozostaje jako alternatywa. Forka [willchen96/mike](https://github.com/willchen96/mike) (MIT) na powloce AGPL-3.0 - patrz [ADR-0002](./governance/adr/0002-dual-license-agpl-shell-mit-connectors.md).
 
 ## Kontekst MateMatic (TWARDE OGRANICZENIA)
 
 Repo prowadzi [MateMatic Solutions](https://matematicsolutions.com). Patron jest **produktem regulowanym** - dotyczy go:
 
 - **Tajemnica zawodowa adwokacka / radcowska** (PoA art. 6, URP art. 3) - bezwzgledna. Patron nie wysyla aktow sprawy do chmury bez zgody Operatora ([Konstytucja](./governance/CONSTITUTION.md) Art. 2).
-- **RODO art. 5/25/30/32** - minimalizacja, privacy by design, rejestr czynnosci, bezpieczenstwo. Schemat Postgresa (`backend/schema.sql`) jest projektowany pod art. 30 i 32.
+- **RODO art. 5/25/30/32** - minimalizacja, privacy by design, rejestr czynnosci, bezpieczenstwo. Schemat danych (lokalny SQLite w trybie desktop - ADR-0053; Postgres `backend/schema.sql` w trybie serwerowym) jest projektowany pod art. 30 i 32.
 - **AI Act art. 6 (high-risk AI w prawie, od 2026-08-02)** + **art. 12 (record-keeping)** - kazda interakcja LLM jest logowana z hash-chainem (ADR-0001).
 - **Neutralnosc wobec dostawcow** ([Konstytucja](./governance/CONSTITUTION.md) Art. 4) - Patron nie faworyzuje zadnego LLM ani providera. NIE wprowadzaj zaleznosci od jednego providera w kodzie powloki.
 
@@ -35,7 +35,7 @@ cp .env.docker.example .env.docker
 docker compose --env-file .env.docker up -d
 ```
 
-Testy: 396/401 pass na 2026-05-24 (5 todo, 0 fail). TSC clean. **Nie commituj jezeli testy fail** - bramka jakosci z [Konstytucja](./governance/CONSTITUTION.md) Art. 7.
+Testy: 817/822 pass na 2026-05-30 (5 todo, 0 fail). TSC clean. **Nie commituj jezeli testy fail** - bramka jakosci z [Konstytucja](./governance/CONSTITUTION.md) Art. 7.
 
 ## Zasady kodu
 
@@ -60,9 +60,9 @@ Testy: 396/401 pass na 2026-05-24 (5 todo, 0 fail). TSC clean. **Nie commituj je
 ## Zrodla prawdy (kolejnosc czytania)
 
 1. [README.md](./README.md) - opis dla ludzi
-2. [governance/CONSTITUTION.md](./governance/CONSTITUTION.md) - 9 zasad, role, audyt (v1.2.2, podpisywana przez kancelarie)
+2. [governance/CONSTITUTION.md](./governance/CONSTITUTION.md) - 9 zasad, role, audyt (v1.4.6, podpisywana przez kancelarie)
 3. [governance/IMPLEMENTATION_PLAYBOOK.md](./governance/IMPLEMENTATION_PLAYBOOK.md) - 6-8 tyg wdrozenia, RACI
-4. [governance/adr/](./governance/adr/) - Architecture Decision Records (0001-0033, rezerwacje 0026/0027/0030/0032/0034/0035)
+4. [governance/adr/](./governance/adr/) - Architecture Decision Records (0001-0075)
 5. [THIRD_PARTY_INSPIRATIONS.md](./THIRD_PARTY_INSPIRATIONS.md) - co cherry-pickowalismy i skad (Mike, Lavern, gbrain, isaacus/tabular-review, PII-Shield, earendil/pi, awesome-llm-apps)
 6. [CHANGELOG.md](./CHANGELOG.md), [SECURITY.md](./SECURITY.md), [CONTRIBUTING.md](./CONTRIBUTING.md)
 
