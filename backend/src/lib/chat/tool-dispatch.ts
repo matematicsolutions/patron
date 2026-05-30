@@ -17,10 +17,16 @@ import { resolveDocLabel } from "./citations";
 import { extractPdfText } from "./pdf";
 import { analyzeInput, isHardThreat } from "../input-security";
 import { generateDocx } from "./docx-generate";
-import { loadCurrentVersionBytes, runEditDocument } from "./docx-edit";
+import {
+    loadCurrentVersionBytes,
+    runAddComments,
+    runEditDocument,
+} from "./docx-edit";
+import { type CommentInput } from "../docxComments";
 import { retrieve } from "../retrieval/retrieval";
 import { saveMemory, listMemories, readMemory } from "../brain/store";
 import type {
+    CommentAnnotation,
     DocIndex,
     DocStore,
     EditAnnotation,
@@ -414,6 +420,15 @@ export type DocEditedResult = {
     annotations: EditAnnotation[];
 };
 
+export type DocCommentedResult = {
+    filename: string;
+    document_id: string;
+    version_id: string;
+    version_number: number | null;
+    download_url: string;
+    annotations: CommentAnnotation[];
+};
+
 export type TurnEditState = Map<
     string,
     { versionId: string; versionNumber: number; storagePath: string }
@@ -459,6 +474,7 @@ export async function runToolCalls(
     docsReplicated: DocReplicatedResult[];
     workflowsApplied: { workflow_id: string; title: string }[];
     docsEdited: DocEditedResult[];
+    docsCommented: DocCommentedResult[];
 }> {
     const toolResults: unknown[] = [];
     const docsRead: { filename: string; document_id?: string }[] = [];
@@ -471,6 +487,7 @@ export async function runToolCalls(
     const docsReplicated: DocReplicatedResult[] = [];
     const workflowsApplied: { workflow_id: string; title: string }[] = [];
     const docsEdited: DocEditedResult[] = [];
+    const docsCommented: DocCommentedResult[] = [];
 
     for (const tc of toolCalls) {
         let args: Record<string, unknown> = {};
@@ -926,6 +943,156 @@ export async function runToolCalls(
                     });
                 }
             }
+        } else if (tc.function.name === "add_comments" && docIndex) {
+            const rawDocId = args.doc_id as string;
+            const commentsRaw = args.comments as unknown[] | undefined;
+            const docId =
+                resolveDocLabel(rawDocId, docStore, docIndex) ?? rawDocId;
+            const docInfo = docStore.get(docId);
+            const indexed = docIndex?.[docId];
+
+            const emitCommentError = (
+                filename: string,
+                documentId: string,
+                error: string,
+            ) => {
+                write(
+                    `data: ${JSON.stringify({
+                        type: "doc_commented_start",
+                        filename,
+                    })}\n\n`,
+                );
+                write(
+                    `data: ${JSON.stringify({
+                        type: "doc_commented",
+                        filename,
+                        document_id: documentId,
+                        version_id: "",
+                        download_url: "",
+                        annotations: [],
+                        error,
+                    })}\n\n`,
+                );
+            };
+
+            if (!docInfo || !indexed) {
+                const err = `Document '${docId}' not found in this chat's attachments.`;
+                emitCommentError(docId, indexed?.document_id ?? "", err);
+                toolResults.push({
+                    role: "tool",
+                    tool_call_id: tc.id,
+                    content: JSON.stringify({ error: err }),
+                });
+            } else if (!Array.isArray(commentsRaw) || commentsRaw.length === 0) {
+                const err = "comments array is required and must not be empty.";
+                emitCommentError(docInfo.filename, indexed.document_id, err);
+                toolResults.push({
+                    role: "tool",
+                    tool_call_id: tc.id,
+                    content: JSON.stringify({ error: err }),
+                });
+            } else if (docInfo.file_type !== "docx") {
+                const err = "add_comments only supports .docx files.";
+                emitCommentError(docInfo.filename, indexed.document_id, err);
+                toolResults.push({
+                    role: "tool",
+                    tool_call_id: tc.id,
+                    content: JSON.stringify({ error: err }),
+                });
+            } else {
+                write(
+                    `data: ${JSON.stringify({
+                        type: "doc_commented_start",
+                        filename: docInfo.filename,
+                    })}\n\n`,
+                );
+                const comments: CommentInput[] = (
+                    commentsRaw as Record<string, unknown>[]
+                ).map((c) => ({
+                    find: String(c.find ?? ""),
+                    context_before: String(c.context_before ?? ""),
+                    context_after: String(c.context_after ?? ""),
+                    text: String(c.text ?? ""),
+                }));
+                const reuseVersion = turnEditState?.get(indexed.document_id);
+                const result = await runAddComments({
+                    documentId: indexed.document_id,
+                    userId,
+                    comments,
+                    db,
+                    reuseVersion,
+                });
+
+                if (result.ok) {
+                    turnEditState?.set(indexed.document_id, {
+                        versionId: result.version_id,
+                        versionNumber: result.version_number,
+                        storagePath: result.storage_path,
+                    });
+                    if (docIndex[docId]) {
+                        docIndex[docId] = {
+                            ...docIndex[docId],
+                            version_id: result.version_id,
+                            version_number: result.version_number,
+                        };
+                    }
+                    const currentDocStore = docStore.get(docId);
+                    if (currentDocStore) {
+                        docStore.set(docId, {
+                            ...currentDocStore,
+                            storage_path: result.storage_path,
+                        });
+                    }
+                    const payload: DocCommentedResult = {
+                        filename: docInfo.filename,
+                        document_id: indexed.document_id,
+                        version_id: result.version_id,
+                        version_number: result.version_number,
+                        download_url: result.download_url,
+                        annotations: result.annotations,
+                    };
+                    docsCommented.push(payload);
+                    write(
+                        `data: ${JSON.stringify({
+                            type: "doc_commented",
+                            ...payload,
+                        })}\n\n`,
+                    );
+                    toolResults.push({
+                        role: "tool",
+                        tool_call_id: tc.id,
+                        content: JSON.stringify({
+                            ok: true,
+                            doc_id: docId,
+                            document_id: indexed.document_id,
+                            version_id: result.version_id,
+                            version_number: result.version_number,
+                            applied: result.annotations.length,
+                            errors: result.errors,
+                        }),
+                    });
+                } else {
+                    write(
+                        `data: ${JSON.stringify({
+                            type: "doc_commented",
+                            filename: docInfo.filename,
+                            document_id: indexed.document_id,
+                            version_id: "",
+                            download_url: "",
+                            annotations: [],
+                            error: result.error,
+                        })}\n\n`,
+                    );
+                    toolResults.push({
+                        role: "tool",
+                        tool_call_id: tc.id,
+                        content: JSON.stringify({
+                            ok: false,
+                            error: result.error,
+                        }),
+                    });
+                }
+            }
         } else if (tc.function.name === "replicate_document" && docIndex) {
             const rawDocId = args.doc_id as string;
             const requestedFilename =
@@ -1335,6 +1502,7 @@ export async function runToolCalls(
         docsReplicated,
         workflowsApplied,
         docsEdited,
+        docsCommented,
     };
 }
 

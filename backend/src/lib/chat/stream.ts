@@ -23,6 +23,7 @@ import { TOOLS, WORKFLOW_TOOLS } from "./tools";
 import { runToolCalls, type TurnEditState } from "./tool-dispatch";
 import type {
     ChatMessage,
+    CommentAnnotation,
     DocIndex,
     DocStore,
     EditAnnotation,
@@ -70,6 +71,15 @@ type AssistantEvent =
           version_number: number | null;
           download_url: string;
           annotations: EditAnnotation[];
+      }
+    | {
+          type: "doc_commented";
+          filename: string;
+          document_id: string;
+          version_id: string;
+          version_number: number | null;
+          download_url: string;
+          annotations: CommentAnnotation[];
       }
     | { type: "content"; text: string };
 
@@ -341,6 +351,7 @@ export async function runLLMStream(params: {
                 docsReplicated,
                 workflowsApplied,
                 docsEdited,
+                docsCommented,
             } = await runToolCalls(
                 toolCalls,
                 docStore,
@@ -396,6 +407,17 @@ export async function runLLMStream(params: {
             for (const e of docsEdited) {
                 events.push({
                     type: "doc_edited",
+                    filename: e.filename,
+                    document_id: e.document_id,
+                    version_id: e.version_id,
+                    version_number: e.version_number,
+                    download_url: e.download_url,
+                    annotations: e.annotations,
+                });
+            }
+            for (const e of docsCommented) {
+                events.push({
+                    type: "doc_commented",
                     filename: e.filename,
                     document_id: e.document_id,
                     version_id: e.version_id,
