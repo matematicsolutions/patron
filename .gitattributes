@@ -1,0 +1,19 @@
+# Normalizacja koncow linii (ADR ladu 2026-05-30).
+# Repo cross-platform: w repozytorium trzymamy LF, git auto-wykrywa pliki tekstowe.
+* text=auto eol=lf
+
+# Pliki binarne - nigdy nie normalizuj.
+*.ico binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.pdf binary
+*.docx binary
+*.xlsx binary
+*.zip binary
