@@ -88,6 +88,28 @@ describe("supabase-shim: filtry i modyfikatory", () => {
     expect(r.data.length).toBe(1);
   });
 
+  it(".filter cs (contains) na kolumnie JSON-tablica shared_with", async () => {
+    // Lustro projects.ts: szukamy projektow wspoldzielonych z danym emailem.
+    await db
+      .from("projects")
+      .insert({ user_id: "u6", name: "Wspoldzielony", shared_with: ["beata@k.pl"] });
+    await db
+      .from("projects")
+      .insert({ user_id: "u6", name: "Prywatny", shared_with: [] });
+    const hit = await db
+      .from("projects")
+      .select("*")
+      .filter("shared_with", "cs", JSON.stringify(["beata@k.pl"]));
+    expect(hit.error).toBeNull();
+    expect(hit.data.some((p: { name: string }) => p.name === "Wspoldzielony")).toBe(true);
+    expect(hit.data.every((p: { name: string }) => p.name !== "Prywatny")).toBe(true);
+    const miss = await db
+      .from("projects")
+      .select("*")
+      .filter("shared_with", "cs", JSON.stringify(["nikt@k.pl"]));
+    expect(miss.data.length).toBe(0);
+  });
+
   it("upsert onConflict aktualizuje istniejacy wiersz", async () => {
     const base = { user_id: "u5", provider: "claude", iv: "i", auth_tag: "t" };
     await db.from("user_api_keys").upsert({ ...base, encrypted_key: "e1", updated_at: "t1" }, { onConflict: "user_id,provider" });

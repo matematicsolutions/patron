@@ -328,6 +328,12 @@ class Query implements PromiseLike<Result> {
     this.filters.push({ kind: "or", sql, params });
     return this;
   }
+  // PostgREST .filter(col, op, val) - generyczny filtr. Operator przekazany
+  // wprost do buildWhere (eq/neq/gt/.../cs). "cs" = contains dla kolumny
+  // JSON-tablica tekst (np. projects.shared_with).
+  filter(col: string, op: string, val: unknown): this {
+    return this.addFilter(col, op, val);
+  }
 
   order(col: string, opts?: { ascending?: boolean }): this {
     this.orderings.push({
@@ -435,6 +441,32 @@ class Query implements PromiseLike<Result> {
           clauses.push(`${col} like ?`);
           params.push(String(f.val));
           break;
+        case "cs": {
+          // PostgREST contains dla kolumny JSON-tablica tekst. Val to JSON
+          // string (np. '["email"]') lub tablica. Kazdy element musi byc
+          // obecny w tablicy kolumny. coalesce -> NULL traktowany jak [].
+          let arr: unknown[];
+          if (Array.isArray(f.val)) arr = f.val;
+          else {
+            try {
+              const parsed = JSON.parse(String(f.val));
+              arr = Array.isArray(parsed) ? parsed : [parsed];
+            } catch {
+              arr = [f.val];
+            }
+          }
+          if (arr.length === 0) {
+            clauses.push("1 = 1");
+          } else {
+            for (const el of arr) {
+              clauses.push(
+                `exists (select 1 from json_each(coalesce(${col}, '[]')) where json_each.value = ?)`,
+              );
+              params.push(toBind(el));
+            }
+          }
+          break;
+        }
         default:
           throw new Error(`[sqlite-shim] nieobslugiwany operator: ${f.op}`);
       }

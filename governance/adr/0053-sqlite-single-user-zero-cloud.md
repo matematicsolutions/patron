@@ -98,3 +98,7 @@ MINOR (nie PATCH) - nowy domyslny model wdrozenia (single-user desktop) jako row
 - **Migracje przyrostowe na SQLite** (`npm run migrate` zaklada Postgres DDL przez Operatora) -> rezerwacja. Fresh deployment dostaje pelny schemat z `schema.sqlite.ts`; przyrostowe ALTER dla SQLite = osobny runner.
 - **Pakowanie native modules (`better-sqlite3`) do portable `.exe`** (electron-rebuild / prebuilds pod ABI backendu) -> Dzien 12 roadmapy (packaging), nie ten ADR.
 - **Kuzu Graph + Bibliotekarz + Folder Sprawy + Word roundtrip** -> Dni 4-9 roadmapy, osobne ADR.
+
+## Errata (2026-05-28)
+
+- Shim nie mial metody `.filter(col, op, val)` z operatorem `cs` (contains), uzywanej przez `projects.ts` na kolumnie `shared_with`. GET /projects rzucal nieobsluzony `TypeError` i kladl proces backendu. Dodano `.filter` + `cs` (json_each + coalesce). Szczegoly: ADR-0063, sekcja "Errata do ADR-0053".
