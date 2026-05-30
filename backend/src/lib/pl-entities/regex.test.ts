@@ -117,6 +117,59 @@ describe("detectAll - sygnatury orzeczen polskich", () => {
             expect(s.confidence).toBeLessThanOrEqual(0.7); // niski - duze false-positive ryzyko
         }
     });
+
+    it("wykrywa sygnature sadu powszechnego z kodem jednoliterowym (I C 100/26)", () => {
+        const text = "Sygn. akt I C 100/26 - pozew o zaplate.";
+        const matches = detectAll(text);
+        const sigs = matches.filter(
+            (m) => m.ruleId === "signature-sad-powszechny",
+        );
+        expect(sigs).toHaveLength(1);
+        expect(sigs[0]!.normalized).toBe("I C 100/26");
+    });
+
+    it.each([
+        ["I Ns 50/25", "I Ns 50/25"], // nieprocesowy - kod mieszany
+        ["II K 200/24", "II K 200/24"], // karny - kod jednoliterowy
+        ["II Ca 300/25", "II Ca 300/25"], // cywilny odwolawczy - kod mieszany
+        ["XXV C 1500/23", "XXV C 1500/23"], // wysoki numer wydzialu (duzy sad)
+        ["I ACa 1234/23", "I ACa 1234/23"], // sad apelacyjny - kod mieszany
+    ])("wykrywa sygnature sadu powszechnego/apelacyjnego: %s", (input, expected) => {
+        const matches = detectAll(`Wyrok ${input} z 2026 r.`);
+        const sigs = matches.filter((m) => m.ruleId === "signature-sad-powszechny");
+        expect(sigs).toHaveLength(1);
+        expect(sigs[0]!.normalized).toBe(expected);
+    });
+
+    it("zachowuje wielkosc liter kodu wydzialu (Ns != NS)", () => {
+        const matches = detectAll("I Ns 50/25");
+        const sig = matches.find((m) => m.ruleId === "signature-sad-powszechny");
+        expect(sig!.normalized).toBe("I Ns 50/25");
+    });
+
+    it("nie duplikuje sygnatury SN (III CZP) regula sadu powszechnego", () => {
+        const matches = detectAll("sygn. III CZP 11/13");
+        const sn = matches.filter((m) => m.ruleId === "signature-sn");
+        const powszechny = matches.filter((m) => m.ruleId === "signature-sad-powszechny");
+        expect(sn).toHaveLength(1);
+        expect(powszechny).toHaveLength(0); // kod 2-4 wielkich liter = teren SN, nie powszechny
+    });
+
+    it("kody w pelni wielkoliterowe (RC, GC) pozostaja w gestii signature-sn (partycja bez duplikatu)", () => {
+        // "II GC 100/26" (gospodarczy) ma kod 2 wielkich liter - lapany przez
+        // generyczna regule signature-sn (rzymska + [A-Z]{2,4}), NIE powszechny.
+        const matches = detectAll("Wyrok II GC 100/26");
+        const sn = matches.filter((m) => m.ruleId === "signature-sn");
+        const powszechny = matches.filter((m) => m.ruleId === "signature-sad-powszechny");
+        expect(sn).toHaveLength(1);
+        expect(powszechny).toHaveLength(0);
+    });
+
+    it("nie lapie sygnatury WSA (II SA/Wa) regula sadu powszechnego", () => {
+        const matches = detectAll("Wyrok II SA/Wa 1234/24");
+        const powszechny = matches.filter((m) => m.ruleId === "signature-sad-powszechny");
+        expect(powszechny).toHaveLength(0);
+    });
 });
 
 describe("detectAll - sygnatury aktow prawnych", () => {

@@ -146,6 +146,18 @@ describe("parseSignaturePrefix", () => {
         expect(parseSignaturePrefix(sig)).toBe(expected);
     });
 
+    it.each([
+        ["I C 100/26", "I C"],
+        ["I Ns 50/25", "I Ns"],
+        ["II K 200/24", "II K"],
+        ["II Ca 300/25", "II Ca"],
+        ["XXV C 1500/23", "XXV C"],
+        ["I ACa 1234/23", "I ACa"],
+        ["II AKa 99/24", "II AKa"],
+    ])("sad powszechny/apelacyjny: %s -> %s", (sig, expected) => {
+        expect(parseSignaturePrefix(sig)).toBe(expected);
+    });
+
     it("zwraca null dla bzdurnych wejsc", () => {
         expect(parseSignaturePrefix("XYZ 123/24")).toBeNull();
         expect(parseSignaturePrefix("")).toBeNull();
