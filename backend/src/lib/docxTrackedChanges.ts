@@ -1162,6 +1162,41 @@ function truncate(s: string, n: number): string {
     return s.length > n ? s.slice(0, n) + "…" : s;
 }
 
+// ---------------------------------------------------------------------------
+// Shared OOXML primitives (reused by docxComments.ts for comment emission)
+// ---------------------------------------------------------------------------
+//
+// These are PURE helpers exported additively. `applyTrackedEdits` /
+// `resolveTrackedChange` behavior is unchanged. docxComments.ts reuses the
+// same paragraph flattening + whitespace-normalized anchor matching so a
+// comment lands on exactly the span a model named, with the same robustness
+// as a tracked edit.
+//
+// TODO(docx): a follow-up refactor can lift these plus the multi-strategy
+// locate loop (currently inlined in applyTrackedEdits) into a dedicated
+// docxOoxml.ts, so docxComments stops re-deriving the ~25-line anchor scan.
+// Tracked as a reservation in ADR-0077.
+
+export type { Flattened };
+export {
+    elName,
+    elChildren,
+    setChildren,
+    makeEl,
+    makeText,
+    buildRun,
+    flattenParagraph,
+    normalizeWs,
+    findUniqueAnchor,
+    mapNormRangeToOriginal,
+    createParser,
+    createBuilder,
+    findBody,
+    getZipEntry,
+    setZipEntry,
+    ensureXmlDeclaration,
+};
+
 // Lightweight guards used elsewhere; exported for tests.
 export const _internal = {
     flattenParagraph,
