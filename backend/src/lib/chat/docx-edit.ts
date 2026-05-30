@@ -7,9 +7,13 @@ import {
     applyTrackedEdits,
     type EditInput,
 } from "../docxTrackedChanges";
+import { applyDocxComments, type CommentInput } from "../docxComments";
 import { buildDownloadUrl } from "../downloadTokens";
 import { loadActiveVersion } from "../documentVersions";
-import type { EditAnnotation } from "./types";
+import type { CommentAnnotation, EditAnnotation } from "./types";
+
+const DOCX_CONTENT_TYPE =
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 // ---------------------------------------------------------------------------
 // Document version helpers (DOCX tracked-change editing)
@@ -236,6 +240,180 @@ export async function runEditDocument(params: {
         version_id: versionRowId,
         version_number: nextVersionNumber,
         storage_path: newPath,
+        download_url: permalink,
+        annotations,
+        errors,
+    };
+}
+
+// ---------------------------------------------------------------------------
+// Comment emission (ADR-0078) - persist a commented version
+// ---------------------------------------------------------------------------
+
+/**
+ * Persist `editedBytes` as a new assistant document version (or overwrite the
+ * turn-scoped one). Mirrors runEditDocument's version bookkeeping without the
+ * document_edits rows. Returns the new version's id/number/path.
+ */
+async function persistAssistantVersion(params: {
+    documentId: string;
+    userId: string;
+    filename: string | null;
+    editedBytes: Buffer;
+    db: ReturnType<typeof createServerSupabase>;
+    reuseVersion?: { versionId: string; versionNumber: number; storagePath: string };
+}): Promise<
+    | { ok: true; versionId: string; versionNumber: number; storagePath: string }
+    | { ok: false; error: string }
+> {
+    const { documentId, userId, filename, editedBytes, db, reuseVersion } = params;
+    const ab = editedBytes.buffer.slice(
+        editedBytes.byteOffset,
+        editedBytes.byteOffset + editedBytes.byteLength,
+    ) as ArrayBuffer;
+
+    if (reuseVersion) {
+        await uploadFile(reuseVersion.storagePath, ab, DOCX_CONTENT_TYPE);
+        return {
+            ok: true,
+            versionId: reuseVersion.versionId,
+            versionNumber: reuseVersion.versionNumber,
+            storagePath: reuseVersion.storagePath,
+        };
+    }
+
+    const versionId = crypto.randomUUID().replace(/-/g, "");
+    const newPath = `documents/${userId}/${documentId}/edits/${versionId}.docx`;
+    await uploadFile(newPath, ab, DOCX_CONTENT_TYPE);
+
+    const { data: maxRow } = await db
+        .from("document_versions")
+        .select("version_number")
+        .eq("document_id", documentId)
+        .in("source", ["upload", "user_upload", "assistant_edit"])
+        .order("version_number", { ascending: false, nullsFirst: false })
+        .limit(1)
+        .maybeSingle();
+    const nextVersionNumber = ((maxRow?.version_number as number | null) ?? 1) + 1;
+
+    const { data: prevRow } = await db
+        .from("document_versions")
+        .select("display_name, created_at")
+        .eq("document_id", documentId)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+    const inheritedDisplayName =
+        (prevRow?.display_name as string | null) ?? filename ?? null;
+
+    const { data: versionRow, error: verErr } = await db
+        .from("document_versions")
+        .insert({
+            document_id: documentId,
+            storage_path: newPath,
+            source: "assistant_edit",
+            version_number: nextVersionNumber,
+            display_name: inheritedDisplayName,
+        })
+        .select("id")
+        .single();
+    if (verErr || !versionRow) {
+        return { ok: false, error: "Failed to record document version." };
+    }
+    return {
+        ok: true,
+        versionId: versionRow.id as string,
+        versionNumber: nextVersionNumber,
+        storagePath: newPath,
+    };
+}
+
+/**
+ * Attach reviewer comments to a .docx as Word margin comments (ADR-0078).
+ * Loads the current version bytes, calls applyDocxComments (engine, ADR-0077),
+ * persists the commented bytes as a new assistant version, and returns the
+ * download link plus per-comment annotations. Unlike runEditDocument, comments
+ * are not tracked in a DB table - they live in the version's comments.xml.
+ */
+export async function runAddComments(params: {
+    documentId: string;
+    userId: string;
+    comments: CommentInput[];
+    db: ReturnType<typeof createServerSupabase>;
+    reuseVersion?: { versionId: string; versionNumber: number; storagePath: string };
+}): Promise<
+    | {
+          ok: true;
+          version_id: string;
+          version_number: number;
+          storage_path: string;
+          download_url: string;
+          annotations: CommentAnnotation[];
+          errors: { index: number; reason: string }[];
+      }
+    | { ok: false; error: string }
+> {
+    const { documentId, userId, comments, db, reuseVersion } = params;
+
+    const { data: doc } = await db
+        .from("documents")
+        .select("id, filename")
+        .eq("id", documentId)
+        .single();
+    if (!doc) return { ok: false, error: "Document not found." };
+
+    const current = await loadCurrentVersionBytes(documentId, db);
+    if (!current) return { ok: false, error: "Could not load document bytes." };
+
+    const {
+        bytes: commentedBytes,
+        comments: applied,
+        errors,
+    } = await applyDocxComments(current.bytes, comments, { author: "PATRON" });
+
+    if (applied.length === 0) {
+        return {
+            ok: false,
+            error:
+                errors[0]?.reason ??
+                "No comments could be anchored. Refine context_before/context_after and retry.",
+        };
+    }
+
+    const persisted = await persistAssistantVersion({
+        documentId,
+        userId,
+        filename: doc.filename as string | null,
+        editedBytes: commentedBytes,
+        db,
+        reuseVersion,
+    });
+    if (!persisted.ok) return { ok: false, error: persisted.error };
+
+    await db
+        .from("documents")
+        .update({ current_version_id: persisted.versionId })
+        .eq("id", documentId);
+
+    const annotations: CommentAnnotation[] = applied.map((c) => ({
+        kind: "comment",
+        comment_id: c.id,
+        document_id: documentId,
+        version_id: persisted.versionId,
+        version_number: persisted.versionNumber,
+        anchored_text: c.anchoredText,
+        text: c.text,
+        context_before: c.contextBefore,
+        context_after: c.contextAfter,
+    }));
+
+    const permalink = buildDownloadUrl(persisted.storagePath, doc.filename as string);
+
+    return {
+        ok: true,
+        version_id: persisted.versionId,
+        version_number: persisted.versionNumber,
+        storage_path: persisted.storagePath,
         download_url: permalink,
         annotations,
         errors,

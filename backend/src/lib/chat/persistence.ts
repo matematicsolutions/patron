@@ -55,6 +55,10 @@ export function extractAnnotations(
                 for (const a of ev.annotations)
                     out.push({ ...a, type: "edit_data" });
             }
+            if (ev?.type === "doc_commented" && Array.isArray(ev.annotations)) {
+                for (const a of ev.annotations)
+                    out.push({ ...a, type: "comment_data" });
+            }
         }
     }
     // Cytaty z serwerow MCP zapisujemy z dyskryminatorem `mcp_citation`
@@ -104,7 +108,9 @@ export async function buildDocContext(
             if (!Array.isArray(content)) continue;
             for (const ev of content as Record<string, unknown>[]) {
                 if (
-                    (ev?.type === "doc_created" || ev?.type === "doc_edited") &&
+                    (ev?.type === "doc_created" ||
+                        ev?.type === "doc_edited" ||
+                        ev?.type === "doc_commented") &&
                     typeof ev.document_id === "string"
                 ) {
                     documentIds.add(ev.document_id);

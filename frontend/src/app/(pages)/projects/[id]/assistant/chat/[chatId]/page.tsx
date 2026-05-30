@@ -301,7 +301,7 @@ export default function ProjectAssistantChatPage({ params }: Props) {
                     }
                     continue;
                 }
-                if (ev.type === "doc_edited") {
+                if (ev.type === "doc_edited" || ev.type === "doc_commented") {
                     editedPerDoc[ev.document_id] = Math.max(
                         editedPerDoc[ev.document_id] ?? 0,
                         (ev.version_number as number | null | undefined) ?? 0,

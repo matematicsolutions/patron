@@ -777,6 +777,52 @@ export function useAssistantChat({
                             continue;
                         }
 
+                        if (data.type === "doc_commented_start") {
+                            pushEvent({
+                                type: "doc_commented",
+                                filename: data.filename as string,
+                                document_id: "",
+                                version_id: "",
+                                download_url: "",
+                                annotations: [],
+                                isStreaming: true,
+                            });
+                            continue;
+                        }
+
+                        if (data.type === "doc_commented") {
+                            updateMatchingEvent(
+                                (e) =>
+                                    e.type === "doc_commented" &&
+                                    e.filename === data.filename &&
+                                    !!e.isStreaming,
+                                () => ({
+                                    type: "doc_commented",
+                                    filename: data.filename as string,
+                                    document_id:
+                                        (data.document_id as string) ?? "",
+                                    version_id:
+                                        (data.version_id as string) ?? "",
+                                    version_number:
+                                        typeof data.version_number === "number"
+                                            ? (data.version_number as number)
+                                            : null,
+                                    download_url:
+                                        (data.download_url as string) ?? "",
+                                    annotations: Array.isArray(data.annotations)
+                                        ? (data.annotations as import("@/app/components/shared/types").PATRONCommentAnnotation[])
+                                        : [],
+                                    error:
+                                        typeof data.error === "string"
+                                            ? (data.error as string)
+                                            : undefined,
+                                    isStreaming: false,
+                                }),
+                            );
+                            pushThinkingPlaceholder();
+                            continue;
+                        }
+
                         if (data.type === "citations") {
                             // End-of-stream signal — scrub any lingering
                             // placeholders so they don't persist into the

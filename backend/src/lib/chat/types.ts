@@ -48,6 +48,23 @@ export type ParsedCitation = {
     quote: string;
 };
 
+/**
+ * Adnotacja komentarza recenzenta - wynik runAddComments (ADR-0078).
+ * Inaczej niz EditAnnotation: komentarz jest informacyjny (brak accept/reject),
+ * zyje w bajtach wersji .docx (comments.xml), nie w osobnej tabeli.
+ */
+export type CommentAnnotation = {
+    kind: "comment";
+    comment_id: string;
+    document_id: string;
+    version_id: string;
+    version_number?: number | null;
+    anchored_text: string;
+    text: string;
+    context_before: string;
+    context_after: string;
+};
+
 /** Adnotacja edycji dokumentu - wynik runEditDocument zapisywany w DB. */
 export type EditAnnotation = {
     kind: "edit";

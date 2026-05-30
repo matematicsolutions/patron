@@ -383,4 +383,57 @@ export const TOOLS = [
             },
         },
     },
+    {
+        type: "function",
+        function: {
+            name: "add_comments",
+            description:
+                "Attach reviewer comments (margin annotations) to a user-attached .docx, WITHOUT changing its text. Use this when reviewing a document and you want to flag an issue, raise a question, or note a risk about a passage rather than rewrite it - e.g. 'rozwaz czy ten zapis nie jest abuzywny', 'brak klauzuli RODO', 'sprawdz sygnature'. Prefer this over edit_document for observations that should NOT modify the wording. Use read_document first. Anchor each comment with short before/after context so the passage is located unambiguously. A comment whose span overlaps an existing tracked change is rejected - comment a clean span or apply comments before edits. Returns a download link to the commented .docx (opens in Word's review pane).",
+            parameters: {
+                type: "object",
+                properties: {
+                    doc_id: {
+                        type: "string",
+                        description: "Document slug (e.g. 'doc-0').",
+                    },
+                    comments: {
+                        type: "array",
+                        description: "List of comments to attach.",
+                        items: {
+                            type: "object",
+                            properties: {
+                                find: {
+                                    type: "string",
+                                    description:
+                                        "Exact passage the comment is anchored to (the highlighted span). Keep it as short as needed to be unambiguous.",
+                                },
+                                context_before: {
+                                    type: "string",
+                                    description:
+                                        "~40 chars immediately preceding `find`, used to disambiguate.",
+                                },
+                                context_after: {
+                                    type: "string",
+                                    description:
+                                        "~40 chars immediately following `find`.",
+                                },
+                                text: {
+                                    type: "string",
+                                    description:
+                                        "The comment body shown in Word's review pane.",
+                                },
+                            },
+                            required: [
+                                "find",
+                                "context_before",
+                                "context_after",
+                                "text",
+                            ],
+                        },
+                    },
+                },
+                required: ["doc_id", "comments"],
+            },
+        },
+    },
 ];

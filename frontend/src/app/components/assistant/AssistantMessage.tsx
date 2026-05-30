@@ -828,6 +828,61 @@ function DocEditedBlock({
     );
 }
 
+function DocCommentedBlock({
+    filename,
+    count,
+    downloadUrl,
+    showConnector,
+    isStreaming,
+    hasError,
+}: {
+    filename: string;
+    count: number;
+    downloadUrl?: string;
+    showConnector?: boolean;
+    isStreaming?: boolean;
+    hasError?: boolean;
+}) {
+    return (
+        <div className="flex items-start text-sm font-serif text-gray-500 relative">
+            {showConnector && (
+                <div className="absolute left-0 top-0 bottom-0 w-[1px] bg-gray-300 top-[13px] left-[2.5px] h-[calc(100%+11px)]" />
+            )}
+            {isStreaming ? (
+                <div className="mt-2 w-1.5 h-1.5 rounded-full border border-gray-400 border-t-transparent animate-spin shrink-0" />
+            ) : hasError ? (
+                <div className="mt-2 w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
+            ) : (
+                <div className="mt-2 w-1.5 h-1.5 rounded-full bg-green-400 shrink-0" />
+            )}
+            <div className="ml-2 min-w-0 flex-1 whitespace-normal break-words">
+                <span className="font-medium">
+                    {isStreaming
+                        ? t("chat.commentingActive")
+                        : hasError
+                          ? t("chat.commentingFailed")
+                          : t("chat.commentingDone")}
+                </span>{" "}
+                <span>
+                    {isStreaming ? `${filename}...` : filename}
+                    {!isStreaming && !hasError && count > 0 ? ` (${count})` : ""}
+                </span>
+                {!isStreaming && !hasError && downloadUrl ? (
+                    <>
+                        {" · "}
+                        <a
+                            href={downloadUrl}
+                            className="text-gray-600 underline hover:text-gray-900"
+                        >
+                            {t("chat.commentDownload")}
+                        </a>
+                    </>
+                ) : null}
+            </div>
+        </div>
+    );
+}
+
 // ---------------------------------------------------------------------------
 // Citation preprocessing
 // ---------------------------------------------------------------------------
@@ -1398,6 +1453,19 @@ export function AssistantMessage({
                 <DocEditedBlock
                     key={globalIdx}
                     filename={event.filename}
+                    isStreaming={event.isStreaming}
+                    hasError={!!event.error}
+                    showConnector={showConnector}
+                />
+            );
+        }
+        if (event.type === "doc_commented") {
+            return (
+                <DocCommentedBlock
+                    key={globalIdx}
+                    filename={event.filename}
+                    count={event.annotations?.length ?? 0}
+                    downloadUrl={event.download_url}
                     isStreaming={event.isStreaming}
                     hasError={!!event.error}
                     showConnector={showConnector}
