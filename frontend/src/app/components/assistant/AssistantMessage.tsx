@@ -843,6 +843,46 @@ function DocCommentedBlock({
     isStreaming?: boolean;
     hasError?: boolean;
 }) {
+    // Only backend-relative URLs are accepted, and the file is fetched with
+    // the user's bearer token rather than navigated to — mirrors
+    // DocDownloadBlock. A raw relative href would resolve against the
+    // frontend origin (e.g. :3000) and 404, since the /download route lives
+    // on the API origin (:3001); fetching also keeps the token on-origin.
+    const API_BASE =
+        process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3001";
+    const href =
+        downloadUrl && downloadUrl.startsWith("/")
+            ? `${API_BASE}${downloadUrl}`
+            : null;
+    const [busy, setBusy] = useState(false);
+
+    const handleDownload = async (e?: { preventDefault?: () => void }) => {
+        e?.preventDefault?.();
+        if (busy || !href) return;
+        setBusy(true);
+        try {
+            const {
+                data: { session },
+            } = await supabase.auth.getSession();
+            const token = session?.access_token;
+            const resp = await fetch(href, {
+                headers: token ? { Authorization: `Bearer ${token}` } : {},
+            });
+            if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+            const blob = await resp.blob();
+            const blobUrl = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = blobUrl;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+        } finally {
+            setBusy(false);
+        }
+    };
+
     return (
         <div className="flex items-start text-sm font-serif text-gray-500 relative">
             {showConnector && (
@@ -867,15 +907,17 @@ function DocCommentedBlock({
                     {isStreaming ? `${filename}...` : filename}
                     {!isStreaming && !hasError && count > 0 ? ` (${count})` : ""}
                 </span>
-                {!isStreaming && !hasError && downloadUrl ? (
+                {!isStreaming && !hasError && href ? (
                     <>
                         {" · "}
-                        <a
-                            href={downloadUrl}
-                            className="text-gray-600 underline hover:text-gray-900"
+                        <button
+                            type="button"
+                            onClick={handleDownload}
+                            disabled={busy}
+                            className="text-gray-600 underline hover:text-gray-900 disabled:opacity-50 cursor-pointer"
                         >
                             {t("chat.commentDownload")}
-                        </a>
+                        </button>
                     </>
                 ) : null}
             </div>
