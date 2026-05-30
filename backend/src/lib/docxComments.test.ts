@@ -16,7 +16,7 @@ import JSZip from "jszip";
 import { describe, expect, it } from "vitest";
 import { applyDocxComments } from "./docxComments";
 import { applyTrackedEdits } from "./docxTrackedChanges";
-import { parseComments, parseDocxRoundtrip } from "./docxRoundtrip";
+import { parseComments, parseDocxRoundtrip, parseTrackedChanges } from "./docxRoundtrip";
 
 async function makeDocx(...paragraphs: string[]): Promise<Buffer> {
     const d = new Document({
@@ -199,7 +199,7 @@ describe("applyDocxComments - wspolistnienie z tracked changes", () => {
         expect(doc).toContain("w:commentRangeStart");
     });
 
-    it("komentarz NACHODZACY na istniejacy tracked change -> pominiety z bledem", async () => {
+    it("ADR-0079: komentarz NACHODZACY na istniejacy w:ins -> zalozony, w:ins nietkniety", async () => {
         const base = await makeDocx("Powodka zada kwoty 5000 zl tytulem odszkodowania.");
         const edited = await applyTrackedEdits(
             base,
@@ -207,13 +207,75 @@ describe("applyDocxComments - wspolistnienie z tracked changes", () => {
             { author: "PATRON" },
         );
         // Widok zaakceptowany pokazuje "8000" (ins "8" + plain "000"); kotwica
-        // na "8000" obejmuje wewnetrzny run w:ins -> bramka nakladania.
+        // na "8000" obejmuje wewnetrzny run w:ins. ADR-0079: zamiast bramki,
+        // komentarz bracketuje na granicy dzieci, a w:ins zostaje nietkniety.
         const res = await applyDocxComments(edited.bytes, [
             { find: "8000", context_before: "kwoty ", context_after: " zl", text: "Sprawdz kwote." },
         ]);
-        expect(res.comments.length).toBe(0);
-        expect(res.errors.length).toBe(1);
-        expect(res.errors[0].reason).toContain("overlaps");
+        expect(res.errors).toEqual([]);
+        expect(res.comments.length).toBe(1);
+        expect(res.comments[0].anchoredText).toBe("8000");
+
+        const doc = await readEntry(res.bytes, "word/document.xml");
+        // tracked change przetrwal (slad zmiany - autor/ins/del):
+        expect(doc).toContain("w:ins");
+        expect(doc).toContain("w:del");
+        expect(doc).toContain('w:author="PATRON"');
+        // markery komentarza wstawione:
+        expect(doc).toContain("w:commentRangeStart");
+        expect(doc).toContain("w:commentRangeEnd");
+        // komentarz round-trip przez nasz wlasny parser:
+        const parsed = await parseComments(res.bytes);
+        expect(parsed.length).toBe(1);
+        expect(parsed[0].text).toBe("Sprawdz kwote.");
+        // tracked change nadal parsowalny obok komentarza:
+        const tracked = await parseTrackedChanges(res.bytes);
+        expect(tracked.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it("ADR-0079: komentarz na spanie obejmujacym w:del -> zalozony, w:del nietkniety", async () => {
+        const base = await makeDocx("Powodka zada kwoty 5000 zl tytulem odszkodowania.");
+        // Usuwamy "kwoty " - w widoku zaakceptowanym znika, ale w:del zostaje
+        // jako dziecko paragrafu miedzy "zada " a "5000".
+        const edited = await applyTrackedEdits(
+            base,
+            [{ find: "kwoty ", replace: "", context_before: "zada ", context_after: "5000" }],
+            { author: "PATRON" },
+        );
+        const res = await applyDocxComments(edited.bytes, [
+            { find: "zada 5000", context_before: "Powodka ", context_after: " zl", text: "Zweryfikuj kwote." },
+        ]);
+        expect(res.errors).toEqual([]);
+        expect(res.comments.length).toBe(1);
+
+        const doc = await readEntry(res.bytes, "word/document.xml");
+        expect(doc).toContain("w:del");
+        expect(doc).toContain("w:commentRangeStart");
+        const parsed = await parseComments(res.bytes);
+        expect(parsed.length).toBe(1);
+    });
+
+    it("ADR-0079: dwa komentarze w jednym paragrafie - jeden na w:ins, drugi na czystym runie", async () => {
+        const base = await makeDocx("Strona zobowiazuje sie zaplacic kwote w terminie.");
+        const edited = await applyTrackedEdits(
+            base,
+            [{ find: "w terminie", replace: "niezwlocznie w terminie", context_before: "kwote ", context_after: "." }],
+            { author: "PATRON" },
+        );
+        const res = await applyDocxComments(edited.bytes, [
+            { find: "niezwlocznie", context_before: "kwote ", context_after: " w terminie", text: "Doprecyzuj termin." },
+            { find: "zaplacic", context_before: "sie ", context_after: " kwote", text: "Kto placi?" },
+        ]);
+        expect(res.errors).toEqual([]);
+        expect(res.comments.length).toBe(2);
+
+        const doc = await readEntry(res.bytes, "word/document.xml");
+        expect(doc).toContain("w:ins");
+        const parsed = await parseComments(res.bytes);
+        expect(parsed.length).toBe(2);
+        const texts = new Set(parsed.map((c) => c.text));
+        expect(texts.has("Doprecyzuj termin.")).toBe(true);
+        expect(texts.has("Kto placi?")).toBe(true);
     });
 });
 
