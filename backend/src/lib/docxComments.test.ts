@@ -3,7 +3,15 @@
 // Plus asserty plumbingu OOXML (markery, [Content_Types].xml, rels) i bramki
 // nakladania na istniejace tracked changes.
 
-import { Document, Packer, Paragraph } from "docx";
+import {
+    Document,
+    Packer,
+    Paragraph,
+    Table,
+    TableCell,
+    TableRow,
+    TextRun,
+} from "docx";
 import JSZip from "jszip";
 import { describe, expect, it } from "vitest";
 import { applyDocxComments } from "./docxComments";
@@ -21,6 +29,18 @@ async function readEntry(buf: Buffer, path: string): Promise<string> {
     const zip = await JSZip.loadAsync(buf);
     const f = zip.file(path) ?? zip.file(path.replace(/\//g, "\\"));
     return f ? f.async("string") : "";
+}
+
+/** Wstrzykuje natywny (nie-PATRONowy) word/comments.xml z jednym komentarzem. */
+async function injectNativeComment(docx: Buffer, text: string): Promise<Buffer> {
+    const zip = await JSZip.loadAsync(docx);
+    const xml =
+        `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+        `<w:comments xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">` +
+        `<w:comment w:id="1" w:author="Beata" w:date="2026-05-28T10:00:00Z">` +
+        `<w:p><w:r><w:t>${text}</w:t></w:r></w:p></w:comment></w:comments>`;
+    zip.file("word/comments.xml", xml);
+    return zip.generateAsync({ type: "nodebuffer" });
 }
 
 const ABUSIVE = "Sprzedawca moze jednostronnie zmienic cene w dowolnym czasie.";
@@ -218,5 +238,103 @@ describe("applyDocxComments - rozszerzanie istniejacych komentarzy", () => {
         const relCount = rels.split("/officeDocument/2006/relationships/comments").length - 1;
         expect(ctCount).toBe(1);
         expect(relCount).toBe(1);
+    });
+
+    it("dokleja obok NATYWNEGO comments.xml (nie-PATRON) bez kolizji id", async () => {
+        const base = await makeDocx(`Klauzula: ${ABUSIVE}`);
+        const withNative = await injectNativeComment(base, "Uwaga Beaty.");
+        const res = await applyDocxComments(withNative, [
+            {
+                find: "jednostronnie",
+                context_before: "moze ",
+                context_after: " zmienic",
+                text: "Uwaga PATRONa.",
+            },
+        ]);
+        expect(res.comments.length).toBe(1);
+        // Nowy komentarz dostaje id powyzej natywnego (1) -> brak kolizji.
+        expect(res.comments[0].id).not.toBe("1");
+        const parsed = await parseComments(res.bytes);
+        expect(parsed.length).toBe(2);
+        const texts = parsed.map((c) => c.text).join(" | ");
+        expect(texts).toContain("Uwaga Beaty.");
+        expect(texts).toContain("Uwaga PATRONa.");
+    });
+});
+
+describe("applyDocxComments - struktury realnych pism", () => {
+    it("kotwiczy komentarz w komorce TABELI (w:tbl traversal)", async () => {
+        const d = new Document({
+            sections: [
+                {
+                    children: [
+                        new Paragraph("Przed tabela."),
+                        new Table({
+                            rows: [
+                                new TableRow({
+                                    children: [
+                                        new TableCell({
+                                            children: [
+                                                new Paragraph(
+                                                    "Wartosc przedmiotu sporu: 50000 zl.",
+                                                ),
+                                            ],
+                                        }),
+                                    ],
+                                }),
+                            ],
+                        }),
+                    ],
+                },
+            ],
+        });
+        const base = await Packer.toBuffer(d);
+        const res = await applyDocxComments(base, [
+            {
+                find: "50000 zl",
+                context_before: "sporu: ",
+                context_after: "",
+                text: "Zweryfikuj wps wzgledem wlasciwosci sadu.",
+            },
+        ]);
+        expect(res.errors).toEqual([]);
+        expect(res.comments.length).toBe(1);
+        const doc = await readEntry(res.bytes, "word/document.xml");
+        // Markery wstrzykniete wewnatrz tabeli (po w:tc, przed koncem akapitu komorki).
+        expect(doc).toContain("w:commentRangeStart");
+        expect((await parseComments(res.bytes))[0].text).toContain("wps");
+    });
+
+    it("kotwiczy fragment przechodzacy przez granice dwoch runow (rozne formatowanie)", async () => {
+        const d = new Document({
+            sections: [
+                {
+                    children: [
+                        new Paragraph({
+                            children: [
+                                new TextRun("Termin platnosci wynosi "),
+                                new TextRun({ text: "siedem dni", bold: true }),
+                                new TextRun(" od dnia."),
+                            ],
+                        }),
+                    ],
+                },
+            ],
+        });
+        const base = await Packer.toBuffer(d);
+        // "wynosi siedem dni" zaczyna sie w runie zwyklym, konczy w pogrubionym.
+        const res = await applyDocxComments(base, [
+            {
+                find: "wynosi siedem dni",
+                context_before: "Termin platnosci ",
+                context_after: " od",
+                text: "Za krotki termin platnosci.",
+            },
+        ]);
+        expect(res.errors).toEqual([]);
+        expect(res.comments.length).toBe(1);
+        expect(res.comments[0].anchoredText).toBe("wynosi siedem dni");
+        const parsed = await parseComments(res.bytes);
+        expect(parsed.length).toBe(1);
     });
 });

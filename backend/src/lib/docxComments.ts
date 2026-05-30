@@ -1,6 +1,11 @@
 /**
  * DOCX comment emission (ADR-0077).
  *
+ * Inspiracja: ocena #83 anylegal-ai/anylegal-oss (MIT + Additional Terms) -
+ * WZORZEC "comments" z ich listy edit_document, NIE kod. Implementacja
+ * clean-room na wlasnej maszynerii kotwiczenia (docxTrackedChanges.ts).
+ * Patrz THIRD_PARTY_INSPIRATIONS.md.
+ *
  * `applyDocxComments` attaches Word review comments (margin annotations) to
  * anchored spans of a .docx. It is the WRITE side that mirrors
  * `parseComments` in docxRoundtrip.ts (the READ side): a comment emitted here
