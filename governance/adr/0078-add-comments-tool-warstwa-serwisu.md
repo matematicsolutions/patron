@@ -69,5 +69,5 @@ Schema narzedzia w `tools.ts` (lustro `edit_document`: doc_id + lista `{find, co
 ```bash
 cd backend && node node_modules/typescript/bin/tsc --noEmit   # clean
 node node_modules/vitest/vitest.mjs run                        # 868 passed, 5 todo, 0 fail
-cd ../frontend && npx tsc --noEmit                             # clean (mirror doc_edited)
+cd ../frontend && node node_modules/typescript/bin/tsc --noEmit # clean (mirror doc_edited)
 ```
