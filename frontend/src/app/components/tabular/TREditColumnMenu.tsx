@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { ChevronDown, Loader2, MoreHorizontal, Plus, Trash2, X } from "lucide-react";
 import type { ColumnConfig, ColumnFormat } from "../shared/types";
-import { generateTabularColumnPrompt } from "@/app/lib/mikeApi";
+import { generateTabularColumnPrompt } from "@/app/lib/patronApi";
+import { t } from "@/i18n";
 import { FORMAT_OPTIONS, formatLabel, formatIcon } from "./columnFormat";
 import { TAG_COLORS } from "./pillUtils";
 import {
@@ -297,7 +298,7 @@ export function TREditColumnMenu({
                             }
                             className="rounded-full bg-gray-900 px-3 py-1 text-xs font-medium text-white transition-colors hover:bg-gray-700 disabled:opacity-40"
                         >
-                            {saving ? "Saving…" : "Save"}
+                            {saving ? t("account.saving") : t("common.save")}
                         </button>
                     </div>
                 </div>

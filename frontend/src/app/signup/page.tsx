@@ -9,7 +9,7 @@ import Link from "next/link";
 import { SiteLogo } from "@/components/site-logo";
 import { CheckCircle2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import { updateUserProfile } from "@/app/lib/mikeApi";
+import { updateUserProfile } from "@/app/lib/patronApi";
 import { t } from "@/i18n";
 
 export default function SignupPage() {

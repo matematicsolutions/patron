@@ -7,7 +7,7 @@ import {
     deleteWorkflowShare,
     listWorkflowShares,
     shareWorkflow,
-} from "@/app/lib/mikeApi";
+} from "@/app/lib/patronApi";
 import { useAuth } from "@/contexts/AuthContext";
 import { t } from "@/i18n";
 import { EmailPillInput } from "../shared/EmailPillInput";

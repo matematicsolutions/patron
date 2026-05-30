@@ -154,7 +154,7 @@ SUPABASE_SECRET_KEY=your-supabase-service-role-key
 R2_ENDPOINT_URL=https://your-account-id.r2.cloudflarestorage.com
 R2_ACCESS_KEY_ID=your-r2-access-key
 R2_SECRET_ACCESS_KEY=your-r2-secret-key
-R2_BUCKET_NAME=mike
+R2_BUCKET_NAME=patron
 
 GEMINI_API_KEY=your-gemini-key
 ANTHROPIC_API_KEY=your-anthropic-key

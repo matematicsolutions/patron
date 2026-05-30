@@ -1159,7 +1159,7 @@ function buildTabularMessages(
         .map((c, i) => `- COL:${i} "${c.name}"`)
         .join("\n");
 
-    const systemContent = `You are Mike, an AI legal assistant. You are helping with the tabular review titled "${reviewTitle}".
+    const systemContent = `You are PATRON, an AI legal assistant. You are helping with the tabular review titled "${reviewTitle}".
 
 The review extracts specific fields from multiple legal documents into a structured table.
 You do NOT have the cell content yet — call read_table_cells to fetch the cells you need before answering.

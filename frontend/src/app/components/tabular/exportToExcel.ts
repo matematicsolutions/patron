@@ -1,7 +1,7 @@
 "use client";
 
 import ExcelJS from "exceljs";
-import type { ColumnConfig, MikeDocument, TabularCell } from "../shared/types";
+import type { ColumnConfig, PATRONDocument, TabularCell } from "../shared/types";
 import { preprocessCitations } from "./citation-utils";
 
 function formatCellForExport(cell: TabularCell | undefined): string {
@@ -31,7 +31,7 @@ function sanitizeFilename(name: string): string {
 export async function exportTabularReviewToExcel(params: {
     reviewTitle: string;
     columns: ColumnConfig[];
-    documents: MikeDocument[];
+    documents: PATRONDocument[];
     cells: TabularCell[];
 }) {
     const { reviewTitle, columns, documents, cells } = params;

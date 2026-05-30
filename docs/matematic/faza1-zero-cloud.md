@@ -25,14 +25,14 @@ rename do `S3_*` ewentualnie w pozniejszej fazie porzadkowej):
 R2_ENDPOINT_URL=http://localhost:9000
 R2_ACCESS_KEY_ID=<minio-access-key>
 R2_SECRET_ACCESS_KEY=<minio-secret-key>
-R2_BUCKET_NAME=mike
+R2_BUCKET_NAME=patron
 ```
 
 Uruchomienie MinIO lokalnie (bez Dockera):
 ```
 minio.exe server C:\dane\minio --console-address ":9001"
 ```
-Bucket `mike` zalozyc przez konsole MinIO (`http://localhost:9001`) lub `mc`.
+Bucket `patron` zalozyc przez konsole MinIO (`http://localhost:9001`) lub `mc`.
 
 ## Self-host Supabase - wymaga Dockera
 

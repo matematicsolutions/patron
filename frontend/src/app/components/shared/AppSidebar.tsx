@@ -16,11 +16,11 @@ import { useUserProfile } from "@/contexts/UserProfileContext";
 import { useChatHistoryContext } from "@/app/contexts/ChatHistoryContext";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
-import { MikeIcon } from "@/components/chat/mike-icon";
+import { PATRONIcon } from "@/components/chat/patron-icon";
 import { SidebarChatItem } from "@/app/components/shared/SidebarChatItem";
-import { listProjects } from "@/app/lib/mikeApi";
+import { listProjects } from "@/app/lib/patronApi";
 import { t } from "@/i18n";
-import type { MikeProject } from "@/app/components/shared/types";
+import type { PATRONProject } from "@/app/components/shared/types";
 
 const NAV_ITEMS = [
     { href: "/assistant", label: t("nav.assistant"), icon: MessageSquare },
@@ -57,7 +57,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
     const [projectNames, setProjectNames] = useState<Record<string, string>>(
         {},
     );
-    const [recentProjects, setRecentProjects] = useState<MikeProject[] | null>(
+    const [recentProjects, setRecentProjects] = useState<PATRONProject[] | null>(
         null,
     );
 
@@ -155,13 +155,13 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                             href="/assistant"
                             className="flex items-center gap-1.5 hover:opacity-80 transition-opacity"
                         >
-                            <MikeIcon size={22} />
+                            <PATRONIcon size={22} />
                             <span
                                 className={`text-2xl font-light font-serif ${
                                     shouldAnimate ? "sidebar-fade-in" : ""
                                 }`}
                             >
-                                Mike
+                                PATRON
                             </span>
                         </Link>
                     </div>

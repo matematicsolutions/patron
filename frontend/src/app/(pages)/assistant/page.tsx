@@ -4,14 +4,14 @@ import { useRouter } from "next/navigation";
 import { useAssistantChat } from "@/app/hooks/useAssistantChat";
 import { InitialView } from "@/app/components/assistant/InitialView";
 import { ChatView } from "@/app/components/assistant/ChatView";
-import type { MikeMessage } from "@/app/components/shared/types";
+import type { PATRONMessage } from "@/app/components/shared/types";
 
 export default function AssistantPage() {
     const router = useRouter();
     const { messages, isResponseLoading, handleChat, handleNewChat, cancel } =
         useAssistantChat();
 
-    async function handleInitialSubmit(message: MikeMessage) {
+    async function handleInitialSubmit(message: PATRONMessage) {
         const chatId = await handleNewChat(message);
         if (chatId) router.push(`/assistant/chat/${chatId}`);
     }

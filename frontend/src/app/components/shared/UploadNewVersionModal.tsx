@@ -3,13 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { X, Upload } from "lucide-react";
-import { listDocumentVersions } from "@/app/lib/mikeApi";
-import type { MikeDocument } from "./types";
+import { listDocumentVersions } from "@/app/lib/patronApi";
+import { t } from "@/i18n";
+import type { PATRONDocument } from "./types";
 
 interface Props {
     open: boolean;
     onClose: () => void;
-    doc: MikeDocument | null;
+    doc: PATRONDocument | null;
     onSubmit: (file: File, displayName: string) => Promise<void>;
 }
 
@@ -140,14 +141,14 @@ export function UploadNewVersionModal({ open, onClose, doc, onSubmit }: Props) {
                             onClick={onClose}
                             className="rounded-lg px-3 py-1.5 text-sm text-gray-500 hover:bg-gray-100"
                         >
-                            Cancel
+                            {t("common.cancel")}
                         </button>
                         <button
                             onClick={handleSubmit}
                             disabled={!stagedFile || submitting}
                             className="rounded-lg bg-gray-900 px-4 py-1.5 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-40"
                         >
-                            {submitting ? "Saving…" : "Save"}
+                            {submitting ? t("account.saving") : t("common.save")}
                         </button>
                     </div>
                 </div>

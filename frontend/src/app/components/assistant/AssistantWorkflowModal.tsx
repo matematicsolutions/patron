@@ -5,15 +5,15 @@ import { createPortal } from "react-dom";
 import { ChevronLeft, Search, X } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import type { MikeWorkflow } from "../shared/types";
-import { listWorkflows } from "@/app/lib/mikeApi";
+import type { PATRONWorkflow } from "../shared/types";
+import { listWorkflows } from "@/app/lib/patronApi";
 import { BUILT_IN_WORKFLOWS } from "../workflows/builtinWorkflows";
 import { t } from "@/i18n";
 
 interface Props {
     open: boolean;
     onClose: () => void;
-    onSelect: (workflow: MikeWorkflow) => void;
+    onSelect: (workflow: PATRONWorkflow) => void;
     projectName?: string;
     projectCmNumber?: string | null;
     initialWorkflowId?: string;
@@ -27,9 +27,9 @@ export function AssistantWorkflowModal({
     projectCmNumber,
     initialWorkflowId,
 }: Props) {
-    const [workflows, setWorkflows] = useState<MikeWorkflow[]>([]);
+    const [workflows, setWorkflows] = useState<PATRONWorkflow[]>([]);
     const [loading, setLoading] = useState(false);
-    const [selected, setSelected] = useState<MikeWorkflow | null>(null);
+    const [selected, setSelected] = useState<PATRONWorkflow | null>(null);
     const [search, setSearch] = useState("");
     const [rightVisible, setRightVisible] = useState(false);
 

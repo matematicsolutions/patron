@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Check, ChevronDown, Loader2, Upload, X } from "lucide-react";
-import type { MikeDocument, MikeProject, MikeWorkflow } from "../shared/types";
+import type { PATRONDocument, PATRONProject, PATRONWorkflow } from "../shared/types";
 import {
     getProject,
     listProjects,
@@ -11,7 +11,7 @@ import {
     listWorkflows,
     uploadProjectDocument,
     uploadStandaloneDocument,
-} from "@/app/lib/mikeApi";
+} from "@/app/lib/patronApi";
 import { FileDirectory } from "../shared/FileDirectory";
 import { BUILT_IN_WORKFLOWS } from "../workflows/builtinWorkflows";
 
@@ -22,11 +22,11 @@ interface Props {
         title: string,
         projectId?: string,
         documentIds?: string[],
-        columnsConfig?: MikeWorkflow["columns_config"],
+        columnsConfig?: PATRONWorkflow["columns_config"],
     ) => void;
-    projects?: MikeProject[];
+    projects?: PATRONProject[];
     /** When provided, skip the project/directory picker and show only these docs */
-    projectDocs?: MikeDocument[];
+    projectDocs?: PATRONDocument[];
     projectName?: string;
     projectCmNumber?: string | null;
 }
@@ -47,12 +47,12 @@ export function AddNewTRModal({
     const [projectDropdownOpen, setProjectDropdownOpen] = useState(false);
 
     // Project-scoped docs (when underProject is true and no fixedProjectDocs)
-    const [projectDocs, setProjectDocs] = useState<MikeDocument[]>([]);
+    const [projectDocs, setProjectDocs] = useState<PATRONDocument[]>([]);
     const [loadingDocs, setLoadingDocs] = useState(false);
 
     // Full directory (when underProject is false)
-    const [standaloneDocs, setStandaloneDocs] = useState<MikeDocument[]>([]);
-    const [directoryProjects, setDirectoryProjects] = useState<MikeProject[]>(
+    const [standaloneDocs, setStandaloneDocs] = useState<PATRONDocument[]>([]);
+    const [directoryProjects, setDirectoryProjects] = useState<PATRONProject[]>(
         [],
     );
     const [loadingDirectory, setLoadingDirectory] = useState(false);
@@ -64,7 +64,7 @@ export function AddNewTRModal({
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Workflow templates
-    const [workflows, setWorkflows] = useState<MikeWorkflow[]>([]);
+    const [workflows, setWorkflows] = useState<PATRONWorkflow[]>([]);
     const [loadingWorkflows, setLoadingWorkflows] = useState(false);
     const [selectedWorkflowId, setSelectedWorkflowId] = useState<string | null>(
         null,
@@ -205,7 +205,7 @@ export function AddNewTRModal({
         : underProject
           ? []
           : directoryProjects;
-    const flatProjectDocs: MikeDocument[] =
+    const flatProjectDocs: PATRONDocument[] =
         !isProjectMode && underProject ? projectDocs : [];
     const directoryLoading = isProjectMode
         ? false

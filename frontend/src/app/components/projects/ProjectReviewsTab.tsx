@@ -4,7 +4,7 @@ import { type Dispatch, type SetStateAction } from "react";
 import { Table2 } from "lucide-react";
 import { RowActions } from "@/app/components/shared/RowActions";
 import { t } from "@/i18n";
-import type { MikeDocument, TabularReview } from "@/app/components/shared/types";
+import type { PATRONDocument, TabularReview } from "@/app/components/shared/types";
 import { CHECK_W, formatDate, NAME_COL_W } from "./ProjectPageParts";
 
 export function ProjectReviewsTab({
@@ -27,7 +27,7 @@ export function ProjectReviewsTab({
     setRenamingReviewId,
     setRenameReviewValue,
 }: {
-    docs: MikeDocument[];
+    docs: PATRONDocument[];
     reviews: TabularReview[];
     filteredReviews: TabularReview[];
     selectedReviewIds: string[];

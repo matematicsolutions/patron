@@ -4,12 +4,12 @@ import { use, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { ChevronDown, Plus, Users, X } from "lucide-react";
-import { getWorkflow, updateWorkflow } from "@/app/lib/mikeApi";
+import { getWorkflow, updateWorkflow } from "@/app/lib/patronApi";
 import { ShareWorkflowModal } from "@/app/components/workflows/ShareWorkflowModal";
 import { WFEditColumnModal } from "@/app/components/workflows/WFEditColumnModal";
 import { WFColumnViewModal } from "@/app/components/workflows/WFColumnViewModal";
 import { AddColumnModal } from "@/app/components/tabular/AddColumnModal";
-import type { ColumnConfig, MikeWorkflow } from "@/app/components/shared/types";
+import type { ColumnConfig, PATRONWorkflow } from "@/app/components/shared/types";
 import {
     BUILT_IN_IDS,
     BUILT_IN_WORKFLOWS,
@@ -42,7 +42,7 @@ export default function WorkflowDetailPage({ params }: Props) {
     const { id } = use(params);
     const router = useRouter();
 
-    const [workflow, setWorkflow] = useState<MikeWorkflow | null>(null);
+    const [workflow, setWorkflow] = useState<PATRONWorkflow | null>(null);
     const [loading, setLoading] = useState(true);
     const [notFound, setNotFound] = useState(false);
 

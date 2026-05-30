@@ -2,12 +2,12 @@
 
 import { FileText, File, X, AlertCircle, Loader2, ShieldAlert } from "lucide-react";
 import { t } from "@/i18n";
-import type { MikeDocument } from "./types";
+import type { PATRONDocument } from "./types";
 
 interface Props {
-  document: MikeDocument;
+  document: PATRONDocument;
   onRemove?: (id: string) => void;
-  onClick?: (doc: MikeDocument) => void;
+  onClick?: (doc: PATRONDocument) => void;
   selected?: boolean;
 }
 

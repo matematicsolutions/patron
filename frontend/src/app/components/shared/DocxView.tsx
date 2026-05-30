@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
-import { MikeIcon } from "@/components/chat/mike-icon";
+import { PATRONIcon } from "@/components/chat/patron-icon";
 import { useFetchDocxBytes } from "@/app/hooks/useFetchDocxBytes";
 import { supabase } from "@/lib/supabase";
 import {
@@ -494,7 +494,7 @@ export function DocxView({
             >
                 {loading && !bytes && (
                     <div className="flex h-full items-center justify-center">
-                        <MikeIcon spin mike size={28} />
+                        <PATRONIcon spin patron size={28} />
                     </div>
                 )}
                 {error && (

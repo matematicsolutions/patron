@@ -13,8 +13,8 @@ import {
 } from "./types";
 import type {
     CitationQuote,
-    MikeCitationAnnotation,
-    MikeEditAnnotation,
+    PATRONCitationAnnotation,
+    PATRONEditAnnotation,
 } from "./types";
 
 function isDocxFilename(name: string): boolean {
@@ -30,10 +30,10 @@ function isDocxFilename(name: string): boolean {
  */
 export type DocPanelMode =
     | { kind: "document" }
-    | { kind: "citation"; citation: MikeCitationAnnotation }
+    | { kind: "citation"; citation: PATRONCitationAnnotation }
     | {
           kind: "edit";
-          edit: MikeEditAnnotation;
+          edit: PATRONEditAnnotation;
           /**
            * True while an accept/reject request for this exact edit is in
            * flight. Scoped per-edit (not per-document) so sibling edits on
@@ -193,7 +193,7 @@ function CitationHeader({
     filename,
     isReloading,
 }: {
-    citation: MikeCitationAnnotation;
+    citation: PATRONCitationAnnotation;
     documentId: string;
     versionId: string | null;
     filename: string;
@@ -294,7 +294,7 @@ function EditResolveButtons({
     onResolved,
     onError,
 }: {
-    edit: MikeEditAnnotation;
+    edit: PATRONEditAnnotation;
     /**
      * True while an accept/reject for any edit on this document is in
      * flight (triggered from here, the inline EditCard, the bulk bar, or

@@ -8,12 +8,12 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { uploadStandaloneDocument } from "@/app/lib/mikeApi";
-import type { MikeDocument } from "../shared/types";
+import { uploadStandaloneDocument } from "@/app/lib/patronApi";
+import type { PATRONDocument } from "../shared/types";
 import { t } from "@/i18n";
 
 interface Props {
-    onSelectDoc: (doc: MikeDocument) => void;
+    onSelectDoc: (doc: PATRONDocument) => void;
     onBrowseAll: () => void;
     selectedDocIds?: string[];
 }

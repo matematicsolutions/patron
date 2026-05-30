@@ -54,7 +54,7 @@ export default function LoginPage() {
                 <div className="bg-white border border-gray-200 rounded-2xl p-8 mb-4">
                     <div className="flex justify-between items-center mb-6">
                         <h2 className="text-left text-2xl font-serif">
-                            Log In
+                            {t("auth.signInLink")}
                         </h2>
                         <div className="bg-gray-100 p-1 rounded-md flex text-xs font-medium">
                             <span className="text-gray-600 px-3 py-1 bg-white rounded-sm shadow-sm">

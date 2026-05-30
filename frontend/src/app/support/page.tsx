@@ -177,7 +177,7 @@ export default function SupportPage() {
                                         onChange={(e) =>
                                             setLink(e.target.value)
                                         }
-                                        placeholder="https://mikeoss.com/..."
+                                        placeholder="https://patron.matematicsolutions.com/..."
                                         className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                                     />
                                     <p className="text-xs text-gray-500 mt-1">

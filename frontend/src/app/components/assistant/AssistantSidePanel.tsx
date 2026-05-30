@@ -4,8 +4,8 @@ import { useCallback, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { DocPanel, type DocPanelMode } from "../shared/DocPanel";
 import type {
-    MikeCitationAnnotation,
-    MikeEditAnnotation,
+    PATRONCitationAnnotation,
+    PATRONEditAnnotation,
 } from "../shared/types";
 import { t } from "@/i18n";
 
@@ -35,12 +35,12 @@ export type DocumentTab = CommonTab & { kind: "document" };
 
 export type CitationTab = CommonTab & {
     kind: "citation";
-    citation: MikeCitationAnnotation;
+    citation: PATRONCitationAnnotation;
 };
 
 export type EditTab = CommonTab & {
     kind: "edit";
-    edit: MikeEditAnnotation;
+    edit: PATRONEditAnnotation;
 };
 
 export type AssistantSidePanelTab = DocumentTab | CitationTab | EditTab;

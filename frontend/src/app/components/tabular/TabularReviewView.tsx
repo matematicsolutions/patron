@@ -14,11 +14,11 @@ import {
     streamTabularGeneration,
     updateTabularReview,
     uploadReviewDocument,
-} from "@/app/lib/mikeApi";
+} from "@/app/lib/patronApi";
 import type {
     ColumnConfig,
-    MikeDocument,
-    MikeProject,
+    PATRONDocument,
+    PATRONProject,
     TabularCell,
     TabularReview,
 } from "../shared/types";
@@ -51,9 +51,9 @@ interface Props {
 export function TRView({ reviewId, projectId }: Props) {
     const { setSidebarOpen } = useSidebar();
     const [review, setReview] = useState<TabularReview | null>(null);
-    const [project, setProject] = useState<MikeProject | null>(null);
+    const [project, setProject] = useState<PATRONProject | null>(null);
     const [cells, setCells] = useState<TabularCell[]>([]);
-    const [documents, setDocuments] = useState<MikeDocument[]>([]);
+    const [documents, setDocuments] = useState<PATRONDocument[]>([]);
     const [columns, setColumns] = useState<ColumnConfig[]>([]);
     const [loading, setLoading] = useState(true);
     const [generating, setGenerating] = useState(false);
@@ -160,7 +160,7 @@ export function TRView({ reviewId, projectId }: Props) {
         }
     }
 
-    async function handleAddDocuments(newDocs: MikeDocument[]) {
+    async function handleAddDocuments(newDocs: PATRONDocument[]) {
         const toAdd = newDocs.filter(
             (d) => !documents.some((existing) => existing.id === d.id),
         );
@@ -201,7 +201,7 @@ export function TRView({ reviewId, projectId }: Props) {
         if (files.length === 0) return;
         setUploadingDroppedFilenames(files.map((file) => file.name));
         try {
-            const uploaded: MikeDocument[] = [];
+            const uploaded: PATRONDocument[] = [];
             const documentIds = documents.map((document) => document.id);
             for (const file of files) {
                 const document = await uploadReviewDocument(reviewId, file, {
@@ -870,7 +870,7 @@ export function TRView({ reviewId, projectId }: Props) {
                 <AddProjectDocsModal
                     open={addDocsOpen}
                     onClose={() => setAddDocsOpen(false)}
-                    onSelect={(docs: MikeDocument[]) =>
+                    onSelect={(docs: PATRONDocument[]) =>
                         handleAddDocuments(docs)
                     }
                     breadcrumb={[
@@ -890,7 +890,7 @@ export function TRView({ reviewId, projectId }: Props) {
                 <AddDocumentsModal
                     open={addDocsOpen}
                     onClose={() => setAddDocsOpen(false)}
-                    onSelect={(docs: MikeDocument[]) =>
+                    onSelect={(docs: PATRONDocument[]) =>
                         handleAddDocuments(docs)
                     }
                     breadcrumb={[

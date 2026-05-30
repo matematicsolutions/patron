@@ -12,8 +12,8 @@ import {
 } from "lucide-react";
 import { HeaderSearchBtn } from "@/app/components/shared/HeaderSearchBtn";
 import { RenameableTitle } from "@/app/components/shared/RenameableTitle";
-import type { MikeProject } from "@/app/components/shared/types";
-import type { MikeDocumentVersion } from "@/app/lib/mikeApi";
+import type { PATRONProject } from "@/app/components/shared/types";
+import type { PATRONDocumentVersion } from "@/app/lib/patronApi";
 
 export type ProjectTab = "documents" | "assistant" | "reviews";
 
@@ -88,7 +88,7 @@ export function DocVersionHistory({
     docId: string;
     filename: string;
     loading: boolean;
-    versions: MikeDocumentVersion[];
+    versions: PATRONDocumentVersion[];
     depth?: number;
     onDownloadVersion: (
         docId: string,
@@ -342,7 +342,7 @@ export function ProjectPageHeader({
     onNewChat,
     onNewReview,
 }: {
-    project: MikeProject;
+    project: PATRONProject;
     tab: ProjectTab;
     search: string;
     creatingChat: boolean;

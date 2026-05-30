@@ -2,16 +2,16 @@
 
 import { useEffect, useRef, useState } from "react";
 import { X, MessageSquare, Table2 } from "lucide-react";
-import { createWorkflow, updateWorkflow } from "@/app/lib/mikeApi";
-import type { MikeWorkflow } from "../shared/types";
+import { createWorkflow, updateWorkflow } from "@/app/lib/patronApi";
+import type { PATRONWorkflow } from "../shared/types";
 import { PRACTICE_OPTIONS } from "./practices";
 
 interface Props {
     open: boolean;
     onClose: () => void;
-    onCreated: (workflow: MikeWorkflow) => void;
-    editWorkflow?: MikeWorkflow;
-    onUpdated?: (workflow: MikeWorkflow) => void;
+    onCreated: (workflow: PATRONWorkflow) => void;
+    editWorkflow?: PATRONWorkflow;
+    onUpdated?: (workflow: PATRONWorkflow) => void;
 }
 
 export function NewWorkflowModal({ open, onClose, onCreated, editWorkflow, onUpdated }: Props) {

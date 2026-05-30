@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { ALLOWED_MODEL_IDS, DEFAULT_MODEL_ID } from "../components/assistant/ModelToggle";
 
-const STORAGE_KEY = "mike.selectedModel";
+const STORAGE_KEY = "patron.selectedModel";
 
 function readStored(): string {
     if (typeof window === "undefined") return DEFAULT_MODEL_ID;

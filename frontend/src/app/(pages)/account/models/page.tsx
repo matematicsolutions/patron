@@ -13,7 +13,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useUserProfile } from "@/contexts/UserProfileContext";
-import type { ApiKeyState } from "@/app/lib/mikeApi";
+import type { ApiKeyState } from "@/app/lib/patronApi";
 import { MODELS } from "@/app/components/assistant/ModelToggle";
 import {
     isModelAvailable,

@@ -3,10 +3,10 @@
 import { useState } from "react";
 import { Folder, Search, X } from "lucide-react";
 import { t } from "@/i18n";
-import type { MikeProject } from "./types";
+import type { PATRONProject } from "./types";
 
 interface Props {
-    projects: MikeProject[];
+    projects: PATRONProject[];
     loading: boolean;
     selectedId: string | null;
     onSelect: (id: string | null) => void;

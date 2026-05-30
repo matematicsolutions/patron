@@ -10,7 +10,7 @@ import { AppSidebar } from "@/app/components/shared/AppSidebar";
 import { McpSecurityBanner } from "@/components/mcp-security-banner";
 import { t } from "@/i18n";
 
-export default function MikeLayout({
+export default function PATRONLayout({
     children,
 }: {
     children: React.ReactNode;

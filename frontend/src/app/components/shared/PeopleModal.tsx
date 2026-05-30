@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { X, User, UserPlus, Loader2, Plus } from "lucide-react";
-import type { ProjectPeople } from "@/app/lib/mikeApi";
+import type { ProjectPeople } from "@/app/lib/patronApi";
 
 /**
  * Any resource the modal can manage members for — projects today, tabular
@@ -45,7 +45,7 @@ type RosterRow = {
 };
 
 /**
- * Roster of every Mike member with access to the project, with controls to
+ * Roster of every PATRON member with access to the project, with controls to
  * add/remove members. Mirrors AddDocumentsModal's frame.
  */
 export function PeopleModal({

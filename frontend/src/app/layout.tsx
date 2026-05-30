@@ -15,8 +15,8 @@ const ebGaramond = EB_Garamond({
 });
 
 export const metadata: Metadata = {
-    metadataBase: new URL("https://app.mikeoss.com"),
-    title: "Mike - AI Legal Platform",
+    metadataBase: new URL("https://patron.matematicsolutions.com"),
+    title: "PATRON - AI Legal Platform",
     description:
         "AI-powered legal document analysis and contract review platform.",
     icons: {
@@ -28,9 +28,9 @@ export const metadata: Metadata = {
     },
     openGraph: {
         type: "website",
-        url: "https://app.mikeoss.com",
-        siteName: "Mike",
-        title: "Mike - AI Legal Platform",
+        url: "https://patron.matematicsolutions.com",
+        siteName: "PATRON",
+        title: "PATRON - AI Legal Platform",
         description:
             "AI-powered legal document analysis and contract review platform.",
         images: [
@@ -38,13 +38,13 @@ export const metadata: Metadata = {
                 url: "/link-image.jpg",
                 width: 1200,
                 height: 651,
-                alt: "Mike",
+                alt: "PATRON",
             },
         ],
     },
     twitter: {
         card: "summary_large_image",
-        title: "Mike - AI Legal Platform",
+        title: "PATRON - AI Legal Platform",
         description:
             "AI-powered legal document analysis and contract review platform.",
         images: ["/link-image.jpg"],

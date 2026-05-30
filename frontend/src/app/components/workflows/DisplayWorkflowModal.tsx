@@ -12,18 +12,18 @@ import {
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import type { MikeDocument, MikeWorkflow } from "../shared/types";
-import { createTabularReview } from "@/app/lib/mikeApi";
+import type { PATRONDocument, PATRONWorkflow } from "../shared/types";
+import { createTabularReview } from "@/app/lib/patronApi";
 import { useRouter } from "next/navigation";
 import { formatIcon, formatLabel } from "../tabular/columnFormat";
 import { useDirectoryData } from "../shared/useDirectoryData";
 import { FileDirectory } from "../shared/FileDirectory";
-import type { MikeProject } from "../shared/types";
+import type { PATRONProject } from "../shared/types";
 import { useChatHistoryContext } from "@/app/contexts/ChatHistoryContext";
 
 interface Props {
-    workflows: MikeWorkflow[];
-    workflow: MikeWorkflow | null;
+    workflows: PATRONWorkflow[];
+    workflow: PATRONWorkflow | null;
     onClose: () => void;
 }
 
@@ -52,7 +52,7 @@ function SimpleProjectPicker({
     selectedId,
     onSelect,
 }: {
-    projects: MikeProject[];
+    projects: PATRONProject[];
     selectedId: string | null;
     onSelect: (id: string | null) => void;
 }) {
@@ -172,7 +172,7 @@ function MarkdownBody({ content }: { content: string }) {
 // ---------------------------------------------------------------------------
 // Right panel for assistant workflows (select screen)
 // ---------------------------------------------------------------------------
-function AssistantPanel({ workflow }: { workflow: MikeWorkflow }) {
+function AssistantPanel({ workflow }: { workflow: PATRONWorkflow }) {
     return (
         <div className="flex-1 border-l border-t border-gray-200 flex flex-col overflow-hidden px-3 pb-3">
             <div className="py-3 shrink-0">
@@ -192,7 +192,7 @@ function AssistantPanel({ workflow }: { workflow: MikeWorkflow }) {
 // ---------------------------------------------------------------------------
 // Right panel for tabular workflows — accordion column list (select screen)
 // ---------------------------------------------------------------------------
-function TabularPanel({ workflow }: { workflow: MikeWorkflow }) {
+function TabularPanel({ workflow }: { workflow: PATRONWorkflow }) {
     const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
     const columns = (workflow.columns_config ?? []).sort(
         (a, b) => a.index - b.index,
@@ -283,7 +283,7 @@ function TabularPanel({ workflow }: { workflow: MikeWorkflow }) {
 // ---------------------------------------------------------------------------
 export function DisplayWorkflowModal({ workflows, workflow, onClose }: Props) {
     const [screen, setScreen] = useState<"select" | "configure">("select");
-    const [selected, setSelected] = useState<MikeWorkflow | null>(workflow);
+    const [selected, setSelected] = useState<PATRONWorkflow | null>(workflow);
     const [listSearch, setListSearch] = useState("");
     const selectedRowRef = useRef<HTMLButtonElement>(null);
 
@@ -352,7 +352,7 @@ export function DisplayWorkflowModal({ workflows, workflow, onClose }: Props) {
             const projectId = inProject ? selectedProjectId! : undefined;
             const chatId = await saveChat(projectId);
             if (!chatId) return;
-            const allDocs: MikeDocument[] = [
+            const allDocs: PATRONDocument[] = [
                 ...standaloneDocuments,
                 ...projects.flatMap((p) => p.documents || []),
             ];
@@ -381,7 +381,7 @@ export function DisplayWorkflowModal({ workflows, workflow, onClose }: Props) {
     }
 
     async function handleCreateReview() {
-        const allDocs: MikeDocument[] = [
+        const allDocs: PATRONDocument[] = [
             ...standaloneDocuments,
             ...projects.flatMap((p) => p.documents || []),
         ];
