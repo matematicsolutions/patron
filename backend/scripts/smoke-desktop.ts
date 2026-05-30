@@ -10,7 +10,8 @@
 // PATRON_DISABLE_VEC=1 -> bez modelu embeddera (warstwa wektorowa ma wlasny smoke).
 // Sprawdzamy sciezke BM25+graf indexu (doc_chunks + extracted_entities).
 
-import { spawn } from "child_process";
+import { spawn, spawnSync } from "child_process";
+import net from "net";
 import { Document, Packer, Paragraph } from "docx";
 import Database from "better-sqlite3";
 import fs from "fs";
@@ -41,6 +42,34 @@ async function makeDocx(text: string): Promise<Buffer> {
   );
 }
 
+/** TCP-connect probe: czy ktos juz nasluchuje na porcie (zombie z poprzedniego runu). */
+function portInUse(port: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const sock = net.connect({ host: "127.0.0.1", port }, () => {
+      sock.destroy();
+      resolve(true);
+    });
+    sock.on("error", () => resolve(false));
+    sock.setTimeout(800, () => {
+      sock.destroy();
+      resolve(false);
+    });
+  });
+}
+
+/**
+ * Ubija CALE drzewo procesu serwera. Na win32 spawn z shell:true tworzy wrapper
+ * cmd -> node tsx; child.kill() ubija tylko wrapper, node zostaje osierocony i
+ * trzyma port (powod falszywego FAIL "index w tle" przy kolejnym runie).
+ */
+function killTree(pid: number | undefined, kill: () => void): void {
+  if (process.platform === "win32" && pid) {
+    spawnSync("taskkill", ["/pid", String(pid), "/T", "/F"], { stdio: "ignore" });
+  } else {
+    kill();
+  }
+}
+
 async function waitForHealth(): Promise<boolean> {
   for (let i = 0; i < 40; i++) {
     try {
@@ -55,6 +84,17 @@ async function waitForHealth(): Promise<boolean> {
 }
 
 async function main() {
+  // Pre-check: jezeli 3094 jest zajety (zombie z przerwanego runu), spawnowany
+  // serwer nie zbinduje (EADDRINUSE) i requesty cicho trafia w zombie z inna baza
+  // -> falszywy FAIL "index w tle". Failuj GLOSNO z instrukcja zamiast diagnozowac.
+  if (await portInUse(PORT)) {
+    console.error(
+      `FAIL: port ${PORT} juz zajety (zombie serwer z poprzedniego runu?). ` +
+        `Zabij proces (netstat -ano | findstr :${PORT} -> Stop-Process -Id <pid> -Force) i ponow.`,
+    );
+    process.exit(1);
+  }
+
   const server = spawn("npx", ["tsx", "src/index.ts"], {
     env: {
       ...process.env,
@@ -170,7 +210,7 @@ async function main() {
         : `\nDESKTOP SMOKE FAIL: ${failures}`,
     );
   } finally {
-    server.kill();
+    killTree(server.pid, () => server.kill());
     try {
       fs.rmSync(tmp, { recursive: true, force: true });
     } catch {
