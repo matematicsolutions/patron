@@ -240,6 +240,59 @@ function referenceRun(wId: string): XNode {
 }
 
 /**
+ * Markup-preserving comment insertion (ADR-0079). Used when the anchored span
+ * touches a non-run child (w:ins / w:del / hyperlink / pre-existing
+ * commentRange). Inserts w:commentRangeStart / End + reference run at
+ * paragraph-child boundaries and copies every child verbatim, so existing
+ * tracked changes keep their exact bytes (author / date / id intact).
+ *
+ * The comment brackets WHOLE boundary children — no sub-run split. Sub-run
+ * precision stays the all-w:r fast path in insertCommentRanges; here a comment
+ * over a tracked span may reach the boundary run / w:ins edges (ADR-0079 B).
+ *
+ * Per comment: startBefore = child holding the first anchored char, endAfter =
+ * child holding the last. Ends (+ ref) emit before starts at the same boundary
+ * so adjacent / nested comments bracket cleanly.
+ */
+function insertCommentRangesAcrossMarkup(
+    flat: Flattened,
+    paraChildren: XNode[],
+    comments: ParaComment[],
+): XNode[] | null {
+    const text = flat.paraText;
+    if (text.length === 0) return null;
+
+    const clamp = (pos: number) =>
+        pos < 0 ? 0 : pos >= text.length ? text.length - 1 : pos;
+
+    const startsBeforeChild = new Map<number, string[]>();
+    const endsAfterChild = new Map<number, string[]>();
+    const push = (m: Map<number, string[]>, k: number, wId: string) =>
+        (m.get(k) ?? m.set(k, []).get(k)!).push(wId);
+
+    for (const c of comments) {
+        const startChild = flat.runs[flat.charRun[clamp(c.start)]].childIndex;
+        const endChild = flat.runs[flat.charRun[clamp(c.end - 1)]].childIndex;
+        push(startsBeforeChild, startChild, c.wId);
+        push(endsAfterChild, endChild, c.wId);
+    }
+    if (startsBeforeChild.size === 0) return null;
+
+    const out: XNode[] = [];
+    for (let ci = 0; ci < paraChildren.length; ci++) {
+        for (const wId of startsBeforeChild.get(ci) ?? []) {
+            out.push(makeEl("w:commentRangeStart", [], { "w:id": wId }));
+        }
+        out.push(paraChildren[ci]);
+        for (const wId of endsAfterChild.get(ci) ?? []) {
+            out.push(makeEl("w:commentRangeEnd", [], { "w:id": wId }));
+            out.push(referenceRun(wId));
+        }
+    }
+    return out;
+}
+
+/**
  * Insert commentRangeStart / commentRangeEnd (+ reference run) for the given
  * comments into a paragraph. Returns the new children array, or null if the
  * touched span overlaps non-run markup (existing tracked changes etc.) — the
@@ -276,11 +329,16 @@ function insertCommentRanges(
     const startChildIdx = flat.runs[firstRunIdx].childIndex;
     const endChildIdx = flat.runs[lastRunIdx].childIndex;
 
-    // Guard: only plain w:r children may sit in the rebuilt span. Anything
-    // else (w:ins, w:del, w:hyperlink, pre-existing commentRange, bookmark)
-    // would be dropped or corrupted by the rebuild — reject instead.
+    // If the union span touches any non-run child (w:ins / w:del / hyperlink /
+    // pre-existing commentRange / bookmark), the run-rebuild below would drop
+    // or corrupt it. Fall back to the markup-preserving path (ADR-0079): it
+    // brackets at child boundaries and leaves those children byte-identical,
+    // letting a comment and a redline coexist on the same span. The all-w:r
+    // case keeps the precise sub-run rebuild below unchanged.
     for (let i = startChildIdx; i <= endChildIdx; i++) {
-        if (elName(paraChildren[i]) !== "w:r") return null;
+        if (elName(paraChildren[i]) !== "w:r") {
+            return insertCommentRangesAcrossMarkup(flat, paraChildren, comments);
+        }
     }
 
     const firstRun = flat.runs[firstRunIdx];
@@ -535,8 +593,10 @@ export async function applyDocxComments(
         });
     }
 
-    // Apply range markers per paragraph. A paragraph whose span overlaps
-    // existing markup yields null -> roll back those comments to errors.
+    // Apply range markers per paragraph. Spans that touch existing tracked
+    // changes are now bracketed at child boundaries (ADR-0079), so null here
+    // means the paragraph had nothing anchorable (empty) -> roll those
+    // comments back to errors.
     for (const [paraIdx, paraComments] of perParagraph) {
         const p = paragraphs[paraIdx];
         const newKids = insertCommentRanges(p.flat, p.paraChildren, paraComments);
@@ -551,7 +611,7 @@ export async function applyDocxComments(
                     reason: `Comment anchor "${truncate(
                         p.flat.paraText.slice(pc.start, pc.end),
                         60,
-                    )}" overlaps existing tracked changes or inline markup; comment skipped.`,
+                    )}" could not be placed in its paragraph; comment skipped.`,
                 });
             }
             continue;
