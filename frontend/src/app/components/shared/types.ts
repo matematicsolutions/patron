@@ -93,6 +93,19 @@ export interface PATRONEditAnnotation {
   status: "pending" | "accepted" | "rejected";
 }
 
+export interface PATRONCommentAnnotation {
+  type?: "comment_data";
+  kind?: "comment";
+  comment_id: string;
+  document_id: string;
+  version_id: string;
+  version_number?: number | null;
+  anchored_text: string;
+  text: string;
+  context_before?: string;
+  context_after?: string;
+}
+
 export type AssistantEvent =
   | { type: "reasoning"; text: string; isStreaming?: boolean }
   | {
@@ -150,6 +163,17 @@ export type AssistantEvent =
         version_number?: number | null;
         download_url: string;
         annotations: PATRONEditAnnotation[];
+        error?: string;
+        isStreaming?: boolean;
+    }
+  | {
+        type: "doc_commented";
+        filename: string;
+        document_id: string;
+        version_id: string;
+        version_number?: number | null;
+        download_url: string;
+        annotations: PATRONCommentAnnotation[];
         error?: string;
         isStreaming?: boolean;
     }

@@ -164,6 +164,10 @@ export const pl = {
         editingActive: "Edytuję",
         editingDone: "Zedytowano",
         editingFailed: "Edycja nieudana",
+        commentingActive: "Komentuję",
+        commentingDone: "Dodano komentarze",
+        commentingFailed: "Komentowanie nieudane",
+        commentDownload: "Pobierz z komentarzami",
         // Lista zmian sledzonych
         collapseEdits: "Zwiń zmiany",
         expandEdits: "Rozwiń zmiany",
