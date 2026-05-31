@@ -78,7 +78,7 @@ describe("ingestDocument (headless)", () => {
       .prepare("select count(*) c from document_versions where document_id = ?")
       .get(r.documentId) as { c: number };
     expect(ver.c).toBe(1);
-  });
+  }, 30000); // cold-start LibreOffice (docxToPdf) bywa >5s przy pierwszym docx
 
   it("niewspierany typ -> 400", async () => {
     const r = await ingest.ingestDocument({
@@ -112,5 +112,5 @@ describe("ingestFolder (headless)", () => {
     expect(results.every((r) => !!r.documentId)).toBe(true);
 
     fs.rmSync(dir, { recursive: true, force: true });
-  });
+  }, 30000); // 2x docxToPdf (LibreOffice) - cold start moze przekroczyc 5s
 });
