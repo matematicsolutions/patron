@@ -185,3 +185,78 @@ describe("narzedzie search_corpus (dispatch, bez LLM)", () => {
     ).toBe(true);
   });
 });
+
+describe("wpiecie dual-similarity w retrieve() (ADR-0087)", () => {
+  // Korpus odtwarza warunek feature: zapytanie opisuje sytuacje bez sygnatury;
+  // sprawa analogiczna (w87-analog) dzieli precedens III CZP 76/13 + art. 305 KC
+  // z kotwica, ale innym slownictwem (nizsza tresc); dystraktor (w87-dystraktor)
+  // powtarza slowa zapytania, lecz cytuje INNY precedens (III CZP 10/19, art. 49).
+  const Q = "sluzebnosc przesylu wynagrodzenie korzystanie nieruchomosc wlasciciel";
+
+  beforeAll(async () => {
+    await indexer.indexDocument(
+      "w87-kotwica",
+      "Sprawa o ustanowienie sluzebnosci przesylu. Wlasciciel nieruchomosci " +
+        "zada wynagrodzenia za korzystanie z nieruchomosci. Sad oparl ocene na " +
+        "uchwale sygn. akt III CZP 76/13 oraz na art. 305 KC.",
+    );
+    await indexer.indexDocument(
+      "w87-analog",
+      "Wynagrodzenie za korzystanie z nieruchomosci ocenia sie wedlug uchwaly " +
+        "III CZP 76/13 oraz art. 305 KC co do zasad ustalania naleznosci.",
+    );
+    await indexer.indexDocument(
+      "w87-dystraktor",
+      "Sluzebnosc przesylu, wynagrodzenie za sluzebnosc przesylu, korzystanie z " +
+        "nieruchomosci, wlasciciel nieruchomosci i sluzebnosc przesylu na gruncie. " +
+        "Rozstrzygnieto uchwala III CZP 10/19 oraz art. 49 KC.",
+    );
+    // Dwa dokumenty bez encji grafu (zadna sygnatura/przepis) - do testu pustego grafu.
+    await indexer.indexDocument(
+      "w87-plain-1",
+      "Notatka o organizacji pracy biura oraz archiwizacji korespondencji przychodzacej.",
+    );
+    await indexer.indexDocument(
+      "w87-plain-2",
+      "Procedura obiegu dokumentow wewnetrznych i rejestracji pism w sekretariacie.",
+    );
+  });
+
+  it("wynosi sprawe analogiczna nad tematyczny dystraktor (flaga on odwraca kolejnosc tresci)", async () => {
+    const off = await retrieval.retrieve(Q, 8, {
+      vec: false,
+      dualSimilarity: false,
+    });
+    const on = await retrieval.retrieve(Q, 8, { vec: false });
+
+    const docsOff = off.map((r) => r.documentId);
+    const docsOn = on.map((r) => r.documentId);
+
+    const idx = (docs: string[], d: string) => docs.indexOf(d);
+
+    // Czysta tresc: dystraktor (powtarza slowa zapytania) nad sprawa analogiczna.
+    expect(idx(docsOff, "w87-dystraktor")).toBeGreaterThanOrEqual(0);
+    expect(idx(docsOff, "w87-analog")).toBeGreaterThan(idx(docsOff, "w87-dystraktor"));
+
+    // Dual-similarity: sprawa analogiczna (dzieli precedens z kotwica) nad dystraktor.
+    expect(idx(docsOn, "w87-analog")).toBeGreaterThanOrEqual(0);
+    expect(idx(docsOn, "w87-analog")).toBeLessThan(idx(docsOn, "w87-dystraktor"));
+  });
+
+  it("flaga off zachowuje dotychczasowa sciezke (kolejnosc czystej tresci, bez re-rankingu)", async () => {
+    const a = await retrieval.retrieve(Q, 8, { vec: false, dualSimilarity: false });
+    const b = await retrieval.retrieve(Q, 8, { vec: false, dualSimilarity: false });
+    // Determinizm sciezki off + brak wplywu re-rankingu.
+    expect(a.map((r) => r.chunkId)).toEqual(b.map((r) => r.chunkId));
+  });
+
+  it("pusty graf: re-ranking jest no-op (identyczna kolejnosc on i off)", async () => {
+    // Zapytanie trafia wylacznie dokumenty bez encji grafu -> profil referencyjny
+    // pusty -> structuralScore 0 -> kolejnosc tresci bez zmian (ADR-0086 brzeg).
+    const q = "organizacja pracy biura archiwizacja korespondencja sekretariat";
+    const off = await retrieval.retrieve(q, 8, { vec: false, dualSimilarity: false });
+    const on = await retrieval.retrieve(q, 8, { vec: false });
+    expect(off.every((r) => r.documentId.startsWith("w87-plain"))).toBe(true);
+    expect(on.map((r) => r.chunkId)).toEqual(off.map((r) => r.chunkId));
+  });
+});
