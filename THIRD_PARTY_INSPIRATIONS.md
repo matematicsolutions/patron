@@ -676,3 +676,21 @@ prawa - to wartosc, nie wstyd.
 - Zaleznosci runtime / npm - zero nowej zaleznosci, Node 20 stdlib.
 
 **Wdrozenie**: ADR-0085 (WuManber weak-supervision bootstrap PL NER). Dwa moduly w `backend/src/lib/pl-entities/`, eksportowane z `index.ts` jako biblioteka offline. Konsumpcja spanow do dotrenowania malego modelu PL NER (LoRA) = rezerwacja FAZA2 poza tym ADR. Implementacja PL od zera, nie port.
+
+## Ping An US12001466B2 (dual-similarity case ranking)
+
+**Repo / zrodlo**: brak (publikacja patentowa, nie repozytorium OSS). Identyfikator US12001466B2 (rodzina CN+US).
+**Licencja**: dokument patentowy, nie kod OSS. Brak kodu zrodlowego do dziedziczenia. Rodzina CN+US, brak czlonu EP wg zwiadu IP 2026-05-31, wiec wzorzec wolny do stosowania w EU; patent jest zywy w US, wiec NIE kopiujemy kodu - reimplementacja clean-room od zera.
+**Snapshot**: 2026-05-31 (ocena w ramach gleboki zwiad retrievalu, patrz reference_china_patent_recon_2026-05-31).
+**Pattern wzorcowany**: re-ranking wynikow wyszukiwania spraw laczacy dwa podobienstwa - podobienstwo tresci (embedding) z podobienstwem strukturalnym grafu sprawy - tak, by sprawy strukturalnie analogiczne wynosic nad tylko tematycznie podobne.
+
+**Co Patron bierze (wzor)**:
+- Idea laczenia podobienstwa tresci z podobienstwem strukturalnym jako drugiego wymiaru rankingu (ADR-0086, backend/src/lib/retrieval/dualSimilarity.ts).
+- Podobienstwo strukturalne liczone na istniejacym citation_graph Patrona (Jaccard sasiedztwa encji) - deterministyczne, offline.
+
+**Czego Patron NIE bierze**:
+- Kodu i modelu (clean-room, czysty TypeScript + Node 20 stdlib, zero nowej zaleznosci npm; patent zywy w US).
+- Chinskiej/amerykanskiej taksonomii sprawy - Patron uzywa wlasnego citation_graph i ontologii legal PL (ADR-0008).
+- Generatywnego potoku ani sprawdzania spojnosci umow - to inne wzorce (TR WO2025085566A1, Baidu EP4086808A3), od ktorych ten ADR celowo sie roznicuje.
+
+**Wdrozenie**: ADR-0086 (dual-similarity case ranking). Modul biblioteczny (funkcje czyste + cienki helper DB); wpiecie w retrieve() = rezerwacja. Roznicowanie FTO (Baidu EP4086808A3 contract-KG consistency, TR WO2025085566A1 RAG legal) udokumentowane w ADR; recheck Espacenet przy wpieciu w request-path. Implementacja PL od zera, nie port.
