@@ -1,6 +1,6 @@
 # ADR-0080: Grounding cytatow w komorkach tabular review
 
-**Status**: PROPONOWANY 2026-05-31. Konstytucja v1.5.0.
+**Status**: Wdrozony 2026-05-31. Konstytucja v1.5.0. (merge 1b6fa23 do main, push na prywatny origin)
 
 **Data**: 2026-05-31
 
