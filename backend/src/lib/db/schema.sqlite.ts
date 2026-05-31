@@ -356,4 +356,36 @@ create index if not exists idx_citation_graph_from on citation_graph(from_doc_id
 create index if not exists idx_citation_graph_to_entity on citation_graph(to_entity_id);
 create index if not exists idx_citation_graph_to_doc on citation_graph(to_doc_id);
 create index if not exists idx_citation_graph_relation on citation_graph(relation);
+
+-- ---------------------------------------------------------------------------
+-- Event-centric KG (ADR-0089, Faza C). Zdarzenia jako wezly (ramki rol) +
+-- krawedzie typowane rolami (strona/czyn/data/kwota/podstawa). Pochodna encji
+-- (ADR-0008) + bliskosci w tekscie, deterministyczna, zero LLM. Zyja w tym
+-- samym pliku SQLite objetym at-rest (ADR-0072). create-if-not-exists =
+-- automatyczny upgrade istniejacych baz (db.exec(SQLITE_SCHEMA) przy starcie,
+-- desktop bez runnera migracji).
+-- ---------------------------------------------------------------------------
+
+-- Wezel zdarzenia = jedna ramka rol wspolwystepujacych w obrebie okna tekstu.
+create table if not exists events (
+  id integer primary key autoincrement,
+  document_id text not null,
+  frame_index integer not null,
+  span_start integer not null,
+  span_end integer not null,
+  created_at text not null
+);
+create index if not exists idx_events_document on events(document_id);
+
+-- Krawedzie typowane rolami: rola (strona/czyn/data/kwota/podstawa) -> wartosc.
+create table if not exists event_roles (
+  id integer primary key autoincrement,
+  event_id integer not null,
+  role text not null,
+  value_normalized text not null,
+  created_at text not null,
+  foreign key (event_id) references events(id) on delete cascade
+);
+create index if not exists idx_event_roles_event on event_roles(event_id);
+create index if not exists idx_event_roles_value on event_roles(value_normalized);
 `;
