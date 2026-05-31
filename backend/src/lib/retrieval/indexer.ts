@@ -16,6 +16,7 @@ import crypto from "crypto";
 import { getDb, isVecEnabled } from "../db/sqlite-connection";
 import { extractEntitiesAndEdges } from "../graph";
 import { embed, EMBED_MODEL } from "./embeddings";
+import { chunkLegalText } from "./legalChunker";
 
 export interface ChunkPiece {
   index: number;
@@ -107,7 +108,11 @@ export async function indexDocument(
   const db = getDb();
   clearDocumentIndex(docId);
 
-  const pieces = chunkText(text);
+  // ADR-0083: ciecie po granicach sekcji wyroku i jednostek redakcyjnych.
+  // Tryb prawniczy aktywuje sie tylko przy markerze mocnym albo jednostce
+  // redakcyjnej; dla dokumentow bez tej struktury deleguje do chunkText
+  // (akapitowego) - identyczny wynik jak dotad, zero regresji.
+  const pieces = chunkLegalText(text);
 
   // Embeddingi passage (jezeli warstwa wektorowa dostepna). Brak embeddera /
   // sqlite-vec => indeksujemy tylko BM25 + graf (Faza 1 wg ADR-0007).

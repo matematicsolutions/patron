@@ -615,3 +615,64 @@ prawa - to wartosc, nie wstyd.
 **Czego NIE wzielismy**: ich kodu (klauzula AI-mediated reproduction), modelu Docker Compose + 8GB + brak auth (zla forma dla solo prawnika na laptopie), permisywnej postawy bez governance (brak egress routera, brak sladu audytowego - to nasz wyroznik).
 **Atrybucja w kodzie**: naglowek w `backend/src/lib/docxComments.ts` (ADR-0077 ref) + ADR-0077/0078 + ten plik. Poniewaz wzielismy WZORZEC a nie kod, i robimy to clean-room, nie dziedziczymy obowiazku atrybucji "Powered by Anylegal.ai" - ale dokumentujemy zrodlo inspiracji dla pelnej przejrzystosci (Konstytucja Art. uczciwosc zrodel).
 **Read konkurencyjny**: 3. konkurent obok Kanca OS i Gaius-Lex, ale OSS/devtool-shaped = "PATRON minus governance, minus prawo PL, minus bundling". Komodityzuje sam harness -> potwierdza ze moat PATRONa to zlozenie + prawo PL + audyt + spakowanie dla najmniejszej jednostki, NIE harness.
+
+## CN111783399B / CN108763483A + LegRAG (judgment parser + clause-boundary chunking)
+
+**Repo**:
+- CN111783399B, CN108763483A (chinskie zgloszenia patentowe, segment-aware judgment parser) - CN-only
+- LegRAG (OSS, clause-boundary chunking dla legal RAG)
+
+**Licencja**: Zrodla CN to zgloszenia patentowe terytorialnie ograniczone do Chin (CN-only), wiec wzorzec jest wolny do stosowania w EU. Niezaleznie od tego Patron NIE kopiuje kodu - bierze sama idee. LegRAG to projekt OSS, z ktorego rowniez bierzemy wzorzec architektoniczny, nie kod.
+
+**Pattern wzorcowany**: chunkowanie tekstu prawniczego po naturalnych granicach przed chunkowaniem RAG zamiast slepego okna znakowego. Dwa rodzaje granic: (1) sekcje kanoniczne wyroku/uzasadnienia (naglowek+sygnatura, oznaczenie stron, zadanie/wnioski, ustalenia faktyczne, ocena prawna/rozwazania, sentencja/rozstrzygniecie), (2) jednostki redakcyjne (artykul, paragraf, ustep, punkt, litera).
+
+**Co Patron bierze (wzor)**:
+- Idea "tnij po granicy jednostki sensu, nie po sztywnym oknie" jako wstep do chunkowania RAG.
+- Lista kanonicznych sekcji polskiego wyroku jako punkty ciecia.
+- Jednostka redakcyjna jako naturalna granica chunku.
+
+**Czego Patron NIE bierze**:
+- Kodu zrodlowego (zarowno CN, jak i LegRAG - reimplementacja od zera w TypeScript / Node 20 stdlib, zero nowej zaleznosci npm).
+- Chinskiej taksonomii sekcji wyroku (Patron polonizuje pod polski wyrok i polskie akty normatywne: Art./Par./ust./pkt/lit., "Sad zwazyl co nastepuje", "Ustalenia faktyczne").
+- Zadnego modelu ML / embeddingu z LegRAG do segmentacji - Patron tnie deterministycznie wyrazeniami regularnymi (Konstytucja Art. 1, 3, zero LLM w runtime).
+
+**Wlasne wzmocnienie (poza wzorcem zrodlowym)**: brama trybu prawniczego z dwiema klasami markerow (mocne vs slabe). Pospolite polskie slowa-naglowki (Wniosek, przeciwko, Rozwazania, Ocena prawna) nie aktywuja ciecia w zwyklej notatce/mailu - granice licza sie tylko gdy dokument zawiera marker mocny (sygnatura, WYROK, "Sad ustalil"/"Sad zwazyl") albo jednostke redakcyjna. To gwarantuje zero regresji dla dokumentow nieprawniczych (wynik identyczny z dotychczasowym akapitowym chunkText), czego sam wzorzec judgment-parser nie adresuje.
+
+**Wdrozenie**: ADR-0083 (`backend/src/lib/retrieval/legalChunker.ts`, AGPL-3.0 dziedziczone po powloce Patrona). Funkcja `chunkLegalText` reuzywa istniejacy `chunkText` (ADR-0054) jako fallback dla dokumentow bez struktury prawniczej oraz jako jednolita sciezke normalizacji kazdego bloku - zero regresji, brak duplikacji logiki akapitowej. Wpiete w `indexDocument` zamiast bezposredniego `chunkText`.
+
+## PMC11622873 - copy-mechanism generative NER (OSS, artykul naukowy)
+
+**Repo / zrodlo**: PMC11622873 (PubMed Central, artykul open-access o generatywnym NER z dekoderem ograniczonym do spanow zrodla - copy/pointer mechanism).
+**Licencja**: tresc naukowa open-access (Creative Commons typowe dla PMC, do potwierdzenia konkretnego wariantu CC w samym artykule przed cytowaniem doslownym). Bierzemy wzorzec (idea architektoniczna), nie kod ani wagi modelu - clean-room, reimplementacja deterministyczna od zera.
+**Snapshot**: 2026-05-31 (ocena w ramach gleboki zwiad retrievalu, patrz reference_china_patent_recon_2026-05-31).
+**Pattern wzorcowany**: dekoder generatywnego NER, ktory moze tylko kopiowac fragmenty tekstu zrodlowego (pointer/copy mechanism), nigdy generowac nowych znakow. Z definicji zero halucynacji wartosci - model wskazuje span wejscia zamiast go wymyslac.
+
+**Co Patron bierze (wzor)**:
+- Warstwa gwarancji `constrainToSource` - guard zwracajacy offsety tylko gdy wartosc wystepuje doslownie w zrodle, inaczej odrzucenie. Brama dla wartosci niepewnego pochodzenia (output LLM, luzna heurystyka) - ADR-0084.
+- Ekstraktor copy-span dla wartosci liczbowych i dat (polskie kwoty `1 234,56 zl`, daty `12 marca 2024 r.` / `2024-03-12` / `12.03.2024`), emitujacy wylacznie doslowne spany z dokladnymi offsetami - ADR-0084.
+- Inwariant testowalny `sourceText.slice(start, end) === value` jako kontrakt copy-mechanism (brak fabrykacji wartosci) - ADR-0084.
+
+**Czego Patron NIE bierze**:
+- Sieci neuronowej / dekodera generatywnego - Patron jest zero-LLM przy zapisie (ADR-0008, Konstytucja Art. 1/3/7). Bierzemy wzorzec gwarancji, realizujemy go deterministycznie (regex + slice), bez modelu.
+- Kodu i wag - clean-room, czysty TypeScript + Node 20 stdlib, zero nowej zaleznosci npm.
+- Domeny zrodlowej (biomedyczny NER artykulu) - Patron polonizuje pod kwoty i daty prawa polskiego (przecinek dziesietny, separator tysiecy spacja/kropka, nazwy miesiecy w dopelniaczu z diakrytykiem i bez).
+
+**Wdrozenie**: ADR-0084 (copy-mechanism generative NER, anty-halucynacja wartosci), modul `backend/src/lib/pl-entities/copySpan.ts`. Synergia z ADR-0005 (grounding cytatow) i ADR-0080 (grounding tabular) - copy-span domyka anty-halucynacje dla wartosci liczbowych, ktorych grounding cytatow tekstowych nie pokrywal. Implementacja PL od zera, nie port.
+
+## CN115221265A (CN-only, prior-art bibliograficzny)
+
+**Repo**: brak (publikacja patentowa CNIPA, nie repozytorium OSS). Identyfikator CN115221265A.
+**Licencja**: dokument patentowy, nie kod OSS. Brak kodu zrodlowego do dziedziczenia. CN-only (brak rodziny EP/US/PCT wg zwiadu IP 2026-05-31), wiec jako prior-art z Chin wolny do stosowania w EU. Niezaleznie od statusu NIE kopiujemy kodu - reimplementacja clean-room od zera.
+**Pattern wzorcowany**: auto-anotacja korpusu slownikiem termow (gazetteer) algorytmem multi-pattern string matching typu WuManber, w celu bootstrapu zbioru treningowego NER bez recznej anotacji (weak supervision, mnoznik danych proporcjonalny do rozmiaru korpusu).
+
+**Co Patron bierze (wzor)**:
+- Wlasna implementacja WuManber (Wu, Manber 1994) - multi-pattern exact matching: bad-character SHIFT na blokach B znakow liczona z minimalnej dlugosci wzorca, HASH konczacych blokow + weryfikacja wstecz, separator klucza NUL. Czysty TS, deterministyczny, jedno przejscie po tekscie zamiast N przejsc naiwnego indexOf-per-term. ADR-0085, `backend/src/lib/pl-entities/wuManber.ts`.
+- Anotator `bootstrapAnnotate` - bierze tekst + slownik `{term, label}` (nazwy sadow i aliasy splaszczone z gazetteera COURTS ADR-0008, prefiksy sygnatur SIGNATURE_PREFIXES case-sensitive, lokalna lista form prawnych, slownik kancelarii) i emituje weak-label spany `{start, end, term, label}` do przyszlego fine-tune PL NER. ADR-0085, `backend/src/lib/pl-entities/bootstrapAnnotate.ts`.
+
+**Czego Patron NIE bierze**:
+- Kodu z publikacji patentowej (clean-room, reimplementacja od zera w stacku Patrona).
+- Chinskiego korpusu, ontologii i etykiet - Patron uzywa wlasnej ontologii legal PL (SAD / SYGNATURA_PREFIX / FORMA_PRAWNA + slownik kancelarii) z gazetteera ADR-0008.
+- Wpiecia anotatora w sciezke produkcyjna - bootstrap jest OFFLINE (pipeline danych treningowych), produkcyjna ekstrakcja przy zapisie zostaje przy ADR-0008 (regex + gazetteer + checksumy).
+- Zaleznosci runtime / npm - zero nowej zaleznosci, Node 20 stdlib.
+
+**Wdrozenie**: ADR-0085 (WuManber weak-supervision bootstrap PL NER). Dwa moduly w `backend/src/lib/pl-entities/`, eksportowane z `index.ts` jako biblioteka offline. Konsumpcja spanow do dotrenowania malego modelu PL NER (LoRA) = rezerwacja FAZA2 poza tym ADR. Implementacja PL od zera, nie port.

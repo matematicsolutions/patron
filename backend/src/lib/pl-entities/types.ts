@@ -32,7 +32,9 @@ export type EntityType =
     | "SAD"                     // nazwa sadu z gazetteera
     | "OSOBA"                   // imie i nazwisko (regex + LLM-fallback)
     | "FIRMA"                   // nazwa firmy (regex form prawnych + KRS lookup)
-    | "DATA_PUBLIKACJI"         // data w polskim formacie
+    | "DATA_PUBLIKACJI"         // data publikacji aktu/orzeczenia
+    | "KWOTA"                   // kwota pieniezna kotwiczona copy-span (ADR-0084)
+    | "DATA"                    // dowolna data w tresci kotwiczona copy-span (ADR-0084)
     ;
 
 /**

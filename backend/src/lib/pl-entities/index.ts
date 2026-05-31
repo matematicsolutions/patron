@@ -36,3 +36,29 @@ export {
     type CourtType,
     type SignaturePrefix,
 } from "./gazetteers";
+
+export {
+    constrainToSource,
+    constrainAllToSource,
+    extractCopySpans,
+    type SourceSpan,
+    type ConstrainOptions,
+} from "./copySpan";
+
+export {
+    buildWuManber,
+    searchWuManber,
+    findAllPatterns,
+    type WuManberOptions,
+    type WuManberMachine,
+    type WuManberHit,
+} from "./wuManber";
+
+export {
+    buildDictionary,
+    bootstrapAnnotate,
+    LEGAL_FORMS,
+    type DictionaryEntry,
+    type WeakLabelSpan,
+    type BootstrapOptions,
+} from "./bootstrapAnnotate";
