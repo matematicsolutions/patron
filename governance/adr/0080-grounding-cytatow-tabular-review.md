@@ -18,7 +18,7 @@ Tabular review (routes/tabular.ts) kaze modelowi opatrywac kazdy fakt w polu `su
 
 Do tej pory NIKT nie sprawdzal, czy `quote` faktycznie wystepuje w dokumencie. Model moze zhalucynowac cytat - i macierz wyglada na ugruntowana, bo pigulka cytatu renderuje sie identycznie niezaleznie od tego, czy cytat jest prawdziwy. To uderza w rdzen produktu: caly moat Patrona to anty-halucynacja i record-keeping (AI Act art. 12). W przegladzie DD na kilkadziesiat umow prawnik nie ma jak recznie zweryfikowac kazdej komorki - dlatego sygnal musi byc maszynowy.
 
-Wazne: PATRON i forki rodzenstwa (np. veronica-builds/emilie) dziedzicza tabular review z `willchen96/mike`. Zaden z nich nie weryfikuje cytatow w komorce. To jest miejsce, gdzie nasza istniejaca warstwa groundingu (ADR-0005, dzis uzywana tylko w czacie) daje przewage, ktorej rodzic ani rodzenstwo nie maja - bez nowej zaleznosci, bo weryfikator juz istnieje i jest przetestowany na eval harness (351 przypadkow).
+Wazne: PATRON i forki rodzenstwa (np. veronica-builds/emilie) dziedzicza tabular review z `willchen96/mike`. W wersjach przejrzanych 2026-05-31 zaden z nich nie weryfikuje cytatu w komorce wzgledem dokumentu - emituja go i renderuja bez sprawdzenia. To jest miejsce, gdzie nasza istniejaca warstwa groundingu (ADR-0005, dzis uzywana tylko w czacie) domyka luke bez nowej zaleznosci, bo weryfikator juz istnieje i jest przetestowany na eval harness (351 przypadkow).
 
 Przyczyna luki jest waska: weryfikator z ADR-0005 obsluguje format bloku `<CITATIONS>` z czatu (`{ref, doc_id, page, quote}`), a komorki tabular uzywaja innego, inline'owego formatu `[[page:N||quote:...]]` i nie maja `doc_id` (zrodlem jest dokument tej komorki). Brakowalo wiec tylko adaptera formatu, nie nowego silnika.
 
@@ -64,7 +64,7 @@ W obu wypadkach milczenie jest uczciwsze niz czerwony alarm: nie krzyczymy "halu
 **Pozytywne**:
 - Macierz DD z anty-halucynacja: kazdy zhalucynowany cytat dostaje czerwona tarcze, zanim prawnik na nim polegnie. Bezposrednie wzmocnienie moatu (grounding + AI Act art. 12).
 - Zero nowej zaleznosci i zero nowego silnika - reuzyty `verifyOne` z ADR-0005, przetestowany na eval harness. Zero egress, zero kosztu LLM (czysta arytmetyka stringow).
-- Przewaga, ktorej rodzic (`mike`) ani rodzenstwo (`emilie`) nie maja: ten sam odziedziczony tabular, ale ugruntowany.
+- Ten sam odziedziczony tabular, ale z mechaniczna weryfikacja cytatu - bez nowej zaleznosci i bez kosztu LLM.
 - Obie sciezki ekstrakcji pokryte: pojedyncza (`regenerate-cell`) i wsadowa (`generate`).
 
 **Negatywne / koszt**:

@@ -16,7 +16,7 @@
 
 `frontend/src/app/components/tabular/columnPresets.ts` dostarcza presety kolumn tabular review: gdy prawnik nadaje kolumnie nazwe pasujaca do wzorca (`matches`), dostaje gotowy prompt ekstrakcji i format. Mechanizm (`getPresetConfig`) odziedziczylismy z `isaacus/tabular-review`.
 
-Problem: caly zestaw presetow byl common-law angielski - "Governing Law" z odpowiedziami "New York Law", "Change of Control", "Force Majeure", "Indemnity", przyklad strony '"ABC Corp, a Delaware corporation"'. Dla polskiej kancelarii to jest blisko bezuzyteczne: nazwy kolumn nie pasuja do polskich tytulow, prompty odwoluja sie do instytucji common law, a przyklady do spolek z Delaware. Preset, ktory sie nie dopasowuje do "Kara umowna" albo "Wlasciwosc sadu", nie istnieje z punktu widzenia uzytkownika.
+Problem: caly zestaw 13 presetow byl common-law angielski - "Governing Law" z odpowiedziami "New York Law", "Change of Control", "Force Majeure", "Indemnity", przyklad strony '"ABC Corp, a Delaware corporation"'. Dla polskiej kancelarii zaden z tych 13 wzorcow `matches` nie dopasowuje sie do polskiego tytulu kolumny (lapia angielskie slowa-klucze typu "governing law", "indemnity"), prompty odwoluja sie do instytucji common law, a przyklady do spolek z Delaware. Preset, ktory sie nie dopasowuje do "Kara umowna" albo "Wlasciwosc sadu", nie istnieje z punktu widzenia uzytkownika.
 
 To dokladnie miejsce, gdzie moat Patrona to prawo PL, nie harness: mechanizm jest generyczny i wspolny dla rodzica i rodzenstwa (`mike`, `emilie`), a roznica jest w tresci dostrojonej do jurysdykcji.
 
