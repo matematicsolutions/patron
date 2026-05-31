@@ -1,6 +1,6 @@
 # ADR-0089: Event-centric legal KG - rdzen (schema zdarzen + typowanie rol + subgraph matching)
 
-**Status**: Zaproponowany 2026-05-31 (Faza C, US1 - deterministyczny baseline). Flip do Wdrozony po scaleniu do main. Konstytucja v1.5.0. Rdzen architektoniczny event-centric KG: schemat zdarzen, typowanie rol, deterministyczny builder z encji (ADR-0008) i biblioteka dopasowania subgrafowego z liczbami z ewaluacji rankingowej. Wpiecie w retrieve() (US3) i model uczony joint extraction (US2) sa rezerwacjami tego ADR.
+**Status**: Wdrozony 2026-05-31 (Faza C, US1 - deterministyczny baseline). Scalony do main. Konstytucja v1.5.0. Rdzen architektoniczny event-centric KG: schemat zdarzen, typowanie rol, deterministyczny builder z encji (ADR-0008) i biblioteka dopasowania subgrafowego z liczbami z ewaluacji rankingowej. Wpiecie w retrieve() (US3) i model uczony joint extraction (US2) sa rezerwacjami tego ADR.
 
 **Data**: 2026-05-31
 
