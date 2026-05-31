@@ -161,6 +161,28 @@ export function dualSimilarityRank(
 }
 
 /**
+ * Buduje profil referencyjny jako sume (union) profili pierwszych topN
+ * DISTINCT dokumentow w kolejnosci tresci. Wejscie: profile uporzadkowane
+ * best-first po tresci, juz zdeduplikowane per dokument. topN=1 daje profil
+ * sprawy-kotwicy (najmocniejsze dopasowanie tresci); topN>1 agreguje rdzen
+ * strukturalny kilku czolowych spraw, co jest odporniejsze na pojedyncze
+ * tematyczne dopasowanie z obca struktura. Pusty wejsciowy daje pusty profil
+ * (degradacja do kolejnosci tresci, bez regresji). Czyste, deterministyczne.
+ */
+export function unionProfiles(
+  orderedProfiles: ReadonlyArray<StructuralProfile>,
+  topN: number,
+): Set<string> {
+  const ref = new Set<string>();
+  const n = Math.max(1, Math.floor(topN));
+  const limit = Math.min(n, orderedProfiles.length);
+  for (let i = 0; i < limit; i++) {
+    for (const v of orderedProfiles[i]) ref.add(v);
+  }
+  return ref;
+}
+
+/**
  * Wczytaj profil strukturalny dokumentu: zbior value_normalized encji, do
  * ktorych dokument sie odwoluje (cele krawedzi citation_graph wychodzacych z
  * dokumentu) wraz z wlasnymi encjami dokumentu. Cienka warstwa DB; cala logika

@@ -11,9 +11,27 @@
 // ("wlasna praca" jako sygnal). opts pozwala wylaczyc dowolny silnik (A/B).
 
 import { getDb, isVecEnabled } from "../db/sqlite-connection";
+import {
+  dualSimilarityRank,
+  loadStructuralProfile,
+  unionProfiles,
+  type StructuralProfile,
+} from "./dualSimilarity";
 import { embedOne } from "./embeddings";
 
 export const RRF_K = Number(process.env.PATRON_RRF_K) || 60;
+
+/**
+ * Waga tresci w re-rankingu dual-similarity (ADR-0087). Z env PATRON_DUAL_ALPHA,
+ * default 0.6 (najlepszy punkt nDCG bez porzucania sygnalu tresci wg ewaluacji
+ * dualSimilarity.eval.test.ts). Number.isFinite respektuje jawne 0. Wartosci
+ * spoza [0,1] przycina dualSimilarityRank.
+ */
+const DUAL_ALPHA_RAW = Number(process.env.PATRON_DUAL_ALPHA);
+export const DUAL_ALPHA = Number.isFinite(DUAL_ALPHA_RAW) ? DUAL_ALPHA_RAW : 0.6;
+
+/** Liczba czolowych spraw budujacych profil referencyjny (ADR-0087: top-1). */
+const DUAL_REFERENCE_TOP_N = 1;
 
 export interface RetrieveOptions {
   vec?: boolean;
@@ -28,6 +46,12 @@ export interface RetrieveOptions {
    * wiec silniki dobieraja perEngine*FILTER_OVERFETCH kandydatow.
    */
   documentIds?: string[];
+  /**
+   * Re-ranking dual-similarity po RRF (ADR-0087). Domyslnie wlaczone; no-op gdy
+   * profil referencyjny pusty (graf pusty -> kolejnosc tresci, bez regresji).
+   * false pomija etap i odczyty profilu z DB - dokladnie dotychczasowa sciezka.
+   */
+  dualSimilarity?: boolean;
 }
 
 const FILTER_OVERFETCH = 4;
@@ -156,6 +180,52 @@ function graphRankCandidates(candidateChunkIds: number[]): number[] {
     .map((c) => c.id);
 }
 
+/**
+ * Etap re-rankingu dual-similarity (ADR-0087). Wejscie: pelna lista kandydatow
+ * RRF (best-first, przed odcieciem do k). Profil referencyjny = sasiedztwo
+ * strukturalne sprawy-kotwicy (top-1 wg tresci, ADR-0087 sek. A). Laczy
+ * znormalizowany wynik tresci z podobienstwem strukturalnym (dualSimilarityRank,
+ * alpha=DUAL_ALPHA). loadStructuralProfile wolane raz per rozny dokument
+ * (cache w mapie). Pusty profil referencyjny (graf pusty/dokument bez encji)
+ * zwraca liste niezmieniona - brak regresji, zero zbednych odczytow kandydatow.
+ */
+function dualReRank(
+  fused: { id: number; score: number }[],
+): { id: number; score: number }[] {
+  const docByChunk = chunkDocMap(fused.map((f) => f.id));
+
+  // Distinct dokumenty w kolejnosci tresci (pierwsze wystapienie).
+  const seen = new Set<string>();
+  const orderedDocs: string[] = [];
+  for (const f of fused) {
+    const doc = docByChunk.get(f.id);
+    if (doc && !seen.has(doc)) {
+      seen.add(doc);
+      orderedDocs.push(doc);
+    }
+  }
+
+  const profByDoc = new Map<string, StructuralProfile>();
+  for (const doc of orderedDocs) {
+    profByDoc.set(doc, loadStructuralProfile(doc));
+  }
+  const reference = unionProfiles(
+    orderedDocs.map((d) => profByDoc.get(d)!),
+    DUAL_REFERENCE_TOP_N,
+  );
+  // Brak sygnalu strukturalnego -> kolejnosc tresci bez zmian (ADR-0086 brzeg).
+  if (reference.size === 0) return fused;
+
+  const empty: StructuralProfile = new Set<string>();
+  const candidates = fused.map((f) => ({
+    id: f.id,
+    contentScore: f.score,
+    profile: profByDoc.get(docByChunk.get(f.id) ?? "") ?? empty,
+  }));
+  const ranked = dualSimilarityRank(candidates, reference, { alpha: DUAL_ALPHA });
+  return ranked.map((r) => ({ id: r.id as number, score: r.score }));
+}
+
 /** Mapuje chunk id -> document_id (do scope filtering). */
 function chunkDocMap(chunkIds: number[]): Map<number, string> {
   const map = new Map<number, string>();
@@ -218,23 +288,59 @@ export async function retrieve(
     if (graphIds.length) lists.push(graphIds);
   }
 
-  const fused = reciprocalRankFusion(lists, RRF_K).slice(0, k);
-  if (fused.length === 0) return [];
+  const fusedAll = reciprocalRankFusion(lists, RRF_K);
+  if (fusedAll.length === 0) return [];
 
   const db = getDb();
-  const byId = new Map(fused.map((f) => [f.id, f.score]));
-  const placeholders = fused.map(() => "?").join(",");
+
+  // Re-ranking dual-similarity (ADR-0087) na pelnej liscie RRF przed odcieciem
+  // do k, by sprawa analogiczna z pozycji za k mogla wejsc w top-k. Flaga off
+  // = dokladnie dotychczasowa sciezka (slice -> fetch -> sort po score).
+  const useDual = opts.dualSimilarity !== false && fusedAll.length > 1;
+
+  if (!useDual) {
+    const fused = fusedAll.slice(0, k);
+    const byId = new Map(fused.map((f) => [f.id, f.score]));
+    const placeholders = fused.map(() => "?").join(",");
+    const rows = db
+      .prepare(
+        `select id, document_id, chunk_index, content from doc_chunks where id in (${placeholders})`,
+      )
+      .all(...fused.map((f) => f.id)) as {
+      id: number;
+      document_id: string;
+      chunk_index: number;
+      content: string;
+    }[];
+
+    return rows
+      .map((r) => ({
+        chunkId: r.id,
+        documentId: r.document_id,
+        chunkIndex: r.chunk_index,
+        content: r.content,
+        score: byId.get(r.id) ?? 0,
+      }))
+      .sort((a, b) => b.score - a.score);
+  }
+
+  const reranked = dualReRank(fusedAll).slice(0, k);
+  const byId = new Map(reranked.map((f) => [f.id, f.score]));
+  const orderIndex = new Map(reranked.map((f, i) => [f.id, i]));
+  const placeholders = reranked.map(() => "?").join(",");
   const rows = db
     .prepare(
       `select id, document_id, chunk_index, content from doc_chunks where id in (${placeholders})`,
     )
-    .all(...fused.map((f) => f.id)) as {
+    .all(...reranked.map((f) => f.id)) as {
     id: number;
     document_id: string;
     chunk_index: number;
     content: string;
   }[];
 
+  // Zachowaj kolejnosc re-rankingu (z jego deterministycznym tie-breakiem),
+  // nie sortuj po samym score - fetch z DB zwraca w kolejnosci dowolnej.
   return rows
     .map((r) => ({
       chunkId: r.id,
@@ -243,5 +349,5 @@ export async function retrieve(
       content: r.content,
       score: byId.get(r.id) ?? 0,
     }))
-    .sort((a, b) => b.score - a.score);
+    .sort((a, b) => (orderIndex.get(a.chunkId)! - orderIndex.get(b.chunkId)!));
 }
