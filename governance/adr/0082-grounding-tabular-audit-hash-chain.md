@@ -54,13 +54,13 @@ Dokleic nowy typ zdarzenia `tabular.grounding` do istniejacego hash-chain. Zaden
 ## Konsekwencje
 
 **Pozytywne**:
-- Werdykt anty-halucynacja staje sie niezmienny: audytor widzi w hash-chain, ze macierz DD byla weryfikowana, kiedy, przez kogo i ile cytatow nie przeszlo. Domyka AI Act art. 12 dla tabular.
+- Werdykt anty-halucynacja staje sie niezmienny: audytor widzi w hash-chain, ze macierz DD byla weryfikowana, kiedy, przez kogo i ile cytatow nie przeszlo. Wnosi do sladu AI Act art. 12 dla tabular (widok i trigger Merkle - rezerwacje sekcji D).
 - Zero nowego mechanizmu - reuzyty hash-chain (ADR-0001), Merkle (ADR-0026), audit pack (ADR-0047). Builder czysty i przetestowany bez DB.
 - Anty-churn: jeden rekord na przebieg, nie na komorke - lancuch nie puchnie przy macierzy 50 dokumentow x 15 kolumn.
 - Payload bez PII - same liczby, zgodnie z konwencja audit.ts.
 
 **Negatywne / koszt**:
-- Czwarta migracja event_type w serii (009) - whitelist rosnie. Akceptowalne: to udokumentowany, idempotentny wzorzec (001-008).
+- Kolejna (osma) migracja rozszerzajaca whitelist event_type (po 001-005, 007, 008) - lista rosnie. Akceptowalne: to udokumentowany, idempotentny wzorzec.
 - Rekord loguje liczby, nie ktore komorki maja halucynacje - audytor widzi "2 cytaty niezweryfikowane w tym przebiegu", a ktore, ustala z biezacego stanu macierzy. Swiadomy kompromis (brak PII w audit, brak churn).
 - Rollback migracji 009 sprawi, ze emisja `tabular.grounding` zwroci blad z CHECK (audit append nie rzuca - sciezka produktowa dziala, audyt niepelny). Udokumentowane w DOWN.
 
