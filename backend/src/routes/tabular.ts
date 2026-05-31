@@ -28,6 +28,10 @@ import {
     groundCellText,
     type TabularCellGrounding,
 } from "../lib/tabular/grounding";
+import {
+    aggregateGrounding,
+    appendTabularGroundingEvent,
+} from "../lib/tabular/audit-grounding";
 
 function formatPromptSuffix(format?: string, tags?: string[]): string {
     switch (format) {
@@ -819,6 +823,15 @@ tabularRouter.post(
             .eq("document_id", document_id)
             .eq("column_index", column_index);
 
+        // ADR-0082: niezmienny slad werdyktu groundingu tej komorki.
+        await appendTabularGroundingEvent(db, {
+            actorUserId: userId,
+            reviewId,
+            documents: 1,
+            aggregate: aggregateGrounding([result.grounding]),
+            trigger: "regenerate_cell",
+        });
+
         res.json(result);
     },
 );
@@ -900,6 +913,11 @@ tabularRouter.post("/:reviewId/generate", requireAuth, async (req, res) => {
 
     const write = (line: string) => res.write(line);
 
+    // ADR-0082: zbieramy werdykty groundingu z calego przebiegu do jednego
+    // niezmiennego sladu audit (zamiast row-per-cell - anty-churn jak ADR-0070).
+    const groundingVerdicts: (TabularCellGrounding | undefined)[] = [];
+    const processedDocIds = new Set<string>();
+
     try {
         await Promise.all(
             docs.map(async (doc) => {
@@ -931,6 +949,7 @@ tabularRouter.post("/:reviewId/generate", requireAuth, async (req, res) => {
                     return !(cell?.status === "done" && cell?.content);
                 });
                 if (columnsToProcess.length === 0) return;
+                processedDocIds.add(docId);
 
                 // Mark all as generating upfront
                 for (const col of columnsToProcess) {
@@ -963,6 +982,7 @@ tabularRouter.post("/:reviewId/generate", requireAuth, async (req, res) => {
                         columnsToProcess,
                         async (columnIndex, result) => {
                             receivedColumns.add(columnIndex);
+                            groundingVerdicts.push(result.grounding);
                             await db
                                 .from("tabular_cells")
                                 .update({
@@ -1001,6 +1021,15 @@ tabularRouter.post("/:reviewId/generate", requireAuth, async (req, res) => {
                 }
             }),
         );
+
+        // ADR-0082: jeden niezmienny slad werdyktu groundingu na przebieg.
+        await appendTabularGroundingEvent(db, {
+            actorUserId: userId,
+            reviewId,
+            documents: processedDocIds.size,
+            aggregate: aggregateGrounding(groundingVerdicts),
+            trigger: "generate",
+        });
 
         write("data: [DONE]\n\n");
     } catch (err) {

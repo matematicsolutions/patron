@@ -268,7 +268,8 @@ create table if not exists audit_log (
     'migrate.rollback',
     'llm_route',
     'defense.pipeline.run',
-    'document.edit_resolved'
+    'document.edit_resolved',
+    'tabular.grounding'
   )),
   chat_id text,
   document_id text,

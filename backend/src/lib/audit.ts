@@ -86,6 +86,13 @@ export const EVENT_TYPES = [
     // (dotad mutacja bez sladu). Wymaga migracji 008 ALTER CHECK.
     // Lustro: schema.sqlite.ts, schema.sql, migrations/008. Patrz routes/documents.ts.
     "document.edit_resolved",
+    // ADR-0082: rollup mechanicznej weryfikacji cytatow tabular (ADR-0080) na
+    // przebieg generacji/regeneracji - liczby cytatow zweryfikowanych/
+    // zmodyfikowanych/niezweryfikowanych, bez tresci cytatu. Werdykt z mutowalnej
+    // komorki staje sie niezmiennym sladem (AI Act art. 12, dowod anty-halucynacja).
+    // Wymaga migracji 009 ALTER CHECK. Lustro: schema.sqlite.ts, schema.sql,
+    // migrations/009. Patrz routes/tabular.ts + lib/tabular/audit-grounding.ts.
+    "tabular.grounding",
 ] as const;
 
 /** Union literal lustrzany dla CHECK constraint w audit_log. */
