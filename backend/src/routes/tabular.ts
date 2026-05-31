@@ -24,6 +24,10 @@ import {
     filterAccessibleDocumentIds,
     listAccessibleProjectIds,
 } from "../lib/access";
+import {
+    groundCellText,
+    type TabularCellGrounding,
+} from "../lib/tabular/grounding";
 
 function formatPromptSuffix(format?: string, tags?: string[]): string {
     switch (format) {
@@ -1412,15 +1416,39 @@ tabularRouter.post("/:reviewId/chat", requireAuth, async (req, res) => {
     }
 });
 
-function parseCellContent(
-    raw: unknown,
-): { summary: string; flag?: string; reasoning?: string } | null {
+// Zachowuje werdykt groundingu (ADR-0080) jezeli persystowany na komorce.
+function parseCellGrounding(raw: unknown): TabularCellGrounding | undefined {
+    if (!raw || typeof raw !== "object") return undefined;
+    const g = raw as Record<string, unknown>;
+    if (
+        g.status !== "verified" &&
+        g.status !== "modified" &&
+        g.status !== "unverified"
+    ) {
+        return undefined;
+    }
+    return {
+        total: Number(g.total ?? 0),
+        verified: Number(g.verified ?? 0),
+        modified: Number(g.modified ?? 0),
+        unverified: Number(g.unverified ?? 0),
+        status: g.status,
+    };
+}
+
+function parseCellContent(raw: unknown): {
+    summary: string;
+    flag?: string;
+    reasoning?: string;
+    grounding?: TabularCellGrounding;
+} | null {
     if (!raw) return null;
     if (typeof raw === "object" && raw !== null && "summary" in raw) {
         const c = raw as {
             summary?: unknown;
             flag?: unknown;
             reasoning?: unknown;
+            grounding?: unknown;
         };
         return {
             summary: String(c.summary ?? ""),
@@ -1430,6 +1458,7 @@ function parseCellContent(
                 ? (c.flag as string)
                 : undefined,
             reasoning: typeof c.reasoning === "string" ? c.reasoning : "",
+            grounding: parseCellGrounding(c.grounding),
         };
     }
     if (typeof raw === "string") {
@@ -1439,6 +1468,7 @@ function parseCellContent(
                 value?: unknown;
                 flag?: unknown;
                 reasoning?: unknown;
+                grounding?: unknown;
             };
             return {
                 summary: String(p.summary ?? p.value ?? "").trim(),
@@ -1448,6 +1478,7 @@ function parseCellContent(
                     ? (p.flag as string)
                     : undefined,
                 reasoning: typeof p.reasoning === "string" ? p.reasoning : "",
+                grounding: parseCellGrounding(p.grounding),
             };
         } catch {
             return { summary: raw, flag: "grey", reasoning: "" };
@@ -1500,16 +1531,19 @@ The "summary" field must contain only the extracted value with inline citations 
             flag?: unknown;
             reasoning?: unknown;
         };
+        const summary =
+            String(parsed.summary ?? parsed.value ?? "").trim() ||
+            "Not addressed";
+        const reasoning = String(parsed.reasoning ?? "");
         return {
-            summary:
-                String(parsed.summary ?? parsed.value ?? "").trim() ||
-                "Not addressed",
+            summary,
             flag: (["green", "grey", "yellow", "red"] as const).includes(
                 parsed.flag as "green",
             )
                 ? (parsed.flag as "green")
                 : "grey",
-            reasoning: String(parsed.reasoning ?? ""),
+            reasoning,
+            grounding: groundCellText(summary, reasoning, documentText),
         };
     } catch {
         return raw.trim()
@@ -1602,6 +1636,7 @@ type CellResult = {
     summary: string;
     flag: "green" | "grey" | "yellow" | "red";
     reasoning: string;
+    grounding?: TabularCellGrounding;
 };
 type Column = {
     index: number;
@@ -1659,14 +1694,18 @@ Rules:
             if (typeof parsed.column_index !== "number") return;
             const col = columns.find((c) => c.index === parsed.column_index);
             if (!col) return;
+            const summary =
+                String(parsed.summary ?? "").trim() || "Not addressed";
+            const reasoning = String(parsed.reasoning ?? "");
             await onResult(parsed.column_index, {
-                summary: String(parsed.summary ?? "").trim() || "Not addressed",
+                summary,
                 flag: (["green", "grey", "yellow", "red"] as const).includes(
                     parsed.flag as "green",
                 )
                     ? (parsed.flag as CellResult["flag"])
                     : "grey",
-                reasoning: String(parsed.reasoning ?? ""),
+                reasoning,
+                grounding: groundCellText(summary, reasoning, documentText),
             });
         } catch {
             // malformed line — skip
