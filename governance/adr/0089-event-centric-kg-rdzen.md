@@ -65,7 +65,7 @@ Pozytywne:
 - Nowy wymiar rankingu, mierzalnie lepszy od plaskiego Jaccarda encji na analogii zdarzeniowej (1.0 vs 0.7328 nDCG@5 na korpusie celujacym w ten warunek).
 - Pelny determinizm baseline US1 (Art. 3) - bez modelu, bez zegara w logice.
 - Zero nowej zaleznosci; tabele w istniejacym pliku at-rest.
-- Ratowalny MVP: wartosc dostarczona nawet jesli model US2 sie poslizgnie.
+- Ratowalny MVP: wartosc dostarczona nawet jesli model US2 nie wejdzie.
 
 Koszty i ograniczenia:
 - Builder leksykonowy czynow dopasowuje po formie podstawowej (fleksja PL nie jest lematyzowana). To celowa minimalnosc US1; bogatsza ekstrakcja czynow to rezerwacja US2.
