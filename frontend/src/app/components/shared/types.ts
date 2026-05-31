@@ -334,6 +334,15 @@ export interface TabularReview {
   document_count?: number;
 }
 
+// ADR-0080: werdykt mechanicznej weryfikacji cytatow inline w komorce.
+export interface TabularCellGrounding {
+  total: number;
+  verified: number;
+  modified: number;
+  unverified: number;
+  status: "verified" | "modified" | "unverified";
+}
+
 export interface TabularCell {
   id: string;
   review_id: string;
@@ -343,6 +352,7 @@ export interface TabularCell {
     summary: string;
     flag?: "green" | "grey" | "yellow" | "red";
     reasoning?: string;
+    grounding?: TabularCellGrounding;
   } | null;
   status: "pending" | "generating" | "done" | "error";
   created_at: string;

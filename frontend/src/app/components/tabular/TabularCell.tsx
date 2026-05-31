@@ -3,8 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { AlertCircle, Expand } from "lucide-react";
-import type { ColumnConfig, TabularCell as TCell } from "../shared/types";
+import { AlertCircle, Expand, ShieldAlert, ShieldCheck } from "lucide-react";
+import type {
+    ColumnConfig,
+    TabularCell as TCell,
+    TabularCellGrounding,
+} from "../shared/types";
 import { preprocessCitations, type ParsedCitation } from "./citation-utils";
 import { getPillClass } from "./pillUtils";
 
@@ -21,6 +25,43 @@ const FLAG_STYLES = {
     yellow: "bg-amber-400",
     red: "bg-red-500",
 } as const;
+
+// ADR-0080: widoczny sygnal mechanicznej weryfikacji cytatow inline w komorce.
+// Czyni moat (anty-halucynacja, AI Act art. 12) widocznym wprost w macierzy.
+function GroundingBadge({
+    grounding,
+}: {
+    grounding?: TabularCellGrounding;
+}) {
+    if (!grounding || grounding.total === 0) return null;
+    const { status, total, verified, modified, unverified } = grounding;
+    const { icon, title } =
+        status === "unverified"
+            ? {
+                  icon: (
+                      <ShieldAlert className="h-3 w-3 shrink-0 text-red-500" />
+                  ),
+                  title: `Uwaga: ${unverified} z ${total} cytatow nie znaleziono doslownie w dokumencie - mozliwa halucynacja, sprawdz zrodlo.`,
+              }
+            : status === "modified"
+              ? {
+                    icon: (
+                        <ShieldAlert className="h-3 w-3 shrink-0 text-amber-500" />
+                    ),
+                    title: `${modified} z ${total} cytatow rozni sie drobnymi szczegolami (interpunkcja/uciecie) - warto sprawdzic zrodlo.`,
+                }
+              : {
+                    icon: (
+                        <ShieldCheck className="h-3 w-3 shrink-0 text-green-600" />
+                    ),
+                    title: `Cytaty zweryfikowane w dokumencie (${verified} z ${total}).`,
+                };
+    return (
+        <span title={title} className="inline-flex items-center">
+            {icon}
+        </span>
+    );
+}
 
 // Replace citations and pills with inline-code tokens so ReactMarkdown passes
 // them through its `code` component, where we render the final UI.
@@ -220,7 +261,8 @@ export function TabularCell({
                         title={cell.content.flag}
                     />
                 )}
-                <div className="line-clamp-1 w-full min-w-0">
+                <GroundingBadge grounding={cell.content.grounding} />
+                <div className="line-clamp-1 w-full min-w-0 ml-1">
                     <CellMarkdown
                         text={collapsedDisplay}
                         citations={citations}
@@ -242,6 +284,22 @@ export function TabularCell({
                                 className={`absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full ${FLAG_STYLES[cell.content.flag]}`}
                                 title={cell.content.flag}
                             />
+                        )}
+                        {cell.content.grounding && (
+                            <div className="mb-1 flex items-center gap-1 text-[10px] text-gray-500">
+                                <GroundingBadge
+                                    grounding={cell.content.grounding}
+                                />
+                                <span>
+                                    {cell.content.grounding.status ===
+                                    "unverified"
+                                        ? "Cytat niezweryfikowany w dokumencie"
+                                        : cell.content.grounding.status ===
+                                            "modified"
+                                          ? "Cytat z drobnymi roznicami"
+                                          : "Cytaty zweryfikowane"}
+                                </span>
+                            </div>
                         )}
                         <CellMarkdown
                             text={processed}
