@@ -15,6 +15,7 @@
 import crypto from "crypto";
 import { getDb, isVecEnabled } from "../db/sqlite-connection";
 import { extractEntitiesAndEdges } from "../graph";
+import { buildRoleHits, buildEventFrames } from "./events";
 import { embed, EMBED_MODEL } from "./embeddings";
 import { chunkLegalText } from "./legalChunker";
 
@@ -29,6 +30,7 @@ export interface IndexResult {
   embedded: number;
   entities: number;
   edges: number;
+  events: number;
   durationMs: number;
 }
 
@@ -93,6 +95,12 @@ export function clearDocumentIndex(docId: string): void {
     db.prepare("delete from doc_chunks where document_id = ?").run(docId);
     db.prepare("delete from extracted_entities where document_id = ?").run(docId);
     db.prepare("delete from citation_graph where from_doc_id = ?").run(docId);
+    // Zdarzenia (ADR-0089): event_roles przez FK cascade, ale kasujemy jawnie
+    // (foreign_keys PRAGMA moze byc off) - najpierw role, potem wezly.
+    db.prepare(
+      "delete from event_roles where event_id in (select id from events where document_id = ?)",
+    ).run(docId);
+    db.prepare("delete from events where document_id = ?").run(docId);
   });
   tx();
 }
@@ -223,12 +231,36 @@ export async function indexDocument(
   });
   writeGraph();
 
+  // Zdarzenia (ADR-0089, Faza C / US1): ramki rol z encji (ADR-0008) + bliskosci
+  // w tekscie, deterministyczne, zero LLM. Wezel = events, krawedzie = event_roles.
+  const frames = buildEventFrames(buildRoleHits(extraction.entities, text));
+  const insertEvent = db.prepare(
+    "insert into events (document_id, frame_index, span_start, span_end, created_at) values (?, ?, ?, ?, ?)",
+  );
+  const insertRole = db.prepare(
+    "insert into event_roles (event_id, role, value_normalized, created_at) values (?, ?, ?, ?)",
+  );
+  const writeEvents = db.transaction(() => {
+    for (let i = 0; i < frames.length; i++) {
+      const f = frames[i];
+      const info = insertEvent.run(docId, i, f.span[0], f.span[1], nowIso);
+      const eventId = Number(info.lastInsertRowid);
+      for (const role of f.roles.keys()) {
+        for (const value of f.roles.get(role)!) {
+          insertRole.run(eventId, role, value, nowIso);
+        }
+      }
+    }
+  });
+  writeEvents();
+
   return {
     docId,
     chunks: pieces.length,
     embedded,
     entities: extraction.entities.length,
     edges: extraction.edges.length,
+    events: frames.length,
     durationMs: Date.now() - start,
   };
 }
