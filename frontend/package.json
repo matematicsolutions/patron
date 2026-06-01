@@ -14,7 +14,7 @@
     },
     "dependencies": {
         "@aws-sdk/client-s3": "^3.1025.0",
-        "@aws-sdk/s3-request-presigner": "^3.1025.0",
+        "@aws-sdk/s3-request-presigner": "^3.1057.0",
         "@opennextjs/cloudflare": "^1.19.9",
         "@openrouter/sdk": "^0.3.11",
         "@radix-ui/react-dropdown-menu": "^2.1.16",
