@@ -1,6 +1,6 @@
 # ADR-0091: Pakowanie instalatora desktop (Electron, zero-prerequisite)
 
-**Status**: Zaproponowany 2026-06-01 (pakowanie desktop, WIP). Konstytucja v1.5.0. Flip na Wdrozony dopiero po weryfikacji instalatora NSIS na czystej maszynie Windows (build + instalacja + uruchomienie okna). Czesc lancucha jest weryfikowalna headless (nizej), czesc wymaga docelowej maszyny - ten ADR jawnie je rozdziela.
+**Status**: Wdrozony 2026-06-01 (pakowanie desktop). Konstytucja v1.5.0. Zweryfikowane na maszynie Windows: cicha instalacja NSIS (exit 0) zastapila zasoby kompletnym buildem (backend node_modules + better-sqlite3 pod ABI Electrona, frontend standalone server.js + static + node_modules), zainstalowana aplikacja wstaje (backend 127.0.0.1:3001, frontend standalone 3000, okno renderuje powitanie "Witaj, Mecenasie"). Lancuch headless (build/staging/runtime) plus finalny krok docelowy (instalacja + uruchomienie okna) potwierdzone.
 
 **Data**: 2026-06-01
 
