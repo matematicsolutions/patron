@@ -9,7 +9,7 @@
 // Lokalny user zastepuje GoTrue. Stale (env override):
 //   PATRON_LOCAL_USER_ID    (default ponizej, UUID v4)
 //   PATRON_LOCAL_USER_EMAIL (default 'local@patron')
-//   PATRON_LOCAL_USER_NAME  (default 'Mecenas')
+//   PATRON_LOCAL_USER_NAME  (default 'Mecenasie' - wolacz, greeting "Witaj, Mecenasie")
 
 import Database from "better-sqlite3";
 import * as sqliteVec from "sqlite-vec";
@@ -34,7 +34,7 @@ export const LOCAL_USER_EMAIL = (
   process.env.PATRON_LOCAL_USER_EMAIL || "local@patron"
 ).toLowerCase();
 export const LOCAL_USER_NAME =
-  process.env.PATRON_LOCAL_USER_NAME || "Mecenas";
+  process.env.PATRON_LOCAL_USER_NAME || "Mecenasie";
 
 function defaultDataDir(): string {
   if (process.platform === "win32") {
