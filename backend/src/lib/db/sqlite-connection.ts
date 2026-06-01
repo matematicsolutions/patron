@@ -9,7 +9,7 @@
 // Lokalny user zastepuje GoTrue. Stale (env override):
 //   PATRON_LOCAL_USER_ID    (default ponizej, UUID v4)
 //   PATRON_LOCAL_USER_EMAIL (default 'local@patron')
-//   PATRON_LOCAL_USER_NAME  (default 'Mecenas')
+//   PATRON_LOCAL_USER_NAME  (default 'Mecenasie' - wolacz, greeting "Witaj, Mecenasie")
 
 import Database from "better-sqlite3";
 import * as sqliteVec from "sqlite-vec";
@@ -34,7 +34,7 @@ export const LOCAL_USER_EMAIL = (
   process.env.PATRON_LOCAL_USER_EMAIL || "local@patron"
 ).toLowerCase();
 export const LOCAL_USER_NAME =
-  process.env.PATRON_LOCAL_USER_NAME || "Mecenas";
+  process.env.PATRON_LOCAL_USER_NAME || "Mecenasie";
 
 function defaultDataDir(): string {
   if (process.platform === "win32") {
@@ -184,6 +184,25 @@ function seedLocalUser(conn: Database.Database): void {
         ts,
         ts,
       );
+  }
+  // Korekta jednorazowa starego domyslnego imienia. Seed wstawia display_name
+  // TYLKO przy tworzeniu wiersza, wiec baza zalozona starszym buildem trzyma
+  // poprzedni default (mianownik 'Mecenas'). Jezeli nazwa nadal rowna sie temu
+  // staremu defaultowi, aktualizuj do biezacego (wolacz 'Mecenasie', greeting
+  // "Witaj, Mecenasie"). Zawezone do lokalnego usera i do dokladnie starej
+  // wartosci - nie rusza imienia ustawionego swiadomie przez uzytkownika.
+  const PREV_DEFAULT_NAME = "Mecenas";
+  if (LOCAL_USER_NAME !== PREV_DEFAULT_NAME) {
+    conn
+      .prepare(
+        "update app_users set display_name = ? where id = ? and display_name = ?",
+      )
+      .run(LOCAL_USER_NAME, LOCAL_USER_ID, PREV_DEFAULT_NAME);
+    conn
+      .prepare(
+        "update user_profiles set display_name = ? where user_id = ? and display_name = ?",
+      )
+      .run(LOCAL_USER_NAME, LOCAL_USER_ID, PREV_DEFAULT_NAME);
   }
 }
 
