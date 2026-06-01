@@ -260,3 +260,66 @@ describe("wpiecie dual-similarity w retrieve() (ADR-0087)", () => {
     expect(on.map((r) => r.chunkId)).toEqual(off.map((r) => r.chunkId));
   });
 });
+
+describe("wpiecie event-centric w retrieve() (ADR-0089 US3)", () => {
+  // Korpus odtwarza warunek feature: kotwica (e89-kotwica) ma ramke zdarzenia
+  // (czyn roszczenie + podstawa 32016R0679 wspolwystepuja); analog (e89-analog)
+  // ma te sama ramke innym slownictwem (nizsza tresc); pulapka (e89-pulapka)
+  // powtarza slowa zapytania (wysoka tresc) ale ma wartosci ROZSIANE -> brak ramki.
+  const Q = "roszczenie o zaplate roszczenie zaplate sprawa naleznosci miedzy stronami";
+  const FILLER = "x".repeat(220);
+  const FILLER2 = "y".repeat(220);
+
+  beforeAll(async () => {
+    await indexer.indexDocument(
+      "e89-kotwica",
+      "Roszczenie o zaplate. Podmiot zglosil roszczenie o zaplate na podstawie " +
+        "aktu 32016R0679. Sprawa o roszczenie i zaplate naleznosci miedzy stronami.",
+    );
+    await indexer.indexDocument(
+      "e89-analog",
+      "Podstawe stanowi akt 32016R0679, a samo roszczenie odnosi sie do naleznosci " +
+        "ustalanej miedzy stronami danego stosunku prawnego.",
+    );
+    await indexer.indexDocument(
+      "e89-pulapka",
+      "Roszczenie o zaplate, roszczenie i zaplate, roszczenie zaplate w ujeciu " +
+        "doktryny prawa zobowiazan. " +
+        FILLER +
+        " Akt 32016R0679 wspomniano w odrebnym przypisie bez kontekstu. " +
+        FILLER2 +
+        " Beta Sp. z o.o. wystepuje jedynie jako swiadek.",
+    );
+  });
+
+  it("wynosi sprawe analogiczna (ma ramke) nad pulapke (wartosci rozsiane, brak ramki)", async () => {
+    const off = await retrieval.retrieve(Q, 8, {
+      vec: false,
+      dualSimilarity: false,
+      event: false,
+    });
+    const on = await retrieval.retrieve(Q, 8, {
+      vec: false,
+      dualSimilarity: false,
+      event: true,
+    });
+
+    const docsOff = off.map((r) => r.documentId);
+    const docsOn = on.map((r) => r.documentId);
+    const idx = (docs: string[], d: string) => docs.indexOf(d);
+
+    // Czysta tresc: pulapka (powtarza slowa) nad sprawa analogiczna (synonimy).
+    expect(idx(docsOff, "e89-pulapka")).toBeGreaterThanOrEqual(0);
+    expect(idx(docsOff, "e89-analog")).toBeGreaterThan(idx(docsOff, "e89-pulapka"));
+
+    // Event-centric: sprawa analogiczna (dzieli ramke z kotwica) nad pulapke.
+    expect(idx(docsOn, "e89-analog")).toBeGreaterThanOrEqual(0);
+    expect(idx(docsOn, "e89-analog")).toBeLessThan(idx(docsOn, "e89-pulapka"));
+  });
+
+  it("flaga event off pomija etap (identyczna kolejnosc dwoch przebiegow)", async () => {
+    const a = await retrieval.retrieve(Q, 8, { vec: false, dualSimilarity: false, event: false });
+    const b = await retrieval.retrieve(Q, 8, { vec: false, dualSimilarity: false, event: false });
+    expect(a.map((r) => r.chunkId)).toEqual(b.map((r) => r.chunkId));
+  });
+});

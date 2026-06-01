@@ -17,6 +17,11 @@ import {
   unionProfiles,
   type StructuralProfile,
 } from "./dualSimilarity";
+import {
+  eventSimilarityRank,
+  loadEventFrames,
+  type EventFrame,
+} from "./events";
 import { embedOne } from "./embeddings";
 
 export const RRF_K = Number(process.env.PATRON_RRF_K) || 60;
@@ -32,6 +37,18 @@ export const DUAL_ALPHA = Number.isFinite(DUAL_ALPHA_RAW) ? DUAL_ALPHA_RAW : 0.6
 
 /** Liczba czolowych spraw budujacych profil referencyjny (ADR-0087: top-1). */
 const DUAL_REFERENCE_TOP_N = 1;
+
+/**
+ * Waga tresci w re-rankingu event-centric (ADR-0089 US3). Z env
+ * PATRON_EVENT_ALPHA, default 0.6 (spojnie z dual-similarity). combined =
+ * alpha*tresc + (1-alpha)*podobienstwo zdarzeniowe. Number.isFinite respektuje
+ * jawne 0. Wartosci spoza [0,1] przycina eventSimilarityRank.
+ */
+const EVENT_ALPHA_RAW = Number(process.env.PATRON_EVENT_ALPHA);
+export const EVENT_ALPHA = Number.isFinite(EVENT_ALPHA_RAW) ? EVENT_ALPHA_RAW : 0.6;
+
+/** Liczba czolowych spraw budujacych ramki referencyjne zdarzen (ADR-0089: top-1). */
+const EVENT_REFERENCE_TOP_N = 1;
 
 export interface RetrieveOptions {
   vec?: boolean;
@@ -52,6 +69,13 @@ export interface RetrieveOptions {
    * false pomija etap i odczyty profilu z DB - dokladnie dotychczasowa sciezka.
    */
   dualSimilarity?: boolean;
+  /**
+   * Re-ranking event-centric (subgraph matching, ADR-0089 US3) jako kolejny etap
+   * PO dual-similarity. Domyslnie wlaczone; no-op gdy sprawa-kotwica nie ma ramek
+   * zdarzen (degraduje do kolejnosci poprzedniego etapu, bez regresji). false
+   * pomija etap i odczyty ramek z DB.
+   */
+  event?: boolean;
 }
 
 const FILTER_OVERFETCH = 4;
@@ -226,6 +250,53 @@ function dualReRank(
   return ranked.map((r) => ({ id: r.id as number, score: r.score }));
 }
 
+/**
+ * Etap re-rankingu event-centric (subgraph matching, ADR-0089 US3) jako kolejny
+ * wymiar strukturalny PO dual-similarity (ADR-0087). Wejscie: lista kandydatow
+ * po poprzednim etapie (best-first). Ramki referencyjne = ramki zdarzen sprawy-
+ * kotwicy (top-1 wg biezacej kolejnosci, jak ADR-0087 sek. A). Laczy znormalizowany
+ * wynik poprzedniego etapu z podobienstwem subgrafowym ramek (eventSimilarityRank,
+ * alpha=EVENT_ALPHA). loadEventFrames wolane raz per rozny dokument (cache w mapie).
+ * Brak ramek referencyjnych (sprawa-kotwica bez zdarzen) zwraca liste niezmieniona
+ * - brak regresji, gdy ekstrakcja nie zbudowala ramek (typowe dla tekstu bez
+ * wspolwystepujacych rol). Dlaczego po dual a nie zamiast: event-centric lapie
+ * wymiar (rola->wartosc w jednej ramce), ktorego plaski Jaccard encji (ADR-0087)
+ * nie rozroznia (ADR-0089).
+ */
+function eventReRank(
+  fused: { id: number; score: number }[],
+): { id: number; score: number }[] {
+  const docByChunk = chunkDocMap(fused.map((f) => f.id));
+
+  // Distinct dokumenty w biezacej kolejnosci (pierwsze wystapienie).
+  const seen = new Set<string>();
+  const orderedDocs: string[] = [];
+  for (const f of fused) {
+    const doc = docByChunk.get(f.id);
+    if (doc && !seen.has(doc)) {
+      seen.add(doc);
+      orderedDocs.push(doc);
+    }
+  }
+
+  const framesByDoc = new Map<string, EventFrame[]>();
+  for (const doc of orderedDocs) framesByDoc.set(doc, loadEventFrames(doc));
+
+  const reference: EventFrame[] = orderedDocs
+    .slice(0, EVENT_REFERENCE_TOP_N)
+    .flatMap((d) => framesByDoc.get(d) ?? []);
+  // Brak ramek referencyjnych -> kolejnosc poprzedniego etapu bez zmian.
+  if (reference.length === 0) return fused;
+
+  const candidates = fused.map((f) => ({
+    id: f.id,
+    contentScore: f.score,
+    frames: framesByDoc.get(docByChunk.get(f.id) ?? "") ?? [],
+  }));
+  const ranked = eventSimilarityRank(candidates, reference, { alpha: EVENT_ALPHA });
+  return ranked.map((r) => ({ id: r.id as number, score: r.score }));
+}
+
 /** Mapuje chunk id -> document_id (do scope filtering). */
 function chunkDocMap(chunkIds: number[]): Map<number, string> {
   const map = new Map<number, string>();
@@ -293,12 +364,16 @@ export async function retrieve(
 
   const db = getDb();
 
-  // Re-ranking dual-similarity (ADR-0087) na pelnej liscie RRF przed odcieciem
-  // do k, by sprawa analogiczna z pozycji za k mogla wejsc w top-k. Flaga off
-  // = dokladnie dotychczasowa sciezka (slice -> fetch -> sort po score).
+  // Re-ranking strukturalny na pelnej liscie RRF przed odcieciem do k, by sprawa
+  // analogiczna z pozycji za k mogla wejsc w top-k. Dwa etapy: dual-similarity
+  // (ADR-0087, plaski Jaccard encji) i event-centric (ADR-0089 US3, subgraph
+  // matching ramek zdarzen) - event PO dual, bo lapie wymiar rola->wartosc, ktorego
+  // plaski Jaccard nie rozroznia. Obie flagi off = dokladnie dotychczasowa sciezka
+  // (slice -> fetch -> sort po score).
   const useDual = opts.dualSimilarity !== false && fusedAll.length > 1;
+  const useEvent = opts.event !== false && fusedAll.length > 1;
 
-  if (!useDual) {
+  if (!useDual && !useEvent) {
     const fused = fusedAll.slice(0, k);
     const byId = new Map(fused.map((f) => [f.id, f.score]));
     const placeholders = fused.map(() => "?").join(",");
@@ -324,7 +399,11 @@ export async function retrieve(
       .sort((a, b) => b.score - a.score);
   }
 
-  const reranked = dualReRank(fusedAll).slice(0, k);
+  let working = fusedAll;
+  if (useDual) working = dualReRank(working);
+  if (useEvent) working = eventReRank(working);
+
+  const reranked = working.slice(0, k);
   const byId = new Map(reranked.map((f) => [f.id, f.score]));
   const orderIndex = new Map(reranked.map((f, i) => [f.id, i]));
   const placeholders = reranked.map(() => "?").join(",");
