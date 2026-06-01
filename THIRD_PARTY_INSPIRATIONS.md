@@ -694,3 +694,22 @@ prawa - to wartosc, nie wstyd.
 - Generatywnego potoku ani sprawdzania spojnosci umow - to inne wzorce (TR WO2025085566A1, Baidu EP4086808A3), od ktorych ten ADR celowo sie roznicuje.
 
 **Wdrozenie**: ADR-0086 (dual-similarity case ranking). Modul biblioteczny (funkcje czyste + cienki helper DB); wpiecie w retrieve() = rezerwacja. Roznicowanie FTO (Baidu EP4086808A3 contract-KG consistency, TR WO2025085566A1 RAG legal) udokumentowane w ADR; recheck Espacenet przy wpieciu w request-path. Implementacja PL od zera, nie port.
+
+## Tianjin CN112632223B / CN112632225B + Balanced-TPLinker (event-centric legal KG)
+
+**Repo / zrodlo**: brak (publikacje patentowe + publikacja naukowa, nie repozytoria OSS). Identyfikatory CN112632223B / CN112632225B (rodzina CN-only); Balanced-TPLinker jako wzorzec one-stage joint extraction z literatury.
+**Licencja**: dokumenty patentowe i publikacja naukowa, nie kod OSS. Brak kodu zrodlowego do dziedziczenia. Rodzina CN-only, brak czlonu EP wg zwiadu IP 2026-05-31, wiec wzorzec wolny do stosowania w EU; reimplementacja clean-room od zera.
+**Snapshot**: 2026-05-31 (ocena w ramach gleboki zwiad retrievalu, patrz reference_china_patent_recon_2026-05-31).
+**Pattern wzorcowany**: reprezentacja zdarzenia jako wezel z typowanymi rolami (event-node + role typing) i dopasowanie spraw przez podobienstwo subgrafowe ramek zdarzen, nie przez plaski worek encji. Balanced-TPLinker: one-stage joint extraction (encje + relacje razem) jako kierunek dla ekstraktora uczonego, anty-kaskada bledow.
+
+**Co Patron bierze (wzor)**:
+- Idea reprezentacji zdarzenia jako ramki rol wspolwystepujacych (rola->wartosc) i liczenia podobienstwa PER ROLA, nie po wspolnym worku encji (ADR-0089, backend/src/lib/retrieval/events.ts).
+- Dopasowanie subgrafowe ramek (best-match symetryczny) liczone na istniejacych encjach Patrona (ADR-0008) + leksykonie czynow, deterministyczne, offline.
+- Wpiecie jako kolejny wymiar re-rankingu po dual-similarity (ADR-0090), na puli kandydatow retrievalu.
+
+**Czego Patron NIE bierze**:
+- Kodu, modelu ani korpusu (clean-room, czysty TypeScript + Node 20 stdlib, zero nowej zaleznosci npm).
+- Chinskiej taksonomii zdarzen i rol - Patron uzywa wlasnej, waskiej ontologii rol PL (strona / czyn / data / kwota / podstawa, ADR-0089 C4) z encji ADR-0008 i leksykonu pojec materialnoprawnych.
+- Modelu uczonego joint extraction w tej iteracji - baseline US1 jest deterministyczny (regex + gazetteer); ekstraktor uczony wzorca Balanced-TPLinker = rezerwacja US2, wchodzi tylko jesli mierzalnie bije baseline.
+
+**Wdrozenie**: ADR-0089 (event-centric KG rdzen, US1 baseline deterministyczny - schema, biblioteka funkcji czystych, builder w indekserze) + ADR-0090 (wpiecie subgraph matching w retrieve() jako etap re-rankingu po ADR-0087, US3). Roznicowanie FTO (Baidu EP4086808A3 contract-KG consistency, TR WO2025085566A1 generatywny RAG) udokumentowane w ADR; recheck Espacenet przy wpieciu w request-path. Implementacja PL od zera, nie port.
