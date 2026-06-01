@@ -17,7 +17,7 @@ import { t } from "@/i18n";
 export interface ModelOption {
     id: string;
     label: string;
-    group: "Anthropic" | "Google" | "OpenAI";
+    group: "Anthropic" | "Google" | "OpenAI" | "OpenRouter";
 }
 
 export const MODELS: ModelOption[] = [
@@ -27,13 +27,32 @@ export const MODELS: ModelOption[] = [
     { id: "gemini-3-flash-preview", label: "Gemini 3 Flash", group: "Google" },
     { id: "gpt-5.5", label: "GPT-5.5", group: "OpenAI" },
     { id: "gpt-5.4-mini", label: "GPT-5.4 Mini", group: "OpenAI" },
+    // OpenRouter (ADR-0059 / ADR-0092): jeden klucz env OPENROUTER_API_KEY -> brama
+    // do modeli niedostepnych natywnie (open / spoza wielkiej trojki). Slugi
+    // zweryfikowane w katalogu OpenRouter 2026-06-01. Dane przez OpenRouter ida do
+    // US infra - decideRoute blokuje dane uprzywilejowane niezaleznie od wyboru w UI.
+    {
+        id: "openrouter/meta-llama/llama-3.3-70b-instruct",
+        label: "Llama 3.3 70B (OpenRouter)",
+        group: "OpenRouter",
+    },
+    {
+        id: "openrouter/mistralai/mistral-large",
+        label: "Mistral Large (OpenRouter)",
+        group: "OpenRouter",
+    },
 ];
 
 export const DEFAULT_MODEL_ID = "gemini-3-flash-preview";
 
 export const ALLOWED_MODEL_IDS = new Set(MODELS.map((m) => m.id));
 
-const GROUP_ORDER: ModelOption["group"][] = ["Anthropic", "Google", "OpenAI"];
+const GROUP_ORDER: ModelOption["group"][] = [
+    "Anthropic",
+    "Google",
+    "OpenAI",
+    "OpenRouter",
+];
 
 interface Props {
     value: string;
