@@ -28,3 +28,15 @@ export {
     type EgressGuardResult,
     guardEgress,
 } from "./guard";
+// US5 / ADR-0093: twarde cost-caps per sprawa.
+export {
+    caseCostCapUsd,
+    evaluateBudget,
+    getCaseSpentUsd,
+    type BudgetDecision,
+} from "./budget";
+export {
+    buildCostCapEvent,
+    appendCostCapEvent,
+    type CostCapAuditInput,
+} from "./auditCostCap";

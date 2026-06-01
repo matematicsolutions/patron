@@ -269,7 +269,8 @@ create table if not exists audit_log (
     'llm_route',
     'defense.pipeline.run',
     'document.edit_resolved',
-    'tabular.grounding'
+    'tabular.grounding',
+    'cost_cap'
   )),
   chat_id text,
   document_id text,

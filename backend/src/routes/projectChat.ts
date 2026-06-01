@@ -31,14 +31,22 @@ projectChatRouter.post("/", requireAuth, async (req, res) => {
     const userId = res.locals.userId as string;
     const userEmail = res.locals.userEmail as string | undefined;
     const { projectId } = req.params;
-    const { messages, chat_id, model, displayed_doc, attached_documents } =
-        req.body as {
-            messages: ChatMessage[];
-            chat_id?: string;
-            model?: string;
-            displayed_doc?: { filename: string; document_id: string };
-            attached_documents?: { filename: string; document_id: string }[];
-        };
+    const {
+        messages,
+        chat_id,
+        model,
+        displayed_doc,
+        attached_documents,
+        allow_budget_override,
+    } = req.body as {
+        messages: ChatMessage[];
+        chat_id?: string;
+        model?: string;
+        displayed_doc?: { filename: string; document_id: string };
+        attached_documents?: { filename: string; document_id: string }[];
+        // US5 / ADR-0093: operator swiadomie nadpisuje cost-cap sprawy.
+        allow_budget_override?: boolean;
+    };
 
     const db = createServerSupabase();
 
@@ -183,6 +191,7 @@ projectChatRouter.post("/", requireAuth, async (req, res) => {
                 model,
                 apiKeys,
                 projectId,
+                allowBudgetOverride: allow_budget_override === true,
             });
 
         const annotations = extractAnnotations(
