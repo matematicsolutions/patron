@@ -30,3 +30,7 @@ coverage
 # trzymamy go poza repo, zeby nixpacks/CI nie wybralo bun --frozen-lockfile.
 backend/bun.lock
 backend/bun.lockb
+
+# Pakowanie desktop (ADR-0091): staging zasobow + output electron-builder.
+desktop/dist-resources/
+desktop/dist/

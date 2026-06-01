@@ -9,7 +9,17 @@ const isDev = process.argv.includes('--dev');
 
 const BACKEND_PORT = 3001;
 const FRONTEND_PORT = 3000;
-const ROOT = path.join(__dirname, '..');
+
+// Korzen zasobow. W trybie spakowanym (instalator NSIS) backend i frontend
+// leza w process.resourcesPath (extraResources electron-builder), nie obok
+// main.js. W trybie dev/repo - katalog nadrzedny repo.
+const RES = () => (app.isPackaged ? process.resourcesPath : path.join(__dirname, '..'));
+
+// Uruchamianie podprocesow przez Node WBUDOWANY w Electron (process.execPath +
+// ELECTRON_RUN_AS_NODE=1) - bez wymogu zewnetrznego node/npm na maszynie klienta
+// (cel "jeden instalator", ADR-0091). W trybie dev zostaje zewnetrzny toolchain
+// (deweloper go ma) - nizej rozgalezienie po app.isPackaged.
+const ELECTRON_NODE = process.execPath;
 
 // ── Tryb local (zero-cloud single-user, ADR-0053/0062) ──────────────────────
 // Sekrety per-instalacja: generowane raz i persystowane w userData. MUSZA byc
@@ -108,14 +118,38 @@ function waitForPort(port, timeout = 60000) {
 // ── Odpala backend ─────────────────────────────────────────────────────────
 function startBackend() {
   console.log('[PATRON] Startuję backend…');
-  const backendDir = path.join(ROOT, 'backend');
+  const backendDir = path.join(RES(), 'backend');
+  const entry = path.join(backendDir, 'dist', 'index.js');
 
-  backendProc = spawn('node', ['dist/index.js'], {
-    cwd: backendDir,
-    env: { ...process.env, ...backendLocalEnv() },
-    stdio: ['ignore', 'pipe', 'pipe'],
-    shell: true,
-  });
+  const env = {
+    ...process.env,
+    ...backendLocalEnv(),
+    NODE_ENV: 'production',
+    PORT: String(BACKEND_PORT),
+    // Bind loopback - API kancelarii nie wychodzi na LAN (parytet z backendem,
+    // ktory i tak wymusza 127.0.0.1 dla sqlite, ale ustawiamy jawnie).
+    PATRON_HOST: '127.0.0.1',
+  };
+
+  if (app.isPackaged) {
+    // Node wbudowany w Electron - zero zaleznosci od node/npm u klienta.
+    // ELECTRON_RUN_AS_NODE: proces dziedziczy V8/Node Electrona (stad
+    // better-sqlite3 musi byc zrebuildowany pod ABI Electrona - patrz
+    // desktop/scripts/prepare-resources.cjs i ADR-0091).
+    backendProc = spawn(ELECTRON_NODE, [entry], {
+      cwd: backendDir,
+      env: { ...env, ELECTRON_RUN_AS_NODE: '1' },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+  } else {
+    // Dev/repo: zewnetrzny node (deweloper ma toolchain, dist zbudowany lokalnie).
+    backendProc = spawn('node', ['dist/index.js'], {
+      cwd: backendDir,
+      env,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      shell: true,
+    });
+  }
 
   backendProc.stdout.on('data', d => process.stdout.write(`[backend] ${d}`));
   backendProc.stderr.on('data', d => process.stderr.write(`[backend] ${d}`));
@@ -123,22 +157,45 @@ function startBackend() {
 }
 
 // ── Odpala frontend ────────────────────────────────────────────────────────
+// W produkcji frontend jest serwowany PRODUKCYJNIE z buildu standalone Next.js
+// (frontend/server.js + .next/static + public), NIE przez serwer deweloperski.
+// Standalone bundluje wlasne minimalne node_modules, wiec nie wymaga pelnych
+// zaleznosci frontu na maszynie klienta. UWAGA: zmienne NEXT_PUBLIC_* sa
+// wstrzykiwane w czasie BUILDU (next build), nie runtime - ustawiamy je w
+// desktop/scripts/prepare-resources.cjs, nie tutaj.
 function startFrontend() {
   console.log('[PATRON] Startuję frontend…');
-  const frontendDir = path.join(ROOT, 'frontend');
 
-  frontendProc = spawn('npm', ['run', 'dev'], {
-    cwd: frontendDir,
-    env: {
-      ...process.env,
-      PORT: String(FRONTEND_PORT),
-      // Tryb local: frontend bez logowania Supabase, API na lokalny backend.
-      NEXT_PUBLIC_PATRON_LOCAL_MODE: 'true',
-      NEXT_PUBLIC_API_BASE_URL: `http://localhost:${BACKEND_PORT}`,
-    },
-    stdio: ['ignore', 'pipe', 'pipe'],
-    shell: true,
-  });
+  if (app.isPackaged) {
+    const standaloneDir = path.join(RES(), 'frontend');
+    const server = path.join(standaloneDir, 'server.js');
+    frontendProc = spawn(ELECTRON_NODE, [server], {
+      cwd: standaloneDir,
+      env: {
+        ...process.env,
+        ELECTRON_RUN_AS_NODE: '1',
+        NODE_ENV: 'production',
+        PORT: String(FRONTEND_PORT),
+        // Serwer standalone Next.js: loopback only.
+        HOSTNAME: '127.0.0.1',
+      },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+  } else {
+    // Dev/repo: serwer deweloperski (NEXT_PUBLIC_* inline'owane runtime przez next dev).
+    const frontendDir = path.join(RES(), 'frontend');
+    frontendProc = spawn('npm', ['run', 'dev'], {
+      cwd: frontendDir,
+      env: {
+        ...process.env,
+        PORT: String(FRONTEND_PORT),
+        NEXT_PUBLIC_PATRON_LOCAL_MODE: 'true',
+        NEXT_PUBLIC_API_BASE_URL: `http://localhost:${BACKEND_PORT}`,
+      },
+      stdio: ['ignore', 'pipe', 'pipe'],
+      shell: true,
+    });
+  }
 
   frontendProc.stdout.on('data', d => process.stdout.write(`[frontend] ${d}`));
   frontendProc.stderr.on('data', d => process.stderr.write(`[frontend] ${d}`));

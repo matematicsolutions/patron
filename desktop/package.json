@@ -6,13 +6,20 @@
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
-    "build": "electron-builder --win --x64",
-    "build:dir": "electron-builder --win --x64 --dir"
+    "prepare:resources": "node scripts/prepare-resources.cjs",
+    "build": "node scripts/prepare-resources.cjs && electron-builder --win --x64",
+    "build:dir": "node scripts/prepare-resources.cjs && electron-builder --win --x64 --dir",
+    "build:only": "electron-builder --win --x64"
   },
   "build": {
     "appId": "co.matematicsolutions.patron",
     "productName": "PATRON",
     "copyright": "© 2026 MateMatic",
+    "files": [
+      "main.js",
+      "package.json",
+      "assets/**/*"
+    ],
     "win": {
       "target": "nsis",
       "icon": "assets/icon.ico",
@@ -27,18 +34,17 @@
     },
     "extraResources": [
       {
-        "from": "../backend",
-        "to": "backend",
-        "filter": ["**/*", "!node_modules/**", "!src/**", "!*.ts"]
+        "from": "dist-resources/backend",
+        "to": "backend"
       },
       {
-        "from": "../frontend",
-        "to": "frontend",
-        "filter": ["**/*", "!node_modules/**", "!src/**", "!*.ts"]
+        "from": "dist-resources/frontend",
+        "to": "frontend"
       }
     ]
   },
   "devDependencies": {
+    "@electron/rebuild": "^3.7.0",
     "electron": "^35.0.0",
     "electron-builder": "^25.0.0"
   }
