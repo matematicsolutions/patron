@@ -104,6 +104,14 @@ export const EVENT_TYPES = [
     // art. 12. Wymaga migracji: SQLite v3 (rebuild) + Postgres 014 (ALTER CHECK).
     // Lustro: schema.sqlite.ts, schema.sql, migrate.sqlite.ts, migrations/014.
     "connector.toggle",
+    // ADR-0093 (US5): twardy cost-cap per sprawa. Po przekroczeniu progu
+    // (PATRON_CASE_COST_CAP_USD) wywolanie LLM jest blokowane PRZED guardEgress,
+    // chyba ze operator swiadomie nadpisze. Kazda decyzja (block/override) - sprawa,
+    // model, koszt skumulowany, prog - to niezmienny slad (AI Act art. 12, dowod
+    // kontroli kosztu). Wymaga migracji: SQLite v4 (rebuild) + Postgres 015
+    // (ALTER CHECK). Lustro: schema.sqlite.ts, schema.sql, migrate.sqlite.ts,
+    // migrations/015. Patrz lib/routing/budget.ts + auditCostCap.ts.
+    "cost_cap",
 ] as const;
 
 /** Union literal lustrzany dla CHECK constraint w audit_log. */
