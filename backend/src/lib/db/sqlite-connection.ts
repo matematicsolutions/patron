@@ -185,6 +185,25 @@ function seedLocalUser(conn: Database.Database): void {
         ts,
       );
   }
+  // Korekta jednorazowa starego domyslnego imienia. Seed wstawia display_name
+  // TYLKO przy tworzeniu wiersza, wiec baza zalozona starszym buildem trzyma
+  // poprzedni default (mianownik 'Mecenas'). Jezeli nazwa nadal rowna sie temu
+  // staremu defaultowi, aktualizuj do biezacego (wolacz 'Mecenasie', greeting
+  // "Witaj, Mecenasie"). Zawezone do lokalnego usera i do dokladnie starej
+  // wartosci - nie rusza imienia ustawionego swiadomie przez uzytkownika.
+  const PREV_DEFAULT_NAME = "Mecenas";
+  if (LOCAL_USER_NAME !== PREV_DEFAULT_NAME) {
+    conn
+      .prepare(
+        "update app_users set display_name = ? where id = ? and display_name = ?",
+      )
+      .run(LOCAL_USER_NAME, LOCAL_USER_ID, PREV_DEFAULT_NAME);
+    conn
+      .prepare(
+        "update user_profiles set display_name = ? where user_id = ? and display_name = ?",
+      )
+      .run(LOCAL_USER_NAME, LOCAL_USER_ID, PREV_DEFAULT_NAME);
+  }
 }
 
 /** Zamyka polaczenie (testy / shutdown). Kolejny getDb() otworzy na nowo. */
