@@ -21,8 +21,8 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.99.0",
-    "@aws-sdk/client-s3": "^3.1054.0",
-    "@aws-sdk/s3-request-presigner": "^3.1054.0",
+    "@aws-sdk/client-s3": "^3.1057.0",
+    "@aws-sdk/s3-request-presigner": "^3.1057.0",
     "@google/genai": "^1.50.1",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@supabase/supabase-js": "^2.106.1",
