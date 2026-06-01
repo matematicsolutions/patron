@@ -1,6 +1,6 @@
 # ADR-0090: Wpiecie event-centric subgraph matching w retrieve() (request-path)
 
-**Status**: Zaproponowany 2026-06-01 (Faza C, US3 - wpiecie). Konstytucja v1.5.0. Domyka rezerwacje US3 z ADR-0089 - biblioteka event-centric (subgraph matching ramek zdarzen) wchodzi w sciezke produkcyjna retrievalu jako kolejny etap re-rankingu po dual-similarity (ADR-0087), sterowana flaga i alpha z env, z liczbami z ewaluacji rankingowej.
+**Status**: Wdrozony 2026-06-01 (Faza C, US3 - wpiecie). Scalony do main. Konstytucja v1.5.0. Domyka rezerwacje US3 z ADR-0089 - biblioteka event-centric (subgraph matching ramek zdarzen) wchodzi w sciezke produkcyjna retrievalu jako kolejny etap re-rankingu po dual-similarity (ADR-0087), sterowana flaga i alpha z env, z liczbami z ewaluacji rankingowej.
 
 **Data**: 2026-06-01
 
