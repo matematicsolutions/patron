@@ -49,6 +49,7 @@ const JSON_COLUMNS: Record<string, Set<string>> = {
   tabular_cells: new Set(["citations"]),
   tabular_review_chat_messages: new Set(["content", "annotations"]),
   audit_log: new Set(["payload"]),
+  installed_skills: new Set(["manifest"]),
 };
 
 const IDENT_RE = /^[a-z_][a-z0-9_]*$/i;

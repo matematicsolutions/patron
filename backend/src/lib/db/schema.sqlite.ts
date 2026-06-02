@@ -388,4 +388,21 @@ create table if not exists event_roles (
 );
 create index if not exists idx_event_roles_event on event_roles(event_id);
 create index if not exists idx_event_roles_value on event_roles(value_normalized);
+
+-- Biblioteka umiejetnosci (ADR-0094). Stan zainstalowanych skilli-paczek
+-- (manifest = JSON tekst). Skille WBUDOWANE (etapy obrony) NIE sa tu - loader
+-- trzyma je jako read-only deskryptory i scala z lista zainstalowanych.
+create table if not exists installed_skills (
+  id           text primary key,
+  name         text not null,
+  version      text not null,
+  surface      text not null,
+  source       text not null default 'local-file',
+  egress       text not null default 'no-egress',
+  manifest     text not null,
+  enabled      integer not null default 1,
+  installed_at text not null,
+  updated_at   text not null
+);
+create index if not exists idx_installed_skills_enabled on installed_skills(enabled);
 `;

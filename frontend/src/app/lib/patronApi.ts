@@ -100,6 +100,59 @@ export async function deleteAccount(): Promise<void> {
     return apiRequest<void>("/user/account", { method: "DELETE" });
 }
 
+// ---------------------------------------------------------------------------
+// Biblioteka umiejetnosci (ADR-0094)
+// ---------------------------------------------------------------------------
+
+export interface SkillEntry {
+    id: string;
+    name: string;
+    description: string;
+    version: string;
+    surface: string;
+    source: string;
+    egress: "no-egress" | "cloud-allowed";
+    publisher: string | null;
+    signed: boolean;
+    builtin: boolean;
+    enabled: boolean;
+}
+
+export interface SkillsList {
+    builtin: SkillEntry[];
+    installed: SkillEntry[];
+}
+
+export async function listSkills(): Promise<SkillsList> {
+    return apiRequest<SkillsList>("/skills");
+}
+
+export async function importSkill(manifest: unknown): Promise<SkillEntry> {
+    return apiRequest<SkillEntry>("/skills/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ manifest }),
+    });
+}
+
+export async function setSkillEnabled(
+    id: string,
+    enabled: boolean,
+    confirmEgress?: boolean,
+): Promise<SkillEntry> {
+    return apiRequest<SkillEntry>(`/skills/${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled, confirm_egress: confirmEgress }),
+    });
+}
+
+export async function removeSkill(id: string): Promise<void> {
+    return apiRequest<void>(`/skills/${encodeURIComponent(id)}`, {
+        method: "DELETE",
+    });
+}
+
 export interface UserProfile {
     displayName: string | null;
     organisation: string | null;

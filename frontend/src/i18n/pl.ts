@@ -740,6 +740,38 @@ export const pl = {
             error: "Błąd",
         },
     },
+
+    // ---------------------------------------------------------------------
+    // Biblioteka umiejetnosci (ADR-0094)
+    // ---------------------------------------------------------------------
+    skillLibrary: {
+        open: "Biblioteka umiejętności",
+        title: "Biblioteka umiejętności",
+        subtitle:
+            "Umiejętności, które Patron może stosować. Wbudowane są zawsze aktywne; własne włączasz, wyłączasz i importujesz.",
+        builtinSection: "Wbudowane",
+        installedSection: "Zainstalowane",
+        builtinBadge: "wbudowana",
+        alwaysOn: "zawsze aktywna",
+        egressLocal: "lokalnie",
+        egressCloud: "chmura",
+        unsigned: "niepodpisana",
+        enabledLabel: "Włączona",
+        disabledLabel: "Wyłączona",
+        remove: "Usuń",
+        empty: "Brak zainstalowanych umiejętności. Zaimportuj paczkę, aby dodać własną.",
+        import: "Importuj paczkę",
+        importing: "Importuję…",
+        importHint: "Paczka to plik .json z manifestem umiejętności.",
+        egressConfirm:
+            "Ta umiejętność może wysyłać treść poza Twoją maszynę (do chmury). Obowiązuje tajemnica zawodowa. Włączyć mimo to?",
+        removeConfirm: "Usunąć tę umiejętność?",
+        loadError: "Nie udało się wczytać umiejętności.",
+        importError: "Nie udało się zaimportować paczki. Sprawdź plik manifestu.",
+        toggleError: "Nie udało się zmienić stanu umiejętności.",
+        removeError: "Nie udało się usunąć umiejętności.",
+        close: "Zamknij",
+    },
 } as const;
 
 // English fallback - tylko klucze, ktore moga nie miec tlumaczenia PL.

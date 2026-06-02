@@ -4,10 +4,11 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/contexts/UserProfileContext";
 import { PATRONIcon } from "@/components/chat/patron-icon";
-import { FolderOpen } from "lucide-react";
+import { Blocks, FolderOpen } from "lucide-react";
 import { ChatInput } from "./ChatInput";
 import { SelectAssistantProjectModal } from "./SelectAssistantProjectModal";
 import { FolderIngestModal } from "./FolderIngestModal";
+import { SkillLibraryPanel } from "./SkillLibraryPanel";
 import type { PATRONMessage } from "../shared/types";
 import { t } from "@/i18n";
 
@@ -24,6 +25,7 @@ export function InitialView({ onSubmit }: InitialViewProps) {
     const [loaded, setLoaded] = useState(false);
     const [projectModalOpen, setProjectModalOpen] = useState(false);
     const [folderIngestOpen, setFolderIngestOpen] = useState(false);
+    const [skillsOpen, setSkillsOpen] = useState(false);
     const [iconOffset, setIconOffset] = useState(0);
     const [textOffset, setTextOffset] = useState(0);
     const textRef = useRef<HTMLHeadingElement>(null);
@@ -96,6 +98,13 @@ export function InitialView({ onSubmit }: InitialViewProps) {
                             <FolderOpen className="h-3.5 w-3.5" />
                             {t("folderIngest.open")}
                         </button>
+                        <button
+                            onClick={() => setSkillsOpen(true)}
+                            className="mt-3 ml-2 inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors"
+                        >
+                            <Blocks className="h-3.5 w-3.5" />
+                            {t("skillLibrary.open")}
+                        </button>
                         <p className="text-xs py-3 mb-3 text-gray-500">
                             {t("chat.legalDisclaimer")}
                         </p>
@@ -110,6 +119,10 @@ export function InitialView({ onSubmit }: InitialViewProps) {
             <FolderIngestModal
                 open={folderIngestOpen}
                 onClose={() => setFolderIngestOpen(false)}
+            />
+            <SkillLibraryPanel
+                open={skillsOpen}
+                onClose={() => setSkillsOpen(false)}
             />
         </div>
     );
