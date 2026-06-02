@@ -724,10 +724,11 @@ prawa - to wartosc, nie wstyd.
 **Co Patron bierze (wzor)**:
 - `envelope_tier`/`tier-floor` jako czyste funkcje nad istniejacym `EgressFlag` (ADR-0095, backend/src/lib/routing/tier.ts) - liczenie najgorszej strefy w zbiorze modeli i porownanie z sufitem klasyfikacji, fail-closed.
 - Idea jednego chokepointu egress: wspolny `enforceEgressGuard` reuzywany przez czat i pipeline obrony (ADR-0095, backend/src/lib/routing/enforceEgress.ts), domyka przeciek `/draft/refine`.
+- Kaskadowy grounding cytatow z paraphrase-judge (ADR-0097, backend/src/lib/citation/cascade.ts) - warstwa semantyczna nad deterministycznym verifyOne (ADR-0005), lapie cytat doslowny pod falszywa teza (Stanford/Magesh). Kalibracja "false-positive gorszy niz false-negative". Werdykt 3-kolorowy, judge wstrzykiwany (port), decision deterministyczna nietknieta.
 
 **Czego Patron NIE bierze**:
 - Kodu (Python/FastAPI), architektury serwerowej (Postgres/Redis/MinIO/multi-tenant), forka OpenWebUI - sprzeczne z desktop/zero-egress.
 - Modelu "no open-core" (Patron jest swiadomie open-core, ADR-0002).
 - Warstwy autonomicznych agentow (PHASE_GRANTS) - Patron jest request/response; szkielet faz pozostaje rezerwacja, nie kod.
 
-**Wdrozenie**: ADR-0095 (envelope_tier + tier-floor + wspolny chokepoint, domkniecie luki data-residency w /draft/refine). Implementacja TS od zera, nie port. Pelna ocena: patron-desktop-drafts/AUDIT/repo-assessments/02-lq-ai-legalquants-2026-06-02.md.
+**Wdrozenie**: ADR-0095 (envelope_tier + tier-floor + wspolny chokepoint, domkniecie luki data-residency w /draft/refine) + ADR-0097 (kaskadowy grounding z paraphrase-judge, biblioteka; wpiecie/adapter judge = rezerwacja). Implementacja TS od zera, nie port. Pelna ocena: patron-desktop-drafts/AUDIT/repo-assessments/02-lq-ai-legalquants-2026-06-02.md.
