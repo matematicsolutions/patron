@@ -28,3 +28,13 @@ export {
     type EgressGuardResult,
     guardEgress,
 } from "./guard";
+export {
+    EGRESS_TIER_ORDER,
+    maxTier,
+    tierFloorFor,
+    guardEnvelopeTier,
+    type EgressTier,
+    type EnvelopeTierInput,
+    type EnvelopeTierReason,
+    type EnvelopeTierDecision,
+} from "./tier";
