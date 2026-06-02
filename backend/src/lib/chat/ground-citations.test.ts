@@ -7,7 +7,11 @@ vi.mock("./tool-dispatch", () => ({
     getDocumentTextForGrounding: (docLabel: string) => getText(docLabel),
 }));
 
-import { groundCitationsByRef, extractClaim } from "./ground-citations";
+import {
+    groundCitationsByRef,
+    extractClaim,
+    groundingSummary,
+} from "./ground-citations";
 import type { JudgeFn } from "../citation/cascade";
 import type { DocStore } from "./types";
 
@@ -143,5 +147,55 @@ describe("groundCitationsByRef - etap semantyczny (judge wstrzykniety)", () => {
         );
         expect(out[1].decision).toBe("verified");
         expect((out[1] as { stage?: number }).stage).toBeUndefined();
+    });
+});
+
+describe("groundingSummary - statystyka sedziego (AI Act art. 12)", () => {
+    it("bez sedziego: brak pola judge (tylko liczby decyzji)", () => {
+        const s = groundingSummary({
+            1: {
+                ref: 1,
+                doc_id: "d",
+                status: "ZWERYFIKOWANY",
+                decision: "verified",
+                worstRatio: 0,
+                offset: 0,
+            },
+        });
+        expect(s.judge).toBeUndefined();
+        expect(s.verified).toBe(1);
+    });
+
+    it("z sedzia: liczy verdykty i DOWNGRADED (Stanford: verified->red)", () => {
+        const s = groundingSummary({
+            // judge zdegradowal tekstowo-verified do red (FALSE-UNDER-TRUE)
+            1: {
+                ref: 1,
+                doc_id: "d",
+                status: "ZWERYFIKOWANY",
+                decision: "verified",
+                worstRatio: 0,
+                offset: 0,
+                // pola CascadeResult (ADR-0097)
+                verdict: "red",
+                stage: 3,
+            } as never,
+            // judge potwierdzil
+            2: {
+                ref: 2,
+                doc_id: "d",
+                status: "ZWERYFIKOWANY",
+                decision: "verified",
+                worstRatio: 0,
+                offset: 0,
+                verdict: "green",
+                stage: 3,
+            } as never,
+        });
+        expect(s.judge).toBeDefined();
+        expect(s.judge!.judged).toBe(2);
+        expect(s.judge!.red).toBe(1);
+        expect(s.judge!.green).toBe(1);
+        expect(s.judge!.downgraded).toBe(1); // kluczowa metryka moatu
     });
 });

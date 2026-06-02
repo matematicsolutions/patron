@@ -60,4 +60,8 @@ Bramki: tsc 0, pelny suite 1061 pass / 0 fail (bez regresji na grounding.test.ts
 - Front koloruje badge cytatu wg `groundingVerdict` (green/yellow/red) z PIERWSZENSTWEM przed `decision` - bo judge lapie falszywa teze przy poprawnym tekstowo cytacie (decision byloby "verified"/zielone, verdict daje red). Bez werdyktu (sedzia off) = kolor wg decision jak dotad.
 - Pliki: `shared/types.ts` (PATRONGroundingVerdict + pole annotation), `hooks/useAssistantChat.ts` (odczyt verdict z SSE), `assistant/AssistantMessage.tsx` (kolor+etykieta), `i18n/pl.ts` (verdictGreen/Yellow/Red).
 - **PII:** do frontu idzie WYLACZNIE enum `verdict` (bezpieczny). `judgeReason` (wolny tekst LLM, kandydat PII / tajemnica) NIE jest przesylany do UI ani persystowany - etykieta tooltipa jest generyczna z i18n. Szczegolowe uzasadnienie sedziego = osobna, ostroznie obsluzona rezerwacja.
+
+## Zrobione w tej iteracji (audyt sedziego, AI Act art. 12)
+- `groundingSummary` (ground-citations.ts) dolacza `judge: {judged, green, yellow, red, downgraded}` gdy sedzia dzialal (stage 3). Tylko liczby/enumy, ZERO tresci/PII. Plynie do audit_log przez istniejacy payload (chat.ts/projectChat.ts spreaduja summary).
+- **`downgraded`** = ile cytatow sedzia zdegradowal do red mimo tekstowo poprawnego trafienia (decision=verified) = zlapane "cytat doslowny pod falszywa teza" (Stanford). To kluczowa metryka wartosci judge - dowod due-diligence dla AI Act i miara skutecznosci do ewaluacji.
 - **Ensemble** (N modeli) przez `guardEnvelopeTier` (envelope_tier, ADR-0095). **Cache werdyktow** judge (anty-koszt).

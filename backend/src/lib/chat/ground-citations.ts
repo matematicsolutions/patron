@@ -144,18 +144,61 @@ export async function groundCitationsByRef(
     return byRef;
 }
 
+/** Statystyka semantycznego etapu (ADR-0097) - tylko liczby/enumy, zero PII. */
+export interface JudgeAuditSummary {
+    /** Ile cytatow przeszlo przez sedziego (stage 3). */
+    judged: number;
+    green: number;
+    yellow: number;
+    red: number;
+    /**
+     * KLUCZOWA metryka moatu: ile cytatow sedzia ZDEGRADOWAL do red mimo
+     * tekstowo poprawnego trafienia (decision=verified) - czyli zlapany przypadek
+     * "cytat doslowny pod falszywa teza" (Stanford/Magesh). Dowod wartosci judge
+     * dla audytu AI Act art. 12 i dla ewaluacji.
+     */
+    downgraded: number;
+}
+
 /**
  * Zwiezle podsumowanie werdyktow do payloadu audit_log (AI Act art. 12).
- * Bez tresci cytatow - tylko liczby decyzji (record-keeping, nie PII).
+ * Bez tresci cytatow - tylko liczby decyzji (record-keeping, nie PII). Gdy
+ * dzialal sedzia (ADR-0097), dolacza statystyke werdyktow semantycznych.
  */
 export function groundingSummary(
     grounding: Record<number, GroundingResult>,
-): { total: number; verified: number; unverified: number; blocked: number } {
+): {
+    total: number;
+    verified: number;
+    unverified: number;
+    blocked: number;
+    judge?: JudgeAuditSummary;
+} {
     const vals = Object.values(grounding);
-    return {
+    const base = {
         total: vals.length,
         verified: vals.filter((r) => r.decision === "verified").length,
         unverified: vals.filter((r) => r.decision === "unverified").length,
         blocked: vals.filter((r) => r.decision === "blocked").length,
+    };
+    // CascadeResult (ADR-0097) dokleja verdict/stage; GroundingResult ich nie ma.
+    type Maybe = GroundingResult & {
+        verdict?: "green" | "yellow" | "red";
+        stage?: number;
+    };
+    const judged = vals.filter((r) => (r as Maybe).stage === 3);
+    if (judged.length === 0) return base;
+    const v = (r: GroundingResult) => (r as Maybe).verdict;
+    return {
+        ...base,
+        judge: {
+            judged: judged.length,
+            green: judged.filter((r) => v(r) === "green").length,
+            yellow: judged.filter((r) => v(r) === "yellow").length,
+            red: judged.filter((r) => v(r) === "red").length,
+            downgraded: judged.filter(
+                (r) => v(r) === "red" && r.decision === "verified",
+            ).length,
+        },
     };
 }
