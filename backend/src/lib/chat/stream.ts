@@ -10,7 +10,7 @@ import {
     type OpenAIToolSchema,
 } from "../llm";
 import { getMcpTools, isMcpTool, runMcpTool, type McpCitation } from "../mcp";
-import { guardEgress, appendLlmRouteEvent } from "../routing";
+import { enforceEgressGuard, appendLlmRouteEvent } from "../routing";
 import {
     wrapConversation,
     PseudonimStreamUnwrapper,
@@ -243,18 +243,15 @@ export async function runLLMStream(params: {
     // ADR-0067: straznik data-residency PRZED wyjsciem do providera. Blokuje
     // wyslanie tresci sprawy do strefy egress niedozwolonej dla jej klasyfikacji
     // (tajemnica zawodowa -> tylko model lokalny). Decyzja idzie do audit_log.
-    const guard = await guardEgress({ db, model: selectedModel, projectId });
+    // Wspolny chokepoint egress (enforceEgress.ts) - ta sama funkcja co
+    // /draft/refine. Przy blokadzie helper sam audytuje "llm_route" (block).
+    const guard = await enforceEgressGuard({
+        db,
+        model: selectedModel,
+        projectId,
+        actorUserId: userId,
+    });
     if (!guard.allowed) {
-        await appendLlmRouteEvent(db, {
-            actorUserId: userId,
-            caseId: projectId ?? null,
-            model: selectedModel,
-            provider: guard.provider,
-            egress: guard.decision.egress,
-            classification: guard.decision.classification,
-            action: "block",
-            reason: guard.decision.reason,
-        });
         const msg =
             guard.blockMessage ??
             "Routing zablokowany przez polityke data-residency.";

@@ -38,3 +38,4 @@ export {
     type EnvelopeTierReason,
     type EnvelopeTierDecision,
 } from "./tier";
+export { enforceEgressGuard, type EnforceEgressInput } from "./enforceEgress";

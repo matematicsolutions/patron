@@ -713,3 +713,21 @@ prawa - to wartosc, nie wstyd.
 - Modelu uczonego joint extraction w tej iteracji - baseline US1 jest deterministyczny (regex + gazetteer); ekstraktor uczony wzorca Balanced-TPLinker = rezerwacja US2, wchodzi tylko jesli mierzalnie bije baseline.
 
 **Wdrozenie**: ADR-0089 (event-centric KG rdzen, US1 baseline deterministyczny - schema, biblioteka funkcji czystych, builder w indekserze) + ADR-0090 (wpiecie subgraph matching w retrieve() jako etap re-rankingu po ADR-0087, US3). Roznicowanie FTO (Baidu EP4086808A3 contract-KG consistency, TR WO2025085566A1 generatywny RAG) udokumentowane w ADR; recheck Espacenet przy wpieciu w request-path. Implementacja PL od zera, nie port.
+
+## LegalQuants/lq-ai (LQ.AI) - tier-governance egress
+
+**Repo / zrodlo**: https://github.com/LegalQuants/lq-ai
+**Licencja**: Apache-2.0 (patent grant). Konkurencyjna platforma open-source legal AI (serwer FastAPI+Svelte, fork OpenWebUI). NIE dziedziczymy kodu - inny stack (Python) i forma (serwer multi-tenant vs nasz desktop zero-egress). Adaptacja koncepcyjna clean-room.
+**Snapshot**: 2026-06-02 (ocena repo #2 w ramach "ocena i adaptacja nowych repo pod PATRON").
+**Pattern wzorcowany**: `envelope_tier` - operacja wielomodelowa (ensemble) nie moze po cichu eskalowac strefy egress ponad najsurowsza dopuszczalna dla klasyfikacji; `tier-floor` - sufit strefy per klasyfikacja jako jeden porzadek; `sole-egress` - jeden punkt wyjscia do LLM.
+
+**Co Patron bierze (wzor)**:
+- `envelope_tier`/`tier-floor` jako czyste funkcje nad istniejacym `EgressFlag` (ADR-0095, backend/src/lib/routing/tier.ts) - liczenie najgorszej strefy w zbiorze modeli i porownanie z sufitem klasyfikacji, fail-closed.
+- Idea jednego chokepointu egress: wspolny `enforceEgressGuard` reuzywany przez czat i pipeline obrony (ADR-0095, backend/src/lib/routing/enforceEgress.ts), domyka przeciek `/draft/refine`.
+
+**Czego Patron NIE bierze**:
+- Kodu (Python/FastAPI), architektury serwerowej (Postgres/Redis/MinIO/multi-tenant), forka OpenWebUI - sprzeczne z desktop/zero-egress.
+- Modelu "no open-core" (Patron jest swiadomie open-core, ADR-0002).
+- Warstwy autonomicznych agentow (PHASE_GRANTS) - Patron jest request/response; szkielet faz pozostaje rezerwacja, nie kod.
+
+**Wdrozenie**: ADR-0095 (envelope_tier + tier-floor + wspolny chokepoint, domkniecie luki data-residency w /draft/refine). Implementacja TS od zera, nie port. Pelna ocena: patron-desktop-drafts/AUDIT/repo-assessments/02-lq-ai-legalquants-2026-06-02.md.

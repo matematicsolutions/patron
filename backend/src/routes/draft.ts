@@ -16,6 +16,7 @@ import {
   type DefenseStage,
 } from "../lib/pipeline/defense";
 import { appendAuditEvent } from "../lib/audit";
+import { enforceEgressGuard, appendLlmRouteEvent } from "../lib/routing";
 import {
   classifyHighStakes,
   configFromEnv,
@@ -51,7 +52,7 @@ const VALID_MODES = new Set<AdwokatMode>([
 // POST /draft/refine
 draftRouter.post("/refine", requireAuth, async (req, res) => {
   const userId = res.locals.userId as string;
-  const { text, stages, adwokat_mode, model, context, document_type, cm_value, explicit_high_stakes } =
+  const { text, stages, adwokat_mode, model, context, document_type, cm_value, explicit_high_stakes, project_id } =
     req.body as {
       text?: string;
       stages?: string[];
@@ -61,6 +62,7 @@ draftRouter.post("/refine", requireAuth, async (req, res) => {
       document_type?: string;
       cm_value?: number;
       explicit_high_stakes?: boolean;
+      project_id?: string;
     };
   if (!text || typeof text !== "string" || !text.trim()) {
     return void res.status(400).json({ detail: "text is required" });
@@ -102,6 +104,30 @@ draftRouter.post("/refine", requireAuth, async (req, res) => {
     const selectedModel = resolveModel(model, DEFAULT_MAIN_MODEL);
     const effectiveStages =
       requestedStages && requestedStages.length ? requestedStages : ALL_STAGES;
+
+    // ADR-0067 (domkniecie luki): pipeline obrony robi do 3 wywolan LLM - musi
+    // przejsc przez TEN SAM straznik data-residency co czat (enforceEgressGuard).
+    // Dotad /draft/refine egressowal bez tego straznika (tylko maskowanie PII),
+    // wiec tresc sprawy objetej tajemnica mogla wyjsc do chmury. Blok = audyt
+    // "llm_route" (block) robi helper; tu zwracamy 403 z komunikatem PL.
+    const projectId =
+      typeof project_id === "string" && project_id.trim() ? project_id : null;
+    const guard = await enforceEgressGuard({
+      db,
+      model: selectedModel,
+      projectId,
+      actorUserId: userId,
+    });
+    if (!guard.allowed) {
+      return void res.status(403).json({
+        detail:
+          guard.blockMessage ??
+          "Routing zablokowany przez polityke data-residency.",
+        code: "egress_blocked",
+        suggestedModel: guard.suggestedModel ?? null,
+      });
+    }
+
     const result = await runDefensePipeline(text, {
       model: selectedModel,
       apiKeys,
@@ -116,6 +142,8 @@ draftRouter.post("/refine", requireAuth, async (req, res) => {
       actor_user_id: userId,
       payload: {
         model: selectedModel,
+        classification: guard.decision.classification,
+        egress: guard.decision.egress,
         stages: effectiveStages,
         adwokat_mode: mode ?? null,
         document_type: docType ?? null,
@@ -126,6 +154,19 @@ draftRouter.post("/refine", requireAuth, async (req, res) => {
         final_len: result.final.length,
         duration_ms: Date.now() - startedAt,
       },
+    });
+    // ADR-0067: audyt "llm_route" (allow) po zakonczeniu - parytet z czatem
+    // (stream.ts), ten sam dowod data-residency dla AI Act art. 12.
+    await appendLlmRouteEvent(db, {
+      actorUserId: userId,
+      caseId: projectId,
+      model: selectedModel,
+      provider: guard.provider,
+      egress: guard.decision.egress,
+      classification: guard.decision.classification,
+      action: "allow",
+      reason: guard.decision.reason,
+      latencyMs: Date.now() - startedAt,
     });
     res.json({ ...result, highStakes });
   } catch (e) {
