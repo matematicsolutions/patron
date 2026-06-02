@@ -1075,22 +1075,36 @@ function MarkdownContent({
                                 // weryfikacji cytatu. Brak werdyktu = neutralny szary
                                 // (np. cytat MCP albo starszy czat bez groundingu).
                                 const grounding = annotation.grounding;
-                                const groundingClass =
-                                    grounding === "verified"
+                                // ADR-0097: werdykt semantyczny sedziego (gdy flaga
+                                // wlaczona) ma PIERWSZENSTWO - lapie cytat doslowny pod
+                                // falszywa teza (decision byloby wtedy "verified"/zielone).
+                                const verdict = annotation.groundingVerdict;
+                                const groundingClass = verdict
+                                    ? verdict === "green"
                                         ? "bg-green-100 text-green-900 hover:bg-green-200"
-                                        : grounding === "unverified"
+                                        : verdict === "yellow"
                                           ? "bg-amber-100 text-amber-900 hover:bg-amber-200"
-                                          : grounding === "blocked"
-                                            ? "bg-red-100 text-red-900 hover:bg-red-200"
-                                            : "bg-gray-100 text-gray-900 hover:bg-gray-200";
-                                const groundingLabel =
-                                    grounding === "verified"
-                                        ? t("citations.groundingVerified")
-                                        : grounding === "unverified"
-                                          ? t("citations.groundingUnverified")
-                                          : grounding === "blocked"
-                                            ? t("citations.groundingBlocked")
-                                            : "";
+                                          : "bg-red-100 text-red-900 hover:bg-red-200"
+                                    : grounding === "verified"
+                                      ? "bg-green-100 text-green-900 hover:bg-green-200"
+                                      : grounding === "unverified"
+                                        ? "bg-amber-100 text-amber-900 hover:bg-amber-200"
+                                        : grounding === "blocked"
+                                          ? "bg-red-100 text-red-900 hover:bg-red-200"
+                                          : "bg-gray-100 text-gray-900 hover:bg-gray-200";
+                                const groundingLabel = verdict
+                                    ? verdict === "green"
+                                        ? t("citations.verdictGreen")
+                                        : verdict === "yellow"
+                                          ? t("citations.verdictYellow")
+                                          : t("citations.verdictRed")
+                                    : grounding === "verified"
+                                      ? t("citations.groundingVerified")
+                                      : grounding === "unverified"
+                                        ? t("citations.groundingUnverified")
+                                        : grounding === "blocked"
+                                          ? t("citations.groundingBlocked")
+                                          : "";
                                 const tooltipText = `${formatCitationPage(annotation)}: "${displayCitationQuote(annotation)}"${groundingLabel ? ` (${groundingLabel})` : ""}`;
                                 return (
                                     <button

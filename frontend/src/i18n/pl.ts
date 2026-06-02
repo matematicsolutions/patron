@@ -235,6 +235,10 @@ export const pl = {
         groundingVerified: "zweryfikowany w źródle",
         groundingUnverified: "drobne różnice - sprawdź w źródle",
         groundingBlocked: "niezweryfikowany - źródło nie potwierdza cytatu",
+        // ADR-0097: werdykt semantyczny sędziego (gdy flaga PATRON_CITATION_JUDGE).
+        verdictGreen: "źródło potwierdza tezę",
+        verdictYellow: "źródło potwierdza częściowo - sprawdź",
+        verdictRed: "uwaga: źródło NIE potwierdza tezy",
     },
 
     // ---------------------------------------------------------------------

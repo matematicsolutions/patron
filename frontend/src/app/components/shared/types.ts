@@ -217,6 +217,16 @@ export interface CitationQuote {
  */
 export type PATRONGroundingDecision = "verified" | "unverified" | "blocked";
 
+/**
+ * ADR-0097: werdykt 3-kolorowy semantycznego etapu (paraphrase-judge). Obecny
+ * TYLKO gdy sedzia byl wlaczony (flaga PATRON_CITATION_JUDGE) i zadzialal.
+ * `green` - zrodlo wspiera teze; `yellow` - czesciowo / parafraza; `red` - zrodlo
+ * NIE wspiera tezy (lapie cytat doslowny pod falszywa teza, Stanford). To enum,
+ * nie tresc - bezpieczny do renderu i ewentualnej persystencji (uzasadnienie
+ * sedziego, kandydat PII, NIE jest przesylane do frontu).
+ */
+export type PATRONGroundingVerdict = "green" | "yellow" | "red";
+
 export interface PATRONCitationAnnotation {
   type: "citation_data";
   ref: number;
@@ -230,6 +240,10 @@ export interface PATRONCitationAnnotation {
   /** ADR-0005: werdykt groundingu (z eventu SSE `citations.grounding` lub z
    * zapisanej adnotacji po reload). Brak = weryfikacja niedostepna. */
   grounding?: PATRONGroundingDecision;
+  /** ADR-0097: werdykt semantyczny sedziego (gdy flaga wlaczona). Ma pierwszenstwo
+   * przed `grounding` przy kolorze badge - bo lapie falszywa teze przy poprawnym
+   * tekstowo cytacie. Brak = sedzia nieaktywny, kolor wg `grounding`. */
+  groundingVerdict?: PATRONGroundingVerdict;
 }
 
 /**

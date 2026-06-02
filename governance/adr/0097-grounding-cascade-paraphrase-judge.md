@@ -54,6 +54,10 @@ Bramki: tsc 0, pelny suite 1061 pass / 0 fail (bez regresji na grounding.test.ts
 - **Kalibracja znacznika cytatu**: `extractClaim` zaklada marker `[ref]` w tekscie odpowiedzi - zweryfikowac realny format znacznikow Patrona (jesli inny, claim pusty -> judge no-op, fail-safe).
 - **OCR-aware tolerant**: `normalizeOcrConfusable` (l/I/1, O/0) gdy `wasOcrd`; wymaga persystencji `ocrUsed` przez documentIngest do DocStore (dzis nie persystowany).
 - **Wpiecie tabular** `tabular/grounding.ts` analogicznie do czatu.
-- **UX zoltego stanu**: AssistantMessage.tsx ma 3 klasy (verified/unverified/blocked) - dodac partial/yellow + tooltip z judgeReason+stage. Labelki i18n. (verdict juz leci w SSE.)
 - **Polityka blokady**: czy yellow/judge-red blokuje deliverable (governance, Konstytucja). Dzis decision deterministyczna = blokada, verdict doradczy.
+
+## Zrobione w tej iteracji (UX werdyktu w czacie)
+- Front koloruje badge cytatu wg `groundingVerdict` (green/yellow/red) z PIERWSZENSTWEM przed `decision` - bo judge lapie falszywa teze przy poprawnym tekstowo cytacie (decision byloby "verified"/zielone, verdict daje red). Bez werdyktu (sedzia off) = kolor wg decision jak dotad.
+- Pliki: `shared/types.ts` (PATRONGroundingVerdict + pole annotation), `hooks/useAssistantChat.ts` (odczyt verdict z SSE), `assistant/AssistantMessage.tsx` (kolor+etykieta), `i18n/pl.ts` (verdictGreen/Yellow/Red).
+- **PII:** do frontu idzie WYLACZNIE enum `verdict` (bezpieczny). `judgeReason` (wolny tekst LLM, kandydat PII / tajemnica) NIE jest przesylany do UI ani persystowany - etykieta tooltipa jest generyczna z i18n. Szczegolowe uzasadnienie sedziego = osobna, ostroznie obsluzona rezerwacja.
 - **Ensemble** (N modeli) przez `guardEnvelopeTier` (envelope_tier, ADR-0095). **Cache werdyktow** judge (anty-koszt).

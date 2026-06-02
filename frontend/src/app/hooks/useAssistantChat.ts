@@ -9,6 +9,7 @@ import type {
     AssistantEvent,
     PATRONCitationAnnotation,
     PATRONGroundingDecision,
+    PATRONGroundingVerdict,
     PATRONMcpCitation,
     PATRONMessage,
 } from "@/app/components/shared/types";
@@ -833,13 +834,26 @@ export function useAssistantChat({
                             // `grounding` kazdego cytatu, by UI pokazal badge.
                             const groundingMap = (data.grounding ?? {}) as Record<
                                 string,
-                                { decision?: PATRONGroundingDecision }
+                                {
+                                    decision?: PATRONGroundingDecision;
+                                    verdict?: PATRONGroundingVerdict;
+                                }
                             >;
                             const incoming = (
                                 (data.citations ?? []) as PATRONCitationAnnotation[]
                             ).map((c) => {
-                                const decision = groundingMap[String(c.ref)]?.decision;
-                                return decision ? { ...c, grounding: decision } : c;
+                                // ADR-0005 decision (deterministyczna) + ADR-0097 verdict
+                                // (semantyczny sedzia, gdy flaga wlaczona). Uzasadnienie
+                                // sedziego (PII) NIE jest pobierane - tylko enum verdict.
+                                const g = groundingMap[String(c.ref)];
+                                if (!g?.decision && !g?.verdict) return c;
+                                return {
+                                    ...c,
+                                    ...(g.decision ? { grounding: g.decision } : {}),
+                                    ...(g.verdict
+                                        ? { groundingVerdict: g.verdict }
+                                        : {}),
+                                };
                             });
                             setMessages((prev) => {
                                 const updated = [...prev];
