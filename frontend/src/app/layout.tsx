@@ -57,7 +57,7 @@ export default function RootLayout({
     children: React.ReactNode;
 }>) {
     return (
-        <html lang="en">
+        <html lang="pl">
             <body
                 className={`${inter.variable} ${ebGaramond.variable} font-sans antialiased`}
             >

@@ -172,6 +172,9 @@ export const pl = {
         collapseEdits: "Zwiń zmiany",
         expandEdits: "Rozwiń zmiany",
         // Bulk accept / reject po stronie wiadomosci asystenta
+        bulkAcceptAll: "Akceptuj wszystkie",
+        bulkRejectAll: "Odrzuć wszystkie",
+        bulkView: "Podgląd",
         bulkAcceptFailed: "Nie udało się zapisać jednej lub kilku akceptacji.",
         bulkRejectFailed: "Nie udało się zapisać jednego lub kilku odrzuceń.",
         // Sekcja "Powiazane orzeczenia" pod proza wiadomosci
@@ -416,6 +419,19 @@ export const pl = {
         cmShort: "Sygnatura",
         cmShortPlaceholder: "Sygn.",
         noProjects: "Brak projektów. Utwórz pierwszy.",
+        // Lista projektow - stany puste i naglowki
+        emptyTitle: "Projekty",
+        emptyBody: "Wczytaj dokumenty do projektów i rozpocznij czaty oraz przeglądy tabelaryczne.",
+        emptyCta: "+ Utwórz nowy",
+        // Zakladki filtrow listy projektow
+        tabAll: "Wszystkie",
+        tabMine: "Moje",
+        tabSharedWithMe: "Udostępnione mi",
+        // Akcje zbiorcze
+        actions: "Akcje",
+        deleteSelected: "Usuń",
+        // Stan bledu ladowania listy
+        loadErrorTitle: "Projekty",
         // Eksplorator dokumentow projektu (foldery + pliki)
         folderNamePlaceholder: "Nazwa folderu",
         renameDocument: "Zmień nazwę dokumentu",
@@ -716,6 +732,20 @@ export const pl = {
             sad: "Skład orzekający",
             prokurator: "Prokurator",
         },
+    },
+
+    // ---------------------------------------------------------------------
+    // MCP Security Banner (ADR-0042)
+    // ---------------------------------------------------------------------
+    mcpSecurity: {
+        disabledMessage: "MCP Security: Wyłączony. Zalecane włączenie w env MCP_SECURITY_GATEWAY_MODE.",
+        disabledAriaLabel: "MCP Security Gateway wyłączony",
+        blockedMessage: "MCP Security: ZABLOKOWANO {denied} narzędzi w ostatnich 24h. Sprawdź audit_log.",
+        blockedAriaLabel: "MCP Security Gateway zablokował {denied} narzędzi w 24h",
+        activeMessage: "MCP Security: aktywny (enforce). 24h: {audit} audit, {humanReview} human_review.",
+        activeAriaLabel: "MCP Security Gateway aktywny w trybie enforce, {audit} audit {humanReview} human review w 24h",
+        auditMessage: "MCP Security: audit-only. {total} zdarzeń w 24h. Narzędzia NIE są blokowane.",
+        auditAriaLabel: "MCP Security Gateway w trybie audit-only, narzędzia nie są blokowane",
     },
 
     // ---------------------------------------------------------------------

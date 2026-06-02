@@ -52,7 +52,7 @@ export function InitialView({ onSubmit }: InitialViewProps) {
         <div className="flex flex-col h-full w-full px-6">
             <div className="flex-1 flex flex-col items-center justify-center">
                 <div className="flex-col items-center w-full max-w-4xl relative px-0 xl:px-8">
-                    <div className="mb-10 relative flex items-center justify-center">
+                    <div className="mb-10 relative flex items-center justify-center" style={{ minHeight: "45px" }}>
                         <div
                             className="absolute h-[35px]"
                             style={{
@@ -66,9 +66,8 @@ export function InitialView({ onSubmit }: InitialViewProps) {
                         >
                             <PATRONIcon size={ICON_SIZE} />
                         </div>
-                        <h1
-                            ref={textRef}
-                            className="absolute text-4xl font-serif font-light text-gray-900 whitespace-nowrap"
+                        <div
+                            className="absolute"
                             style={{
                                 left: "50%",
                                 transform: loaded
@@ -77,10 +76,16 @@ export function InitialView({ onSubmit }: InitialViewProps) {
                                 opacity: loaded ? 1 : 0,
                                 transition:
                                     "transform 900ms cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 800ms ease-in-out 300ms",
+                                maxWidth: "min(600px, calc(100vw - 6rem))",
                             }}
                         >
-                            {t("chat.greetingPrefix")}, {username}
-                        </h1>
+                            <h1
+                                ref={textRef}
+                                className="text-4xl font-serif font-light text-gray-900 whitespace-nowrap overflow-hidden text-ellipsis"
+                            >
+                                {t("chat.greetingPrefix")}, {username}
+                            </h1>
+                        </div>
                     </div>
 
                     <ChatInput

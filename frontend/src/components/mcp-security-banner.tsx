@@ -11,6 +11,7 @@
 import type { ReactElement } from "react";
 import { ShieldCheck, ShieldAlert, ShieldOff } from "lucide-react";
 import { useMcpSecurityStatus } from "@/hooks/useMcpSecurityStatus";
+import { t } from "@/i18n";
 
 export function McpSecurityBanner(): ReactElement | null {
     const { visible, status } = useMcpSecurityStatus();
@@ -25,24 +26,28 @@ export function McpSecurityBanner(): ReactElement | null {
 
     let bgClass = "bg-gray-50 border-gray-200 text-gray-900";
     let icon = <ShieldOff className="h-5 w-5" aria-hidden="true" />;
-    let message = "MCP Security: WYLACZONY. Zalecane wlaczenie w env MCP_SECURITY_GATEWAY_MODE.";
-    let ariaLabel = "MCP Security Gateway wylaczony";
+    let message = t("mcpSecurity.disabledMessage");
+    let ariaLabel = t("mcpSecurity.disabledAriaLabel");
 
     if (mode === "enforce" && denied > 0) {
         bgClass = "bg-red-50 border-red-200 text-red-900";
         icon = <ShieldAlert className="h-5 w-5" aria-hidden="true" />;
-        message = `MCP Security: ZABLOKOWANO ${denied} toolow w ostatnich 24h. Sprawdz audit_log.`;
-        ariaLabel = `MCP Security Gateway zablokowal ${denied} narzedzi w 24h`;
+        message = t("mcpSecurity.blockedMessage").replace("{denied}", String(denied));
+        ariaLabel = t("mcpSecurity.blockedAriaLabel").replace("{denied}", String(denied));
     } else if (mode === "enforce") {
         bgClass = "bg-emerald-50 border-emerald-200 text-emerald-900";
         icon = <ShieldCheck className="h-5 w-5" aria-hidden="true" />;
-        message = `MCP Security: aktywny (enforce). 24h: ${audit} audit, ${humanReview} human_review.`;
-        ariaLabel = `MCP Security Gateway aktywny w trybie enforce, ${audit} audit ${humanReview} human review w 24h`;
+        message = t("mcpSecurity.activeMessage")
+            .replace("{audit}", String(audit))
+            .replace("{humanReview}", String(humanReview));
+        ariaLabel = t("mcpSecurity.activeAriaLabel")
+            .replace("{audit}", String(audit))
+            .replace("{humanReview}", String(humanReview));
     } else if (mode === "audit") {
         bgClass = "bg-amber-50 border-amber-200 text-amber-900";
         icon = <ShieldAlert className="h-5 w-5" aria-hidden="true" />;
-        message = `MCP Security: audit-only. ${audit + humanReview + denied} zdarzen w 24h. Toole NIE sa blokowane.`;
-        ariaLabel = "MCP Security Gateway w trybie audit-only, narzedzia nie sa blokowane";
+        message = t("mcpSecurity.auditMessage").replace("{total}", String(audit + humanReview + denied));
+        ariaLabel = t("mcpSecurity.auditAriaLabel");
     }
 
     return (

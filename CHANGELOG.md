@@ -7,6 +7,55 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ## [Unreleased]
 
+### Podsumowanie sprintu 2026-05-29 - 2026-06-02 (ADR-0053 .. 0099)
+
+Zbiorczy wpis domykajacy luke rejestracji zmian (poszczegolne ADR maja pelny
+opis w `governance/adr/`). Pogrupowane wg Keep a Changelog.
+
+**Added**
+- Tryb desktop zero-cloud: SQLite single-user (ADR-0053), graf hybrydowy na
+  SQLite (ADR-0054), headless ingest folderu sprawy (ADR-0056), bibliotekarz/
+  brain-store (ADR-0057), tryb local single-user we froncie (ADR-0062).
+- Frontend: draft odpowiedzi przez pipeline obrony (ADR-0063), import folderu
+  sprawy (ADR-0064), persystencja groundingu cytatow + audit (ADR-0065).
+- Pipeline obrony (Recenzent/Adwokat/Humanizer "invisible AI", ADR-0058);
+  provider OpenRouter (ADR-0059); roundtrip importu Word (ADR-0060).
+- Sciezka retrievalu: clause-boundary chunking + parser wyroku (ADR-0083),
+  copy-mechanism NER (ADR-0084), WuManber bootstrap PL-NER (ADR-0085),
+  dual-similarity case ranking + wpiecie (ADR-0086/0087), ocena kwantyzacji
+  vector store (ADR-0088), event-centric KG + wpiecie (ADR-0089/0090).
+- Tabular review: grounding cytatow (ADR-0080), polskie presety kolumn
+  (ADR-0081), grounding w audit hash-chain (ADR-0082).
+- OCR wejscia (ADR-0074/0075); panel zuzycia kosztow AI (ADR-0076); emisja
+  komentarzy DOCX recenzenta + warstwa serwisu + redline (ADR-0077/0078/0079).
+- Pakowanie instalatora desktop - Electron bundled node + standalone front +
+  electron-rebuild better-sqlite3 (ADR-0091).
+- Biblioteka umiejetnosci: kontrakt paczki skilla (ADR-0094), wykonanie
+  importowanych skilli na etapie draft (ADR-0096).
+- Egzekucja modeli lokalnych Ollama w warstwie funkcyjnej LLM (ADR-0098).
+
+**Fixed**
+- `resolveModel` przepuszcza `ollama/*` - wybor modelu lokalnego nie spadal juz
+  po cichu na chmure (ADR-0098).
+- `GET /api/security/mcp-status` 500 "no such column: created_at" - audit_log
+  uzywa kolumny `ts` (ADR-0099).
+
+**Security**
+- Hardening `/draft/refine` pipeline obrony (ADR-0068); security headers / CSP
+  (ADR-0069); hardening dokumentow - skan wersji, audit edycji (ADR-0070);
+  egress hardening openExternal / embeddings (ADR-0071); szyfrowanie at-rest
+  SQLite via DPAPI (ADR-0072).
+- Governance routingu LLM / data-residency - wspolny chokepoint egress
+  (ADR-0067), tier-governance egress (ADR-0095).
+- Grounding cascade z paraphrase-judge - wykrywanie falszywych zielonych
+  werdyktow cytatu (ADR-0097).
+- Domkniecie luk egress wykrytych w audycie 2026-06-02: egress guard w tabular
+  review (generate/regenerate-cell/chat) i generate-title, walidacja SSRF
+  `OLLAMA_HOST` (ADR-0099).
+- RODO: pelna purga sprawy "zapomnij sprawe" (ADR-0061).
+
+---
+
 ### Added
 
 - **ADR-0048 - Endpoint "Wymus compute Merkle root" + UI fallback dla audytora**

@@ -188,7 +188,7 @@ function BulkEditActions({
                 {busy === "accept" && (
                     <Loader2 className="h-3 w-3 animate-spin" />
                 )}
-                Accept all
+                {t("chat.bulkAcceptAll")}
             </button>
             <button
                 onClick={() => handleAll("reject")}
@@ -198,7 +198,7 @@ function BulkEditActions({
                 {busy === "reject" && (
                     <Loader2 className="h-3 w-3 animate-spin" />
                 )}
-                Reject all
+                {t("chat.bulkRejectAll")}
             </button>
             {progress && (
                 <span className="text-xs font-serif text-gray-500">
@@ -213,7 +213,7 @@ function BulkEditActions({
                     disabled={!!busy}
                     className="ml-auto px-2 py-1 text-xs rounded border border-gray-200 bg-white text-gray-700 hover:bg-gray-100 disabled:opacity-50"
                 >
-                    View
+                    {t("chat.bulkView")}
                 </button>
             )}
         </div>
@@ -1447,7 +1447,7 @@ export function AssistantMessage({
                         <div className="absolute bottom-0 w-[1px] bg-gray-300 top-[13px] left-[2.5px] h-[calc(100%+11px)]" />
                     )}
                     <div className="w-1.5 h-1.5 rounded-full border border-gray-400 border-t-transparent animate-spin shrink-0" />
-                    <span className="ml-2">Thinking...</span>
+                    <span className="ml-2">{t("chat.thinking1")}</span>
                 </div>
             );
         }

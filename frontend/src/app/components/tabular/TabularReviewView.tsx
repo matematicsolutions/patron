@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Plus, Loader2, Play, ChevronDown, MessageSquare, Download, Users, Upload } from "lucide-react";
 import { HeaderSearchBtn } from "../shared/HeaderSearchBtn";
+import { t } from "@/i18n";
 
 import {
     clearTabularCells,
@@ -874,7 +875,7 @@ export function TRView({ reviewId, projectId }: Props) {
                         handleAddDocuments(docs)
                     }
                     breadcrumb={[
-                        "Projects",
+                        t("projects.breadcrumbProjects"),
                         project.name +
                             (project.cm_number
                                 ? ` (#${project.cm_number})`

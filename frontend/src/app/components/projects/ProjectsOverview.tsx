@@ -67,7 +67,7 @@ export function ProjectsOverview() {
                 console.error("[projects] failed to load projects", err);
                 if (!cancelled) {
                     setProjects([]);
-                    setLoadError("Could not load projects.");
+                    setLoadError(t("usage.loadError"));
                 }
             })
             .finally(() => {
@@ -130,9 +130,9 @@ export function ProjectsOverview() {
     }
 
     const tabs: { id: Tab; label: string }[] = [
-        { id: "all", label: "All" },
-        { id: "mine", label: "Mine" },
-        { id: "shared-with-me", label: "Shared with me" },
+        { id: "all", label: t("projects.tabAll") },
+        { id: "mine", label: t("projects.tabMine") },
+        { id: "shared-with-me", label: t("projects.tabSharedWithMe") },
     ];
 
     async function handleRenameSubmit(projectId: string) {
@@ -185,7 +185,7 @@ export function ProjectsOverview() {
                         onClick={() => setActionsOpen((v) => !v)}
                         className="flex items-center gap-1 text-xs font-medium text-gray-700 hover:text-gray-900 transition-colors"
                     >
-                        Actions
+                        {t("projects.actions")}
                         <ChevronDown className="h-3.5 w-3.5" />
                     </button>
                     {actionsOpen && (
@@ -194,7 +194,7 @@ export function ProjectsOverview() {
                                 onClick={handleDeleteSelected}
                                 className="w-full px-3 py-1.5 text-left text-xs text-red-600 hover:bg-red-50 transition-colors"
                             >
-                                Delete
+                                {t("projects.deleteSelected")}
                             </button>
                         </div>
                     )}
@@ -208,7 +208,7 @@ export function ProjectsOverview() {
             {/* Page header */}
             <div className="mb-1 flex items-center justify-between px-4 py-3 md:px-10">
                 <h1 className="text-2xl font-medium font-serif text-gray-900">
-                    Projects
+                    {t("projects.title")}
                 </h1>
                 <div className="flex items-center gap-2">
                     <HeaderSearchBtn
@@ -305,7 +305,7 @@ export function ProjectsOverview() {
                     <div className="flex flex-col items-start py-24 w-full max-w-xs mx-auto">
                         <FolderOpen className="h-8 w-8 text-gray-300 mb-4" />
                         <p className="text-2xl font-medium font-serif text-gray-900">
-                            Projects
+                            {t("projects.title")}
                         </p>
                         <p className="mt-1 text-xs text-red-500 max-w-xs">
                             {loadError}
@@ -317,23 +317,21 @@ export function ProjectsOverview() {
                             <>
                                 <FolderOpen className="h-8 w-8 text-gray-300 mb-4" />
                                 <p className="text-2xl font-medium font-serif text-gray-900">
-                                    Projects
+                                    {t("projects.emptyTitle")}
                                 </p>
                                 <p className="mt-1 text-xs text-gray-400 max-w-xs">
-                                    Upload documents into projects and to
-                                    commence chats and tabular reviews with
-                                    them.
+                                    {t("projects.emptyBody")}
                                 </p>
                                 <button
                                     onClick={() => setModalOpen(true)}
                                     className="mt-4 inline-flex items-center gap-1 rounded-full bg-gray-900 px-3 py-1 text-xs font-medium text-white hover:bg-gray-700 transition-colors shadow-md"
                                 >
-                                    + Create New
+                                    {t("projects.emptyCta")}
                                 </button>
                             </>
                         ) : (
                             <p className="text-sm text-gray-400">
-                                No {activeTab} projects
+                                {t("nav.noProjectsYet")}
                             </p>
                         )}
                     </div>

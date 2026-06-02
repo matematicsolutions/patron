@@ -168,8 +168,9 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                 )}
                 <button
                     onClick={onToggle}
-                    className="h-9 w-9 p-2.5 items-center flex hover:bg-gray-100 rounded-md transition-colors"
+                    className="h-9 w-9 p-2.5 items-center flex hover:bg-gray-100 rounded-md transition-colors focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-gray-400"
                     title={isOpen ? t("nav.closeSidebar") : t("nav.openSidebar")}
+                    aria-label={isOpen ? t("nav.closeSidebar") : t("nav.openSidebar")}
                 >
                     <PanelLeft className="h-4 w-4" />
                 </button>
@@ -184,10 +185,10 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                         <button
                             onClick={() => router.push(href)}
                             title={!isOpen ? label : ""}
-                            className={`w-full h-9 flex items-center gap-3 px-2.5 py-2 rounded-md transition-colors text-left ${
+                            className={`w-full h-9 flex items-center gap-3 py-2 rounded-md transition-colors text-left focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-gray-400 ${
                                 isActive
-                                    ? "bg-gray-100 text-gray-900"
-                                    : "hover:bg-gray-100 text-gray-700"
+                                    ? "bg-gray-200 text-gray-900 font-semibold border-l-2 border-gray-900 pl-[9px] pr-2.5"
+                                    : "hover:bg-gray-100 text-gray-700 px-2.5"
                             } ${!isOpen ? "hidden md:flex" : "flex"}`}
                         >
                             <Icon
