@@ -99,7 +99,7 @@ export async function setSkillEnabled(
 
 /**
  * Wlaczone skille o powierzchni draft-stage jako spec custom etapow do
- * pipeline obrony (ADR-0095). Kolejnosc = instalacji. Wbudowane NIE sa tu
+ * pipeline obrony (ADR-0096). Kolejnosc = instalacji. Wbudowane NIE sa tu
  * (maja wlasne buildery w defense.ts).
  */
 export async function loadEnabledDraftStageSkills(

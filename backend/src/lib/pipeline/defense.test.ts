@@ -121,7 +121,7 @@ describe("runDefensePipeline (fake LLM)", () => {
     expect(r.final).toBe("ORIGINAL");
   });
 
-  it("custom skill (ADR-0095) uruchamia sie PO wbudowanych, lancuchuje, ma label", async () => {
+  it("custom skill (ADR-0096) uruchamia sie PO wbudowanych, lancuchuje, ma label", async () => {
     const { fake, calls } = recordingLlm();
     const r = await runDefensePipeline(
       "DRAFT0",

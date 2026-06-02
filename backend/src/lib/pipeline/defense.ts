@@ -26,7 +26,7 @@ export const ALL_STAGES: DefenseStage[] = [
 ];
 
 /**
- * Custom etap z paczki skilla (ADR-0094/0095). Uruchamiany PO wbudowanych,
+ * Custom etap z paczki skilla (ADR-0094/0096). Uruchamiany PO wbudowanych,
  * przez ten sam przeplyw maskowania PII. Prompt pochodzi z manifestu - autor
  * skilla kontroluje zachowanie (nie doklejamy BASE_RULES); gwarancja "bez PII"
  * plynie z maskowania pipeline, nie z tresci promptu.
@@ -47,7 +47,7 @@ export interface DefenseConfig {
   apiKeys?: UserApiKeys;
   /** Opcjonalny kontekst sprawy (rodzaj pisma, instancja) - wstrzykiwany w prompt. */
   context?: string;
-  /** Custom etapy z paczek skilli (ADR-0095) - uruchamiane PO wbudowanych. */
+  /** Custom etapy z paczek skilli (ADR-0096) - uruchamiane PO wbudowanych. */
   customStages?: CustomStageSpec[];
 }
 

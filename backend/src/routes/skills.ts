@@ -51,7 +51,7 @@ skillsRouter.post("/import", requireAuth, async (req, res) => {
       detail: `Identyfikator '${parsed.manifest.id}' jest zarezerwowany dla umiejetnosci wbudowanej.`,
     });
   }
-  // Skan anty-injection promptu skilla (ADR-0094/0095, duch ADR-0019). Zlosliwy
+  // Skan anty-injection promptu skilla (ADR-0094/0096, duch ADR-0019). Zlosliwy
   // prompt ("ignoruj poprzednie instrukcje...") nie wchodzi do biblioteki -
   // bramka przy imporcie jest silniejsza niz skan przy kazdym uruchomieniu.
   const scan = analyzeInput({

@@ -642,7 +642,7 @@ export type DefenseStage = "recenzent" | "adwokat" | "pisz-po-ludzku";
 export type AdwokatMode = "strona-przeciwna" | "sad" | "prokurator";
 
 export interface DraftStageResult {
-    // Wbudowany etap (enum) albo id custom skilla z paczki (ADR-0095).
+    // Wbudowany etap (enum) albo id custom skilla z paczki (ADR-0096).
     stage: DefenseStage | string;
     mode?: AdwokatMode;
     // Etykieta wyswietlana dla custom skilla (nazwa z manifestu).

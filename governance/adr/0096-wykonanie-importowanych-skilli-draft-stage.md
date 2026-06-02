@@ -1,4 +1,4 @@
-# ADR-0095: Wykonanie importowanych skilli w pipeline obrony (custom draft-stage)
+# ADR-0096: Wykonanie importowanych skilli w pipeline obrony (custom draft-stage)
 
 **Status**: Zaproponowany 2026-06-02 (krok 2 rozszerzalnosci). Konstytucja v1.5.0. Domyka kontrakt z [ADR-0094](./0094-kontrakt-paczki-skilla.md): zaimportowane skille o powierzchni `draft-stage` realnie URUCHAMIAJA sie w pipeline obrony, a nie tylko widnieja na liscie. Trojka wbudowana (Recenzent/Adwokat/Pisz po ludzku) pozostaje rdzeniem bez zmian zachowania.
 
