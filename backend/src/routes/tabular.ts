@@ -32,6 +32,7 @@ import {
     aggregateGrounding,
     appendTabularGroundingEvent,
 } from "../lib/tabular/audit-grounding";
+import { enforceEgressGuard, appendLlmRouteEvent } from "../lib/routing";
 
 function formatPromptSuffix(format?: string, tags?: string[]): string {
     switch (format) {
@@ -771,6 +772,28 @@ tabularRouter.post(
             });
         }
 
+        // ADR-0095/0067 (domkniecie luki): regenerate-cell wysyla PELNA tresc
+        // dokumentu (do ~120k znakow) do LLM - musi przejsc przez TEN SAM
+        // straznik data-residency co czat/draft. Dotad tabular egressowal bez
+        // straznika, wiec tresc objeta tajemnica mogla wyjsc do chmury.
+        const tabularProjectId =
+            (review.project_id as string | null | undefined) ?? null;
+        const guard = await enforceEgressGuard({
+            db,
+            model: tabular_model,
+            projectId: tabularProjectId,
+            actorUserId: userId,
+        });
+        if (!guard.allowed) {
+            return void res.status(403).json({
+                detail:
+                    guard.blockMessage ??
+                    "Routing zablokowany przez polityke data-residency.",
+                code: "egress_blocked",
+                suggestedModel: guard.suggestedModel ?? null,
+            });
+        }
+
         await db
             .from("tabular_cells")
             .update({ status: "generating", content: null })
@@ -830,6 +853,19 @@ tabularRouter.post(
             documents: 1,
             aggregate: aggregateGrounding([result.grounding]),
             trigger: "regenerate_cell",
+        });
+
+        // ADR-0067/0095: audyt "llm_route" (allow) - parytet z czatem/draftem,
+        // ten sam dowod data-residency dla AI Act art. 12.
+        await appendLlmRouteEvent(db, {
+            actorUserId: userId,
+            caseId: tabularProjectId,
+            model: tabular_model,
+            provider: guard.provider,
+            egress: guard.decision.egress,
+            classification: guard.decision.classification,
+            action: "allow",
+            reason: guard.decision.reason,
         });
 
         res.json(result);
@@ -902,6 +938,26 @@ tabularRouter.post("/:reviewId/generate", requireAuth, async (req, res) => {
         return void res.status(422).json({
             code: "missing_api_key",
             ...missingKey,
+        });
+    }
+
+    // ADR-0095/0067 (domkniecie luki): generate wysyla PELNA tresc kazdego
+    // dokumentu sprawy do LLM - musi przejsc przez TEN SAM straznik
+    // data-residency co czat/draft. Blok PRZED otwarciem SSE (zwykly 403).
+    const tabularProjectId = (review.project_id as string | null | undefined) ?? null;
+    const guard = await enforceEgressGuard({
+        db,
+        model: tabular_model,
+        projectId: tabularProjectId,
+        actorUserId: userId,
+    });
+    if (!guard.allowed) {
+        return void res.status(403).json({
+            detail:
+                guard.blockMessage ??
+                "Routing zablokowany przez polityke data-residency.",
+            code: "egress_blocked",
+            suggestedModel: guard.suggestedModel ?? null,
         });
     }
 
@@ -1029,6 +1085,18 @@ tabularRouter.post("/:reviewId/generate", requireAuth, async (req, res) => {
             documents: processedDocIds.size,
             aggregate: aggregateGrounding(groundingVerdicts),
             trigger: "generate",
+        });
+
+        // ADR-0067/0095: audyt "llm_route" (allow) na przebieg generate.
+        await appendLlmRouteEvent(db, {
+            actorUserId: userId,
+            caseId: tabularProjectId,
+            model: tabular_model,
+            provider: guard.provider,
+            egress: guard.decision.egress,
+            classification: guard.decision.classification,
+            action: "allow",
+            reason: guard.decision.reason,
         });
 
         write("data: [DONE]\n\n");
@@ -1391,6 +1459,12 @@ tabularRouter.post("/:reviewId/chat", requireAuth, async (req, res) => {
                 extractTabularAnnotations(text, tabularStore),
             model: tabular_model,
             apiKeys: api_keys,
+            // ADR-0067/0095: przekaz projectId sprawy, by enforceEgressGuard
+            // klasyfikowal czat tabular wg sprawy (attorney_client_privileged),
+            // a nie domyslnie jako "internal" - inaczej dane tabeli sprawy
+            // objetej tajemnica moga wyjsc do chmury przez bledna klasyfikacje.
+            projectId:
+                (review.project_id as string | null | undefined) ?? null,
         });
 
         const annotations = extractTabularAnnotations(fullText, tabularStore);

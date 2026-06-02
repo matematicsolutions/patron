@@ -15,6 +15,7 @@ import { completeText } from "../lib/llm";
 import { getUserApiKeys, getUserModelSettings } from "../lib/userSettings";
 import { checkProjectAccess } from "../lib/access";
 import { appendAuditEvent } from "../lib/audit";
+import { enforceEgressGuard } from "../lib/routing";
 
 export const chatRouter = Router();
 
@@ -401,6 +402,22 @@ chatRouter.post("/:chatId/generate-title", requireAuth, async (req, res) => {
             userId,
             db,
         );
+        // ADR-0067/0095: generate-title wysyla pierwsze 500 znakow wiadomosci
+        // uzytkownika do LLM (title_model domyslnie chmurowy) - musi przejsc
+        // przez TEN SAM straznik data-residency. Dla sprawy objetej tajemnica
+        // blok = nie generujemy tytulu w chmurze (fallback do skrotu wiadomosci).
+        const titleGuard = await enforceEgressGuard({
+            db,
+            model: title_model,
+            projectId: chat.project_id ?? null,
+            actorUserId: userId,
+            chatId,
+        });
+        if (!titleGuard.allowed) {
+            const fallback = message.slice(0, 60);
+            await db.from("chats").update({ title: fallback }).eq("id", chatId);
+            return void res.json({ title: fallback });
+        }
         const titleText = await completeText({
             model: title_model,
             user: `Generate a concise title (3–6 words) for a chat in an AI Legal Platform that starts with this message. The title should describe the topic or document — do NOT include words like "Legal Assistant", "AI", "Chat", or any similar prefix. Return only the title, no quotes or punctuation.\n\nMessage: ${message.slice(0, 500)}`,
