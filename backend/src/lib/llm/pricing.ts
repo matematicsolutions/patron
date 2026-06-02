@@ -39,6 +39,7 @@ const AS_OF = "2026-05-30";
  */
 export const PRICING: Readonly<Record<string, ModelPrice>> = {
     // Dokladne dopasowanie id w katalogu OpenRouter.
+    "claude-opus-4-8": { inputPerMtokUsd: 5, outputPerMtokUsd: 25, source: OR, asOf: AS_OF },
     "claude-opus-4-7": { inputPerMtokUsd: 5, outputPerMtokUsd: 25, source: OR, asOf: AS_OF },
     "gpt-5.5": { inputPerMtokUsd: 5, outputPerMtokUsd: 30, source: OR, asOf: AS_OF },
     "gpt-5.4-mini": { inputPerMtokUsd: 0.75, outputPerMtokUsd: 4.5, source: OR, asOf: AS_OF },

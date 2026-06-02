@@ -14,14 +14,50 @@ import { isModelAvailable } from "@/app/lib/modelAvailability";
 import type { ApiKeyState } from "@/app/lib/patronApi";
 import { t } from "@/i18n";
 
+export type ModelGroup =
+    | "Lokalny"
+    | "OpenRouter"
+    | "Anthropic"
+    | "Google"
+    | "OpenAI";
+
 export interface ModelOption {
     id: string;
     label: string;
-    group: "Anthropic" | "Google" | "OpenAI";
+    group: ModelGroup;
 }
 
+// Lokalny (Ollama) = zero egress, tajemnica zostaje na urzadzeniu.
+// OpenRouter = jeden klucz, wiele modeli (w tym chinskie) - "podepniemy wszystko".
+// Grupy natywne = wlasny klucz danego dostawcy.
 export const MODELS: ModelOption[] = [
-    { id: "claude-opus-4-7", label: "Claude Opus 4.7", group: "Anthropic" },
+    { id: "ollama/llama3.2:3b", label: "Lokalny (Ollama)", group: "Lokalny" },
+    {
+        id: "openrouter/anthropic/claude-opus-4.8",
+        label: "Claude Opus 4.8",
+        group: "OpenRouter",
+    },
+    {
+        id: "openrouter/anthropic/claude-sonnet-4.6",
+        label: "Claude Sonnet 4.6",
+        group: "OpenRouter",
+    },
+    {
+        id: "openrouter/google/gemini-3-flash",
+        label: "Gemini 3 Flash",
+        group: "OpenRouter",
+    },
+    {
+        id: "openrouter/qwen/qwen3.6-flash",
+        label: "Qwen 3.6 Flash",
+        group: "OpenRouter",
+    },
+    {
+        id: "openrouter/mistralai/mistral-medium-3-5",
+        label: "Mistral Medium 3.5",
+        group: "OpenRouter",
+    },
+    { id: "claude-opus-4-8", label: "Claude Opus 4.8", group: "Anthropic" },
     { id: "claude-sonnet-4-6", label: "Claude Sonnet 4.6", group: "Anthropic" },
     { id: "gemini-3.1-pro-preview", label: "Gemini 3.1 Pro", group: "Google" },
     { id: "gemini-3-flash-preview", label: "Gemini 3 Flash", group: "Google" },
@@ -33,7 +69,13 @@ export const DEFAULT_MODEL_ID = "gemini-3-flash-preview";
 
 export const ALLOWED_MODEL_IDS = new Set(MODELS.map((m) => m.id));
 
-const GROUP_ORDER: ModelOption["group"][] = ["Anthropic", "Google", "OpenAI"];
+const GROUP_ORDER: ModelGroup[] = [
+    "Lokalny",
+    "OpenRouter",
+    "Anthropic",
+    "Google",
+    "OpenAI",
+];
 
 interface Props {
     value: string;

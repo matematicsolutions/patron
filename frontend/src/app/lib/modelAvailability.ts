@@ -13,6 +13,11 @@ export function isModelAvailable(
     modelId: string,
     apiKeys: ApiKeyState,
 ): boolean {
+    const model = MODELS.find((m) => m.id === modelId);
+    if (!model) return false;
+    // Lokalny (Ollama) = lokalnie; OpenRouter = jeden klucz env Operatora.
+    // Nie bramkujemy ich statusem per-provider (claude/gemini/openai).
+    if (model.group === "Lokalny" || model.group === "OpenRouter") return true;
     const provider = getModelProvider(modelId);
     if (!provider) return false;
     return isProviderAvailable(provider, apiKeys);

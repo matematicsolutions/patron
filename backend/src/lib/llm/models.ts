@@ -4,7 +4,7 @@ import type { Provider } from "./types";
 // Canonical model IDs
 // ---------------------------------------------------------------------------
 // Main-chat tier (top-end) — user picks one of these per message.
-export const CLAUDE_MAIN_MODELS = ["claude-opus-4-7", "claude-sonnet-4-6"] as const;
+export const CLAUDE_MAIN_MODELS = ["claude-opus-4-8", "claude-sonnet-4-6"] as const;
 export const GEMINI_MAIN_MODELS = [
     "gemini-3.1-pro-preview",
     "gemini-3-flash-preview",
