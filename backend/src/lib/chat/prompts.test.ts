@@ -13,6 +13,12 @@ describe("SYSTEM_PROMPT", () => {
         expect(SYSTEM_PROMPT).toContain("NSA");
     });
 
+    it("zawiera sekcje przewodnika po mozliwosciach PATRONa (onboarding)", () => {
+        expect(SYSTEM_PROMPT).toContain("PATRON - MOŻLIWOŚCI I PRZEWODNIK");
+        expect(SYSTEM_PROMPT).toContain("Przegląd tabelaryczny");
+        expect(SYSTEM_PROMPT).toContain("Pipeline obrony");
+    });
+
     it("zawiera kontrakt cytatow z blokiem <CITATIONS>", () => {
         expect(SYSTEM_PROMPT).toContain("<CITATIONS>");
         expect(SYSTEM_PROMPT).toContain("doc_id");
