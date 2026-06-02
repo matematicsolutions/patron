@@ -54,7 +54,7 @@ export function ModelToggle({ value, onChange, apiKeys }: Props) {
             <DropdownMenuTrigger asChild>
                 <button
                     type="button"
-                    className={`flex items-center gap-1.5 rounded-lg px-2 h-8 text-sm transition-colors cursor-pointer text-gray-400 hover:bg-gray-100 hover:text-gray-700 ${isOpen ? "bg-gray-100 text-gray-700" : ""}`}
+                    className={`flex items-center gap-1 rounded-md px-1.5 h-6 text-[11px] transition-colors cursor-pointer text-muted-foreground/60 hover:bg-accent hover:text-foreground ${isOpen ? "bg-accent text-foreground" : ""}`}
                     title={
                         !selectedAvailable
                             ? t("account.apiKeyMissing")
@@ -64,9 +64,9 @@ export function ModelToggle({ value, onChange, apiKeys }: Props) {
                     {!selectedAvailable && (
                         <AlertCircle className="h-3 w-3 shrink-0 text-red-500" />
                     )}
-                    <span className="max-w-[140px] truncate">{selectedLabel}</span>
+                    <span className="max-w-[104px] truncate">{selectedLabel}</span>
                     <ChevronDown
-                        className={`h-3 w-3 shrink-0 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
+                        className={`h-2.5 w-2.5 shrink-0 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
                     />
                 </button>
             </DropdownMenuTrigger>

@@ -81,7 +81,7 @@ export function InitialView({ onSubmit }: InitialViewProps) {
                         >
                             <h1
                                 ref={textRef}
-                                className="text-4xl font-serif font-light text-gray-900 whitespace-nowrap overflow-hidden text-ellipsis"
+                                className="text-4xl font-serif font-light text-bordeaux whitespace-nowrap overflow-hidden text-ellipsis tracking-[0.01em]"
                             >
                                 {t("chat.greetingPrefix")}, {username}
                             </h1>
@@ -94,6 +94,41 @@ export function InitialView({ onSubmit }: InitialViewProps) {
                         isLoading={false}
                         onProjectsClick={() => setProjectModalOpen(true)}
                     />
+
+                    {/* Starter-chipy: zaproszenie dla nowego mecenasa, by zagadał
+                        o funkcje. Etykieta w glosie PATRONa (gospodarz); klik
+                        wysyla pytanie w intencji mecenasa (label != tresc). */}
+                    <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                        {[
+                            {
+                                label: t("chat.starterHelp"),
+                                query: t("chat.starterHelpSend"),
+                            },
+                            {
+                                label: t("chat.starterAnalyze"),
+                                query: t("chat.starterAnalyze"),
+                            },
+                            {
+                                label: t("chat.starterImport"),
+                                query: t("chat.starterImport"),
+                            },
+                            {
+                                label: t("chat.starterShowcase"),
+                                query: t("chat.starterShowcaseSend"),
+                            },
+                        ].map(({ label, query }) => (
+                            <button
+                                key={label}
+                                type="button"
+                                onClick={() =>
+                                    onSubmit({ role: "user", content: query })
+                                }
+                                className="rounded-full border border-border/70 bg-card/40 px-3.5 py-1.5 text-xs text-muted-foreground transition-all hover:border-bordeaux/40 hover:text-bordeaux hover:bg-card active:scale-[0.97]"
+                            >
+                                {label}
+                            </button>
+                        ))}
+                    </div>
 
                     <div className="text-center">
                         <button

@@ -10,6 +10,7 @@ import {
     type AssistantSidePanelTab,
 } from "./AssistantSidePanel";
 import { AssistantWorkflowModal } from "./AssistantWorkflowModal";
+import { t } from "@/i18n";
 import type {
     PATRONCitationAnnotation,
     PATRONEditAnnotation,
@@ -583,8 +584,7 @@ export function ChatView({
                             />
                             <div className="py-3 text-center">
                                 <p className="text-xs text-gray-500">
-                                    AI can make mistakes. Answers are not legal
-                                    advice.
+                                    {t("chat.legalDisclaimer")}
                                 </p>
                             </div>
                         </div>

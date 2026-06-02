@@ -129,6 +129,14 @@ export const pl = {
         // Greeting fallback (kiedy brak imienia w profilu)
         greetingFallback: "Pani / Panie Mecenasie",
         greetingPrefix: "Witaj",
+        // Starter-chipy na ekranie powitalnym - glos PATRONa (gospodarz).
+        // *Send = tresc realnie wysylana do asystenta (intencja mecenasa).
+        starterHelp: "W czym mogę Ci pomóc?",
+        starterHelpSend: "W czym możesz mi pomóc?",
+        starterAnalyze: "Jak przeanalizować umowę?",
+        starterImport: "Jak zaimportować akta sprawy?",
+        starterShowcase: "Pokażę Ci, co potrafię",
+        starterShowcaseSend: "Pokaż, co potrafisz",
         // Disclaimer pod polem wejscia (RODO + odpowiedzialnosc zawodowa)
         legalDisclaimer:
             "AI może się mylić. Odpowiedzi nie stanowią porady prawnej.",

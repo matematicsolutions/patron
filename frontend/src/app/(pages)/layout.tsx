@@ -92,7 +92,7 @@ export default function PATRONLayout({
                             isOpen={isSidebarOpen}
                             onToggle={handleSidebarToggle}
                         />
-                        <div className="flex-1 flex flex-col h-dvh md:overflow-hidden relative w-full">
+                        <div className="app-grid flex-1 flex flex-col h-dvh md:overflow-hidden relative w-full">
                             {/* Mobile header */}
                             <div className="flex md:hidden items-center gap-3 px-4 pt-3 pb-1 shrink-0">
                                 <button

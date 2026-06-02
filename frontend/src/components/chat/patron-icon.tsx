@@ -18,16 +18,18 @@ type IconPalette = {
     innerOpacities: [number, number, number, number];
 };
 
+// Bordo - znak w tej samej rodzinie co naglowek "Witaj, Mecenasie".
+// Szklany rozblysk w glebokim winie; rym wizualny z akcentem nagłówka.
 const DEFAULT_PALETTE: IconPalette = {
-    shadowColor: "#000000",
-    shadowOpacity: 0.3,
-    fillStops: ["#0a0a0a", "#151515", "#080808", "#111111"],
-    fillOpacities: [0.9, 0.8, 0.85, 0.9],
-    specularStops: [0.5, 0.2, 0, 0],
-    borderStops: ["#ffffff", "#666666", "#ffffff"],
-    borderOpacities: [0.3, 0.1, 0.2],
-    innerStops: ["#ffffff", "#777777", "#222222", "#ffffff"],
-    innerOpacities: [0, 0.08, 0.05, 0],
+    shadowColor: "#4a141c",
+    shadowOpacity: 0.28,
+    fillStops: ["#6e1f29", "#8a2c38", "#581821", "#7a2531"],
+    fillOpacities: [0.92, 0.84, 0.88, 0.92],
+    specularStops: [0.55, 0.24, 0.02, 0],
+    borderStops: ["#f6dee2", "#9a3b46", "#efd0d6"],
+    borderOpacities: [0.34, 0.14, 0.22],
+    innerStops: ["#ffffff", "#b35a64", "#3a0f16", "#ffffff"],
+    innerOpacities: [0, 0.1, 0.06, 0],
 };
 
 const DONE_PALETTE: IconPalette = {

@@ -201,11 +201,11 @@ export function WorkflowList() {
 
     const getTypeMeta = (type: PATRONWorkflow["type"]) =>
         type === "tabular"
-            ? { label: "Tabular", Icon: Table2, className: "text-violet-700" }
+            ? { label: "Tabular", Icon: Table2, className: "text-bordeaux" }
             : {
                   label: "Assistant",
                   Icon: MessageSquare,
-                  className: "text-blue-700",
+                  className: "text-[oklch(0.52_0.05_55)]",
               };
 
     const typeFilterButton = (

@@ -6,6 +6,8 @@
 @theme inline {
     --color-background: var(--background);
     --color-foreground: var(--foreground);
+    --color-bordeaux: var(--bordeaux);
+    --color-parchment: var(--parchment);
     --font-sans: var(--font-inter);
     --font-serif: var(--font-eb-garamond);
     --color-blue: rgb(0, 136, 255);
@@ -49,40 +51,83 @@
     --radius-xl: calc(var(--radius) + 4px);
 }
 
+/* ─── Przemapowanie skali neutralnej na "pergamin" ──────────────────────
+   Aplikacja ma kolory wpisane na sztywno (bg-white, bg-gray-*, text-gray-*)
+   w dziesiatkach plikow. Zamiast edytowac kazdy z osobna, ocieplamy CALA
+   skale u zrodla: kazdy bg-white staje sie cieplym papierem, bg-gray-50/100
+   pergaminem, text-gray-700/900 cieplym inkaustem. Chroma trzymana NISKO
+   (0.004-0.022) - ma byc cieplo-neutralnie, nie zolto. Hue ~50-84.
+   To jeden punkt prawdy dla spojnosci; pelna odwracalnosc. */
+@theme {
+    --color-white: oklch(0.995 0.004 84);
+    --color-black: oklch(0.295 0.055 28);
+    --color-gray-50: oklch(0.984 0.008 83);
+    --color-gray-100: oklch(0.966 0.010 82);
+    --color-gray-200: oklch(0.922 0.012 80);
+    --color-gray-300: oklch(0.872 0.014 78);
+    --color-gray-400: oklch(0.715 0.018 68);
+    --color-gray-500: oklch(0.578 0.020 60);
+    --color-gray-600: oklch(0.475 0.021 55);
+    --color-gray-700: oklch(0.405 0.05 32);
+    --color-gray-800: oklch(0.355 0.062 30);
+    --color-gray-900: oklch(0.325 0.066 30);
+    --color-gray-950: oklch(0.255 0.058 28);
+    --color-slate-50: oklch(0.984 0.008 83);
+    --color-slate-100: oklch(0.966 0.010 82);
+    --color-slate-200: oklch(0.922 0.012 80);
+    --color-slate-700: oklch(0.405 0.05 32);
+    --color-slate-800: oklch(0.355 0.062 30);
+    --color-slate-900: oklch(0.325 0.066 30);
+    --color-neutral-50: oklch(0.984 0.008 83);
+    --color-neutral-100: oklch(0.966 0.010 82);
+    --color-neutral-200: oklch(0.922 0.012 80);
+    --color-neutral-900: oklch(0.325 0.066 30);
+    --color-zinc-50: oklch(0.984 0.008 83);
+    --color-zinc-100: oklch(0.966 0.010 82);
+    --color-zinc-200: oklch(0.922 0.012 80);
+    --color-zinc-900: oklch(0.325 0.066 30);
+}
+
 :root {
     --radius: 0.625rem;
     --color-azure: 0, 136, 255;
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
-    --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0 0);
-    --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
-    --accent-foreground: oklch(0.205 0 0);
-    --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
-    --ring: oklch(0.708 0 0);
+    /* Paleta "pergamin": bardzo delikatne cieple tlo (kremowy papier), inkaust
+       w cieplym braz zamiast czerni, akcent bordo na naglowkach serif. Chroma
+       trzymana nisko - elegancja, nie krzyk. Hue ~80 (cieply) dla powierzchni,
+       ~25 (bordo) dla akcentu. */
+    --parchment: oklch(0.983 0.008 84);
+    --bordeaux: oklch(0.40 0.10 25);
+    --background: oklch(0.985 0.008 84);
+    --foreground: oklch(0.325 0.066 30);
+    --card: oklch(0.995 0.004 84);
+    --card-foreground: oklch(0.325 0.066 30);
+    --popover: oklch(0.996 0.004 84);
+    --popover-foreground: oklch(0.325 0.066 30);
+    --primary: oklch(0.305 0.027 46);
+    --primary-foreground: oklch(0.986 0.006 84);
+    --secondary: oklch(0.958 0.009 82);
+    --secondary-foreground: oklch(0.305 0.027 46);
+    --muted: oklch(0.958 0.009 82);
+    --muted-foreground: oklch(0.525 0.018 56);
+    --accent: oklch(0.953 0.013 70);
+    --accent-foreground: oklch(0.305 0.027 46);
+    --destructive: oklch(0.527 0.17 25);
+    --border: oklch(0.904 0.012 78);
+    --input: oklch(0.904 0.012 78);
+    --ring: oklch(0.62 0.052 30);
     --chart-1: oklch(0.646 0.222 41.116);
     --chart-2: oklch(0.6 0.118 184.704);
     --chart-3: oklch(0.398 0.07 227.392);
     --chart-4: oklch(0.828 0.189 84.429);
     --chart-5: oklch(0.769 0.188 70.08);
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.708 0 0);
+    --sidebar: oklch(0.971 0.01 82);
+    --sidebar-foreground: oklch(0.325 0.066 30);
+    --sidebar-primary: oklch(0.305 0.027 46);
+    --sidebar-primary-foreground: oklch(0.986 0.006 84);
+    --sidebar-accent: oklch(0.949 0.014 70);
+    --sidebar-accent-foreground: oklch(0.305 0.027 46);
+    --sidebar-border: oklch(0.904 0.012 78);
+    --sidebar-ring: oklch(0.62 0.052 30);
 }
 
 .dark {
@@ -131,6 +176,44 @@
     button {
         cursor: pointer;
     }
+
+    /* "Wow" przy dotknieciu: kazdy przycisk lekko sie ugina pod palcem.
+       scale nie powoduje reflow; reduced-motion to respektuje. */
+    @media (prefers-reduced-motion: no-preference) {
+        button:not(:disabled),
+        [role="button"]:not([aria-disabled="true"]) {
+            transition:
+                transform 0.14s cubic-bezier(0.34, 1.56, 0.64, 1),
+                background-color 0.15s ease,
+                color 0.15s ease,
+                border-color 0.15s ease,
+                box-shadow 0.15s ease;
+        }
+        button:not(:disabled):active,
+        [role="button"]:not([aria-disabled="true"]):active {
+            transform: scale(0.97);
+        }
+    }
+}
+
+/* Dyskretna kratka na kanwie aplikacji - papier milimetrowy w cieplym
+   bordo-inkauscie (~7%). Aplikowana na glowny kontener tresci (nie body,
+   bo body krylyby nieprzezroczyste panele). Pod kartami/balonami czatu
+   znika sama - maja wlasne tlo. Wyczuwalna, nie krzykliwa. */
+.app-grid {
+    background-image:
+        linear-gradient(
+            to right,
+            color-mix(in oklch, var(--bordeaux) 7%, transparent) 1px,
+            transparent 1px
+        ),
+        linear-gradient(
+            to bottom,
+            color-mix(in oklch, var(--bordeaux) 7%, transparent) 1px,
+            transparent 1px
+        );
+    background-size: 30px 30px;
+    background-position: center;
 }
 
 .usc-section {
