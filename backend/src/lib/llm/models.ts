@@ -60,15 +60,30 @@ export function openRouterModelId(model: string): string {
         : model;
 }
 
+// Ollama (lokalna inferencja, ADR-0014 T2): modele oznaczane prefiksem
+// "ollama/", po ktorym nastepuje natywny id Ollama "model:tag" (np.
+// "ollama/llama3.3:70b"). Prefiks odroznia je od kanonicznych modeli chmurowych
+// i jest jedynym sygnalem egress=no-egress (patrz routing/egress.ts). Jedno
+// zrodlo prawdy tutaj - egress.ts re-eksportuje, analogicznie do OPENROUTER_PREFIX.
+export const OLLAMA_PREFIX = "ollama/";
+
+export function isOllamaModel(model: string): boolean {
+    return model.startsWith(OLLAMA_PREFIX);
+}
+
 export function providerForModel(model: string): Provider {
     if (isOpenRouterModel(model)) return "openrouter";
     if (model.startsWith("claude")) return "claude";
     if (model.startsWith("gemini")) return "gemini";
     if (model.startsWith("gpt-")) return "openai";
+    // Ollama (no-egress) NIE jest w unii `Provider` warstwy funkcyjnej - jest
+    // dispatchowany wczesniej w llm/index.ts (completeText/streamChatWithTools)
+    // przez isOllamaModel. Jezeli ollama/* tu dotarl, to omieto ten guard.
     throw new Error(`Unknown model id: ${model}`);
 }
 
 export function resolveModel(id: string | null | undefined, fallback: string): string {
-    if (id && (ALL_MODELS.has(id) || isOpenRouterModel(id))) return id;
+    if (id && (ALL_MODELS.has(id) || isOpenRouterModel(id) || isOllamaModel(id)))
+        return id;
     return fallback;
 }
