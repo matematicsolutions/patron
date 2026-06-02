@@ -345,6 +345,7 @@ export const pl = {
         anthropicKeyLabel: "Anthropic (Claude) - klucz API",
         googleKeyLabel: "Google (Gemini) - klucz API",
         openaiKeyLabel: "OpenAI - klucz API",
+        openrouterKeyLabel: "OpenRouter - klucz API (jeden klucz, wiele modeli)",
         serverKeyConfigured:
             "Administrator ustawił klucz w pliku .env serwera. Nie zmienisz go w przeglądarce.",
         serverKeyWillBeUsed: "Patron użyje klucza z serwera.",

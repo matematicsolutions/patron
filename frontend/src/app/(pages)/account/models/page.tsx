@@ -25,7 +25,7 @@ import { t, type TranslationKey } from "@/i18n";
 // Etykiety pol pobierane przez t() w komponencie - tu trzymamy tylko
 // staly wzor (provider + klucz tlumaczenia + placeholder).
 const API_KEY_FIELDS: ReadonlyArray<{
-    provider: "claude" | "gemini" | "openai";
+    provider: "claude" | "gemini" | "openai" | "openrouter";
     labelKey: TranslationKey;
     placeholder: string;
 }> = [
@@ -43,6 +43,11 @@ const API_KEY_FIELDS: ReadonlyArray<{
         provider: "openai",
         labelKey: "models.openaiKeyLabel",
         placeholder: "sk-…",
+    },
+    {
+        provider: "openrouter",
+        labelKey: "models.openrouterKeyLabel",
+        placeholder: "sk-or-v1-…",
     },
 ];
 

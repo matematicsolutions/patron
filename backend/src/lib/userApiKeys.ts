@@ -3,7 +3,7 @@ import { createServerSupabase } from "./supabase";
 import type { UserApiKeys } from "./llm";
 
 type Db = ReturnType<typeof createServerSupabase>;
-export type ApiKeyProvider = "claude" | "gemini" | "openai";
+export type ApiKeyProvider = "claude" | "gemini" | "openai" | "openrouter";
 export type ApiKeySource = "user" | "env" | null;
 export type ApiKeyStatus = Record<ApiKeyProvider, boolean> & {
     sources: Record<ApiKeyProvider, ApiKeySource>;
@@ -16,7 +16,12 @@ type EncryptedKeyRow = {
     auth_tag: string;
 };
 
-const PROVIDERS: ApiKeyProvider[] = ["claude", "gemini", "openai"];
+const PROVIDERS: ApiKeyProvider[] = [
+    "claude",
+    "gemini",
+    "openai",
+    "openrouter",
+];
 
 function envApiKey(provider: ApiKeyProvider): string | null {
     if (provider === "claude") {
@@ -28,6 +33,9 @@ function envApiKey(provider: ApiKeyProvider): string | null {
     }
     if (provider === "openai") {
         return process.env.OPENAI_API_KEY?.trim() || null;
+    }
+    if (provider === "openrouter") {
+        return process.env.OPENROUTER_API_KEY?.trim() || null;
     }
     return process.env.GEMINI_API_KEY?.trim() || null;
 }
@@ -96,10 +104,12 @@ export async function getUserApiKeyStatus(
         claude: false,
         gemini: false,
         openai: false,
+        openrouter: false,
         sources: {
             claude: null,
             gemini: null,
             openai: null,
+            openrouter: null,
         },
     };
 
@@ -135,8 +145,9 @@ export async function getUserApiKeys(
         claude: envApiKey("claude"),
         gemini: envApiKey("gemini"),
         openai: envApiKey("openai"),
-        // OpenRouter (ADR-0059): klucz tylko z env w v1 (per-user w DB =
-        // rezerwacja, wymaga rozszerzenia enuma provider w schemacie).
+        // OpenRouter (ADR-0059): klucz z env (Operator) ALBO wpisany per-user
+        // w UI (mecenas wkleja swoj klucz OpenRouter). Env ma priorytet; brak
+        // env -> klucz uzytkownika dociagany ponizej (petla normalizeProvider).
         openrouter: process.env.OPENROUTER_API_KEY?.trim() || null,
     };
 
