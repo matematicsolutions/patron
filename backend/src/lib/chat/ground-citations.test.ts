@@ -100,13 +100,27 @@ describe("groundCitationsByRef", () => {
 });
 
 describe("extractClaim", () => {
-    it("wyciaga zdanie wokol znacznika [ref]", () => {
+    it("wyciaga okno wokol znacznika [ref], ograniczone akapitem", () => {
         const answer =
-            "Roszczenie jest zasadne. Sąd oddalił powództwo w całości [2]. Koszty obciążają powoda.";
+            "Akapit pierwszy bez cytatu.\nSąd oddalił powództwo w całości [2] z uwagi na przedawnienie.\nKoszty obciążają powoda.";
         const claim = extractClaim(answer, 2);
         expect(claim).toContain("oddalił powództwo");
-        expect(claim).not.toContain("Roszczenie jest zasadne");
-        expect(claim).not.toContain("Koszty");
+        expect(claim).not.toContain("Akapit pierwszy"); // inny akapit
+        expect(claim).not.toContain("Koszty"); // inny akapit
+    });
+
+    it("NIE lamie sie na polskich skrotach (art./ust.) - okno znakowe, nie zdaniowe", () => {
+        const answer =
+            "Zgodnie z art. 6 ust. 1 ustawy tajemnica jest bezwzględna [1].";
+        const claim = extractClaim(answer, 1);
+        expect(claim).toContain("art. 6 ust. 1");
+        expect(claim).toContain("tajemnica jest bezwzględna");
+    });
+
+    it("odcina blok <CITATIONS> - nie szuka [ref] w surowym JSON", () => {
+        const answer =
+            'Proza bez inline markera.\n<CITATIONS>[{"marker":"[1]","quote":"x"}]</CITATIONS>';
+        expect(extractClaim(answer, 1)).toBe(""); // [1] tylko w JSON -> odciete
     });
 
     it("brak znacznika -> pusty string", () => {

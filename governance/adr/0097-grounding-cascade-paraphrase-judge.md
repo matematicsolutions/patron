@@ -40,6 +40,13 @@ Biblioteka `backend/src/lib/citation/cascade.ts` - `groundCascade(citation, sour
 Pelny eval z REALNYM sedzia (korpus TRUE/PARAPHRASE/FALSE-UNDER-TRUE, Ollama lokalny, offline) = krok przy wpieciu (rezerwacja), poniewaz wymaga adaptera judge i decyzji o domyslnym wlaczeniu.
 Bramki: tsc 0, pelny suite 1061 pass / 0 fail (bez regresji na grounding.test.ts/tabular).
 
+## Hardening po przegladzie kodu (2026-06-02, high-effort review)
+
+Recenzja (3 zbiezne findery) wskazala realne dziury - naprawione:
+- **Sedzia LOKALNY-ONLY (krytyczne, PII):** judge ocenia NIEMASKOWANY fragment dokumentu klienta (cytat + kontekst zrodla); glowny czat maskuje PII (wrapConversation), pipeline obrony tez (wrapInto) - judge nie. Dla client_general/internal + ALLOW_US guardEgress przepuscilby model chmurowy -> niezamaskowane PESEL/nazwiska do US. FIX: `makeJudge` zwraca null gdy `!isLocalModel(model)` - sedzia dziala WYLACZNIE na modelu lokalnym (Ollama, no-egress). Tresc klienta nigdy nie opuszcza maszyny przez judge. Spojne z zero-egress; rozwiazuje tez audyt-residency (brak egressu = nic do logowania) i PII-po-drucie.
+- **extractClaim - okno znakowe zamiast zdaniowego:** stary podzial po `[.!?]\s` lamal teze na polskich skrotach ("art. ", "ust. ", "tj. ") i mogl trafic [ref] w blok <CITATIONS> (JSON). FIX: okno +/-250 znakow wokol znacznika, przyciete do akapitu (newline); odciecie bloku <CITATIONS> przed szukaniem.
+- **SSE slim (PII po drucie):** event "citations" serializowal caly CascadeResult (z judgeReason - kandydat PII). FIX: do klienta whitelistowane WYLACZNIE `{decision, verdict}`; `judgeReason` zostaje server-side (istotne w trybie serwerowym).
+
 ## Alternatywy odrzucone
 - **Judge wbudowany na sztywno w verifyOne**: odrzucone - verifyOne ma byc deterministyczny i offline (reuzywany przez tabular/chat bez LLM). Etap 3 jako osobna warstwa z wstrzykiwanym portem.
 - **Judge zmienia decision (blokade) automatycznie w v1**: odrzucone - blokada na niedeterministycznym LLM lamie Art. 3 (audyt "raz green raz red"). decision deterministyczna; verdict doradczy; polityka blokady verdict = osobna decyzja governance.
@@ -65,3 +72,6 @@ Bramki: tsc 0, pelny suite 1061 pass / 0 fail (bez regresji na grounding.test.ts
 - `groundingSummary` (ground-citations.ts) dolacza `judge: {judged, green, yellow, red, downgraded}` gdy sedzia dzialal (stage 3). Tylko liczby/enumy, ZERO tresci/PII. Plynie do audit_log przez istniejacy payload (chat.ts/projectChat.ts spreaduja summary).
 - **`downgraded`** = ile cytatow sedzia zdegradowal do red mimo tekstowo poprawnego trafienia (decision=verified) = zlapane "cytat doslowny pod falszywa teza" (Stanford). To kluczowa metryka wartosci judge - dowod due-diligence dla AI Act i miara skutecznosci do ewaluacji.
 - **Ensemble** (N modeli) przez `guardEnvelopeTier` (envelope_tier, ADR-0095). **Cache werdyktow** judge (anty-koszt).
+- **Persystencja `verdict`** (z przegladu): verdict jest dzis LIVE-only (SSE) - po reloadzie czatu badge wraca do koloru wg deterministycznej `decision` (judge-red znika). verdict to enum (bezpieczny do zapisu, w przeciwienstwie do judgeReason) - persystowac w annotation. Do zrobienia przy wpieciu produkcyjnym.
+- **Sekwencyjne wywolania judge** (z przegladu): grounding z sedzia iteruje cytaty w petli (await per cytat) - przy wielu cytatach + lokalnym (wolniejszym) modelu zawiesza panel. Rownoleglosc z limitem przy wpieciu.
+- **guardEnvelopeTier([]) = allow** (z przegladu, ADR-0095): pusty zbior modeli przepuszcza (envelope=no-egress); rozwazyc fail-closed (block "brak modeli") gdy ensemble dostanie realny call-site.

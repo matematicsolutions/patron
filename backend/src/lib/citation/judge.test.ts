@@ -87,17 +87,15 @@ describe("makeJudge - fail-closed przez guardEgress", () => {
         expect(v.confidence).toBe("wysoka");
     });
 
-    it("client_general + chmura + ALLOW_US=true -> JudgeFn dostepny", async () => {
+    it("LOCAL-ONLY: model chmurowy -> null nawet dla client_general + ALLOW_US (sedzia ocenia niemaskowana tresc)", async () => {
         process.env.ALLOW_US_PROVIDERS = "true";
-        const complete: CompleteTextFn = async () =>
-            '{"verdict":"tak","confidence":"srednia","uzasadnienie":"ok"}';
         const judge = await makeJudge({
             db: fakeDb({ data: [{ classification: "client_general" }] }),
-            model: "claude-3-5-sonnet",
+            model: "claude-3-5-sonnet", // chmura - mimo ze guardEgress by przepuscil
             projectId: "case-1",
-            complete,
         });
-        expect(judge).not.toBeNull();
+        // Sedzia jest lokalny-only: niemaskowany tekst zrodla nie moze isc do chmury.
+        expect(judge).toBeNull();
     });
 
     it("JudgeFn propaguje blad parsowania (cascade go zlapie -> fail-closed)", async () => {

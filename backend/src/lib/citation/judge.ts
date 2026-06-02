@@ -15,7 +15,7 @@
 import type { createServerSupabase } from "../supabase";
 import type { UserApiKeys } from "../llm";
 import { completeText } from "../llm";
-import { guardEgress } from "../routing";
+import { guardEgress, isLocalModel } from "../routing";
 import type { JudgeFn, JudgeVerdict } from "./cascade";
 
 /** Wstrzykiwalny wariant completeText (testy podaja fake). */
@@ -93,13 +93,21 @@ export function parseJudgeResponse(raw: string): JudgeVerdict {
 }
 
 /**
- * Tworzy sedziego LLM dla kaskady. Zwraca null, gdy strażnik data-residency nie
- * dopuszcza modelu dla klasyfikacji sprawy (fail-closed - kaskada zostaje
- * deterministyczna, tresc nie wychodzi do niedozwolonego modelu).
+ * Tworzy sedziego LLM dla kaskady. Zwraca null (fail-closed, kaskada zostaje
+ * deterministyczna) gdy:
+ *  1. model NIE jest lokalny (no-egress) - sedzia jest LOKALNY-ONLY. Ocenia
+ *     surowy fragment dokumentu klienta (cytat + kontekst zrodla), ktory NIE
+ *     przechodzi przez pseudonimizacje PII (inaczej niz glowny czat/pipeline
+ *     obrony). Dopuszczenie modelu chmurowego = przeciek tresci klienta do US.
+ *     Dlatego sedzia dziala wylacznie na modelu lokalnym (Ollama), gdzie nic nie
+ *     opuszcza maszyny - spojne z zero-egress Patrona i bez ryzyka PII.
+ *  2. strażnik data-residency i tak by go zablokowal (podwojne zabezpieczenie).
  */
 export async function makeJudge(
     opts: MakeJudgeOptions,
 ): Promise<JudgeFn | null> {
+    // Sedzia ocenia NIEMASKOWANY tekst zrodla -> tylko model lokalny (no-egress).
+    if (!isLocalModel(opts.model)) return null;
     const guard = await guardEgress({
         db: opts.db,
         model: opts.model,

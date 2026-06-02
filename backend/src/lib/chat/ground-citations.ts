@@ -26,37 +26,38 @@ export interface GroundOptions {
     judge?: JudgeFn | null;
 }
 
-const SENTENCE_BOUNDARY = /[.!?]\s|\n/;
+/** Okno kontekstu (znaki) po obu stronach znacznika [ref]. */
+const CLAIM_WINDOW = 250;
 
 /**
- * Wyciaga "teze" dla cytatu [ref] - zdanie odpowiedzi zawierajace znacznik [ref].
+ * Wyciaga "teze" dla cytatu [ref] - fragment odpowiedzi wokol znacznika [ref].
  * To jest to, co odpowiedz TWIERDZI cytatem; sedzia ocenia, czy zrodlo to wspiera.
  * Brak znacznika -> "" (sedzia sie nie odpala dla tego cytatu).
+ *
+ * Okno ZNAKOWE (nie zdaniowe): polski tekst prawniczy jest pelen skrotow
+ * ("art. ", "ust. ", "tj. ", "np. "), wiec dzielenie po kropce+spacji ucinaloby
+ * teze w polowie. Okno przycinamy do granicy AKAPITU (newline), by nie wciagnac
+ * sasiednich twierdzen. Blok <CITATIONS> (JSON na koncu odpowiedzi) odcinamy -
+ * inaczej [ref] moglby trafic w surowy JSON zamiast w proze.
  */
 export function extractClaim(
     answerText: string | undefined,
     ref: number,
 ): string {
     if (!answerText) return "";
+    const tagPos = answerText.search(/<CITATIONS/i);
+    const prose = tagPos >= 0 ? answerText.slice(0, tagPos) : answerText;
     const marker = `[${ref}]`;
-    const pos = answerText.indexOf(marker);
+    const pos = prose.indexOf(marker);
     if (pos === -1) return "";
-    // Granica zdania w lewo i w prawo wokol znacznika.
-    let start = 0;
-    for (let i = pos; i > 0; i--) {
-        if (SENTENCE_BOUNDARY.test(answerText.slice(i - 1, i + 1))) {
-            start = i;
-            break;
-        }
-    }
-    let end = answerText.length;
-    for (let i = pos + marker.length; i < answerText.length - 1; i++) {
-        if (SENTENCE_BOUNDARY.test(answerText.slice(i, i + 2))) {
-            end = i + 1;
-            break;
-        }
-    }
-    return answerText.slice(start, end).trim().slice(0, 600);
+    let start = Math.max(0, pos - CLAIM_WINDOW);
+    let end = Math.min(prose.length, pos + marker.length + CLAIM_WINDOW);
+    // Nie przekraczaj granicy akapitu - teza zwykle mieszci sie w jednym akapicie.
+    const nlBefore = prose.lastIndexOf("\n", pos);
+    if (nlBefore >= 0 && nlBefore + 1 > start) start = nlBefore + 1;
+    const nlAfter = prose.indexOf("\n", pos);
+    if (nlAfter !== -1 && nlAfter < end) end = nlAfter;
+    return prose.slice(start, end).trim().slice(0, 600);
 }
 
 /**

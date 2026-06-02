@@ -522,7 +522,22 @@ export async function runLLMStream(params: {
         answerText: fullText,
         judge,
     });
-    write(`data: ${JSON.stringify({ type: "citations", citations, grounding })}\n\n`);
+    // Do klienta wysylamy WYLACZNIE whitelistowane pola (decision + verdict enum).
+    // judgeReason (ADR-0097, kandydat PII/tajemnica) zostaje server-side - nie idzie
+    // po drucie (istotne w trybie serwerowym). grounding (pelny) sluzy audytowi nizej.
+    const groundingForClient: Record<
+        number,
+        { decision: string; verdict?: "green" | "yellow" | "red" }
+    > = {};
+    for (const [ref, r] of Object.entries(grounding)) {
+        const c = r as { decision: string; verdict?: "green" | "yellow" | "red" };
+        groundingForClient[Number(ref)] = c.verdict
+            ? { decision: c.decision, verdict: c.verdict }
+            : { decision: c.decision };
+    }
+    write(
+        `data: ${JSON.stringify({ type: "citations", citations, grounding: groundingForClient })}\n\n`,
+    );
     // Cytaty z serwerow MCP (np. SAOS) - osobny event, zeby panel UI
     // mogl je renderowac jako "Powiazane zrodla" obok dokumentowych.
     if (mcpCitations.length > 0) {
