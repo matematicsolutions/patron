@@ -412,6 +412,43 @@ export function useAssistantChat({
                             continue;
                         }
 
+                        // Zdarzenie bledu ze strumienia (np. egress_blocked:
+                        // sprawa objeta tajemnica + model chmurowy). Dotad NIE
+                        // bylo obslugiwane - UI wisial na kreciolku. Teraz
+                        // pokazujemy czytelny komunikat (czerwony blok) i konczymy
+                        // ladowanie, by mecenas wiedzial DLACZEGO brak odpowiedzi.
+                        if (data.type === "error") {
+                            stopDrip();
+                            const errMsg =
+                                (typeof data.message === "string" &&
+                                    data.message) ||
+                                (typeof data.error === "string" &&
+                                    data.error) ||
+                                "Wystąpił błąd podczas generowania odpowiedzi.";
+                            setMessages((prev) => {
+                                const last = prev[prev.length - 1];
+                                if (last?.role === "assistant") {
+                                    const updated = [...prev];
+                                    updated[updated.length - 1] = {
+                                        ...last,
+                                        error: errMsg,
+                                    };
+                                    return updated;
+                                }
+                                return [
+                                    ...prev,
+                                    {
+                                        role: "assistant",
+                                        content: "",
+                                        error: errMsg,
+                                    },
+                                ];
+                            });
+                            setIsResponseLoading(false);
+                            setIsLoadingCitations(false);
+                            continue;
+                        }
+
                         if (data.type === "content_done") {
                             setIsLoadingCitations(true);
                             continue;
