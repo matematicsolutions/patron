@@ -78,7 +78,7 @@ describe("analyzeInput - detekcja atakow", () => {
         expect(findings.some((f) => f.technique === "homoglyph-mixed-script")).toBe(true);
     });
 
-    it("PDF z akcja automatyczna (/OpenAction) -> blocked (critical)", () => {
+    it("PDF z /OpenAction URUCHAMIAJACYM JavaScript -> blocked (critical)", () => {
         const pdfBytes = new TextEncoder().encode(
             "%PDF-1.7\n1 0 obj<</Type/Catalog/OpenAction<</S/JavaScript/JS(app.alert)>>>>endobj",
         );
@@ -89,6 +89,33 @@ describe("analyzeInput - detekcja atakow", () => {
         });
         expect(result.threatLevel).toBe("critical");
         expect(result.action).toBe("blocked");
+    });
+
+    it("PDF z /Launch -> blocked (critical)", () => {
+        const pdfBytes = new TextEncoder().encode(
+            "%PDF-1.7\n1 0 obj<</Type/Action/S/Launch/F(cmd.exe)>>endobj",
+        );
+        const result = analyzeInput({
+            text: "tresc pdf",
+            declaredType: "application/pdf",
+            buffer: pdfBytes,
+        });
+        expect(result.action).toBe("blocked");
+    });
+
+    it("REGRESJA false-positive: PDF z benignnym /OpenAction (auto-nawigacja, bez kodu) -> NIE blokowany", () => {
+        // Wzorzec z realnego legalnego PDF (umowa): otworz na stronie + dopasuj.
+        // Wczesniej kazde /OpenAction blokowalo akta prawnika jako 'critical'.
+        const pdfBytes = new TextEncoder().encode(
+            "%PDF-1.7\n1 0 obj<</Type/Catalog/Pages 2 0 R/OpenAction[3 0 R /FitH null]>>endobj\ntresc umowy o roboty budowlane",
+        );
+        const result = analyzeInput({
+            text: "UMOWA O ROBOTY BUDOWLANE nr 7/2025",
+            declaredType: "application/pdf",
+            buffer: pdfBytes,
+        });
+        expect(result.action).not.toBe("blocked");
+        expect(result.threatLevel).not.toBe("critical");
     });
 
     it("token-splitting 'z i g n o r u j' jest wykrywany", () => {
