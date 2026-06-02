@@ -18,6 +18,7 @@ import {
 import { createServerSupabase } from "../supabase";
 import { CITATIONS_OPEN_TAG, parseCitations, resolveDoc } from "./citations";
 import { groundCitationsByRef } from "./ground-citations";
+import { makeJudge } from "../citation/judge";
 import type { GroundingResult } from "../citation/grounding";
 import { TOOLS, WORKFLOW_TOOLS } from "./tools";
 import { runToolCalls, type TurnEditState } from "./tool-dispatch";
@@ -507,7 +508,20 @@ export async function runLLMStream(params: {
     // zwrotem - kazdy cytat z dokumentu klienta sprawdzany string-matchem
     // wzgledem tresci. Werdykt (verified/unverified/blocked) leci obok cytatow,
     // UI renderuje 3-stopniowy signal. Deterministyczne, offline, zero LLM.
-    const grounding = await groundCitationsByRef(citations, docStore, docIndex, db);
+    //
+    // ADR-0097: opcjonalny etap semantyczny (paraphrase-judge) za flaga
+    // PATRON_CITATION_JUDGE (default OFF - zero zmiany zachowania). makeJudge
+    // routuje przez guardEgress (tajemnica -> tylko model lokalny; brak = null =
+    // grounding pozostaje deterministyczny, fail-closed). Lapie cytat doslowny pod
+    // falszywa teza (Stanford). decision (blokada) zostaje deterministyczna.
+    const judge =
+        process.env.PATRON_CITATION_JUDGE === "true"
+            ? await makeJudge({ db, model: selectedModel, apiKeys, projectId })
+            : null;
+    const grounding = await groundCitationsByRef(citations, docStore, docIndex, db, {
+        answerText: fullText,
+        judge,
+    });
     write(`data: ${JSON.stringify({ type: "citations", citations, grounding })}\n\n`);
     // Cytaty z serwerow MCP (np. SAOS) - osobny event, zeby panel UI
     // mogl je renderowac jako "Powiazane zrodla" obok dokumentowych.

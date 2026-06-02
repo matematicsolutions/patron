@@ -152,11 +152,19 @@ export async function groundCascade(
             normalize(citation.quote).length,
             opts.contextWindow ?? 200,
         );
-        const jv = await opts.judge({
-            quote: citation.quote,
-            claim: opts.claim,
-            sourceContext: ctx,
-        });
+        let jv: JudgeVerdict;
+        try {
+            jv = await opts.judge({
+                quote: citation.quote,
+                claim: opts.claim,
+                sourceContext: ctx,
+            });
+        } catch {
+            // FAIL-CLOSED: sedzia niedostepny / blad parsowania -> NIE eskalujemy,
+            // zostaje werdykt deterministyczny (etap 1/2). Judge nie moze zepsuc
+            // groundingu - w najgorszym razie nie poprawia.
+            return { ...text, verdict, stage, confidence, partial };
+        }
         stage = 3;
         confidence = JUDGE_CONFIDENCE[jv.confidence];
         judgeReason = jv.uzasadnienie;

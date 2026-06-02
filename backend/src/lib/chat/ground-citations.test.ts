@@ -7,7 +7,8 @@ vi.mock("./tool-dispatch", () => ({
     getDocumentTextForGrounding: (docLabel: string) => getText(docLabel),
 }));
 
-import { groundCitationsByRef } from "./ground-citations";
+import { groundCitationsByRef, extractClaim } from "./ground-citations";
+import type { JudgeFn } from "../citation/cascade";
 import type { DocStore } from "./types";
 
 const SRC =
@@ -91,5 +92,56 @@ describe("groundCitationsByRef", () => {
             docStore,
         );
         expect(Object.keys(out)).toEqual(["1"]);
+    });
+});
+
+describe("extractClaim", () => {
+    it("wyciaga zdanie wokol znacznika [ref]", () => {
+        const answer =
+            "Roszczenie jest zasadne. Sąd oddalił powództwo w całości [2]. Koszty obciążają powoda.";
+        const claim = extractClaim(answer, 2);
+        expect(claim).toContain("oddalił powództwo");
+        expect(claim).not.toContain("Roszczenie jest zasadne");
+        expect(claim).not.toContain("Koszty");
+    });
+
+    it("brak znacznika -> pusty string", () => {
+        expect(extractClaim("Jakiś tekst bez markera.", 5)).toBe("");
+    });
+
+    it("brak answerText -> pusty string", () => {
+        expect(extractClaim(undefined, 1)).toBe("");
+    });
+});
+
+describe("groundCitationsByRef - etap semantyczny (judge wstrzykniety)", () => {
+    it("z sedzia 'nie' degraduje verdict do red mimo dokladnego cytatu (decision verified zostaje)", async () => {
+        getText.mockResolvedValue("Sąd oddalił powództwo w całości.");
+        const judge: JudgeFn = async () => ({
+            verdict: "nie",
+            confidence: "wysoka",
+            uzasadnienie: "Zrodlo mowi przeciwnie.",
+        });
+        const out = await groundCitationsByRef(
+            [{ ref: 1, doc_id: "doc-0", quote: "oddalił powództwo" }],
+            docStore,
+            undefined,
+            undefined,
+            { answerText: "Sąd uwzględnił powództwo [1].", judge },
+        );
+        const r = out[1] as typeof out[1] & { verdict?: string; stage?: number };
+        expect(r.decision).toBe("verified"); // deterministyczna nietknieta
+        expect(r.verdict).toBe("red"); // werdykt doradczy zdegradowany
+        expect(r.stage).toBe(3);
+    });
+
+    it("bez sedziego -> sciezka deterministyczna (brak pol verdict/stage z etapu 3)", async () => {
+        getText.mockResolvedValue("Sąd oddalił powództwo w całości.");
+        const out = await groundCitationsByRef(
+            [{ ref: 1, doc_id: "doc-0", quote: "oddalił powództwo" }],
+            docStore,
+        );
+        expect(out[1].decision).toBe("verified");
+        expect((out[1] as { stage?: number }).stage).toBeUndefined();
     });
 });

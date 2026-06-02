@@ -9,6 +9,7 @@ import {
     type GroundingResult,
     verifyCitations,
 } from "../citation/grounding";
+import { groundCascade, type JudgeFn } from "../citation/cascade";
 import type { ParsedCitation } from "./types";
 import type { DocIndex, DocStore } from "./types";
 import { getDocumentTextForGrounding } from "./tool-dispatch";
@@ -16,6 +17,47 @@ import type { createServerSupabase } from "../supabase";
 
 /** Minimalny ksztalt cytatu potrzebny do groundingu (wspolny dla obu galezi stream). */
 type GroundableCitation = { ref: number; doc_id: string; quote: string };
+
+/** Opcje semantycznego etapu (ADR-0097). Bez nich grounding pozostaje deterministyczny. */
+export interface GroundOptions {
+    /** Tekst odpowiedzi - zrodlo tezy (claim) dla sedziego. */
+    answerText?: string;
+    /** Sedzia LLM (makeJudge). null/brak = etap 3 sie nie odpala (deterministyczny). */
+    judge?: JudgeFn | null;
+}
+
+const SENTENCE_BOUNDARY = /[.!?]\s|\n/;
+
+/**
+ * Wyciaga "teze" dla cytatu [ref] - zdanie odpowiedzi zawierajace znacznik [ref].
+ * To jest to, co odpowiedz TWIERDZI cytatem; sedzia ocenia, czy zrodlo to wspiera.
+ * Brak znacznika -> "" (sedzia sie nie odpala dla tego cytatu).
+ */
+export function extractClaim(
+    answerText: string | undefined,
+    ref: number,
+): string {
+    if (!answerText) return "";
+    const marker = `[${ref}]`;
+    const pos = answerText.indexOf(marker);
+    if (pos === -1) return "";
+    // Granica zdania w lewo i w prawo wokol znacznika.
+    let start = 0;
+    for (let i = pos; i > 0; i--) {
+        if (SENTENCE_BOUNDARY.test(answerText.slice(i - 1, i + 1))) {
+            start = i;
+            break;
+        }
+    }
+    let end = answerText.length;
+    for (let i = pos + marker.length; i < answerText.length - 1; i++) {
+        if (SENTENCE_BOUNDARY.test(answerText.slice(i, i + 2))) {
+            end = i + 1;
+            break;
+        }
+    }
+    return answerText.slice(start, end).trim().slice(0, 600);
+}
 
 /**
  * Bezpieczna ekstrakcja {ref, doc_id, quote} z nieznanego rekordu cytatu.
@@ -49,6 +91,7 @@ export async function groundCitationsByRef(
     docStore: DocStore,
     docIndex?: DocIndex,
     db?: ReturnType<typeof createServerSupabase>,
+    opts?: GroundOptions,
 ): Promise<Record<number, GroundingResult>> {
     const citations = rawCitations
         .map(toGroundable)
@@ -71,16 +114,32 @@ export async function groundCitationsByRef(
         }),
     );
 
-    // 2) synchroniczny resolver na prefetchowanej mapie -> czysty weryfikator
     const parsed: ParsedCitation[] = citations.map((c) => ({
         ref: c.ref,
         doc_id: c.doc_id,
         page: 1,
         quote: c.quote,
     }));
-    const report = verifyCitations(parsed, (id) => textByDocId.get(id) ?? null);
 
     const byRef: Record<number, GroundingResult> = {};
+
+    // Etap 3 (ADR-0097) tylko gdy wstrzyknieto sedziego. Inaczej deterministyczny
+    // verifyCitations jak dotad (zero zmiany zachowania - flaga PATRON_CITATION_JUDGE).
+    if (opts?.judge) {
+        for (const c of parsed) {
+            const source = textByDocId.get(c.doc_id) ?? null;
+            const claim = extractClaim(opts.answerText, c.ref);
+            // groundCascade lapie bledy sedziego wewnetrznie (fail-closed -> deterministyczny).
+            byRef[c.ref] = await groundCascade(c, source, {
+                judge: opts.judge,
+                claim: claim || undefined,
+            });
+        }
+        return byRef;
+    }
+
+    // Sciezka deterministyczna (domyslna): synchroniczny resolver na mapie.
+    const report = verifyCitations(parsed, (id) => textByDocId.get(id) ?? null);
     for (const r of report.results) byRef[r.ref] = r;
     return byRef;
 }

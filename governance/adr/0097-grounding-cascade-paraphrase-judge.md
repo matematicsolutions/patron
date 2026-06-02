@@ -1,6 +1,6 @@
 # ADR-0097: Kaskadowy grounding cytatow z paraphrase-judge (biblioteka, warstwa semantyczna nad ADR-0005)
 
-**Status**: Wdrozony 2026-06-02 jako BIBLIOTEKA na branch `feat/tier-governance-envelope` (NIE scalony, wpiecie w szwy = rezerwacja). Dodaje semantyczny etap weryfikacji cytatu (paraphrase-judge) nad deterministycznym `verifyOne` (ADR-0005), z werdyktem 3-kolorowym. Lapie przypadek, ktorego string-match nie lapie: cytat doslowny pod falszywa teza (Stanford/Magesh).
+**Status**: Wdrozony 2026-06-02 na branch `feat/tier-governance-envelope` (NIE scalony). Biblioteka kaskady + adapter realnego judge + WPIECIE w sciezke czatu ZA FLAGA `PATRON_CITATION_JUDGE` (default OFF = zero zmiany zachowania). Dodaje semantyczny etap weryfikacji cytatu (paraphrase-judge) nad deterministycznym `verifyOne` (ADR-0005), z werdyktem 3-kolorowym. Lapie przypadek, ktorego string-match nie lapie: cytat doslowny pod falszywa teza (Stanford/Magesh). Wpiecie tabular, UX zoltego stanu, polityka blokady i pelny eval z realnym Ollama PRZED wlaczeniem flagi = pozostale kroki.
 
 **Data**: 2026-06-02
 
@@ -44,10 +44,16 @@ Bramki: tsc 0, pelny suite 1061 pass / 0 fail (bez regresji na grounding.test.ts
 - **Judge wbudowany na sztywno w verifyOne**: odrzucone - verifyOne ma byc deterministyczny i offline (reuzywany przez tabular/chat bez LLM). Etap 3 jako osobna warstwa z wstrzykiwanym portem.
 - **Judge zmienia decision (blokade) automatycznie w v1**: odrzucone - blokada na niedeterministycznym LLM lamie Art. 3 (audyt "raz green raz red"). decision deterministyczna; verdict doradczy; polityka blokady verdict = osobna decyzja governance.
 
-## Rezerwacje (wpiecie - osobne kroki, po decyzjach Wieslawa)
-- **Adapter realnego judge** `citation/judge.ts`: prompt-template PL ("false-positive gorszy"), structured-output {verdict,confidence,uzasadnienie}, wywolanie przez `enforceEgressGuard` (tajemnica -> Ollama, fail-closed). Ensemble (N modeli) przez `guardEnvelopeTier`.
-- **OCR-aware tolerant**: `normalizeOcrConfusable` (l/I/1, O/0) gdy `wasOcrd`; wymaga persystencji `ocrUsed` (ConvertResult) przez documentIngest do DocStore (dzis nie persystowany).
-- **Wpiecie w szwy**: chat `ground-citations.ts` i tabular `grounding.ts` wolaja `groundCascade` gdy judge wlaczony. Domyslnie WLACZONY czy opt-in (rekomendacja: opt-in z silnym default-on gdy egress=no-egress).
-- **UX zoltego stanu**: AssistantMessage.tsx ma dzis 3 klasy (verified/unverified/blocked) - dodac partial/yellow + tooltip z judgeReason+stage. Labelki i18n.
-- **Polityka blokady**: czy yellow/judge-red blokuje deliverable (governance, Konstytucja).
-- **Cache werdyktow** judge (in-memory keyed hash(cytat+kontekst+model)) - anty-koszt.
+## Zrobione w tej iteracji (poza biblioteka cascade.ts)
+- **Adapter realnego judge** `citation/judge.ts`: `makeJudge` routuje przez `guardEgress` (ADR-0067/0095) i zwraca null, gdy klasyfikacja nie dopuszcza modelu (tajemnica + chmura) = FAIL-CLOSED, tresc nie wychodzi. Prompt-template PL ("false-positive gorszy"), parse structured JSON; blad parsowania -> throw -> cascade lapie i zostaje przy werdykcie deterministycznym.
+- **Ekstrakcja tezy** `extractClaim` (ground-citations.ts): zdanie odpowiedzi wokol znacznika `[ref]` jako claim dla sedziego. Brak znacznika -> brak tezy -> sedzia sie nie odpala (no-op).
+- **Wpiecie w czat** `stream.ts` + `ground-citations.ts` ZA FLAGA `PATRON_CITATION_JUDGE` (default OFF). `groundCascade` z `extractClaim` per cytat; verdict/stage/confidence rida obok cytatow w SSE.
+
+## Rezerwacje (pozostale kroki)
+- **Pelny eval z realnym Ollama** (korpus TRUE/PARAPHRASE/FALSE-UNDER-TRUE, offline) PRZED wlaczeniem flagi - mierzy precision zielonego na FALSE-UNDER-TRUE (cel >=0.90). Default OFF do czasu pomiaru.
+- **Kalibracja znacznika cytatu**: `extractClaim` zaklada marker `[ref]` w tekscie odpowiedzi - zweryfikowac realny format znacznikow Patrona (jesli inny, claim pusty -> judge no-op, fail-safe).
+- **OCR-aware tolerant**: `normalizeOcrConfusable` (l/I/1, O/0) gdy `wasOcrd`; wymaga persystencji `ocrUsed` przez documentIngest do DocStore (dzis nie persystowany).
+- **Wpiecie tabular** `tabular/grounding.ts` analogicznie do czatu.
+- **UX zoltego stanu**: AssistantMessage.tsx ma 3 klasy (verified/unverified/blocked) - dodac partial/yellow + tooltip z judgeReason+stage. Labelki i18n. (verdict juz leci w SSE.)
+- **Polityka blokady**: czy yellow/judge-red blokuje deliverable (governance, Konstytucja). Dzis decision deterministyczna = blokada, verdict doradczy.
+- **Ensemble** (N modeli) przez `guardEnvelopeTier` (envelope_tier, ADR-0095). **Cache werdyktow** judge (anty-koszt).
