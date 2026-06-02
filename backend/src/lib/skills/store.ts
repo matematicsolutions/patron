@@ -3,6 +3,7 @@
 // Skille WBUDOWANE nie sa w bazie - dochodza z manifest.ts (BUILTIN_SKILLS).
 
 import { createServerSupabase } from "../supabase";
+import type { CustomStageSpec } from "../pipeline/defense";
 import {
   BUILTIN_SKILLS,
   manifestToEntry,
@@ -94,6 +95,31 @@ export async function setSkillEnabled(
     .eq("id", id);
   if (error) throw new Error(error.message);
   return rowToEntry({ ...existing, enabled });
+}
+
+/**
+ * Wlaczone skille o powierzchni draft-stage jako spec custom etapow do
+ * pipeline obrony (ADR-0095). Kolejnosc = instalacji. Wbudowane NIE sa tu
+ * (maja wlasne buildery w defense.ts).
+ */
+export async function loadEnabledDraftStageSkills(
+  db: Db,
+): Promise<CustomStageSpec[]> {
+  const { data, error } = await db
+    .from("installed_skills")
+    .select("*")
+    .eq("enabled", true)
+    .order("installed_at", { ascending: true });
+  if (error) throw new Error(error.message);
+  return (data ?? [])
+    .map((r) => r as unknown as SkillRow)
+    .filter((r) => r.manifest.surface === "draft-stage")
+    .map((r) => ({
+      id: r.id,
+      name: r.name,
+      system: r.manifest.prompt.system,
+      user: r.manifest.prompt.user,
+    }));
 }
 
 /** Usun zainstalowany skill. Zwraca false gdy nie istnial. */

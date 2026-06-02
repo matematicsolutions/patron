@@ -15,6 +15,7 @@ import {
   type AdwokatMode,
   type DefenseStage,
 } from "../lib/pipeline/defense";
+import { loadEnabledDraftStageSkills } from "../lib/skills/store";
 import { appendAuditEvent } from "../lib/audit";
 import { enforceEgressGuard, appendLlmRouteEvent } from "../lib/routing";
 import {
@@ -128,12 +129,15 @@ draftRouter.post("/refine", requireAuth, async (req, res) => {
       });
     }
 
+    // Wlaczone skille z paczek (surface draft-stage) - po wbudowanych etapach.
+    const customStages = await loadEnabledDraftStageSkills(db);
     const result = await runDefensePipeline(text, {
       model: selectedModel,
       apiKeys,
       stages: effectiveStages,
       adwokatMode: mode,
       context: typeof context === "string" ? context : undefined,
+      customStages,
     });
     // H11: per-call audit pipeline obrony. Payload bez tresci draftu - tylko
     // metadane (kto/kiedy/etapy/model/klasyfikacja/dlugosci/czas). AI Act art. 12.
@@ -145,6 +149,7 @@ draftRouter.post("/refine", requireAuth, async (req, res) => {
         classification: guard.decision.classification,
         egress: guard.decision.egress,
         stages: effectiveStages,
+        custom_skills: customStages.map((s) => s.id),
         adwokat_mode: mode ?? null,
         document_type: docType ?? null,
         high_stakes: highStakes.isHighStakes,

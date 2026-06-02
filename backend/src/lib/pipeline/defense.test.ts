@@ -120,6 +120,46 @@ describe("runDefensePipeline (fake LLM)", () => {
     );
     expect(r.final).toBe("ORIGINAL");
   });
+
+  it("custom skill (ADR-0095) uruchamia sie PO wbudowanych, lancuchuje, ma label", async () => {
+    const { fake, calls } = recordingLlm();
+    const r = await runDefensePipeline(
+      "DRAFT0",
+      {
+        model: "m",
+        customStages: [
+          { id: "streszczenie", name: "Streszczenie", system: "SYS_X", user: "USR_X" },
+        ],
+      },
+      fake,
+    );
+    expect(calls.length).toBe(4); // 3 wbudowane + 1 custom
+    expect(r.stages.map((s) => s.stage)).toEqual([...ALL_STAGES, "streszczenie"]);
+    const custom = r.stages[3];
+    expect(custom.label).toBe("Streszczenie");
+    expect(calls[3].user).toContain("OUT3"); // wejscie custom = output ostatniego wbudowanego
+    expect(calls[3].user).toContain("USR_X");
+    expect(calls[3].system).toBe("SYS_X"); // system z manifestu, bez BASE_RULES
+    expect(r.final).toBe("OUT4");
+  });
+
+  it("custom skille moga isc bez wbudowanych (stages: [])", async () => {
+    const { fake, calls } = recordingLlm();
+    const r = await runDefensePipeline(
+      "D",
+      {
+        model: "m",
+        stages: [],
+        customStages: [
+          { id: "a", name: "A", system: "sa", user: "ua" },
+          { id: "b", name: "B", system: "sb", user: "ub" },
+        ],
+      },
+      fake,
+    );
+    expect(calls.length).toBe(2);
+    expect(r.stages.map((s) => s.stage)).toEqual(["a", "b"]);
+  });
 });
 
 describe("sanitizeContext (H12)", () => {

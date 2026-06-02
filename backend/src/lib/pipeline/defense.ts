@@ -25,8 +25,21 @@ export const ALL_STAGES: DefenseStage[] = [
   "pisz-po-ludzku",
 ];
 
+/**
+ * Custom etap z paczki skilla (ADR-0094/0095). Uruchamiany PO wbudowanych,
+ * przez ten sam przeplyw maskowania PII. Prompt pochodzi z manifestu - autor
+ * skilla kontroluje zachowanie (nie doklejamy BASE_RULES); gwarancja "bez PII"
+ * plynie z maskowania pipeline, nie z tresci promptu.
+ */
+export interface CustomStageSpec {
+  id: string;
+  name: string;
+  system: string;
+  user: string;
+}
+
 export interface DefenseConfig {
-  /** Ktore etapy uruchomic, w kolejnosci. Default: wszystkie trzy. */
+  /** Ktore wbudowane etapy uruchomic, w kolejnosci. Default: wszystkie trzy. */
   stages?: DefenseStage[];
   /** Tryb adwokata diabla. Default: strona-przeciwna. */
   adwokatMode?: AdwokatMode;
@@ -34,11 +47,16 @@ export interface DefenseConfig {
   apiKeys?: UserApiKeys;
   /** Opcjonalny kontekst sprawy (rodzaj pisma, instancja) - wstrzykiwany w prompt. */
   context?: string;
+  /** Custom etapy z paczek skilli (ADR-0095) - uruchamiane PO wbudowanych. */
+  customStages?: CustomStageSpec[];
 }
 
 export interface StageResult {
-  stage: DefenseStage;
+  /** Wbudowany etap (enum) albo id custom skilla z paczki. */
+  stage: DefenseStage | string;
   mode?: AdwokatMode;
+  /** Etykieta wyswietlana dla custom skilla (nazwa z manifestu). */
+  label?: string;
   output: string;
 }
 
@@ -208,6 +226,23 @@ function promptForStage(
   return { prompt: buildPiszPoLudzkuPrompt(draft, config.context) };
 }
 
+/**
+ * Prompt custom etapu z paczki skilla. System pochodzi w calosci z manifestu
+ * (autor kontroluje zachowanie); draft doklejany do user-promptu jak w etapach
+ * wbudowanych. Kontekst sprawy wstrzykiwany tym samym separatorem (dane, nie
+ * instrukcje). Maskowanie PII robi runDefensePipeline, nie ten prompt.
+ */
+export function buildCustomPrompt(
+  spec: CustomStageSpec,
+  draft: string,
+  context?: string,
+): DefensePrompt {
+  return {
+    system: spec.system,
+    user: withContext(`${spec.user}\n\n---\n${draft}`, context),
+  };
+}
+
 export type LlmCompleteFn = (params: {
   model: string;
   systemPrompt?: string;
@@ -239,8 +274,30 @@ export async function runDefensePipeline(
   // tokeny); output kazdego etapu pokazujemy odwrocony.
   let current = map ? await wrapInto(map, draft) : draft;
   const results: StageResult[] = [];
-  for (const stage of stages) {
-    const { prompt, mode } = promptForStage(stage, current, config);
+  // Zadania = wbudowane etapy (w kolejnosci) + custom etapy z paczek PO nich.
+  // Custom etapy ida przez ten sam zamaskowany `current` (wspolna mapa PII).
+  type Job =
+    | { kind: "builtin"; stage: DefenseStage }
+    | { kind: "custom"; spec: CustomStageSpec };
+  const jobs: Job[] = [
+    ...stages.map((stage): Job => ({ kind: "builtin", stage })),
+    ...(config.customStages ?? []).map((spec): Job => ({ kind: "custom", spec })),
+  ];
+  for (const job of jobs) {
+    let prompt: DefensePrompt;
+    let mode: AdwokatMode | undefined;
+    let stageId: string;
+    let label: string | undefined;
+    if (job.kind === "builtin") {
+      const r = promptForStage(job.stage, current, config);
+      prompt = r.prompt;
+      mode = r.mode;
+      stageId = job.stage;
+    } else {
+      prompt = buildCustomPrompt(job.spec, current, config.context);
+      stageId = job.spec.id;
+      label = job.spec.name;
+    }
     const output = await llm({
       model: config.model,
       systemPrompt: prompt.system,
@@ -251,7 +308,12 @@ export async function runDefensePipeline(
     const trimmed = (output ?? "").trim();
     // Pusta odpowiedz etapu nie kasuje draftu - zachowaj poprzedni.
     if (trimmed) current = trimmed;
-    results.push({ stage, mode, output: map ? unwrap(trimmed, map) : trimmed });
+    results.push({
+      stage: stageId,
+      mode,
+      label,
+      output: map ? unwrap(trimmed, map) : trimmed,
+    });
   }
   return {
     final: map ? unwrap(current, map) : current,

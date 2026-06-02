@@ -13,6 +13,7 @@ import { Router } from "express";
 import { requireAuth } from "../middleware/auth";
 import { createServerSupabase } from "../lib/supabase";
 import { validateManifest, BUILTIN_IDS } from "../lib/skills/manifest";
+import { analyzeInput } from "../lib/input-security";
 import {
   listSkills,
   importSkill,
@@ -48,6 +49,19 @@ skillsRouter.post("/import", requireAuth, async (req, res) => {
   if (BUILTIN_IDS.has(parsed.manifest.id)) {
     return void res.status(409).json({
       detail: `Identyfikator '${parsed.manifest.id}' jest zarezerwowany dla umiejetnosci wbudowanej.`,
+    });
+  }
+  // Skan anty-injection promptu skilla (ADR-0094/0095, duch ADR-0019). Zlosliwy
+  // prompt ("ignoruj poprzednie instrukcje...") nie wchodzi do biblioteki -
+  // bramka przy imporcie jest silniejsza niz skan przy kazdym uruchomieniu.
+  const scan = analyzeInput({
+    text: `${parsed.manifest.prompt.system}\n${parsed.manifest.prompt.user}`,
+    fileName: `skill:${parsed.manifest.id}`,
+  });
+  if (scan.action !== "allowed") {
+    return void res.status(400).json({
+      detail: `Paczka odrzucona przez skan bezpieczenstwa (poziom: ${scan.threatLevel}). Prompt zawiera podejrzane wzorce.`,
+      security: { action: scan.action, threatLevel: scan.threatLevel },
     });
   }
   const db = createServerSupabase();

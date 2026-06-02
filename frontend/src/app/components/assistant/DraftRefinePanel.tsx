@@ -8,6 +8,7 @@ import { Check, ChevronDown, Copy, Loader2, X } from "lucide-react";
 import {
     refineDraft,
     type AdwokatMode,
+    type DefenseStage,
     type DraftRefineResult,
     type DraftStageResult,
 } from "@/app/lib/patronApi";
@@ -20,7 +21,9 @@ const ADWOKAT_MODES: AdwokatMode[] = [
 ];
 
 function stageLabel(s: DraftStageResult): string {
-    const base = t(`draft.stage.${s.stage}` as const);
+    // Custom skill z paczki - etykieta z manifestu (brak klucza i18n).
+    if (s.label) return s.label;
+    const base = t(`draft.stage.${s.stage as DefenseStage}` as const);
     if (s.stage === "adwokat" && s.mode) {
         return `${base} — ${t(`draft.mode.${s.mode}` as const)}`;
     }
