@@ -10,6 +10,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import type { PATRONProject } from "@/app/components/shared/types";
 import { NewProjectModal } from "./NewProjectModal";
 import { ToolbarTabs } from "@/app/components/shared/ToolbarTabs";
+import { SortHeader, applySort, type SortDir } from "@/app/components/shared/SortHeader";
 import { RowActions } from "@/app/components/shared/RowActions";
 import { t } from "@/i18n";
 
@@ -40,7 +41,16 @@ export function ProjectsOverview() {
     const [actionsOpen, setActionsOpen] = useState(false);
     const [search, setSearch] = useState("");
     const [ownerOnlyAction, setOwnerOnlyAction] = useState<string | null>(null);
+    const [sortKey, setSortKey] = useState<string | null>(null);
+    const [sortDir, setSortDir] = useState<SortDir>("asc");
     const actionsRef = useRef<HTMLDivElement>(null);
+
+    function onSort(key: string) {
+        setSortDir((prev) =>
+            sortKey === key ? (prev === "asc" ? "desc" : "asc") : "asc",
+        );
+        setSortKey(key);
+    }
     const router = useRouter();
     const { user, isAuthenticated, authLoading } = useAuth();
 
@@ -108,6 +118,25 @@ export function ProjectsOverview() {
             p.name.toLowerCase().includes(q) ||
             (p.cm_number ?? "").toLowerCase().includes(q),
     );
+
+    const sorted = applySort(filtered, sortKey, sortDir, (p) => {
+        switch (sortKey) {
+            case "name":
+                return p.name;
+            case "cm":
+                return p.cm_number ?? null;
+            case "files":
+                return p.document_count ?? 0;
+            case "chats":
+                return p.chat_count ?? 0;
+            case "reviews":
+                return p.review_count ?? 0;
+            case "created":
+                return p.created_at ? Date.parse(p.created_at) : null;
+            default:
+                return null;
+        }
+    });
 
     const allSelected =
         filtered.length > 0 &&
@@ -189,7 +218,7 @@ export function ProjectsOverview() {
                         <ChevronDown className="h-3.5 w-3.5" />
                     </button>
                     {actionsOpen && (
-                        <div className="absolute top-full right-0 mt-1 w-36 rounded-lg border border-gray-100 bg-white shadow-lg z-50 overflow-hidden">
+                        <div className="absolute top-full right-0 mt-1 w-36 rounded-lg border border-gray-100 bg-white shadow-lg z-[70] overflow-hidden">
                             <button
                                 onClick={handleDeleteSelected}
                                 className="w-full px-3 py-1.5 text-left text-xs text-red-600 hover:bg-red-50 transition-colors"
@@ -251,22 +280,58 @@ export function ProjectsOverview() {
                         )}
                     </div>
                     <div className={`sticky left-8 z-[60] ${NAME_COL_W} bg-white pl-2 text-left`}>
-                        {t("projects.nameColumn")}
+                        <SortHeader
+                            label={t("projects.nameColumn")}
+                            columnKey="name"
+                            activeKey={sortKey}
+                            dir={sortDir}
+                            onSort={onSort}
+                        />
                     </div>
                     <div className="ml-auto w-32 shrink-0 text-left">
-                        {t("projects.cmShort")}
+                        <SortHeader
+                            label={t("projects.cmShort")}
+                            columnKey="cm"
+                            activeKey={sortKey}
+                            dir={sortDir}
+                            onSort={onSort}
+                        />
                     </div>
                     <div className="w-24 shrink-0 text-left">
-                        {t("projects.filesColumn")}
+                        <SortHeader
+                            label={t("projects.filesColumn")}
+                            columnKey="files"
+                            activeKey={sortKey}
+                            dir={sortDir}
+                            onSort={onSort}
+                        />
                     </div>
                     <div className="w-24 shrink-0 text-left">
-                        {t("projects.chatsColumn")}
+                        <SortHeader
+                            label={t("projects.chatsColumn")}
+                            columnKey="chats"
+                            activeKey={sortKey}
+                            dir={sortDir}
+                            onSort={onSort}
+                        />
                     </div>
                     <div className="w-36 shrink-0 text-left">
-                        {t("projects.tabularReviewsColumn")}
+                        <SortHeader
+                            label={t("projects.tabularReviewsColumn")}
+                            columnKey="reviews"
+                            activeKey={sortKey}
+                            dir={sortDir}
+                            onSort={onSort}
+                        />
                     </div>
                     <div className="w-32 shrink-0 text-left">
-                        {t("projects.createdColumn")}
+                        <SortHeader
+                            label={t("projects.createdColumn")}
+                            columnKey="created"
+                            activeKey={sortKey}
+                            dir={sortDir}
+                            onSort={onSort}
+                        />
                     </div>
                     <div className="w-8 shrink-0" />
                 </div>
@@ -337,7 +402,7 @@ export function ProjectsOverview() {
                     </div>
                 ) : (
                     <div>
-                        {filtered.map((project) => {
+                        {sorted.map((project) => {
                             const rowBg = selectedIds.includes(project.id)
                                 ? "bg-gray-50"
                                 : "bg-white";

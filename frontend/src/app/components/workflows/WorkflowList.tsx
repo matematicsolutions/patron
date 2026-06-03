@@ -24,6 +24,7 @@ import { BUILT_IN_WORKFLOWS, BUILT_IN_IDS } from "./builtinWorkflows";
 import { DisplayWorkflowModal } from "./DisplayWorkflowModal";
 import { NewWorkflowModal } from "./NewWorkflowModal";
 import { ToolbarTabs } from "../shared/ToolbarTabs";
+import { SortHeader, applySort, type SortDir } from "../shared/SortHeader";
 import { RowActions } from "../shared/RowActions";
 import { PATRONIcon } from "@/components/chat/patron-icon";
 import { useAuth } from "@/contexts/AuthContext";
@@ -58,6 +59,15 @@ export function WorkflowList() {
     );
     const [typeFilterOpen, setTypeFilterOpen] = useState(false);
     const [search, setSearch] = useState("");
+    const [sortKey, setSortKey] = useState<string | null>(null);
+    const [sortDir, setSortDir] = useState<SortDir>("asc");
+
+    function onSort(key: string) {
+        setSortDir((prev) =>
+            sortKey === key ? (prev === "asc" ? "desc" : "asc") : "asc",
+        );
+        setSortKey(key);
+    }
     const actionsRef = useRef<HTMLDivElement>(null);
     const practiceFilterRef = useRef<HTMLDivElement>(null);
     const typeFilterRef = useRef<HTMLDivElement>(null);
@@ -136,6 +146,26 @@ export function WorkflowList() {
         .filter((wf) => !practiceFilter || wf.practice === practiceFilter)
         .filter((wf) => !typeFilter || wf.type === typeFilter)
         .filter((wf) => !q || wf.title.toLowerCase().includes(q));
+    const sourceLabel = (wf: PATRONWorkflow) =>
+        wf.is_system
+            ? "PATRON"
+            : wf.user_id === user?.id
+              ? "Myself"
+              : (wf.shared_by_name ?? "Shared");
+    const sorted = applySort(filtered, sortKey, sortDir, (wf) => {
+        switch (sortKey) {
+            case "name":
+                return wf.title;
+            case "type":
+                return wf.type;
+            case "practice":
+                return wf.practice ?? null;
+            case "source":
+                return sourceLabel(wf);
+            default:
+                return null;
+        }
+    });
 
     const allSelected =
         filtered.length > 0 &&
@@ -226,7 +256,7 @@ export function WorkflowList() {
                 <ChevronDown className="h-3 w-3" />
             </button>
             {typeFilterOpen && (
-                <div className="absolute right-0 top-full mt-1.5 z-20 w-40 rounded-xl border border-gray-100 bg-white shadow-lg overflow-hidden">
+                <div className="absolute right-0 top-full mt-1.5 z-[70] w-40 rounded-xl border border-gray-100 bg-white shadow-lg overflow-hidden">
                     <button
                         onClick={() => {
                             setTypeFilter(null);
@@ -282,7 +312,7 @@ export function WorkflowList() {
                 <ChevronDown className="h-3 w-3" />
             </button>
             {practiceFilterOpen && (
-                <div className="absolute right-0 top-full mt-1.5 z-20 w-52 rounded-xl border border-gray-100 bg-white shadow-lg overflow-hidden">
+                <div className="absolute right-0 top-full mt-1.5 z-[70] w-52 rounded-xl border border-gray-100 bg-white shadow-lg overflow-hidden">
                     <button
                         onClick={() => {
                             setPracticeFilter(null);
@@ -330,7 +360,7 @@ export function WorkflowList() {
                         <ChevronDown className="h-3.5 w-3.5" />
                     </button>
                     {actionsOpen && (
-                        <div className="absolute top-full right-0 mt-1 w-36 rounded-lg border border-gray-100 bg-white shadow-lg z-50 overflow-hidden">
+                        <div className="absolute top-full right-0 mt-1 w-36 rounded-lg border border-gray-100 bg-white shadow-lg z-[70] overflow-hidden">
                             {activeTab === "hidden" ? (
                                 <button
                                     onClick={handleBulkUnhide}
@@ -405,11 +435,41 @@ export function WorkflowList() {
                             )}
                         </div>
                         <div className={`sticky left-8 z-[60] ${NAME_COL_W} bg-white pl-2 text-left`}>
-                            Name
+                            <SortHeader
+                                label="Name"
+                                columnKey="name"
+                                activeKey={sortKey}
+                                dir={sortDir}
+                                onSort={onSort}
+                            />
                         </div>
-                        <div className="ml-auto w-28 shrink-0">Type</div>
-                        <div className="w-40 shrink-0">Practice</div>
-                        <div className="w-28 shrink-0">Source</div>
+                        <div className="ml-auto w-28 shrink-0">
+                            <SortHeader
+                                label="Type"
+                                columnKey="type"
+                                activeKey={sortKey}
+                                dir={sortDir}
+                                onSort={onSort}
+                            />
+                        </div>
+                        <div className="w-40 shrink-0">
+                            <SortHeader
+                                label="Practice"
+                                columnKey="practice"
+                                activeKey={sortKey}
+                                dir={sortDir}
+                                onSort={onSort}
+                            />
+                        </div>
+                        <div className="w-28 shrink-0">
+                            <SortHeader
+                                label="Source"
+                                columnKey="source"
+                                activeKey={sortKey}
+                                dir={sortDir}
+                                onSort={onSort}
+                            />
+                        </div>
                         <div className="w-8 shrink-0" />
                     </div>
 
@@ -483,7 +543,7 @@ export function WorkflowList() {
                             )}
                         </div>
                     ) : (
-                        filtered.map((wf) => {
+                        sorted.map((wf) => {
                             const rowBg = selectedIds.includes(wf.id)
                                 ? "bg-gray-50"
                                 : "bg-white";
