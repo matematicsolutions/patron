@@ -1,11 +1,40 @@
 [
   {
-    "_comment": "Copy this file to mcp-servers.json and adjust to your setup.",
-    "_comment2": "mcp-servers.json is gitignored (local config, may contain credentials).",
+    "_comment": "Skopiuj ten plik do mcp-servers.json i dostosuj sciezki. mcp-servers.json jest gitignored.",
+    "_comment2": "Nazwy MUSZA odpowiadac APPROVED_PATRON_CONNECTORS w backend/src/lib/mcp-security/pipeline.ts - inaczej bramka typosquat zablokuje wlasny konektor.",
+    "_comment3": "W instalatorze desktop ten plik jest generowany automatycznie (desktop/scripts/prepare-resources.cjs) ze sciezkami wzglednymi mcp-bundled/<name>/dist/index.js.",
     "name": "saos",
     "transport": "stdio",
     "command": "node",
-    "args": ["/path/to/saos-mcp-server/dist/index.js"],
+    "args": ["/path/to/mcp-saos/dist/index.js"],
+    "enabled": false
+  },
+  {
+    "name": "nsa",
+    "transport": "stdio",
+    "command": "node",
+    "args": ["/path/to/mcp-nsa/dist/index.js"],
+    "enabled": false
+  },
+  {
+    "name": "isap",
+    "transport": "stdio",
+    "command": "node",
+    "args": ["/path/to/mcp-isap/dist/index.js"],
+    "enabled": false
+  },
+  {
+    "name": "krs",
+    "transport": "stdio",
+    "command": "node",
+    "args": ["/path/to/mcp-krs/dist/index.js"],
+    "enabled": false
+  },
+  {
+    "name": "eu-sparql",
+    "transport": "stdio",
+    "command": "node",
+    "args": ["/path/to/mcp-eu-sparql/dist/index.js"],
     "enabled": false
   },
   {
@@ -14,12 +43,6 @@
     "transport": "stdio",
     "command": "node",
     "args": ["/path/to/mcp-eu-compliance/dist/index.js"],
-    "enabled": false
-  },
-  {
-    "name": "example-http",
-    "transport": "http",
-    "url": "http://localhost:3100/mcp",
     "enabled": false
   }
 ]

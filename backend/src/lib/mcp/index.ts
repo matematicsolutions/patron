@@ -73,6 +73,54 @@ let _cachedTools: OpenAIToolSchema[] | null = null;
 // ---------------------------------------------------------------------------
 
 const CONFIG_PATH = path.resolve(__dirname, "../../../mcp-servers.json");
+// Korzen backendu (tam lezy mcp-servers.json oraz - w instalatorze desktop -
+// katalog mcp-bundled/ z konektorami). Sluzy do rozwiazania sciezek wzglednych
+// w args konektora na bezwzgledne.
+const BACKEND_ROOT = path.dirname(CONFIG_PATH);
+
+/**
+ * Rozwiazuje konfiguracje konektora stdio pod realne srodowisko uruchomieniowe.
+ *
+ * Dwa problemy instalatora desktop (ADR-0091), ktorych nie ma w trybie
+ * dev/docker:
+ *  1. Na maszynie klienta NIE MA zewnetrznego `node`. Backend dziala pod Node
+ *     wbudowanym w Electron (main.js spawnuje go z ELECTRON_RUN_AS_NODE=1).
+ *     Ten sam binarny (process.execPath) musi uruchomic konektor - wiec gdy
+ *     command === "node" i jestesmy pod Electronem, podmieniamy na execPath
+ *     i przekazujemy ELECTRON_RUN_AS_NODE=1 do dziecka.
+ *  2. mcp-servers.json instalatora trzyma args WZGLEDNE (np.
+ *     "mcp-bundled/saos/dist/index.js"), bo absolutna sciezka instalacji nie
+ *     jest znana w czasie budowania. Rozwiazujemy je wzgledem BACKEND_ROOT.
+ *
+ * W trybie dev/docker (command "node" dostepny, args absolutne) funkcja jest
+ * no-op - sciezki absolutne nie sa ruszane, podmiana execPath nie odpala.
+ */
+function resolveStdioSpawn(cfg: McpServerConfig): McpServerConfig {
+    if (cfg.transport !== "stdio") return cfg;
+
+    const underElectron = process.env.ELECTRON_RUN_AS_NODE === "1";
+    let command = cfg.command;
+    let env = cfg.env;
+    if (command === "node" && underElectron) {
+        command = process.execPath;
+        // Minimalny env (least-privilege, Konstytucja Art. 7 / RODO art. 32):
+        // wymuszamy tryb Node Electrona + ewentualny env operatora z cfg. NIE
+        // przekazujemy pelnego process.env - zawiera sekrety backendu (klucz
+        // szyfrowania bazy, sekret szyfrowania kluczy API, secret podpisu pobran
+        // z main.js), ktorych konektor orzecznictwa nie potrzebuje, a bundlujemy
+        // duzo tranzytywnych node_modules (powierzchnia supply-chain). Bezpieczna
+        // baza OS (PATH/SystemRoot/APPDATA itd.) jest domieszywana przez sam SDK
+        // (StdioClientTransport: { ...getDefaultEnvironment(), ...env }) - konektor
+        // startuje, sekrety nie wyciekaja do procesu-dziecka.
+        env = { ...(cfg.env ?? {}), ELECTRON_RUN_AS_NODE: "1" };
+    }
+
+    const args = (cfg.args ?? []).map((a) =>
+        a.endsWith(".js") && !path.isAbsolute(a) ? path.resolve(BACKEND_ROOT, a) : a,
+    );
+
+    return { ...cfg, command, args, env };
+}
 
 function loadConfig(): McpServerConfig[] {
     if (!fs.existsSync(CONFIG_PATH)) {
@@ -85,7 +133,7 @@ function loadConfig(): McpServerConfig[] {
             console.warn("[MCP] mcp-servers.json must be a JSON array - ignoring");
             return [];
         }
-        return parsed.filter((s) => s.enabled !== false);
+        return parsed.filter((s) => s.enabled !== false).map(resolveStdioSpawn);
     } catch (err) {
         console.warn("[MCP] Failed to parse mcp-servers.json:", err);
         return [];

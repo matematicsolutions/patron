@@ -26,8 +26,17 @@ cd backend && npm install && npm run build && npm test
 # Frontend (Next.js)
 cd frontend && npm install && npm run build && npm test
 
-# Bundle 6 konektorow MCP do obrazu backendu
+# Bundle 6 konektorow MCP do obrazu backendu (tryb SERWEROWY / docker)
 node scripts/bundle-mcp.cjs
+
+# Bundle 6 konektorow MCP + model embeddera do instalatora DESKTOP (Electron)
+# odbywa sie w prepare-resources.cjs (stageMcpConnectors + stageEmbedModel),
+# wymaga 6 zbudowanych repo mcp-* obok patron/ (MCP_REPOS_DIR, default `..`).
+# Patrz ADR-0100. Dodajac konektor, zsynchronizuj jego nazwe w TRZECH miejscach:
+# backend/src/lib/mcp-security/pipeline.ts (APPROVED_PATRON_CONNECTORS),
+# desktop/scripts/prepare-resources.cjs (MCP_SERVERS) i mcp-servers.example.json -
+# rozjazd nazw = bramka typosquat + ring-policy blokuja WLASNY konektor (ADR-0027/0028).
+cd desktop && npm run build
 
 # Pelny stack (Docker, wymaga Supabase + MinIO osobno)
 cp .env.docker.example .env.docker
@@ -62,7 +71,7 @@ Testy: 817/822 pass na 2026-05-30 (5 todo, 0 fail). TSC clean. **Nie commituj je
 1. [README.md](./README.md) - opis dla ludzi
 2. [governance/CONSTITUTION.md](./governance/CONSTITUTION.md) - 9 zasad, role, audyt (v1.4.6, podpisywana przez kancelarie)
 3. [governance/IMPLEMENTATION_PLAYBOOK.md](./governance/IMPLEMENTATION_PLAYBOOK.md) - 6-8 tyg wdrozenia, RACI
-4. [governance/adr/](./governance/adr/) - Architecture Decision Records (0001-0075)
+4. [governance/adr/](./governance/adr/) - Architecture Decision Records (0001-0100)
 5. [THIRD_PARTY_INSPIRATIONS.md](./THIRD_PARTY_INSPIRATIONS.md) - co cherry-pickowalismy i skad (Mike, Lavern, gbrain, isaacus/tabular-review, PII-Shield, earendil/pi, awesome-llm-apps)
 6. [CHANGELOG.md](./CHANGELOG.md), [SECURITY.md](./SECURITY.md), [CONTRIBUTING.md](./CONTRIBUTING.md)
 

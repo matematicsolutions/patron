@@ -28,16 +28,22 @@ export const DEFAULT_DETECTORS: McpDetector[] = [
 ];
 
 /**
- * Lista zatwierdzonych nazw konektorow Patrona (canonical) na 2026-05-24.
- * Aktualizowana razem z `mcp-servers.example.json` przy dodaniu nowego konektora.
+ * Lista zatwierdzonych nazw konektorow Patrona (canonical) na 2026-06-03.
+ * MUSI odpowiadac realnym nazwom z mcp-servers.json / mcp-servers.example.json
+ * oraz bundlowanym w instalatorze (desktop/scripts/prepare-resources.cjs,
+ * scripts/bundle-mcp.cjs). Nazwa spoza tej listy w odleglosci Levenshteina <=2
+ * od ktorejkolwiek z nich = typosquat critical (denied). Stad rozjazd nazw
+ * blokuje WLASNY konektor: np. realny 'nsa' przy stalej 'nsa-orzeczenia' byl
+ * blokowany jako typosquat 'isap' (dist=2). Dodajac konektor - dopisz tu jego
+ * dokladna nazwe.
  */
 export const APPROVED_PATRON_CONNECTORS: ReadonlyArray<string> = [
     "saos",
-    "eu-compliance",
-    "krs",
+    "nsa",
     "isap",
-    "sn-orzeczenia",
-    "nsa-orzeczenia",
+    "krs",
+    "eu-sparql",
+    "eu-compliance",
 ];
 
 /** Skanuje pojedynczy konektor MCP. */

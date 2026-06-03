@@ -109,6 +109,11 @@ export async function computeAndStoreRoot(
                 merkle_root: root,
                 event_count: hashes.length,
                 computed_by: computedBy,
+                // Ustawiamy jawnie: w trybie desktop (SQLite) kolumna computed_at
+                // jest NOT NULL bez DEFAULT now() (Postgres ma default) - bez tego
+                // insert pierwszego rootu pada na NOT NULL constraint i cala warstwa
+                // Merkle (proof-of-inclusion, ADR-0026) jest martwa. ISO 8601 UTC.
+                computed_at: new Date().toISOString(),
             })
             .select()
             .single();

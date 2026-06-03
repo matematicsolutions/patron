@@ -122,3 +122,52 @@ describe("decideRoute - straznik data-residency (macierz)", () => {
         }
     });
 });
+
+describe("decideRoute - zgoda Operatora na chmure dla tajemnicy (ADR-0101)", () => {
+    it("domyslnie (allowPrivilegedCloud falsy) tajemnica do chmury = blok", () => {
+        for (const egress of ["eu-only", "us-with-dpa"] as EgressFlag[]) {
+            const d = decideRoute({
+                classification: "attorney_client_privileged",
+                egress,
+                allowUsProviders: true,
+            });
+            expect(d.action).toBe("block");
+            expect(d.reason).toBe("privileged-requires-local");
+        }
+    });
+
+    it("ze zgoda Operatora tajemnica dopuszcza KAZDY model (eu-only i us-with-dpa)", () => {
+        for (const egress of ["eu-only", "us-with-dpa"] as EgressFlag[]) {
+            const d = decideRoute({
+                classification: "attorney_client_privileged",
+                egress,
+                allowUsProviders: false, // zgoda na tajemnice obejmuje tez US
+                allowPrivilegedCloud: true,
+            });
+            expect(d.action).toBe("allow");
+            expect(d.reason).toBe("privileged-cloud-by-operator");
+        }
+    });
+
+    it("model lokalny pozostaje dozwolony bez wzgledu na zgode", () => {
+        const d = decideRoute({
+            classification: "attorney_client_privileged",
+            egress: "no-egress",
+            allowUsProviders: false,
+            allowPrivilegedCloud: true,
+        });
+        expect(d.action).toBe("allow");
+        expect(d.reason).toBe("local-no-egress");
+    });
+
+    it("zgoda na tajemnice NIE zmienia regul dla nizszych klasyfikacji (US nadal pod allowUsProviders)", () => {
+        const d = decideRoute({
+            classification: "internal",
+            egress: "us-with-dpa",
+            allowUsProviders: false,
+            allowPrivilegedCloud: true,
+        });
+        expect(d.action).toBe("block");
+        expect(d.reason).toBe("us-providers-disabled");
+    });
+});

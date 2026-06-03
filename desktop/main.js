@@ -83,9 +83,26 @@ function backendLocalEnv() {
     PATRON_BRAIN_DIR: path.join(ud, 'brain'),
     DOWNLOAD_SIGNING_SECRET: getOrCreateSecret('download_signing_secret'),
     USER_API_KEYS_ENCRYPTION_SECRET: getOrCreateSecret('api_keys_encryption_secret'),
+    // Desktop single-user: adwokat JEST Operatorem na wlasnej maszynie. Jego wybor
+    // modelu chmurowego (np. Libra/Anthropic - glowne narzedzie prawnikow w PL) jest
+    // swiadoma zgoda na egress. Zdejmujemy domyslny twardy blok chmury dla spraw
+    // objetych tajemnica; egress POZOSTAJE w pelni audytowany (dowod AI Act art. 12),
+    // a PII jest maskowane przed wyslaniem. Kancelaria moze zaostrzyc rygor wylaczajac
+    // te zmienne (tryb serwerowy/fabryczny ich nie ustawia). Patrz ADR-0101.
+    ALLOW_US_PROVIDERS: process.env.ALLOW_US_PROVIDERS ?? 'true',
+    PATRON_ALLOW_PRIVILEGED_CLOUD: process.env.PATRON_ALLOW_PRIVILEGED_CLOUD ?? 'true',
   };
   const dbKey = getOrCreateDbKey();
   if (dbKey) env.PATRON_DB_ENCRYPTION_KEY = dbKey;
+
+  // Embedder RAG: wskaz lokalnie zbundlowane wagi (dist-resources/backend/models),
+  // jesli sa. Bez tego transformers.js probowalby pobrac z sieci (zablokowane
+  // fail-closed) i retrieval degradowalby do BM25+graf. Ustawiamy tylko gdy
+  // katalog faktycznie istnieje - inaczej nie nadpisujemy domyslnej sciezki.
+  const modelsDir = path.join(RES(), 'backend', 'models');
+  if (fs.existsSync(modelsDir)) {
+    env.PATRON_EMBED_MODELS_PATH = modelsDir;
+  }
   return env;
 }
 

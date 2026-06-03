@@ -21,6 +21,17 @@ export function allowUsProviders(): boolean {
 }
 
 /**
+ * Czy Operator wyrazil swiadoma zgode na model chmurowy dla spraw objetych
+ * tajemnica zawodowa (PATRON_ALLOW_PRIVILEGED_CLOUD). Na desktopie single-user
+ * adwokat jest Operatorem na wlasnej maszynie - jego wybor modelu chmurowego
+ * (Libra/Anthropic) jest ta zgoda; instalator ustawia ja domyslnie. Egress i tak
+ * jest audytowany (dowod). Default false (fabryka serwerowa = rygor).
+ */
+export function allowPrivilegedCloud(): boolean {
+    return process.env.PATRON_ALLOW_PRIVILEGED_CLOUD === "true";
+}
+
+/**
  * Sugerowany model lokalny (no-egress) do zaproponowania przy blokadzie.
  * Env PATRON_LOCAL_MODEL (np. "ollama/llama3.3:70b"). null jesli nieustawiony.
  */
@@ -109,6 +120,7 @@ export async function guardEgress(args: {
         classification,
         egress,
         allowUsProviders: allowUsProviders(),
+        allowPrivilegedCloud: allowPrivilegedCloud(),
     });
     const provider = providerLabelForModel(args.model);
     if (decision.action === "allow") {

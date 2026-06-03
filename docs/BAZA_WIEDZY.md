@@ -1,12 +1,14 @@
 # Baza wiedzy PATRON — co umie i jak to wykorzystać
 
-**Wersja:** zgodna z audytem 2026-06-02 | **Produkt:** Patron v1.x (MateMatic Solutions)
+**Wersja:** zgodna ze stanem aplikacji 2026-06-03 | **Produkt:** Patron v1.x (MateMatic Solutions)
+
+> 📘 Szukasz instrukcji krok po kroku? Zobacz **[Samouczek dla Mecenasa](./SAMOUCZEK.md)** — od pierwszego uruchomienia, przez wgranie akt, po edycję pism.
 
 ---
 
 Witaj, Mecenasie.
 
-Patron to lokalny asystent AI zainstalowany w Twojej kancelarii — nie w chmurze. Oznacza to, że akta spraw, treści czatów i dane klientów pozostają na Twoim sprzęcie. Ty decydujesz, którego modelu używasz: lokalnego (Ollama, zero ruchu do internetu) albo wybranego dostawcy chmurowego, gdy świadomie wyrażasz na to zgodę. Każde wywołanie modelu, każda decyzja o egressie danych i każde wyszukanie w dokumentach trafia do niemodyfikowalnego audit trail — dowodu zgodności z AI Act art. 12 i RODO. Patron nie jest modelem AI i nie podejmuje decyzji prawnych — jest powłoką, która pozwala Ci pracować szybciej z materiałem, który i tak masz na biurku.
+Patron to asystent AI zainstalowany na sprzęcie Twojej kancelarii. Akta spraw, treści czatów, baza i historia są przechowywane lokalnie. Model AI wybierasz Ty — mocny model w chmurze (np. Libra/Claude, Gemini) dla najwyższej jakości albo model lokalny (Ollama), gdy zależy Ci na pracy bez internetu. Oba warianty są normalnym, świadomym wyborem kancelarii; klasyfikacja sprawy steruje tym, co i kiedy może wyjść poza komputer. Każde wywołanie modelu, każda decyzja o egressie danych i każde wyszukanie w dokumentach trafia do niemodyfikowalnego audit trail — dowodu zgodności z AI Act art. 12 i RODO. Patron nie jest modelem AI i nie podejmuje decyzji prawnych — jest powłoką, która pozwala Ci pracować szybciej z materiałem, który i tak masz na biurku.
 
 ---
 
@@ -177,22 +179,22 @@ Zacznij od wbudowanych workflowów (np. „Analiza umowy najmu", „Przegląd du
 **Co to robi:**
 Rozszerzenia pipeline obrony o niestandardowe etapy. Importujesz skill z pliku JSON (manifest z nazwą, instrukcją systemową, metadanymi egress). Po włączeniu skill pojawia się jako dodatkowy etap w Recenzent / Adwokat / Humanizer. Bramka egress blokuje skille wymagające chmury bez jawnej zgody.
 
-**Jak maksymalnie wykorzystać:**
-Import przez panel boczny → Skille → Import (plik JSON). Skille lokalne nie wymagają połączenia z internetem.
+Wbudowane umiejętności (zawsze aktywne): **Recenzent**, **Adwokat diabła**, **Pisz po ludzku** — to etapy panelu „Draft odpowiedzi". Własne włączasz, wyłączasz i importujesz.
 
-**Status — w przygotowaniu:** Trasa `GET /skills` zwraca aktualnie błąd 404 (blokada P0 — brak montowania trasy). Funkcja jest technicznie gotowa w backendzie, ale wymaga naprawy routingu przed udostępnieniem mecenasowi. Nie używaj tej funkcji do pracy produkcyjnej, dopóki administrator nie potwierdzi naprawy.
+**Jak maksymalnie wykorzystać:**
+Otwórz **Biblioteka umiejętności** w panelu bocznym. Wbudowane działają od razu. Własne importujesz z pliku JSON (Import) — skille lokalne nie wymagają połączenia z internetem; bramka egress blokuje skille wymagające chmury bez jawnej zgody.
 
 ---
 
 ### Kontrola egresu danych (data residency)
 
 **Co to robi:**
-Automatyczna klasyfikacja każdego zapytania do LLM: `attorney_client_privileged` (tajemnica adwokacka) → tylko model lokalny (Ollama), `internal` → lokalny lub chmura z DPA, `public` → wszystko. Fail-closed: nieznana klasyfikacja = tajemnica. Audit trail każdej decyzji egresu.
+Każde zapytanie do LLM jest klasyfikowane (`attorney_client_privileged` / `internal` / `public`), a strażnik data-residency podejmuje i **audytuje** decyzję o egresie. W wersji desktopowej (jednoosobowej) adwokat jest gospodarzem danych na własnej maszynie, więc jego wybór modelu chmurowego jest świadomą zgodą — domyślnie **dowolny model działa na każdej sprawie**, również objętej tajemnicą. Zgoda zdejmuje blokadę, **nie** audyt: każde wyjście danych ląduje w niemodyfikowalnym dzienniku z jawnym powodem (np. `privileged-cloud-by-operator`), a PII jest maskowane przed wysłaniem. Tryb serwerowy/fabryczny pozostaje rygorystyczny (tajemnica → tylko model lokalny), dopóki administrator nie włączy zgody.
 
 **Jak maksymalnie wykorzystać:**
-Ustawienia → Modele: wybierz model Ollama (np. llama3.2) dla maksymalnej prywatności lub Anthropic / Google, jeśli wyrażasz zgodę na egress z DPA. Sprawdzaj klasyfikację projektu w ustawieniach projektu. Patron automatycznie blokuje wysłanie tajemnicy adwokackiej do chmury, jeśli sprawa jest oznaczona jako `privileged`.
+Ustawienia → Modele: wybierz model dopasowany do zadania (chmurowy — np. Libra/Claude, Gemini — dla najwyższej jakości; lokalny Ollama dla pracy bez internetu). Sprawdzaj klasyfikację projektu w ustawieniach sprawy. Jeśli kancelaria chce zaostrzyć politykę (np. tajemnica wyłącznie lokalnie), administrator wyłącza zgodę zmiennymi `PATRON_ALLOW_PRIVILEGED_CLOUD` / `ALLOW_US_PROVIDERS`. Dziennik audytu daje pełny ślad, którym modelem i kiedy przetwarzano daną sprawę.
 
-**Status — ograniczenia:** Tabular Review aktualnie omija guard egresu (blokada P0 do naprawy). Nie używaj Tabular Review z materiałem objętym tajemnicą adwokacką na modelu chmurowym, dopóki administrator nie potwierdzi naprawy.
+Tabular Review przechodzi przez ten sam strażnik data-residency co czat i pipeline obrony (ADR-0099) — klasyfikacja sprawy decyduje, czy dane mogą trafić do modelu chmurowego.
 
 ---
 
@@ -243,19 +245,28 @@ Jako administrator: sprawdź banner MCP Security na górze ekranu. Stan `enforce
 
 ---
 
-### Konektory prawnicze: EUR-Lex i mcp-isap
+### Konektory prawnicze: orzecznictwo i legislacja PL + UE
 
 **Co to robi:**
-Dwa konektory dostępne jako narzędzia w czacie:
-- **mcp-eu-compliance**: wyszukiwanie prawa UE offline (RODO, AI Act, DORA, NIS2, eIDAS 2.0, CRA) z cytatami CELEX i disclaimerem daty snapshotu.
-- **mcp-isap**: wyszukiwanie polskich aktów prawnych (Dz.U., M.P.) przez search_acts, get_act, get_act_text.
+Komplet **6 konektorów wbudowanych w instalator** (działają od razu, bez konfiguracji), dostępnych jako narzędzia w czacie. Patron automatycznie sięga do właściwej bazy, gdy pytanie dotyczy orzeczenia, przepisu lub podmiotu:
 
-Patron automatycznie używa odpowiedniego konektora, gdy pytanie dotyczy konkretnego przepisu.
+| Konektor | Domena | Przykładowe narzędzia |
+|---|---|---|
+| **saos** | orzeczenia sądów powszechnych, SN, TK, KIO | search / get_judgment / search_by_case |
+| **nsa** | orzecznictwo NSA + 16 WSA (CBOSA) | search / get_judgment / search_by_case |
+| **isap** | legislacja PL (Dz.U., M.P., Sejm ELI) | search_acts / get_act / get_act_text |
+| **krs** | Krajowy Rejestr Sądowy | get_entity / get_entity_full / get_board |
+| **eu-sparql** | prawo UE + TSUE (live SPARQL) | search_by_celex / search_by_date_range / search_cjeu |
+| **eu-compliance** | compliance UE offline (RODO, AI Act, DORA, NIS2, eIDAS 2.0, CRA) | eu_search / eu_article / eu_check_applicability |
+
+Konektory uruchamiają się pod silnikiem wbudowanym w aplikację — mecenas nie musi instalować żadnego dodatkowego oprogramowania. Korpus prawa UE (eu-compliance) działa w pełni offline.
 
 **Jak maksymalnie wykorzystać:**
 Pytaj wprost z powołaniem na akt lub temat. Wyniki traktuj jako podpowiedź do weryfikacji — weryfikuj bieżące brzmienie przepisów w LexLege / Legalis przed cytowaniem w piśmie (konektory mogą mieć opóźnienie w stosunku do Dz.U.). Wersje historyczne aktów (time-travel) są w planach (ADR-0021).
 
 **Przykłady poleceń:**
+- „Wyszukaj orzeczenia Sądu Najwyższego o zadośćuczynieniu za naruszenie dóbr osobistych. Podaj sygnatury." (Patron zwróci realne wyroki z SAOS, np. I CSK 90/15, III CSK 217/15.)
+- „Sprawdź w KRS zarząd spółki Nowak-Bud sp. z o.o."
 - „Jaka jest podstawa prawna w Rozporządzeniu RODO dla prawa do bycia zapomnianym?"
 - „Pokaż mi art. 415 KC."
 - „Jaka jest definicja 'systemu AI wysokiego ryzyka' w AI Act?"
@@ -266,7 +277,7 @@ Pytaj wprost z powołaniem na akt lub temat. Wyniki traktuj jako podpowiedź do 
 ## DOBRE PRAKTYKI
 
 **1. Model lokalny vs chmura — zasada minimum.**
-Dla każdej sprawy objętej tajemnicą adwokacką ustaw model na Ollamę w Ustawieniach → Modele. Chmura (Anthropic, Google) tylko wtedy, gdy administratorem kancelarii jest podjął świadomą decyzję i podpisał DPA z dostawcą. Dla rutynowych zapytań (research przepisów, drafty wewnętrzne) chmura może być akceptowalna — decyzja Twoja i zarządu kancelarii.
+Wybierz model świadomie pod zadanie. Model chmurowy (Libra/Claude, Gemini) daje najwyższą jakość i jest normalnym wyborem kancelarii — działa na każdej sprawie, a egress jest audytowany. Model lokalny (Ollama) wybierz, gdy chcesz pracować bez internetu lub maksymalnie zawęzić obieg danych. To Twoja i zarządu kancelarii decyzja; Patron jej nie narzuca, tylko ją dokumentuje.
 
 **2. Jeden projekt per sprawa.**
 Nie mieszaj akt różnych spraw w jednym projekcie. Patron przeszukuje wszystkie dokumenty projektu przy każdym pytaniu — pomieszane sprawy dają rozproszony i błędny retrieval. Dobrze nazwany projekt (np. „Kowalski v. ABC SA — roszczeń 2026") ułatwia też pracę współpracownikom.
@@ -294,7 +305,7 @@ Jedna duża sprawa z wieloma iteracjami na modelu chmurowym może generować zna
 Domyślnie nie. Patron jest zainstalowany lokalnie na infrastrukturze kancelarii. Jeśli wybierzesz model chmurowy (Anthropic, Google, OpenAI), treść promptu trafia do tego dostawcy — ale wyłącznie wtedy, gdy Ty lub administrator podjął tę decyzję w Ustawieniach. Dla maksymalnej szczelności: model Ollama, zero ruchu do internetu.
 
 **Który model wybrać?**
-Dla tajemnicy adwokackiej: Ollama z modelem lokalnym (llama3.2, Qwen lub innym, który masz zainstalowany). Dla szybkich draftów i research, gdy akceptujesz egress z DPA: Claude (Anthropic) lub Gemini (Google). Zmiana to jedna wartość w Ustawieniach → Modele — nie wymaga reinstalacji.
+Do większości pracy: model chmurowy (Libra/Claude, Gemini) — najwyższa jakość redakcji i rozumowania, działa na każdej sprawie. Gdy potrzebujesz pracy offline lub maksymalnie zamkniętego obiegu danych: model lokalny (Ollama — llama3.2, Qwen lub inny zainstalowany). Zmiana to jedna wartość w Ustawieniach → Modele — nie wymaga reinstalacji. Niezależnie od wyboru, każde wyjście danych jest zapisane w dzienniku audytu.
 
 **Co znaczy zielony / żółty / czerwony badge?**
 Zielony: cytat dosłowny znaleziony w Twoich dokumentach. Żółty: AI mogło przekształcić oryginalny tekst — sprawdź oryginał. Czerwony: cytatu nie znaleziono w zaindeksowanych dokumentach, możliwa halucynacja — nie cytuj bez ręcznej weryfikacji.
@@ -316,4 +327,4 @@ Nie. Patron jest narzędziem wspomagającym — przeszukuje dokumenty, cytuje ź
 
 ---
 
-*Dokument zgodny ze stanem produktu na dzień 2026-06-02. Aktualizacja po każdym wydaniu z listą zmian statusów (działa / w przygotowaniu).*
+*Dokument zgodny ze stanem produktu na dzień 2026-06-03. Aktualizacja po każdym wydaniu z listą zmian statusów (działa / w przygotowaniu).*
