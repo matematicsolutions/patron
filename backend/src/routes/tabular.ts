@@ -1646,7 +1646,9 @@ The "summary" field must contain only the extracted value with inline citations 
                 ? (parsed.flag as "green")
                 : "grey",
             reasoning,
-            grounding: groundCellText(summary, reasoning, documentText),
+            grounding: groundCellText(summary, reasoning, documentText, {
+                cellStates: process.env.PATRON_TABULAR_CELL_STATES === "true",
+            }),
         };
     } catch {
         return raw.trim()
@@ -1808,7 +1810,9 @@ Rules:
                     ? (parsed.flag as CellResult["flag"])
                     : "grey",
                 reasoning,
-                grounding: groundCellText(summary, reasoning, documentText),
+                grounding: groundCellText(summary, reasoning, documentText, {
+                cellStates: process.env.PATRON_TABULAR_CELL_STATES === "true",
+            }),
             });
         } catch {
             // malformed line — skip
