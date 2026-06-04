@@ -732,3 +732,26 @@ prawa - to wartosc, nie wstyd.
 - Warstwy autonomicznych agentow (PHASE_GRANTS) - Patron jest request/response; szkielet faz pozostaje rezerwacja, nie kod.
 
 **Wdrozenie**: ADR-0095 (envelope_tier + tier-floor + wspolny chokepoint, domkniecie luki data-residency w /draft/refine) + ADR-0097 (kaskadowy grounding z paraphrase-judge, biblioteka; wpiecie/adapter judge = rezerwacja). Implementacja TS od zera, nie port. Pelna ocena: patron-desktop-drafts/AUDIT/repo-assessments/02-lq-ai-legalquants-2026-06-02.md.
+
+## anthropics/claude-for-legal (Apache-2.0)
+
+**Repo**: https://github.com/anthropics/claude-for-legal
+**Licencja**: Apache-2.0, Copyright 2026 Anthropic PBC (brak pliku NOTICE)
+**Snapshot**: 2026-06-04 (namierzone przez turecka lokalizacje beerbottle90/ArthurLegal)
+**Pattern wzorcowany**: oficjalny marketplace pluginow legal Claude Code - slownik tagow proweniencji cytatu, kontrakt komorki tabular "every-cell-cited" z normalizacja verbatim, trust-gate marketplace, watcher-agenty least-privilege, inwentarz AI Act per-system.
+
+**Co Patron bierze (wzor)**:
+- **Tagi proweniencji cytatu** - tag opisuje POCHODZENIE (skad), nie pewnosc; `[model - zweryfikuj]` jako default niezaleznie od pewnosci modelu; pinpoint zawsze verify; konflikt tool-vs-model -> pokaz oba. Deterministyczny (z metadanych zrodla), nie z LLM. ADR-0102 decyzja A, polonizacja na SAOS/ISAP/EUR-Lex.
+- **Kontrakt komorki tabular** `{value, state, quote, location}` + jawne stany braku (answered/not_present/unclear/needs_review, "pusta komorka ukrywa informacje") + pass normalizacji verbatim (re-read zrodla, porownanie znak-w-znak, mismatch -> degraduj + poszerz spot-check kolumny). ADR-0102 decyzja B, ROZSZERZA istniejacy model komorki ADR-0011 + verifyOne ADR-0005.
+- (rezerwacja) Trust-gate marketplace 13-param + tier REFUSE nieoverridowalny + skan przy UPDATE (GlassWorm) + read-only subagent do fetch + licencja-jako-dane - patron-desktop-drafts ADR-0103 (propozycja), wpiecie do skill-audit --marketplace + uzasadnienie Ed25519 per-wersja.
+- (rezerwacja) Orchestrator/leaf least-privilege + lint zakresu narzedzi + watcher-agenty "flaguj nie wykonuj" (termin-watcher PL: apelacja/kasacja/przedawnienie); inwentarz AI Act per-system BEZ auto-wywodu obowiazkow.
+
+**Czego Patron NIE bierze**:
+- Managed Agents API (deploy do chmury Anthropic) - sprzeczne z zero-cloud. Bierzemy architekture orchestrator/leaf, nie deploy.
+- Zaszyte chmurowe konektory MCP (Slack/Drive/Box/iManage) - kazdy to egress; nasze odpowiedniki lokalne za egress guardem.
+- Doktryne US (work-product FRCP 26(b)(3), SEC, FLSA, ABA 512) - podmiana na tajemnice adwokacka/radcowska, RODO, KPC/KPA.
+- Zaufanie do stringa wydawcy w instalatorze - zastapione weryfikacja Ed25519.
+- hooks.json (arbitralny shell) - trzymamy deny-first broker (ADR-0097 exec-security).
+- Kodu (markdown/JSON pluginy) i nazw "Claude"/"Anthropic" w brandingu (Apache 6 - brak praw do znakow towarowych).
+
+**Wdrozenie**: ADR-0102 (tagi proweniencji A + kontrakt komorki B, branch feat/grounding-provenance-tabular, default OFF za flaga). Reszta wzorcow (C trust-gate, D watcher/lint, E cold-start, F AI-inventory) = drafty w patron-desktop-drafts/spec/claude-for-legal-adoption/, rezerwacja. Clean-room: reimplementacja wzorca PL od zera, nie port. Atrybucja przy reuzyciu tresci: patron-desktop-drafts/spec/claude-for-legal-adoption/NOTICE-attribution.md.
