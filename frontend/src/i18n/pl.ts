@@ -250,6 +250,13 @@ export const pl = {
         verdictGreen: "źródło potwierdza tezę",
         verdictYellow: "źródło potwierdza częściowo - sprawdź",
         verdictRed: "uwaga: źródło NIE potwierdza tezy",
+        // ADR-0102 (A): tagi proweniencji cytatu (gdy flaga PATRON_PROVENANCE_TAGS).
+        provenanceSaos: "źródło: SAOS",
+        provenanceIsap: "źródło: ISAP/ELI",
+        provenanceEurlex: "źródło: EUR-Lex",
+        provenanceUzytkownik: "źródło: dokument klienta",
+        provenanceModel: "wiedza modelu - zweryfikuj",
+        provenancePinpoint: "- zweryfikuj numer jednostki",
     },
 
     // ---------------------------------------------------------------------

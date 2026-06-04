@@ -521,19 +521,31 @@ export async function runLLMStream(params: {
     const grounding = await groundCitationsByRef(citations, docStore, docIndex, db, {
         answerText: fullText,
         judge,
+        // ADR-0102 (A): tag proweniencji per cytat (default OFF). Deterministyczny,
+        // enum bezpieczny do UI/audytu (jak verdict), zero egressu/PII.
+        provenanceTags: process.env.PATRON_PROVENANCE_TAGS === "true",
     });
-    // Do klienta wysylamy WYLACZNIE whitelistowane pola (decision + verdict enum).
-    // judgeReason (ADR-0097, kandydat PII/tajemnica) zostaje server-side - nie idzie
-    // po drucie (istotne w trybie serwerowym). grounding (pelny) sluzy audytowi nizej.
-    const groundingForClient: Record<
-        number,
-        { decision: string; verdict?: "green" | "yellow" | "red" }
-    > = {};
+    // Do klienta wysylamy WYLACZNIE whitelistowane pola (decision + verdict enum +
+    // provenance enum ADR-0102). judgeReason (ADR-0097, kandydat PII/tajemnica) zostaje
+    // server-side - nie idzie po drucie (istotne w trybie serwerowym). grounding (pelny)
+    // sluzy audytowi nizej.
+    type GroundingClientEntry = {
+        decision: string;
+        verdict?: "green" | "yellow" | "red";
+        provenance?: { tag: string; pinpoint: boolean };
+    };
+    const groundingForClient: Record<number, GroundingClientEntry> = {};
     for (const [ref, r] of Object.entries(grounding)) {
-        const c = r as { decision: string; verdict?: "green" | "yellow" | "red" };
-        groundingForClient[Number(ref)] = c.verdict
-            ? { decision: c.decision, verdict: c.verdict }
-            : { decision: c.decision };
+        const c = r as GroundingClientEntry;
+        const entry: GroundingClientEntry = { decision: c.decision };
+        if (c.verdict) entry.verdict = c.verdict;
+        if (c.provenance) {
+            entry.provenance = {
+                tag: c.provenance.tag,
+                pinpoint: c.provenance.pinpoint,
+            };
+        }
+        groundingForClient[Number(ref)] = entry;
     }
     write(
         `data: ${JSON.stringify({ type: "citations", citations, grounding: groundingForClient })}\n\n`,

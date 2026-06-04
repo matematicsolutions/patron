@@ -37,8 +37,14 @@ export interface TabularCellGrounding {
     modified: number;
     /** Cytaty bez trafienia - potencjalna halucynacja. */
     unverified: number;
+    /**
+     * ADR-0102 (B): cytaty SA, ale nie dalo sie ich zweryfikowac verbatim (brak /
+     * nieczytelne zrodlo). Opcjonalne (wstecznie kompatybilne) - obecne tylko gdy
+     * stan needs_review wystapil (flaga PATRON_TABULAR_CELL_STATES).
+     */
+    needs_review?: number;
     /** Najgorszy stan po wszystkich cytatach (rollup do badge'a w UI). */
-    status: "verified" | "modified" | "unverified";
+    status: "verified" | "modified" | "unverified" | "needs_review";
 }
 
 /**
@@ -71,13 +77,32 @@ export function groundCellText(
     summary: string | null | undefined,
     reasoning: string | null | undefined,
     documentText: string | null | undefined,
+    opts?: { cellStates?: boolean },
 ): TabularCellGrounding | undefined {
     const citations = [
         ...parseInlineCitations(summary),
         ...parseInlineCitations(reasoning),
     ];
+    // Brak cytatow = nie ma czego gruntowac (kolumna free-text / "Not Found") -> undefined.
     if (citations.length === 0) return undefined;
-    if (!documentText || !documentText.trim()) return undefined;
+    if (!documentText || !documentText.trim()) {
+        // ADR-0102 (B): cytaty SA, ale nie da sie ich zweryfikowac verbatim (brak /
+        // nieczytelne zrodlo). Zasada "pusta komorka ukrywa informacje" - zamiast
+        // milczec (undefined, ADR-0080), oznacz needs_review: cytat bez mozliwosci
+        // re-odczytu zrodla NIE jest dowodem ugruntowania ani halucynacji - jest do
+        // przegladu przez prawnika. Za flaga PATRON_TABULAR_CELL_STATES (default OFF).
+        if (opts?.cellStates) {
+            return {
+                total: citations.length,
+                verified: 0,
+                modified: 0,
+                unverified: 0,
+                needs_review: citations.length,
+                status: "needs_review",
+            };
+        }
+        return undefined;
+    }
 
     let verified = 0;
     let modified = 0;

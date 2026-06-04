@@ -27,6 +27,10 @@ export interface TabularGroundingAggregate {
     verified: number;
     modified: number;
     unverified: number;
+    /** ADR-0102 (B): komorki w stanie needs_review (cytat bez weryfikowalnego zrodla). */
+    cells_needs_review?: number;
+    /** ADR-0102 (B): suma cytatow w stanie needs_review. */
+    needs_review?: number;
 }
 
 /**
@@ -44,15 +48,23 @@ export function aggregateGrounding(
         modified: 0,
         unverified: 0,
     };
+    let cellsNeedsReview = 0;
+    let needsReview = 0;
     for (const v of verdicts) {
         if (!v) continue;
         agg.cells_grounded++;
         if (v.status === "unverified") agg.cells_unverified++;
+        if (v.status === "needs_review") cellsNeedsReview++;
         agg.citations_total += v.total;
         agg.verified += v.verified;
         agg.modified += v.modified;
         agg.unverified += v.unverified;
+        needsReview += v.needs_review ?? 0;
     }
+    // ADR-0102 (B): dolacz tylko gdy wystapil needs_review - wstecznie kompatybilny
+    // ksztalt rollupu dla istniejacych konsumentow/zdarzen audit_log.
+    if (cellsNeedsReview > 0) agg.cells_needs_review = cellsNeedsReview;
+    if (needsReview > 0) agg.needs_review = needsReview;
     return agg;
 }
 
@@ -90,6 +102,12 @@ export function buildTabularGroundingEvent(
             verified: a.verified,
             modified: a.modified,
             unverified: a.unverified,
+            // ADR-0102 (B): tylko gdy wystapil needs_review - istniejace zdarzenia
+            // audit_log zachowuja dotychczasowy ksztalt payloadu.
+            ...(a.cells_needs_review
+                ? { cells_needs_review: a.cells_needs_review }
+                : {}),
+            ...(a.needs_review ? { needs_review: a.needs_review } : {}),
         },
     };
 }

@@ -227,6 +227,24 @@ export type PATRONGroundingDecision = "verified" | "unverified" | "blocked";
  */
 export type PATRONGroundingVerdict = "green" | "yellow" | "red";
 
+/**
+ * ADR-0102 (A): tag proweniencji cytatu - POCHODZENIE (skad), nie pewnosc. Obecny
+ * TYLKO gdy flaga PATRON_PROVENANCE_TAGS byla wlaczona. Enum (zero PII). `model` =
+ * wiedza modelu (default, do weryfikacji); pozostale = pobrane zrodlo.
+ */
+export type PATRONProvenanceTag =
+  | "saos"
+  | "isap"
+  | "eurlex"
+  | "uzytkownik"
+  | "model";
+
+export interface PATRONCitationProvenance {
+  tag: PATRONProvenanceTag;
+  /** Numer jednostki redakcyjnej (art./ust./par./CELEX) - zawsze do weryfikacji. */
+  pinpoint: boolean;
+}
+
 export interface PATRONCitationAnnotation {
   type: "citation_data";
   ref: number;
@@ -244,6 +262,8 @@ export interface PATRONCitationAnnotation {
    * przed `grounding` przy kolorze badge - bo lapie falszywa teze przy poprawnym
    * tekstowo cytacie. Brak = sedzia nieaktywny, kolor wg `grounding`. */
   groundingVerdict?: PATRONGroundingVerdict;
+  /** ADR-0102 (A): tag proweniencji (gdy flaga PATRON_PROVENANCE_TAGS wlaczona). Enum, zero PII. */
+  provenance?: PATRONCitationProvenance;
 }
 
 /**
@@ -349,12 +369,16 @@ export interface TabularReview {
 }
 
 // ADR-0080: werdykt mechanicznej weryfikacji cytatow inline w komorce.
+// ADR-0102 (B): + stan needs_review (cytat bez weryfikowalnego zrodla), gdy flaga
+// PATRON_TABULAR_CELL_STATES wlaczona.
 export interface TabularCellGrounding {
   total: number;
   verified: number;
   modified: number;
   unverified: number;
-  status: "verified" | "modified" | "unverified";
+  /** ADR-0102 (B): cytaty bez mozliwosci weryfikacji verbatim (brak/nieczytelne zrodlo). */
+  needs_review?: number;
+  status: "verified" | "modified" | "unverified" | "needs_review";
 }
 
 export interface TabularCell {
