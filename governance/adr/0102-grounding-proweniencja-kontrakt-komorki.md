@@ -1,6 +1,6 @@
 # ADR-0102: Tagi proweniencji cytatu + kontrakt komorki tabeli z normalizacja verbatim
 
-**Status**: Proponowany 2026-06-04 na branch `feat/grounding-provenance-tabular` (worktree izolowany od `feat/tier-governance-envelope` z powodu sesji rownoleglej). Draft do akceptacji Operatora + 2x wewnetrzny review przed merge. Dwa sprzezone postanowienia (A, B) wokol jednej osi: wiarygodnosc cytowania. Default OFF za flaga - zero zmiany zachowania do czasu evalu.
+**Status**: Przyjety (wdrozony) 2026-06-04 na branch `feat/grounding-provenance-tabular`. Backend A (tagi proweniencji) + B (stan needs_review komorki tabular) + frontend (badge proweniencji w tooltipie czatu + status needs_review komorki) zaimplementowane i zweryfikowane: tsc 0 (backend + frontend), vitest 1114 pass / 0 fail (+20 testow A+B), self-review `matematic-patron-pr-review-pl` bez blockerow (zero wycieku PII - do UI/audytu tylko enumy/liczby; decision deterministyczna nietknieta). Dwa sprzezone postanowienia (A, B) wokol jednej osi: wiarygodnosc cytowania. Default OFF za flagami `PATRON_PROVENANCE_TAGS` / `PATRON_TABULAR_CELL_STATES` - zero zmiany zachowania do evalu. Konstytucja: PATCH 1.6.1 (rozszerzenie zasady audytowalnosci Art. 3 o liczniki proweniencji/needs_review; bez re-podpisu). ZOSTAJE przed merge do `main`: 2x review WM + eval na korpusie PL przed flipem flag.
 
 **Data**: 2026-06-04
 

@@ -7,6 +7,29 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ## [Unreleased]
 
+### Grounding: tagi proweniencji + stan needs_review (ADR-0102)
+
+**Added**
+- A: tagi proweniencji cytatu (`backend/src/lib/citation/provenance.ts`) -
+  deterministyczny tag POCHODZENIA (saos/isap/eurlex/uzytkownik/model), os
+  ortogonalna do verdict (ADR-0097); default = model, pinpoint zawsze do
+  weryfikacji. Za flaga `PATRON_PROVENANCE_TAGS` (default OFF).
+- B: stan `needs_review` komorki tabular (`backend/src/lib/tabular/grounding.ts`)
+  - cytat bez weryfikowalnego zrodla nie milczy (undefined), tylko oznacza do
+  przegladu prawnika ("pusta komorka ukrywa informacje"); rozszerza model komorki
+  ADR-0011 + reuzywa verifyOne (ADR-0005). Za flaga `PATRON_TABULAR_CELL_STATES`
+  (default OFF).
+- Liczniki proweniencji / needs_review w audit_log (`groundingSummary` +
+  `tabular.grounding` ADR-0082) - opcjonalne, tylko liczby/enumy (AI Act art. 12).
+- Frontend: tag proweniencji w tooltipie cytatu czatu + status `needs_review`
+  komorki tabular (tylko enumy do UI, zero PII).
+
+Konstytucja PATCH 1.6.1. decision (ADR-0005, blokada) nietknieta - warstwa
+doradcza. tsc 0 (backend + frontend), vitest 1114 pass / 0 fail (+20 testow).
+Wzorzec clean-room z anthropics/claude-for-legal (Apache-2.0). Branch
+`feat/grounding-provenance-tabular`; przed merge do `main`: 2x review WM + eval
+korpus PL przed flipem flag.
+
 ### Podsumowanie sprintu 2026-05-29 - 2026-06-02 (ADR-0053 .. 0099)
 
 Zbiorczy wpis domykajacy luke rejestracji zmian (poszczegolne ADR maja pelny
