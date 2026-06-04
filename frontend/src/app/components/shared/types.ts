@@ -287,6 +287,13 @@ export interface PATRONCitationAnnotation {
   groundingVerdict?: PATRONGroundingVerdict;
   /** ADR-0102 (A): tag proweniencji (gdy flaga PATRON_PROVENANCE_TAGS wlaczona). Enum, zero PII. */
   provenance?: PATRONCitationProvenance;
+  /**
+   * ADR-0103 (WYMAGA OSADU): cytat jest tekstowo ugruntowany i podpiera teze, ale
+   * substancja NIE zostala oceniona semantycznie (sedzia sie nie odpalil - np.
+   * tajemnica + model chmurowy = fail-closed). Czlowiek musi sprawdzic, czy zrodlo
+   * faktycznie WSPIERA teze (cichy przypadek Stanford). Boolean, zero PII.
+   */
+  requiresJudgment?: boolean;
   /** ADR-0122: trwaly lokator (z eventu SSE `citations.grounding[ref].locator`).
    * Obecny tylko dla cytatu zweryfikowanego verbatim. Steruje occurrence-aware
    * highlightem. Brak = highlight pierwszego dopasowania (zachowanie sprzed

@@ -881,6 +881,7 @@ export function useAssistantChat({
                                     decision?: PATRONGroundingDecision;
                                     verdict?: PATRONGroundingVerdict;
                                     provenance?: PATRONCitationProvenance;
+                                    requiresJudgment?: boolean;
                                     locator?: PATRONCitationLocator | null;
                                 }
                             >;
@@ -896,6 +897,7 @@ export function useAssistantChat({
                                     !g?.decision &&
                                     !g?.verdict &&
                                     !g?.provenance &&
+                                    !g?.requiresJudgment &&
                                     !g?.locator
                                 )
                                     return c;
@@ -907,6 +909,9 @@ export function useAssistantChat({
                                         : {}),
                                     ...(g.provenance
                                         ? { provenance: g.provenance }
+                                        : {}),
+                                    ...(g.requiresJudgment
+                                        ? { requiresJudgment: true }
                                         : {}),
                                     ...(g.locator ? { locator: g.locator } : {}),
                                 };

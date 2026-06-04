@@ -76,6 +76,18 @@ export interface CascadeResult extends GroundingResult {
     confidence: number;
     /** True gdy zrodlo wspiera teze tylko czesciowo / przez parafraze. */
     partial: boolean;
+    /**
+     * WYMAGA OSADU (gradient ISTNIENIE/TRESC/FRAGMENT, skill citation-grounding-pl).
+     * True gdy cytat podpiera teze i zrodlo ISTNIEJE, ale substancja NIE zostala
+     * oceniona semantycznie (sedzia nie rozstrzygnal: brak sedziego, teza znana lecz
+     * judge=off, albo fail-closed przy tajemnicy/modelu chmurowym -> etap 3 sie nie
+     * odpalil). Mechanika potwierdzila obecnosc tekstu, ale czy zrodlo WSPIERA teze -
+     * niesprawdzone. To cichy przypadek Stanford "prawdziwy-cytat-falszywa-teza":
+     * decision moze byc "verified", verdict "green", a teza i tak niepotwierdzona.
+     * Sygnal DORADCZY dla UI/audytu (jak verdict) - NIE zmienia deterministycznej
+     * decision (ADR-0097). Czlowiek musi zweryfikowac wsparcie tezy.
+     */
+    requiresJudgment: boolean;
     /** Uzasadnienie sedziego - TYLKO UI, NIGDY audit (moze zawierac PII). */
     judgeReason?: string;
 }
@@ -162,8 +174,9 @@ export async function groundCascade(
         } catch {
             // FAIL-CLOSED: sedzia niedostepny / blad parsowania -> NIE eskalujemy,
             // zostaje werdykt deterministyczny (etap 1/2). Judge nie moze zepsuc
-            // groundingu - w najgorszym razie nie poprawia.
-            return { ...text, verdict, stage, confidence, partial };
+            // groundingu - w najgorszym razie nie poprawia. ALE: teza byla znana i
+            // mialy ja oceniac, a nie zostala -> requiresJudgment=true (WYMAGA OSADU).
+            return { ...text, verdict, stage, confidence, partial, requiresJudgment: true };
         }
         stage = 3;
         confidence = JUDGE_CONFIDENCE[jv.confidence];
@@ -184,5 +197,10 @@ export async function groundCascade(
         }
     }
 
-    return { ...text, verdict, stage, confidence, partial, judgeReason };
+    // WYMAGA OSADU: teza znana, zrodlo istnieje, ale etap 3 (sedzia) NIE rozstrzygnal.
+    // Gdy sedzia rozstrzygnal (stage === 3) substancja zostala oceniona -> false.
+    const requiresJudgment =
+        !!opts.claim && text.status !== "BRAK_ZRODLA" && stage !== 3;
+
+    return { ...text, verdict, stage, confidence, partial, requiresJudgment, judgeReason };
 }
