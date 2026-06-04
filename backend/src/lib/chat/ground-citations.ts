@@ -35,10 +35,21 @@ export interface GroundOptions {
      * ortogonalna do verdict (ADR-0097). Brak = zero zmiany zachowania.
      */
     provenanceTags?: boolean;
+    /**
+     * Sedzia byl ZADANY (PATRON_CITATION_JUDGE on), ale NIEdostepny (makeJudge=null,
+     * fail-closed: tajemnica + model chmurowy / brak modelu lokalnego). Wtedy nawet
+     * w sciezce deterministycznej oznaczamy cytaty "verified" podpierajace teze jako
+     * requiresJudgment (WYMAGA OSADU) - substancja nieoceniona, czlowiek musi sprawdzic.
+     * Brak/false = zachowanie bez zmian (judge=off to swiadomy tryb, nie flagujemy).
+     */
+    judgeUnavailable?: boolean;
 }
 
-/** Wynik groundingu cytatu, opcjonalnie wzbogacony o proweniencje (ADR-0102 A). */
-export type GroundedCitation = GroundingResult & { provenance?: Provenance };
+/** Wynik groundingu cytatu, opcjonalnie wzbogacony o proweniencje (ADR-0102 A) i flage WYMAGA OSADU (ADR-0097). */
+export type GroundedCitation = GroundingResult & {
+    provenance?: Provenance;
+    requiresJudgment?: boolean;
+};
 
 /** Okno kontekstu (znaki) po obu stronach znacznika [ref]. */
 const CLAIM_WINDOW = 250;
@@ -163,14 +174,25 @@ export async function groundCitationsByRef(
     }
 
     // Sciezka deterministyczna (domyslna): synchroniczny resolver na mapie.
+    // WYMAGA OSADU: gdy sedzia byl zadany lecz niedostepny (fail-closed), cytat
+    // "verified" podpierajacy teze jest tekstowo ugruntowany, ale substancja tezy
+    // NIEoceniona (cichy przypadek Stanford). Oznacz go do weryfikacji przez czlowieka.
+    const flagJudgment = opts?.judgeUnavailable === true;
     const report = verifyCitations(parsed, (id) => textByDocId.get(id) ?? null);
     for (const r of report.results) {
+        const needsJudgment =
+            flagJudgment &&
+            r.decision === "verified" &&
+            extractClaim(opts?.answerText, r.ref) !== "";
+        const base: GroundedCitation = needsJudgment
+            ? { ...r, requiresJudgment: true }
+            : r;
         byRef[r.ref] = withProvenance
             ? {
-                  ...r,
+                  ...base,
                   provenance: deriveProvenance("client-doc", quoteByRef.get(r.ref)),
               }
-            : r;
+            : base;
     }
     return byRef;
 }
@@ -215,15 +237,24 @@ export function groundingSummary(
     verified: number;
     unverified: number;
     blocked: number;
+    /**
+     * WYMAGA OSADU (ADR-0097 + gradient citation-grounding-pl): ile cytatow jest
+     * tekstowo-ugruntowanych i podpiera teze, ale substancja NIE zostala oceniona
+     * semantycznie (sedzia sie nie odpalil - np. tajemnica + model chmurowy =
+     * fail-closed). Record-keeping AI Act art. 12: ile tez przeszlo bez kontroli
+     * sensu - czlowiek musi je zweryfikowac. Zero PII (sama liczba).
+     */
+    requiresJudgment?: number;
     judge?: JudgeAuditSummary;
     provenance?: ProvenanceAuditSummary;
 } {
     const vals = Object.values(grounding);
-    // CascadeResult (ADR-0097) dokleja verdict/stage; ADR-0102 dokleja provenance.
-    // GroundingResult ich nie ma - czytamy przez optional cast (nie modyfikujemy rdzenia).
+    // CascadeResult (ADR-0097) dokleja verdict/stage/requiresJudgment; ADR-0102 dokleja
+    // provenance. GroundingResult ich nie ma - czytamy przez optional cast (nie modyfikujemy rdzenia).
     type Maybe = GroundingResult & {
         verdict?: "green" | "yellow" | "red";
         stage?: number;
+        requiresJudgment?: boolean;
         provenance?: Provenance;
     };
     const out: {
@@ -231,6 +262,7 @@ export function groundingSummary(
         verified: number;
         unverified: number;
         blocked: number;
+        requiresJudgment?: number;
         judge?: JudgeAuditSummary;
         provenance?: ProvenanceAuditSummary;
     } = {
@@ -239,6 +271,9 @@ export function groundingSummary(
         unverified: vals.filter((r) => r.decision === "unverified").length,
         blocked: vals.filter((r) => r.decision === "blocked").length,
     };
+
+    const needJudgment = vals.filter((r) => (r as Maybe).requiresJudgment === true).length;
+    if (needJudgment > 0) out.requiresJudgment = needJudgment;
 
     const judged = vals.filter((r) => (r as Maybe).stage === 3);
     if (judged.length > 0) {

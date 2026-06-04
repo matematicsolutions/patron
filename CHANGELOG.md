@@ -7,6 +7,27 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ## [Unreleased]
 
+### Grounding: sygnal WYMAGA OSADU - teza nieoceniona semantycznie (ADR-0103)
+
+**Added**
+- `requiresJudgment` (CascadeResult, `backend/src/lib/citation/cascade.ts`) - sygnal
+  doradczy: cytat tekstowo ugruntowany i podpiera teze, ale substancja NIE zostala
+  oceniona przez sedziego (etap 3 sie nie odpalil). Domyka cicha luke Stanford GDY
+  judge jest fail-closed (tajemnica + model chmurowy -> `makeJudge`=null).
+- `judgeUnavailable` (GroundOptions, `chat/ground-citations.ts`) - gdy sedzia byl
+  ZADANY (`PATRON_CITATION_JUDGE` ON) lecz niedostepny, sciezka deterministyczna
+  oznacza cytaty `verified` podpierajace teze jako `requiresJudgment`. `judge=off`
+  swiadomie NIE jest flagowany.
+- Licznik `requiresJudgment` w `groundingSummary` (AI Act art. 12) - ile tez przeszlo
+  bez kontroli sensu. Zero PII (sama liczba).
+- Frontend: pierscien amber + tooltip "tekstowo zgodny, ale tezy nie oceniono - sprawdz
+  zrodlo" (`AssistantMessage.tsx`, i18n `citations.requiresJudgment`); pole w
+  `PATRONCitationAnnotation` + mapowanie SSE (`useAssistantChat.ts`).
+
+**Verified**: tsc 0 (backend + frontend), vitest 1125 pass / 0 fail (+12 testow),
+zero regresji. Default-safe (pole tylko gdy judge ON + niedostepny). decision (blokada)
+nietknieta. Inspiracja: gradient WYMAGA_OSADU ze skilla `citation-grounding-pl` (MateMatic).
+
 ### Grounding: tagi proweniencji + stan needs_review (ADR-0102)
 
 **Added**

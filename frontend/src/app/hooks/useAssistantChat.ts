@@ -876,6 +876,7 @@ export function useAssistantChat({
                                     decision?: PATRONGroundingDecision;
                                     verdict?: PATRONGroundingVerdict;
                                     provenance?: PATRONCitationProvenance;
+                                    requiresJudgment?: boolean;
                                 }
                             >;
                             const incoming = (
@@ -886,7 +887,12 @@ export function useAssistantChat({
                                 // Wszystkie to enumy; uzasadnienie sedziego (PII) NIE jest
                                 // pobierane.
                                 const g = groundingMap[String(c.ref)];
-                                if (!g?.decision && !g?.verdict && !g?.provenance)
+                                if (
+                                    !g?.decision &&
+                                    !g?.verdict &&
+                                    !g?.provenance &&
+                                    !g?.requiresJudgment
+                                )
                                     return c;
                                 return {
                                     ...c,
@@ -896,6 +902,9 @@ export function useAssistantChat({
                                         : {}),
                                     ...(g.provenance
                                         ? { provenance: g.provenance }
+                                        : {}),
+                                    ...(g.requiresJudgment
+                                        ? { requiresJudgment: true }
                                         : {}),
                                 };
                             });

@@ -250,6 +250,9 @@ export const pl = {
         verdictGreen: "źródło potwierdza tezę",
         verdictYellow: "źródło potwierdza częściowo - sprawdź",
         verdictRed: "uwaga: źródło NIE potwierdza tezy",
+        // ADR-0097 (WYMAGA OSĄDU): cytat tekstowo ugruntowany, ale teza nieoceniona
+        // semantycznie (sędzia się nie odpalił, np. tajemnica + model chmurowy).
+        requiresJudgment: "tekstowo zgodny, ale tezy nie oceniono - sprawdź źródło",
         // ADR-0102 (A): tagi proweniencji cytatu (gdy flaga PATRON_PROVENANCE_TAGS).
         provenanceSaos: "źródło: SAOS",
         provenanceIsap: "źródło: ISAP/ELI",

@@ -155,3 +155,56 @@ describe("groundCascade - bramki odpalenia sedziego", () => {
         expect(r.judgeReason).toBeUndefined();
     });
 });
+
+describe("groundCascade - requiresJudgment (WYMAGA OSADU, gradient)", () => {
+    it("teza znana ale BRAK sedziego -> requiresJudgment=true (substancja nieoceniona)", async () => {
+        // Cytat istnieje doslownie (green), teza podana, ale nikt nie ocenil czy
+        // zrodlo JA wspiera - cichy przypadek Stanford.
+        const r = await groundCascade(cite("oddalił powództwo"), SRC_ODDALIL, {
+            claim: "Sąd uwzględnił powództwo.",
+        });
+        expect(r.verdict).toBe("green");
+        expect(r.stage).toBe(1);
+        expect(r.requiresJudgment).toBe(true);
+    });
+
+    it("sedzia ROZSTRZYGNAL (etap 3) -> requiresJudgment=false (substancja oceniona)", async () => {
+        const judge = fakeJudge({
+            verdict: "tak",
+            confidence: "wysoka",
+            uzasadnienie: "Zrodlo wprost wspiera teze.",
+        });
+        const r = await groundCascade(cite("oddalił powództwo"), SRC_ODDALIL, {
+            judge,
+            claim: "Sąd oddalił powództwo.",
+        });
+        expect(r.stage).toBe(3);
+        expect(r.requiresJudgment).toBe(false);
+    });
+
+    it("sedzia FAIL-CLOSED (rzuca) przy znanej tezie -> requiresJudgment=true", async () => {
+        const judge: JudgeFn = vi.fn().mockRejectedValue(new Error("ollama down"));
+        const r = await groundCascade(cite("oddalił powództwo"), SRC_ODDALIL, {
+            judge,
+            claim: "Sąd oddalił powództwo.",
+        });
+        // Fail-closed: werdykt zostaje deterministyczny, ale teza NIE zostala oceniona.
+        expect(r.stage).not.toBe(3);
+        expect(r.verdict).toBe("green");
+        expect(r.requiresJudgment).toBe(true);
+        expect(judge).toHaveBeenCalledTimes(1);
+    });
+
+    it("BRAK tezy -> requiresJudgment=false (nie ma czego oceniac)", async () => {
+        const r = await groundCascade(cite("oddalił powództwo"), SRC_ODDALIL);
+        expect(r.requiresJudgment).toBe(false);
+    });
+
+    it("BRAK_ZRODLA + teza -> requiresJudgment=false (juz red/blocked, nie ma zrodla)", async () => {
+        const r = await groundCascade(cite("cokolwiek"), null, {
+            claim: "jakas teza",
+        });
+        expect(r.status).toBe("BRAK_ZRODLA");
+        expect(r.requiresJudgment).toBe(false);
+    });
+});
