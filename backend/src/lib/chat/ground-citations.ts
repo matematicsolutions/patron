@@ -10,6 +10,11 @@ import {
     verifyCitations,
 } from "../citation/grounding";
 import { groundCascade, type JudgeFn } from "../citation/cascade";
+import {
+    deriveProvenance,
+    type Provenance,
+    type ProvenanceTag,
+} from "../citation/provenance";
 import type { ParsedCitation } from "./types";
 import type { DocIndex, DocStore } from "./types";
 import { getDocumentTextForGrounding } from "./tool-dispatch";
@@ -24,7 +29,16 @@ export interface GroundOptions {
     answerText?: string;
     /** Sedzia LLM (makeJudge). null/brak = etap 3 sie nie odpala (deterministyczny). */
     judge?: JudgeFn | null;
+    /**
+     * ADR-0102 (A): dolacz tag proweniencji per cytat (flaga PATRON_PROVENANCE_TAGS,
+     * default OFF). Deterministyczne (z rodzaju zrodla), zero egressu/PII. Oś
+     * ortogonalna do verdict (ADR-0097). Brak = zero zmiany zachowania.
+     */
+    provenanceTags?: boolean;
 }
+
+/** Wynik groundingu cytatu, opcjonalnie wzbogacony o proweniencje (ADR-0102 A). */
+export type GroundedCitation = GroundingResult & { provenance?: Provenance };
 
 /** Okno kontekstu (znaki) po obu stronach znacznika [ref]. */
 const CLAIM_WINDOW = 250;
@@ -93,7 +107,7 @@ export async function groundCitationsByRef(
     docIndex?: DocIndex,
     db?: ReturnType<typeof createServerSupabase>,
     opts?: GroundOptions,
-): Promise<Record<number, GroundingResult>> {
+): Promise<Record<number, GroundedCitation>> {
     const citations = rawCitations
         .map(toGroundable)
         .filter((c): c is GroundableCitation => c !== null);
@@ -122,7 +136,13 @@ export async function groundCitationsByRef(
         quote: c.quote,
     }));
 
-    const byRef: Record<number, GroundingResult> = {};
+    // ADR-0102 (A): mapa ref->quote do detekcji pinpoint (sciezka deterministyczna
+    // nie niesie cytatu w GroundingResult). sourceKind = client-doc (poziom 1
+    // ADR-0005; poziom 2/3 SAOS/ISAP/EUR-Lex poda wlasny sourceKind przy wpieciu
+    // resolverow). Tag wyprowadzany deterministycznie - zero egressu, zero PII.
+    const quoteByRef = new Map(parsed.map((p) => [p.ref, p.quote]));
+    const withProvenance = opts?.provenanceTags === true;
+    const byRef: Record<number, GroundedCitation> = {};
 
     // Etap 3 (ADR-0097) tylko gdy wstrzyknieto sedziego. Inaczej deterministyczny
     // verifyCitations jak dotad (zero zmiany zachowania - flaga PATRON_CITATION_JUDGE).
@@ -131,17 +151,27 @@ export async function groundCitationsByRef(
             const source = textByDocId.get(c.doc_id) ?? null;
             const claim = extractClaim(opts.answerText, c.ref);
             // groundCascade lapie bledy sedziego wewnetrznie (fail-closed -> deterministyczny).
-            byRef[c.ref] = await groundCascade(c, source, {
+            const r = await groundCascade(c, source, {
                 judge: opts.judge,
                 claim: claim || undefined,
             });
+            byRef[c.ref] = withProvenance
+                ? { ...r, provenance: deriveProvenance("client-doc", c.quote) }
+                : r;
         }
         return byRef;
     }
 
     // Sciezka deterministyczna (domyslna): synchroniczny resolver na mapie.
     const report = verifyCitations(parsed, (id) => textByDocId.get(id) ?? null);
-    for (const r of report.results) byRef[r.ref] = r;
+    for (const r of report.results) {
+        byRef[r.ref] = withProvenance
+            ? {
+                  ...r,
+                  provenance: deriveProvenance("client-doc", quoteByRef.get(r.ref)),
+              }
+            : r;
+    }
     return byRef;
 }
 
@@ -161,10 +191,22 @@ export interface JudgeAuditSummary {
     downgraded: number;
 }
 
+/** Statystyka proweniencji (ADR-0102 A) - liczby per tag, zero tresci/PII. */
+export interface ProvenanceAuditSummary {
+    saos: number;
+    isap: number;
+    eurlex: number;
+    uzytkownik: number;
+    model: number;
+    /** Ile cytatow to pinpoint (numer jednostki redakcyjnej) - zawsze do weryfikacji. */
+    pinpoint: number;
+}
+
 /**
  * Zwiezle podsumowanie werdyktow do payloadu audit_log (AI Act art. 12).
  * Bez tresci cytatow - tylko liczby decyzji (record-keeping, nie PII). Gdy
- * dzialal sedzia (ADR-0097), dolacza statystyke werdyktow semantycznych.
+ * dzialal sedzia (ADR-0097), dolacza statystyke werdyktow semantycznych; gdy
+ * dolaczono tagi proweniencji (ADR-0102 A), dolacza ich rozklad.
  */
 export function groundingSummary(
     grounding: Record<number, GroundingResult>,
@@ -174,25 +216,34 @@ export function groundingSummary(
     unverified: number;
     blocked: number;
     judge?: JudgeAuditSummary;
+    provenance?: ProvenanceAuditSummary;
 } {
     const vals = Object.values(grounding);
-    const base = {
+    // CascadeResult (ADR-0097) dokleja verdict/stage; ADR-0102 dokleja provenance.
+    // GroundingResult ich nie ma - czytamy przez optional cast (nie modyfikujemy rdzenia).
+    type Maybe = GroundingResult & {
+        verdict?: "green" | "yellow" | "red";
+        stage?: number;
+        provenance?: Provenance;
+    };
+    const out: {
+        total: number;
+        verified: number;
+        unverified: number;
+        blocked: number;
+        judge?: JudgeAuditSummary;
+        provenance?: ProvenanceAuditSummary;
+    } = {
         total: vals.length,
         verified: vals.filter((r) => r.decision === "verified").length,
         unverified: vals.filter((r) => r.decision === "unverified").length,
         blocked: vals.filter((r) => r.decision === "blocked").length,
     };
-    // CascadeResult (ADR-0097) dokleja verdict/stage; GroundingResult ich nie ma.
-    type Maybe = GroundingResult & {
-        verdict?: "green" | "yellow" | "red";
-        stage?: number;
-    };
+
     const judged = vals.filter((r) => (r as Maybe).stage === 3);
-    if (judged.length === 0) return base;
-    const v = (r: GroundingResult) => (r as Maybe).verdict;
-    return {
-        ...base,
-        judge: {
+    if (judged.length > 0) {
+        const v = (r: GroundingResult) => (r as Maybe).verdict;
+        out.judge = {
             judged: judged.length,
             green: judged.filter((r) => v(r) === "green").length,
             yellow: judged.filter((r) => v(r) === "yellow").length,
@@ -200,6 +251,24 @@ export function groundingSummary(
             downgraded: judged.filter(
                 (r) => v(r) === "red" && r.decision === "verified",
             ).length,
-        },
-    };
+        };
+    }
+
+    const provs = vals
+        .map((r) => (r as Maybe).provenance)
+        .filter((p): p is Provenance => p != null);
+    if (provs.length > 0) {
+        const count = (t: ProvenanceTag) =>
+            provs.filter((p) => p.tag === t).length;
+        out.provenance = {
+            saos: count("saos"),
+            isap: count("isap"),
+            eurlex: count("eurlex"),
+            uzytkownik: count("uzytkownik"),
+            model: count("model"),
+            pinpoint: provs.filter((p) => p.pinpoint).length,
+        };
+    }
+
+    return out;
 }
