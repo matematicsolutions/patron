@@ -1105,7 +1105,28 @@ function MarkdownContent({
                                         : grounding === "blocked"
                                           ? t("citations.groundingBlocked")
                                           : "";
-                                const tooltipText = `${formatCitationPage(annotation)}: "${displayCitationQuote(annotation)}"${groundingLabel ? ` (${groundingLabel})` : ""}`;
+                                // ADR-0102 (A): tag proweniencji w tooltipie (gdy flaga
+                                // wlaczona). Enum -> i18n; zero PII. `model` = wiedza
+                                // modelu (default, do weryfikacji); pinpoint dokleja
+                                // "- zweryfikuj" do tagu pobranego.
+                                const provenance = annotation.provenance;
+                                const provenanceLabel = !provenance
+                                    ? ""
+                                    : provenance.tag === "model"
+                                      ? t("citations.provenanceModel")
+                                      : (provenance.tag === "saos"
+                                            ? t("citations.provenanceSaos")
+                                            : provenance.tag === "isap"
+                                              ? t("citations.provenanceIsap")
+                                              : provenance.tag === "eurlex"
+                                                ? t("citations.provenanceEurlex")
+                                                : t(
+                                                      "citations.provenanceUzytkownik",
+                                                  )) +
+                                        (provenance.pinpoint
+                                            ? ` ${t("citations.provenancePinpoint")}`
+                                            : "");
+                                const tooltipText = `${formatCitationPage(annotation)}: "${displayCitationQuote(annotation)}"${groundingLabel ? ` (${groundingLabel})` : ""}${provenanceLabel ? ` [${provenanceLabel}]` : ""}`;
                                 return (
                                     <button
                                         onClick={() => {

@@ -8,6 +8,7 @@ import { useGenerateChatTitle } from "./useGenerateChatTitle";
 import type {
     AssistantEvent,
     PATRONCitationAnnotation,
+    PATRONCitationProvenance,
     PATRONGroundingDecision,
     PATRONGroundingVerdict,
     PATRONMcpCitation,
@@ -874,21 +875,27 @@ export function useAssistantChat({
                                 {
                                     decision?: PATRONGroundingDecision;
                                     verdict?: PATRONGroundingVerdict;
+                                    provenance?: PATRONCitationProvenance;
                                 }
                             >;
                             const incoming = (
                                 (data.citations ?? []) as PATRONCitationAnnotation[]
                             ).map((c) => {
                                 // ADR-0005 decision (deterministyczna) + ADR-0097 verdict
-                                // (semantyczny sedzia, gdy flaga wlaczona). Uzasadnienie
-                                // sedziego (PII) NIE jest pobierane - tylko enum verdict.
+                                // (semantyczny sedzia) + ADR-0102 provenance (tag zrodla).
+                                // Wszystkie to enumy; uzasadnienie sedziego (PII) NIE jest
+                                // pobierane.
                                 const g = groundingMap[String(c.ref)];
-                                if (!g?.decision && !g?.verdict) return c;
+                                if (!g?.decision && !g?.verdict && !g?.provenance)
+                                    return c;
                                 return {
                                     ...c,
                                     ...(g.decision ? { grounding: g.decision } : {}),
                                     ...(g.verdict
                                         ? { groundingVerdict: g.verdict }
+                                        : {}),
+                                    ...(g.provenance
+                                        ? { provenance: g.provenance }
                                         : {}),
                                 };
                             });

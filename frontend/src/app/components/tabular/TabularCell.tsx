@@ -3,7 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { AlertCircle, Expand, ShieldAlert, ShieldCheck } from "lucide-react";
+import {
+    AlertCircle,
+    Expand,
+    ShieldAlert,
+    ShieldCheck,
+    ShieldQuestion,
+} from "lucide-react";
 import type {
     ColumnConfig,
     TabularCell as TCell,
@@ -43,8 +49,17 @@ function GroundingBadge({
                   ),
                   title: `Uwaga: ${unverified} z ${total} cytatow nie znaleziono doslownie w dokumencie - mozliwa halucynacja, sprawdz zrodlo.`,
               }
-            : status === "modified"
+            : status === "needs_review"
               ? {
+                    // ADR-0102 (B): cytat bez weryfikowalnego zrodla - nie potwierdzony
+                    // ani nie zaprzeczony, do przegladu prawnika.
+                    icon: (
+                        <ShieldQuestion className="h-3 w-3 shrink-0 text-slate-500" />
+                    ),
+                    title: `${grounding.needs_review ?? total} z ${total} cytatow bez weryfikowalnego zrodla - do przegladu prawnika (zrodla nie dalo sie odczytac, nie potwierdzono ani nie zaprzeczono).`,
+                }
+              : status === "modified"
+                ? {
                     icon: (
                         <ShieldAlert className="h-3 w-3 shrink-0 text-amber-500" />
                     ),
@@ -295,9 +310,12 @@ export function TabularCell({
                                     "unverified"
                                         ? "Cytat niezweryfikowany w dokumencie"
                                         : cell.content.grounding.status ===
-                                            "modified"
-                                          ? "Cytat z drobnymi roznicami"
-                                          : "Cytaty zweryfikowane"}
+                                            "needs_review"
+                                          ? "Cytat bez weryfikowalnego zrodla - do przegladu"
+                                          : cell.content.grounding.status ===
+                                              "modified"
+                                            ? "Cytat z drobnymi roznicami"
+                                            : "Cytaty zweryfikowane"}
                                 </span>
                             </div>
                         )}
