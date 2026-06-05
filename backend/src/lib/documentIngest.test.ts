@@ -113,4 +113,25 @@ describe("ingestFolder (headless)", () => {
 
     fs.rmSync(dir, { recursive: true, force: true });
   }, 30000); // 2x docxToPdf (LibreOffice) - cold start moze przekroczyc 5s
+
+  it("przeszukuje podkatalogi rekurencyjnie, sciezka wzgledna w polu file", async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "patron-folder-rec-"));
+    const sub = path.join(dir, "Cz. 1");
+    fs.mkdirSync(sub, { recursive: true });
+    fs.writeFileSync(
+      path.join(dir, "root.docx"),
+      await makeDocx("Pismo w korzeniu."),
+    );
+    fs.writeFileSync(
+      path.join(sub, "akt.docx"),
+      await makeDocx("Akt oskarzenia w podfolderze."),
+    );
+
+    const results = await ingest.ingestFolder(dir, "u1", null, db);
+    expect(results.length).toBe(2); // korzen + podfolder
+    const files = results.map((r) => r.file).sort();
+    expect(files).toEqual(["Cz. 1/akt.docx", "root.docx"]);
+
+    fs.rmSync(dir, { recursive: true, force: true });
+  }, 30000);
 });

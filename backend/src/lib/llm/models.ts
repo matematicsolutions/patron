@@ -22,9 +22,16 @@ export const CLAUDE_LOW_MODELS = ["claude-haiku-4-5"] as const;
 export const GEMINI_LOW_MODELS = ["gemini-3.1-flash-lite-preview"] as const;
 export const OPENAI_LOW_MODELS = ["gpt-5.4-nano"] as const;
 
-export const DEFAULT_MAIN_MODEL = "gemini-3-flash-preview";
-export const DEFAULT_TITLE_MODEL = "gemini-3.1-flash-lite-preview";
-export const DEFAULT_TABULAR_MODEL = "gemini-3-flash-preview";
+// Domyslne modele dla WSZYSTKICH zadan pomocniczych (glowny fallback, generowanie
+// tytulu czatu, przeglad tabelaryczny). Celowo OpenRouter, nie chmura-direct:
+// jeden klucz OPENROUTER_API_KEY Operatora pokrywa je wszystkie, wiec gdy mecenas
+// wybierze dowolny model, KAZDA funkcja dziala na tym samym kluczu. Wczesniej byly
+// to modele Gemini-direct (wlasny klucz Google) - bez tego klucza tytuly i tabela
+// cicho padaly, mimo ze czat na OpenRouterze dzialal ("wybieram model, a czesc
+// rzeczy nie dziala"). OpenRouter Gemini Flash = tani i szybki do zadan pomocniczych.
+export const DEFAULT_MAIN_MODEL = "openrouter/google/gemini-3-flash-preview";
+export const DEFAULT_TITLE_MODEL = "openrouter/google/gemini-3-flash-preview";
+export const DEFAULT_TABULAR_MODEL = "openrouter/google/gemini-3-flash-preview";
 
 const ALL_MODELS = new Set<string>([
     ...CLAUDE_MAIN_MODELS,

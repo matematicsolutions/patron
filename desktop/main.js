@@ -1,4 +1,4 @@
-const { app, BrowserWindow, shell, Menu, safeStorage } = require('electron');
+const { app, BrowserWindow, shell, Menu, safeStorage, ipcMain, dialog } = require('electron');
 const { spawn } = require('child_process');
 const path = require('path');
 const http = require('http');
@@ -103,7 +103,66 @@ function backendLocalEnv() {
   if (fs.existsSync(modelsDir)) {
     env.PATRON_EMBED_MODELS_PATH = modelsDir;
   }
+
+  // OCR skanow/zdjec (ADR-0074/0075): silnik LOKALNY zero-cloud. Bez tego
+  // isOcrConfigured()=false i obrazy (jpg/png/tiff) sa odrzucane na wejsciu -
+  // realny blocker uzytecznosci dla akt papierowych (pilot Beata: "nie czyta
+  // dokumentow"). PATRON_OCR_CMD jest engine-agnostic (silnik wybierany env, nie
+  // kodem). Priorytet rezolucji:
+  //   1) jawny override Operatora (process.env.PATRON_OCR_CMD) - nie ruszamy,
+  //   2) Tesseract zbundlowany w instalatorze (dist-resources/backend/ocr/...),
+  //   3) Tesseract zainstalowany recznie w znanej lokalizacji (maszyna dev).
+  // Sciezka silnika ZAWSZE w cudzyslowie - tokenizer ocrRunner.ts respektuje
+  // cudzyslowy, wiec "C:\Program Files\..." ze spacjami nie rozpada sie na argv.
+  const ocr = resolveOcr();
+  if (ocr) {
+    env.PATRON_OCR_CMD = ocr.cmd;
+    if (ocr.tessdata) env.TESSDATA_PREFIX = ocr.tessdata;
+  }
   return env;
+}
+
+// Rezolucja lokalnego silnika OCR (Tesseract). Zwraca {cmd, tessdata?} albo null.
+// stdout-mode: silnik pisze rozpoznany tekst na stdout (patrz ocrRunner.ts).
+function resolveOcr() {
+  // 1) Override Operatora - process.env jest rozlewane PRZED backendLocalEnv()
+  //    w startBackend, wiec zwracamy null by nie nadpisac swiadomej konfiguracji.
+  if (process.env.PATRON_OCR_CMD && process.env.PATRON_OCR_CMD.trim()) return null;
+
+  const exe = process.platform === 'win32' ? 'tesseract.exe' : 'tesseract';
+
+  // 2) Bundlowany w instalatorze (ADR-0075). Staging w prepare-resources.cjs.
+  const bundledExe = path.join(RES(), 'backend', 'ocr', 'tesseract', exe);
+  const bundledTessdata = path.join(RES(), 'backend', 'ocr', 'tessdata');
+  if (fs.existsSync(bundledExe)) {
+    return {
+      cmd: `"${bundledExe}" {input} stdout -l pol --psm 1`,
+      tessdata: fs.existsSync(bundledTessdata) ? bundledTessdata : undefined,
+    };
+  }
+
+  // 3) Recznie zainstalowany Tesseract (maszyna deweloperska). tessdata pol moze
+  //    byc obok exe (instalator UB-Mannheim) - wskazujemy gdy zawiera pol.
+  const knownDirs = process.platform === 'win32'
+    ? [
+        'C:\\Program Files\\Tesseract-OCR',
+        'C:\\Program Files (x86)\\Tesseract-OCR',
+        path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Tesseract-OCR'),
+      ]
+    : ['/usr/bin', '/usr/local/bin', '/opt/homebrew/bin'];
+  for (const dir of knownDirs) {
+    if (!dir) continue;
+    const p = path.join(dir, exe);
+    if (fs.existsSync(p)) {
+      const td = path.join(dir, 'tessdata');
+      const hasPol = fs.existsSync(path.join(td, 'pol.traineddata'));
+      return {
+        cmd: `"${p}" {input} stdout -l pol --psm 1`,
+        tessdata: hasPol ? td : undefined,
+      };
+    }
+  }
+  return null;
 }
 
 let win = null;
@@ -231,6 +290,10 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
+      // Most do natywnego pickera folderu (FIX pilot Beata: "nie wiem jak skopiowac
+      // sciezke - chce jak zalacznik"). Wystawia tylko bezpieczne, jawne API
+      // (window.patron.selectFolder) - bez nodeIntegration, bez require w rendererze.
+      preload: path.join(__dirname, 'preload.js'),
     },
     show: false,
   });
@@ -396,6 +459,18 @@ function showSplash() {
 }
 
 // ── Boot sequence ──────────────────────────────────────────────────────────
+// IPC: natywny picker folderu sprawy (FIX pilot Beata). Renderer wola
+// window.patron.selectFolder() (patrz preload.js); zwraca wybrana sciezke albo
+// null gdy Operator anulowal. Read-only wybor katalogu - nie dotyka FS sam.
+ipcMain.handle('patron:selectFolder', async () => {
+  const res = await dialog.showOpenDialog(win ?? undefined, {
+    title: 'Wybierz folder sprawy',
+    properties: ['openDirectory'],
+  });
+  if (res.canceled || res.filePaths.length === 0) return null;
+  return res.filePaths[0];
+});
+
 app.whenReady().then(async () => {
   const splash = showSplash();
 

@@ -15,7 +15,7 @@ import { createServerSupabase } from "../supabase";
 import { citationReminder } from "./prompts";
 import { resolveDocLabel } from "./citations";
 import { extractPdfText } from "./pdf";
-import { analyzeInput, isHardThreat } from "../input-security";
+import { analyzeInput, isHardThreat, inputSecurityEnforce } from "../input-security";
 import { generateDocx } from "./docx-generate";
 import {
     loadCurrentVersionBytes,
@@ -179,7 +179,7 @@ async function readDocumentContent(
                 docInfo.file_type === "pdf" ? "application/pdf" : undefined,
             buffer: new Uint8Array(raw),
         });
-        if (isHardThreat(guard)) {
+        if (isHardThreat(guard, inputSecurityEnforce())) {
             console.log(
                 `[read_document] WSTRZYMANY przez input-security action=${guard.action} filename="${docInfo.filename}"`,
             );

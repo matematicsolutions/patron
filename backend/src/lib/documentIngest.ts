@@ -25,6 +25,7 @@ import {
   analyzeInput,
   resolveIngestOutcome,
   toAuditPayload,
+  inputSecurityEnforce,
   INPUT_SECURITY_AUDIT_EVENT,
 } from "./input-security";
 import { createServerSupabase } from "./supabase";
@@ -160,7 +161,7 @@ export async function ingestDocument(
       declaredType: contentType,
       buffer: new Uint8Array(rawBuf),
     });
-    const outcome = resolveIngestOutcome(scan);
+    const outcome = resolveIngestOutcome(scan, inputSecurityEnforce());
     await appendAuditEvent(db, {
       event_type: INPUT_SECURITY_AUDIT_EVENT,
       actor_user_id: userId,
@@ -322,12 +323,38 @@ export interface FolderIngestEntry {
   documentId?: string;
 }
 
+/** Zbiera wspierane pliki z katalogu REKURENCYJNIE (podkatalogi tez). Zwraca
+ *  pary {absolutna sciezka, sciezka wzgledna do korzenia} - sciezka wzgledna idzie
+ *  do pola `file` (audyt/UI pokazuje z ktorego podfolderu, np. "Cz. 1/IMG_2462.JPG").
+ *  Akta papierowe sa czesto cyfryzowane w podfolderach (Cz. 1/2/3) - pomijanie
+ *  podkatalogow czynilo import bezuzytecznym dla realnych spraw (pilot Beata). */
+async function collectSupportedFiles(
+  rootPath: string,
+): Promise<{ abs: string; rel: string }[]> {
+  const out: { abs: string; rel: string }[] = [];
+  const walk = async (dir: string, relBase: string): Promise<void> => {
+    const entries = await fs.promises.readdir(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      const abs = path.join(dir, entry.name);
+      const rel = relBase ? path.posix.join(relBase, entry.name) : entry.name;
+      if (entry.isDirectory()) {
+        await walk(abs, rel);
+      } else if (entry.isFile() && isAllowedType(suffixOf(entry.name))) {
+        out.push({ abs, rel });
+      }
+    }
+  };
+  await walk(rootPath, "");
+  return out;
+}
+
 /**
- * Importuje wszystkie wspierane pliki (pdf/docx/doc) z katalogu lokalnego przez
- * ingestDocument. Fundament Folder Sprawy (ADR-0056): backend dziala lokalnie w
- * trybie desktop, wiec czyta dysk bezposrednio - bez HTTP/multipart. Niewspierane
- * rozszerzenia i podkatalogi sa pomijane. Kazdy plik przechodzi pelny skan +
- * RAG-index jak zwykly upload.
+ * Importuje wszystkie wspierane pliki (pdf/docx/doc + skany jpg/png/tiff gdy OCR
+ * skonfigurowany) z katalogu lokalnego REKURENCYJNIE przez ingestDocument.
+ * Fundament Folder Sprawy (ADR-0056): backend dziala lokalnie w trybie desktop,
+ * wiec czyta dysk bezposrednio - bez HTTP/multipart. Niewspierane rozszerzenia sa
+ * pomijane; podkatalogi sa PRZESZUKIWANE (sciezka wzgledna w polu `file`). Kazdy
+ * plik przechodzi pelny skan + RAG-index jak zwykly upload.
  */
 export async function ingestFolder(
   folderPath: string,
@@ -335,25 +362,19 @@ export async function ingestFolder(
   projectId: string | null,
   db: ReturnType<typeof createServerSupabase>,
 ): Promise<FolderIngestEntry[]> {
-  const entries = await fs.promises.readdir(folderPath, {
-    withFileTypes: true,
-  });
+  const files = await collectSupportedFiles(folderPath);
   const results: FolderIngestEntry[] = [];
-  for (const entry of entries) {
-    if (!entry.isFile()) continue;
-    if (!isAllowedType(suffixOf(entry.name))) continue;
-    const content = await fs.promises.readFile(
-      path.join(folderPath, entry.name),
-    );
+  for (const { abs, rel } of files) {
+    const content = await fs.promises.readFile(abs);
     const r = await ingestDocument({
       content,
-      filename: entry.name,
+      filename: path.basename(abs),
       userId,
       projectId,
       db,
     });
     results.push({
-      file: entry.name,
+      file: rel,
       httpStatus: r.httpStatus,
       documentId: r.documentId,
     });

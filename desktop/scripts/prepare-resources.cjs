@@ -66,6 +66,21 @@ const MCP_SERVERS = [
 const EMBED_MODEL = process.env.PATRON_EMBED_MODEL || "Xenova/multilingual-e5-small";
 const SKIP_EMBED = process.env.SKIP_EMBED === "1";
 
+// Silnik OCR (Tesseract) bundlowany do instalatora - zeby PATRON czytal SKANY
+// akt papierowych z pudelka, bez recznej instalacji u klienta (ADR-0075/0105;
+// headline "Libra nie przyjmuje zdjec, my tak"). Zrodlo: lokalna instalacja
+// UB-Mannheim (Apache 2.0 - czyste do bundla komercyjnego). main.js wskazuje
+// PATRON_OCR_CMD na ten katalog (resolveOcr). tessdata: tylko pol (+osd dla --psm 1).
+const TESSERACT_DIR = process.env.PATRON_TESSERACT_DIR
+  ? path.resolve(process.env.PATRON_TESSERACT_DIR)
+  : IS_WIN
+    ? "C:\\Program Files\\Tesseract-OCR"
+    : "/usr/bin";
+const TESSDATA_SRC = process.env.PATRON_TESSDATA_DIR
+  ? path.resolve(process.env.PATRON_TESSDATA_DIR)
+  : path.join(process.env.USERPROFILE || process.env.HOME || "", "tessdata");
+const SKIP_OCR = process.env.SKIP_OCR === "1";
+
 function log(msg) {
   console.log(`[prepare-resources] ${msg}`);
 }
@@ -271,6 +286,65 @@ function stageDocs() {
   }
 }
 
+// ── 3e. Staging silnika OCR (Tesseract + tessdata pol) ───────────────────────
+// Best-effort jak embedder: gdy brak zrodla, instalator buduje sie BEZ wbudowanego
+// OCR (main.js spadnie na recznie zainstalowany Tesseract / PATRON_OCR_CMD), wiec
+// nie wywalamy buildu - logujemy ostrzezenie. SKIP_OCR=1 pomija calkowicie.
+function stageOcrEngine() {
+  if (SKIP_OCR) {
+    log("SKIP_OCR=1 - pomijam bundlowanie silnika OCR.");
+    return;
+  }
+  const exe = IS_WIN ? "tesseract.exe" : "tesseract";
+  const srcExe = path.join(TESSERACT_DIR, exe);
+  const srcPol = path.join(TESSDATA_SRC, "pol.traineddata");
+  if (!fs.existsSync(srcExe)) {
+    log(
+      `UWAGA: brak Tesseract w ${TESSERACT_DIR} - instalator BEZ wbudowanego OCR ` +
+        `(skany odrzucane do czasu recznej instalacji silnika). Ustaw PATRON_TESSERACT_DIR by wbudowac.`,
+    );
+    return;
+  }
+  if (!fs.existsSync(srcPol)) {
+    log(
+      `UWAGA: brak pol.traineddata w ${TESSDATA_SRC} - polski OCR nie zadziala. ` +
+        `Ustaw PATRON_TESSDATA_DIR. Pomijam bundling OCR.`,
+    );
+    return;
+  }
+  log(`Bundlowanie silnika OCR (Tesseract z ${TESSERACT_DIR})...`);
+  const ocrRoot = path.join(OUT_BACKEND, "ocr");
+  rmrf(ocrRoot);
+  const tessOut = path.join(ocrRoot, "tesseract");
+  fs.mkdirSync(tessOut, { recursive: true });
+
+  // Kopiujemy katalog Tesseract (exe + DLL leptonica/png/tiff/webp/...) BEZ jego
+  // wlasnego tessdata (czesto bez pol i ciezki) - tessdata skladamy osobno.
+  for (const entry of fs.readdirSync(TESSERACT_DIR, { withFileTypes: true })) {
+    if (entry.name.toLowerCase() === "tessdata") continue;
+    const from = path.join(TESSERACT_DIR, entry.name);
+    const to = path.join(tessOut, entry.name);
+    if (entry.isDirectory()) copyDir(from, to);
+    else fs.copyFileSync(from, to);
+  }
+
+  // tessdata: pol (wymagane) + osd (potrzebne dla --psm 1 z orientacja strony).
+  const tessdataOut = path.join(ocrRoot, "tessdata");
+  fs.mkdirSync(tessdataOut, { recursive: true });
+  fs.copyFileSync(srcPol, path.join(tessdataOut, "pol.traineddata"));
+  for (const osdSrc of [
+    path.join(TESSDATA_SRC, "osd.traineddata"),
+    path.join(TESSERACT_DIR, "tessdata", "osd.traineddata"),
+  ]) {
+    if (fs.existsSync(osdSrc)) {
+      fs.copyFileSync(osdSrc, path.join(tessdataOut, "osd.traineddata"));
+      break;
+    }
+  }
+  mustExist(path.join(tessOut, exe), "tesseract.exe w zbundlowanym OCR");
+  log("Silnik OCR (Tesseract + pol) gotowy.");
+}
+
 // ── 4. Staging frontendu standalone ──────────────────────────────────────────
 function stageFrontend() {
   log("Staging frontendu (standalone)...");
@@ -301,9 +375,10 @@ function main() {
   stageBackend();
   stageMcpConnectors();
   stageEmbedModel();
+  stageOcrEngine();
   stageDocs();
   stageFrontend();
-  log(`OK. Zasoby w ${path.relative(REPO_ROOT, OUT_DIR)} (backend + konektory MCP + model + docs + frontend).`);
+  log(`OK. Zasoby w ${path.relative(REPO_ROOT, OUT_DIR)} (backend + konektory MCP + model + OCR + docs + frontend).`);
   log("Nastepny krok: electron-builder --win --x64 (skrypt build w desktop/package.json).");
 }
 

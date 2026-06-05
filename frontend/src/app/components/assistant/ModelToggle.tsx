@@ -47,7 +47,7 @@ export const MODELS: ModelOption[] = [
         group: "OpenRouter",
     },
     {
-        id: "openrouter/google/gemini-3-flash",
+        id: "openrouter/google/gemini-3-flash-preview",
         label: "Gemini 3 Flash",
         group: "OpenRouter",
     },
@@ -61,15 +61,24 @@ export const MODELS: ModelOption[] = [
         label: "Mistral Medium 3.5",
         group: "OpenRouter",
     },
-    { id: "claude-opus-4-8", label: "Claude Opus 4.8", group: "Anthropic" },
-    { id: "claude-sonnet-4-6", label: "Claude Sonnet 4.6", group: "Anthropic" },
-    { id: "gemini-3.1-pro-preview", label: "Gemini 3.1 Pro", group: "Google" },
-    { id: "gemini-3-flash-preview", label: "Gemini 3 Flash", group: "Google" },
-    { id: "gpt-5.5", label: "GPT-5.5", group: "OpenAI" },
-    { id: "gpt-5.4-mini", label: "GPT-5.4 Mini", group: "OpenAI" },
+    // Modele "direct" (wlasny klucz danego dostawcy). Suffix w etykiecie ROZROZNIA
+    // je od identycznie nazwanych modeli OpenRouter - inaczej w pickerze widac dwa
+    // razy "Claude Sonnet 4.6" i nie wiadomo, ktory wymaga wlasnego klucza (to byl
+    // realny blad pilotazu: wybor wersji bez klucza dawal gluchy "Stream error").
+    { id: "claude-opus-4-8", label: "Claude Opus 4.8 (wlasny klucz Anthropic)", group: "Anthropic" },
+    { id: "claude-sonnet-4-6", label: "Claude Sonnet 4.6 (wlasny klucz Anthropic)", group: "Anthropic" },
+    { id: "gemini-3.1-pro-preview", label: "Gemini 3.1 Pro (wlasny klucz Google)", group: "Google" },
+    { id: "gemini-3-flash-preview", label: "Gemini 3 Flash (wlasny klucz Google)", group: "Google" },
+    { id: "gpt-5.5", label: "GPT-5.5 (wlasny klucz OpenAI)", group: "OpenAI" },
+    { id: "gpt-5.4-mini", label: "GPT-5.4 Mini (wlasny klucz OpenAI)", group: "OpenAI" },
 ];
 
-export const DEFAULT_MODEL_ID = "gemini-3-flash-preview";
+// Domyslny model: OpenRouter Gemini 3 Flash - tani i szybki, jeden klucz Operatora
+// pokrywa wszystkie modele OpenRouter, wiec dziala "z pudelka". Wczesniej domyslny
+// byl Gemini-direct (gemini-3-flash-preview), ktory wymaga osobnego klucza Google
+// -> swiezy build padal na starcie. Mecenas zmienia model jednym klikiem (Sonnet,
+// Bielik lokalny itd.) jesli chce mocniejszy/zero-cloud.
+export const DEFAULT_MODEL_ID = "openrouter/google/gemini-3-flash-preview";
 
 export const ALLOWED_MODEL_IDS = new Set(MODELS.map((m) => m.id));
 
@@ -110,7 +119,7 @@ export function ModelToggle({ value, onChange, apiKeys }: Props) {
                     {!selectedAvailable && (
                         <AlertCircle className="h-3 w-3 shrink-0 text-red-500" />
                     )}
-                    <span className="max-w-[104px] truncate">{selectedLabel}</span>
+                    <span className="max-w-[180px] truncate">{selectedLabel}</span>
                     <ChevronDown
                         className={`h-2.5 w-2.5 shrink-0 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
                     />

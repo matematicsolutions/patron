@@ -658,9 +658,15 @@ chatRouter.post("/", requireAuth, async (req, res) => {
         }
     } catch (err) {
         console.error("[chat/stream] error:", err);
+        // Odslon realny powod zamiast gluchego "Stream error" - mecenas (i my)
+        // widzimy DLACZEGO padlo (brak klucza, model not found, 401, timeout...).
+        // To infrastrukturalny komunikat providera, nie tresc akt; tniemy do 240
+        // znakow na wszelki wypadek. Frontend renderuje pole `message`.
+        const reason =
+            err instanceof Error && err.message ? err.message : String(err);
         try {
             write(
-                `data: ${JSON.stringify({ type: "error", message: "Stream error" })}\n\n`,
+                `data: ${JSON.stringify({ type: "error", message: `Blad generowania: ${reason}`.slice(0, 240) })}\n\n`,
             );
             write("data: [DONE]\n\n");
         } catch {

@@ -30,6 +30,23 @@ export function isOcrConfigured(): boolean {
 }
 
 /**
+ * Pure: tokenizuje szablon komendy z poszanowaniem cudzyslowow. Segment w "..."
+ * pozostaje JEDNYM tokenem (cudzyslowy zdejmowane) - krytyczne dla sciezki silnika
+ * ze spacjami, np. `"C:\Program Files\Tesseract-OCR\tesseract.exe" {input} stdout`.
+ * Reszta dzielona po bialych znakach. (Edge-case `--foo="a b"` bez spacji nie jest
+ * wspierany - szablon dostarcza main.js/Operator, wiec cudzyslujemy cale tokeny.)
+ */
+function tokenizeTemplate(template: string): string[] {
+    const tokens: string[] = [];
+    const re = /"([^"]*)"|(\S+)/g;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(template.trim())) !== null) {
+        tokens.push(m[1] !== undefined ? m[1] : m[2]!);
+    }
+    return tokens;
+}
+
+/**
  * Pure: rozkłada szablon komendy na argv, podstawiajac {input} i {outdir} jako
  * pojedyncze elementy (sciezki ze spacjami bezpieczne). Gdy brak {input} -
  * doklejamy sciezke wejscia na koniec. Testowalne bez procesu.
@@ -39,7 +56,7 @@ export function buildOcrArgv(
     inputPath: string,
     outDir?: string,
 ): string[] {
-    const tokens = template.trim().split(/\s+/).filter((t) => t.length > 0);
+    const tokens = tokenizeTemplate(template);
     const argv = tokens.map((t) => {
         if (t === "{input}") return inputPath;
         if (t === "{outdir}") return outDir ?? "";

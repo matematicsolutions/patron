@@ -48,8 +48,8 @@ function GroupTable({
     return (
         <div>
             <h3 className="mb-2 text-sm font-medium text-gray-900">{title}</h3>
-            <div className="overflow-hidden rounded-lg border border-gray-200">
-                <table className="w-full text-sm">
+            <div className="overflow-x-auto rounded-lg border border-gray-200">
+                <table className="w-full min-w-[440px] text-sm">
                     <thead>
                         <tr className="border-b border-gray-200 bg-gray-50 text-left text-xs text-gray-500">
                             <th className="px-3 py-2 font-medium">{keyHeader}</th>
@@ -70,7 +70,7 @@ function GroupTable({
                                 key={r.key}
                                 className="border-b border-gray-100 last:border-0"
                             >
-                                <td className="px-3 py-2 text-gray-900">{r.key}</td>
+                                <td className="px-3 py-2 text-gray-900 break-all">{r.key}</td>
                                 <td className="px-3 py-2 text-right tabular-nums text-gray-700">
                                     {formatNumber(r.calls)}
                                 </td>

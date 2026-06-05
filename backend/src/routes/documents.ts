@@ -21,6 +21,7 @@ import {
   analyzeInput,
   resolveIngestOutcome,
   toAuditPayload,
+  inputSecurityEnforce,
   INPUT_SECURITY_AUDIT_EVENT,
 } from "../lib/input-security";
 import { extractPdfText } from "../lib/chat/pdf";
@@ -448,7 +449,7 @@ documentsRouter.post(
       declaredType: scanContentType,
       buffer: new Uint8Array(rawArrayBuf),
     });
-    const versionOutcome = resolveIngestOutcome(versionScan);
+    const versionOutcome = resolveIngestOutcome(versionScan, inputSecurityEnforce());
     await appendAuditEvent(db, {
       event_type: INPUT_SECURITY_AUDIT_EVENT,
       actor_user_id: userId,

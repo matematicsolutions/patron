@@ -774,7 +774,12 @@ export const pl = {
             "Wskaż katalog z aktami. Patron wciągnie pliki lokalnie, przeskanuje pod kątem bezpieczeństwa i zindeksuje do wyszukiwania.",
         pathLabel: "Ścieżka do folderu",
         pathPlaceholder: "np. C:\\Sprawy\\Kowalski-2026",
-        pathHint: "Obsługiwane pliki: PDF, DOCX, DOC. Podkatalogi są pomijane.",
+        pathHint:
+            "Obsługiwane pliki: PDF, DOCX, DOC oraz skany JPG/PNG/TIFF (OCR). Podkatalogi są przeszukiwane.",
+        browseBtn: "Wybierz folder…",
+        browseHero: "Wybierz folder z aktami",
+        browseHeroHint: "Otworzy się okno wyboru — wskaż folder, import ruszy od razu.",
+        manualLabel: "lub podaj ścieżkę ręcznie",
         importBtn: "Importuj",
         importing: "Importuję pliki…",
         resultTitle: "Wynik importu",

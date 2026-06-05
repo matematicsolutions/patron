@@ -11,6 +11,7 @@ export {
     resolveIngestOutcome,
     toAuditPayload,
     isHardThreat,
+    inputSecurityEnforce,
     INPUT_SECURITY_AUDIT_EVENT,
 } from "./ingest";
 export type { IngestOutcome } from "./ingest";
