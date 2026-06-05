@@ -31,7 +31,11 @@ export interface ModelOption {
 // OpenRouter = jeden klucz, wiele modeli (w tym chinskie) - "podepniemy wszystko".
 // Grupy natywne = wlasny klucz danego dostawcy.
 export const MODELS: ModelOption[] = [
-    { id: "ollama/llama3.2:3b", label: "Lokalny (Ollama)", group: "Lokalny" },
+    {
+        id: "ollama/SpeakLeash/bielik-11b-v2.3-instruct:Q4_K_M",
+        label: "Bielik 11B (lokalny)",
+        group: "Lokalny",
+    },
     {
         id: "openrouter/anthropic/claude-opus-4.8",
         label: "Claude Opus 4.8",

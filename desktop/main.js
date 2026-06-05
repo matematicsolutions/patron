@@ -283,6 +283,24 @@ function createWindow() {
       ],
     },
     {
+      // Submenu Edytuj - bez niego skroty schowka (Ctrl+C/V/X/Z/A) sa martwe,
+      // bo w Electronie akcje edycyjne sa podpiete przez role menu, a minimalne
+      // menu ich nie mialo. Blokowalo wklejanie klucza API w Konto -> Modele
+      // (zgloszenie Pilot-01-Czechowicz). Jawne pozycje z polskimi labelami;
+      // akceleratory pochodza z domyslnych roli edycyjnych Electrona.
+      label: 'Edytuj',
+      submenu: [
+        { label: 'Cofnij', role: 'undo' },
+        { label: 'Ponów', role: 'redo' },
+        { type: 'separator' },
+        { label: 'Wytnij', role: 'cut' },
+        { label: 'Kopiuj', role: 'copy' },
+        { label: 'Wklej', role: 'paste' },
+        { type: 'separator' },
+        { label: 'Zaznacz wszystko', role: 'selectAll' },
+      ],
+    },
+    {
       label: 'Sprawa',
       submenu: [
         { label: 'Nowa sprawa', accelerator: 'CmdOrCtrl+N', click: () => win?.webContents.send('new-case') },
@@ -298,6 +316,31 @@ function createWindow() {
     }] : []),
   ]);
   Menu.setApplicationMenu(menu);
+
+  // Menu kontekstowe (prawy-klik) dla pol edytowalnych - czesc uzytkownikow
+  // (mecenasi) wkleja mysza, nie skrotem. Bez tego brak pozycji "Wklej" pod
+  // prawym klawiszem. Pokazujemy tylko akcje dozwolone przez editFlags.
+  win.webContents.on('context-menu', (_event, params) => {
+    const { isEditable, editFlags, selectionText } = params;
+    let template = [];
+    if (isEditable) {
+      template = [
+        { label: 'Cofnij', role: 'undo', enabled: editFlags.canUndo },
+        { label: 'Ponów', role: 'redo', enabled: editFlags.canRedo },
+        { type: 'separator' },
+        { label: 'Wytnij', role: 'cut', enabled: editFlags.canCut },
+        { label: 'Kopiuj', role: 'copy', enabled: editFlags.canCopy },
+        { label: 'Wklej', role: 'paste', enabled: editFlags.canPaste },
+        { type: 'separator' },
+        { label: 'Zaznacz wszystko', role: 'selectAll', enabled: editFlags.canSelectAll },
+      ];
+    } else if (selectionText && selectionText.trim().length > 0) {
+      template = [{ label: 'Kopiuj', role: 'copy', enabled: editFlags.canCopy }];
+    }
+    if (template.length > 0) {
+      Menu.buildFromTemplate(template).popup({ window: win });
+    }
+  });
 
   win.loadURL(`http://localhost:${FRONTEND_PORT}`);
 }
