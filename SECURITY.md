@@ -85,6 +85,7 @@ network copyleft is preserved, not relicensed to MIT).
 | CBOSA cert chain not in default trust store | `mcp-nsa` uses `rejectUnauthorized: false` for `orzeczenia.nsa.gov.pl` only | Public judgments data, no PII transit, MITM risk negligible vs reach |
 | CSP disabled in helmet | Headers `Permissions-Policy`, `Referrer-Policy`, HSTS still active | CSP tuning for Supabase + MinIO + chat streaming requires per-deployment work; targeted Phase 4.4 follow-up |
 | `@anthropic-ai/sdk` < 0.91.1 local FS perms (GHSA-p7fg-763f-g4gf) | Patron does not use Anthropic SDK Memory Tool | Major bump 0.90 → 0.97 scheduled for Phase 4.4 follow-up |
+| Input-security open-mode globalny (ADR-0105, `PATRON_INPUT_SECURITY_ENFORCE` default OFF) | Desktop single-user: własne skany kancelarii nie trafiają do kwarantanny (statek w porcie) | Akceptowalne na desktopie. **PRZED wdrożeniem serwerowym / multi-tenant** ustawić enforce ON per-mode (`!isSqliteBackend()` → ON) — rezerwacja ADR-0105 niezmaterializowana; audyt Fable5 2026-06-11 oś 2 (D4) |
 
 ## Supported versions
 
