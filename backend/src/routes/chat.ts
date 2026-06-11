@@ -657,7 +657,7 @@ chatRouter.post("/", requireAuth, async (req, res) => {
                 .eq("id", chatId);
         }
     } catch (err) {
-        console.error("[chat/stream] error:", err);
+        console.error("[chat/stream] error:", String(err).slice(0, 240));
         // Odslon realny powod zamiast gluchego "Stream error" - mecenas (i my)
         // widzimy DLACZEGO padlo (brak klucza, model not found, 401, timeout...).
         // To infrastrukturalny komunikat providera, nie tresc akt; tniemy do 240
