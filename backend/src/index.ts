@@ -19,6 +19,7 @@ import { draftRouter } from "./routes/draft";
 import { rodoRouter } from "./routes/rodo";
 import { usageRouter } from "./routes/usage";
 import { skillsRouter } from "./routes/skills";
+import { configRouter } from "./routes/config";
 import { createServerSupabase, isSqliteBackend } from "./lib/supabase";
 import { runAutoCompute } from "./lib/audit-merkle-roots";
 import {
@@ -170,6 +171,7 @@ app.use("/draft", draftRouter);
 app.use("/rodo", rodoRouter);
 app.use("/api/usage", usageRouter);
 app.use("/skills", skillsRouter);
+app.use("/api/config", configRouter);
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
 
