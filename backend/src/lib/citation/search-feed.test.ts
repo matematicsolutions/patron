@@ -10,8 +10,17 @@ function chunk(
     content: string,
     chunkIndex = 0,
     score = 0.5,
+    offsets?: { start: number; end: number },
 ): RetrievedChunk {
-    return { chunkId: chunkIndex + 1, documentId, chunkIndex, content, score };
+    return {
+        chunkId: chunkIndex + 1,
+        documentId,
+        chunkIndex,
+        content,
+        score,
+        sourceOffsetStart: offsets?.start ?? null,
+        sourceOffsetEnd: offsets?.end ?? null,
+    };
 }
 
 describe("buildSearchFeed - pusty wynik", () => {
@@ -80,6 +89,46 @@ describe("buildSearchFeed - anchor none (uczciwie)", () => {
         expect(hit.anchor).toBe("none");
         expect(hit.locator).toBeNull();
         expect(hit.anchorNote).toMatch(/normalizacja chunka/);
+    });
+});
+
+describe("buildSearchFeed - exact ze stored span (ADR-0124, Route B 9c)", () => {
+    it("znormalizowana tresc, ale offsety daja EXACT (przypadek ktory byl 'none')", () => {
+        // Dokladnie zrodlo z testu "normalizacja chunka" wyzej (tam anchor none).
+        // Z offsetami chunka (Route B) ten sam przypadek kotwiczy sie exact.
+        const src = "Klauzula  poufnosci\nobowiazuje strony.";
+        const feed = buildSearchFeed(
+            "q",
+            [
+                chunk("doc-1", "Klauzula poufnosci obowiazuje strony.", 0, 0.5, {
+                    start: 0,
+                    end: src.length,
+                }),
+            ],
+            () => src,
+        );
+        const hit = feed.results[0]!;
+        expect(hit.anchor).toBe("exact");
+        expect(hit.locator).not.toBeNull();
+        // rawText = DOSLOWNY surowy span (z podwojna spacja i nowa linia)
+        expect(hit.locator!.rawText).toBe(src);
+        const a = reanchor(hit.locator!, src);
+        expect(src.slice(a!.start, a!.end)).toBe(src);
+    });
+
+    it("offset stale / poza zakresem -> fallback do best-effort (bez regresji)", () => {
+        const src = "powodztwo jest zasadne";
+        const feed = buildSearchFeed(
+            "q",
+            // span poza zakresem zrodla -> locatorFor zwraca null -> best-effort
+            [chunk("doc-1", "powodztwo jest zasadne", 0, 0.5, { start: 999, end: 1050 })],
+            () => src,
+        );
+        const hit = feed.results[0]!;
+        // best-effort znajduje verbatim (cala tresc) -> exact, ale ze sciezki
+        // findOccurrences (nie ze spanu) - dowodzi fail-safe fallbacku.
+        expect(hit.anchor).toBe("exact");
+        expect(hit.locator!.rawText).toBe("powodztwo jest zasadne");
     });
 });
 

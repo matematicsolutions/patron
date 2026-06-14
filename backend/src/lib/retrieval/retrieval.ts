@@ -86,6 +86,14 @@ export interface RetrievedChunk {
   chunkIndex: number;
   content: string;
   score: number;
+  /**
+   * ADR-0124 (Route B): surowy span chunka w zrodle (UTF-16, end exclusive).
+   * Pozwala feedowi zbudowac EXACT lokator bez fuzzy matchingu znormalizowanej
+   * tresci. null/undefined dla chunkow sprzed Route B (re-index uzupelnia) -
+   * feed robi wtedy fallback best-effort.
+   */
+  sourceOffsetStart?: number | null;
+  sourceOffsetEnd?: number | null;
 }
 
 /**
@@ -379,13 +387,15 @@ export async function retrieve(
     const placeholders = fused.map(() => "?").join(",");
     const rows = db
       .prepare(
-        `select id, document_id, chunk_index, content from doc_chunks where id in (${placeholders})`,
+        `select id, document_id, chunk_index, content, source_offset_start, source_offset_end from doc_chunks where id in (${placeholders})`,
       )
       .all(...fused.map((f) => f.id)) as {
       id: number;
       document_id: string;
       chunk_index: number;
       content: string;
+      source_offset_start: number | null;
+      source_offset_end: number | null;
     }[];
 
     return rows
@@ -395,6 +405,8 @@ export async function retrieve(
         chunkIndex: r.chunk_index,
         content: r.content,
         score: byId.get(r.id) ?? 0,
+        sourceOffsetStart: r.source_offset_start ?? null,
+        sourceOffsetEnd: r.source_offset_end ?? null,
       }))
       .sort((a, b) => b.score - a.score);
   }
@@ -416,6 +428,8 @@ export async function retrieve(
     document_id: string;
     chunk_index: number;
     content: string;
+    source_offset_start: number | null;
+    source_offset_end: number | null;
   }[];
 
   // Zachowaj kolejnosc re-rankingu (z jego deterministycznym tie-breakiem),
@@ -427,6 +441,8 @@ export async function retrieve(
       chunkIndex: r.chunk_index,
       content: r.content,
       score: byId.get(r.id) ?? 0,
+      sourceOffsetStart: r.source_offset_start ?? null,
+      sourceOffsetEnd: r.source_offset_end ?? null,
     }))
     .sort((a, b) => (orderIndex.get(a.chunkId)! - orderIndex.get(b.chunkId)!));
 }
