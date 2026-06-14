@@ -9,10 +9,14 @@
 // zawodowa i tak nie wychodzi do chmury (blok), a dla danych klienta nieobjetych
 // tajemnica (client_general / internal) maskujemy ustrukturyzowane identyfikatory.
 //
-// OGRANICZENIE (FAZA 1): detektor imion/nazw firm jest LLM-based i wciaz no-op
-// (detect.ts noopLlmDetector), wiec maskujemy tylko identyfikatory regexowe.
-// Argumenty wywolan narzedzi nie sa odwracane - jezeli model wstawi token do
-// argumentu toola, narzedzie dostanie token (rzadkie dla identyfikatorow).
+// Detektor encji osobowych: wrapConversation przyjmuje opcjonalny llmDetector
+// (WrapOptions). streamChatWithTools podaje deterministyczny plEntityDetector
+// (lib/pseudonim/plDetector.ts) -> PERSON/ORG/ADDRESS sa maskowane obok
+// identyfikatorow regexowych (audyt P1 #4, domkniecie ADR-0067). Wywolane bez
+// opts (jak w testach) -> noopLlmDetector, czyli tylko identyfikatory regexowe.
+// OGRANICZENIE: argumenty wywolan narzedzi nie sa odwracane - jezeli model
+// wstawi token do argumentu toola, narzedzie dostanie token (rzadkie dla
+// identyfikatorow).
 
 import { createPseudonimMap } from "./map";
 import { unwrap, wrapInto, type WrapOptions } from "./wrap";

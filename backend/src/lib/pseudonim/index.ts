@@ -26,6 +26,7 @@ export {
     PseudonimStreamUnwrapper,
     type WrappedConversation,
 } from "./egress";
+export { plEntityDetector } from "./plDetector";
 export {
     LLM_CATEGORIES,
     POLISH_DETECTION_PROMPT,

@@ -7,6 +7,32 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ## [Unreleased]
 
+### Audyt PATRON P1 #4: maskowanie nazwisk/podmiotow/adresow przed chmura (ADR-0110)
+
+**Fixed**
+- P1 #4: `wrapConversation` w egress (`lib/chat/stream.ts`) byl wolany BEZ
+  detektora (`noopLlmDetector`) -> imiona, nazwiska, nazwy podmiotow i adresy
+  wychodzily do modelu chmurowego otwartym tekstem (maskowane byly tylko
+  identyfikatory regexowe). Domkniecie ADR-0067.
+
+**Added**
+- `lib/pseudonim/plDetector.ts` - deterministyczny, zero-cloud detektor
+  PERSON/ORG/ADDRESS (`plEntityDetector`) wpiety w `wrapConversation`:
+  - PERSON: zakotwiczone na honoryfikatorze/roli (Pan/Pani/adw./mec./swiadek/
+    oskarzony/...) + tokeny z wielkiej litery; maskowana sama nazwa, nie marker;
+    bez goych bigramow z wielkich liter (zeby nie maskowac "Sad Najwyzszy" itp.).
+  - ORG: reuzycie regexu form prawnych z `pl-entities` (FIRMA), bez forka.
+  - ADDRESS: kod pocztowy + ulica/aleja/plac z numerem.
+  Maskowanie odwracane przez unwrap (nad-maskowanie nie psuje outputu); recall >
+  precyzja. Aktywne wraz z `PATRON_PSEUDONIM_EGRESS` (bez nowej flagi).
+- Testy: `plDetector.test.ts` (+12, regresja PL: PERSON/ORG/ADDRESS, round-trip).
+  Bug zlapany: `\b` ASCII nie lapal markera od polskiej litery ("świadek") ->
+  lookbehind Unicode `(?<![\p{L}\p{N}_])`.
+
+tsc 0, vitest 1135 pass / 0 fail / 5 todo. Branch `fix/audyt-patron-p1-p3`;
+przed merge do `main`: 2x review WM + decyzja Operatora. Pozostaje P1 #1 (at-rest
+native swap) - osobny PR.
+
 ### Audyt PATRON: domkniecie usterek P1-P3 + runner migracji SQLite (ADR-0109)
 
 **Fixed**
