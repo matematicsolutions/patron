@@ -15,6 +15,7 @@ import {
     type Provenance,
     type ProvenanceTag,
 } from "../citation/provenance";
+import { type CitationLocator, locatorFromQuote } from "../citation/locator";
 import type { ParsedCitation } from "./types";
 import type { DocIndex, DocStore } from "./types";
 import { getDocumentTextForGrounding } from "./tool-dispatch";
@@ -37,8 +38,18 @@ export interface GroundOptions {
     provenanceTags?: boolean;
 }
 
-/** Wynik groundingu cytatu, opcjonalnie wzbogacony o proweniencje (ADR-0102 A). */
-export type GroundedCitation = GroundingResult & { provenance?: Provenance };
+/**
+ * Wynik groundingu cytatu, opcjonalnie wzbogacony o proweniencje (ADR-0102 A)
+ * oraz o trwaly lokator cytatu (ADR-0116). `locator` powstaje gdy cytat wystepuje
+ * DOSLOWNIE w surowym zrodle (typowe dla ZWERYFIKOWANY) - daje persystowalna,
+ * re-kotwiczalna pozycje pod highlight i audit bundle (AI Act art. 12); null gdy
+ * nie da sie verbatim (fail-closed). UWAGA: lokator (zawiera rawText=cytat) leci
+ * do SSE/persistence, NIE do audit_log - audyt dostaje groundingSummary (liczby).
+ */
+export type GroundedCitation = GroundingResult & {
+    provenance?: Provenance;
+    locator: CitationLocator | null;
+};
 
 /** Okno kontekstu (znaki) po obu stronach znacznika [ref]. */
 const CLAIM_WINDOW = 250;
@@ -141,6 +152,9 @@ export async function groundCitationsByRef(
     // ADR-0005; poziom 2/3 SAOS/ISAP/EUR-Lex poda wlasny sourceKind przy wpieciu
     // resolverow). Tag wyprowadzany deterministycznie - zero egressu, zero PII.
     const quoteByRef = new Map(parsed.map((p) => [p.ref, p.quote]));
+    // ADR-0116: mapa ref->cytat (raw {ref,doc_id,quote}) do wyliczenia trwalego
+    // lokatora z prefetchowanego surowego zrodla (bez dodatkowego I/O).
+    const citByRef = new Map(citations.map((c) => [c.ref, c]));
     const withProvenance = opts?.provenanceTags === true;
     const byRef: Record<number, GroundedCitation> = {};
 
@@ -155,9 +169,11 @@ export async function groundCitationsByRef(
                 judge: opts.judge,
                 claim: claim || undefined,
             });
+            // ADR-0116: trwaly lokator z surowego zrodla (verbatim = exact-or-null).
+            const locator = source ? locatorFromQuote(c.quote, source) : null;
             byRef[c.ref] = withProvenance
-                ? { ...r, provenance: deriveProvenance("client-doc", c.quote) }
-                : r;
+                ? { ...r, locator, provenance: deriveProvenance("client-doc", c.quote) }
+                : { ...r, locator };
         }
         return byRef;
     }
@@ -165,12 +181,17 @@ export async function groundCitationsByRef(
     // Sciezka deterministyczna (domyslna): synchroniczny resolver na mapie.
     const report = verifyCitations(parsed, (id) => textByDocId.get(id) ?? null);
     for (const r of report.results) {
+        // ADR-0116: trwaly lokator z surowego, juz prefetchowanego zrodla.
+        const cit = citByRef.get(r.ref);
+        const src = cit ? (textByDocId.get(cit.doc_id) ?? null) : null;
+        const locator = cit && src ? locatorFromQuote(cit.quote, src) : null;
         byRef[r.ref] = withProvenance
             ? {
                   ...r,
+                  locator,
                   provenance: deriveProvenance("client-doc", quoteByRef.get(r.ref)),
               }
-            : r;
+            : { ...r, locator };
     }
     return byRef;
 }
