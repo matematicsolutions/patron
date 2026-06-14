@@ -1,3 +1,5 @@
+import { nthOccurrenceIndex } from "./quoteOccurrence";
+
 const HIGHLIGHT_CLASS = "docx-text-highlight";
 
 function onlyLetters(s: string): string {
@@ -53,10 +55,19 @@ export function clearDocxQuoteHighlights(root: HTMLElement): void {
  *
  * Returns the first highlight span if any match was found, for
  * scroll-into-view by the caller.
+ *
+ * ADR-0122: `occurrence` (z locator.occurrenceHint) wybiera ktore wystapienie
+ * powtarzajacej sie frazy podswietlic. Stosowane tylko dla cytatu
+ * jednosegmentowego (bez wielokropka) - semantyka wystapienia dla cytatu
+ * wielosegmentowego jest niejednoznaczna. DOCX renderuje sie jako jeden DOM
+ * (brak stronicowania), wiec wystapienie jest globalne w dokumencie =
+ * dopasowanie do globalnego occurrenceHint backendu. Brak / poza zakresem =>
+ * pierwsze dopasowanie (bezpieczny fallback).
  */
 export function highlightDocxQuote(
     root: HTMLElement,
     quote: string,
+    occurrence?: number,
 ): HTMLElement | null {
     clearDocxQuoteHighlights(root);
     if (!quote) return null;
@@ -65,6 +76,7 @@ export function highlightDocxQuote(
         .map(onlyLetters)
         .filter((s) => s.length > 0);
     if (segments.length === 0) return null;
+    const useOccurrence = segments.length === 1 ? occurrence : undefined;
 
     const textNodes = collectTextNodes(root);
     const nodeStartInFull: number[] = [];
@@ -82,7 +94,11 @@ export function highlightDocxQuote(
 
     for (const segment of segments) {
         const searchKey = segment.slice(0, 30);
-        const matchPos = fullStripped.indexOf(searchKey);
+        const matchPos = nthOccurrenceIndex(
+            fullStripped,
+            searchKey,
+            useOccurrence,
+        );
         if (matchPos < 0) continue;
         const matchEnd = matchPos + segment.length;
 

@@ -8,6 +8,7 @@ import { useGenerateChatTitle } from "./useGenerateChatTitle";
 import type {
     AssistantEvent,
     PATRONCitationAnnotation,
+    PATRONCitationLocator,
     PATRONGroundingDecision,
     PATRONMcpCitation,
     PATRONMessage,
@@ -831,15 +832,26 @@ export function useAssistantChat({
                             // ADR-0005: werdykt groundingu przychodzi rownolegle
                             // jako mapa ref -> { decision }. Skladamy go w pole
                             // `grounding` kazdego cytatu, by UI pokazal badge.
+                            // ADR-0122: ta sama mapa niesie trwaly `locator`
+                            // (rawText + occurrenceHint) - przewlekamy go do
+                            // cytatu, by occurrence-aware highlight wybral
+                            // wlasciwe wystapienie frazy w dokumencie.
                             const groundingMap = (data.grounding ?? {}) as Record<
                                 string,
-                                { decision?: PATRONGroundingDecision }
+                                {
+                                    decision?: PATRONGroundingDecision;
+                                    locator?: PATRONCitationLocator | null;
+                                }
                             >;
                             const incoming = (
                                 (data.citations ?? []) as PATRONCitationAnnotation[]
                             ).map((c) => {
-                                const decision = groundingMap[String(c.ref)]?.decision;
-                                return decision ? { ...c, grounding: decision } : c;
+                                const g = groundingMap[String(c.ref)];
+                                if (!g) return c;
+                                const next: PATRONCitationAnnotation = { ...c };
+                                if (g.decision) next.grounding = g.decision;
+                                if (g.locator) next.locator = g.locator;
+                                return next;
                             });
                             setMessages((prev) => {
                                 const updated = [...prev];

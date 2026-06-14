@@ -1,3 +1,5 @@
+import { nthOccurrenceIndex } from "./quoteOccurrence";
+
 let pdfjsLib: typeof import("pdfjs-dist") | null = null;
 
 export async function getPdfJs() {
@@ -52,9 +54,18 @@ export function clearHighlights(textDivs: HTMLElement[]) {
     }
 }
 
+/**
+ * ADR-0122: `occurrence` (z locator.occurrenceHint) wybiera ktore wystapienie
+ * powtarzajacej sie frazy podswietlic, gdy cytat jest jednosegmentowy. UWAGA:
+ * dla PDF to BEST-EFFORT - ta funkcja matchuje w obrebie JEDNEJ strony
+ * (`textDivs`), a occurrenceHint jest globalny w dokumencie; gdy strona ma mniej
+ * wystapien niz indeks, nthOccurrenceIndex spada do pierwszego (bez regresji).
+ * Sound per-strona occurrence wymaga page-local offsetow (Route B) = rezerwacja.
+ */
 export async function highlightQuote(
     textDivs: HTMLElement[],
     quote: string,
+    occurrence?: number,
 ): Promise<boolean> {
     clearHighlights(textDivs);
 
@@ -63,6 +74,7 @@ export async function highlightQuote(
         .split(/\.{3}|…/)
         .map((s) => onlyLetters(s))
         .filter((s) => s.length > 0);
+    const useOccurrence = segments.length === 1 ? occurrence : undefined;
 
     // Build the stripped full text and track each div's start position within it.
     // Also keep original div texts for display.
@@ -85,7 +97,11 @@ export async function highlightQuote(
 
     for (const segment of segments) {
         const searchKey = segment.slice(0, 30);
-        const matchPos = fullStripped.indexOf(searchKey);
+        const matchPos = nthOccurrenceIndex(
+            fullStripped,
+            searchKey,
+            useOccurrence,
+        );
         if (matchPos === -1) {
             continue;
         }
