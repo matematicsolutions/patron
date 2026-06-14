@@ -121,4 +121,18 @@ describe("groundCitationsByRef", () => {
         );
         expect(out[1].locator).toBeNull();
     });
+
+    it("fallback whitespace: lokator gdy cytat rozni sie tylko bialymi znakami", async () => {
+        // zrodlo z nowa linia i podwojna spacja - exact by sie nie udal
+        getText.mockResolvedValue("Sad uznal, ze\npowodztwo  jest zasadne.");
+        const out = await groundCitationsByRef(
+            [{ ref: 1, doc_id: "doc-0", quote: "powodztwo jest zasadne" }],
+            docStore,
+        );
+        expect(out[1].decision).toBe("verified");
+        expect(out[1].locator).not.toBeNull();
+        expect(out[1].locator!.rawText.replace(/\s+/g, " ")).toBe(
+            "powodztwo jest zasadne",
+        );
+    });
 });

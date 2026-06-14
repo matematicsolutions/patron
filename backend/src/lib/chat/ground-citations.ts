@@ -9,7 +9,11 @@ import {
     type GroundingResult,
     verifyCitations,
 } from "../citation/grounding";
-import { type CitationLocator, locatorFromQuote } from "../citation/locator";
+import {
+    type CitationLocator,
+    locatorFromCollapsedQuote,
+    locatorFromQuote,
+} from "../citation/locator";
 import type { ParsedCitation } from "./types";
 import type { DocIndex, DocStore } from "./types";
 import { getDocumentTextForGrounding } from "./tool-dispatch";
@@ -101,8 +105,13 @@ export async function groundCitationsByRef(
     for (const r of report.results) {
         const cit = citByRef.get(r.ref);
         const src = cit ? (textByDocId.get(cit.doc_id) ?? null) : null;
+        // Najpierw exact (cytat verbatim), potem tolerancja bialych znakow
+        // (cytat LLM rozni sie od zrodla tylko zwijaniem spacji/nowych linii).
         const locator =
-            cit && src ? locatorFromQuote(cit.quote, src) : null;
+            cit && src
+                ? (locatorFromQuote(cit.quote, src) ??
+                  locatorFromCollapsedQuote(cit.quote, src))
+                : null;
         byRef[r.ref] = { ...r, locator };
     }
     return byRef;

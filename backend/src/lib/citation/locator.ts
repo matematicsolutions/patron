@@ -174,3 +174,64 @@ export function locatorFromQuote(
     const start = starts[0]!;
     return locatorFor(sourceText, { start, end: start + text.length });
 }
+
+/**
+ * Zwija ciagi bialych znakow do pojedynczej spacji, zapamietujac surowe pozycje.
+ * `map[i]` = surowy indeks pierwszego znaku jednostki `collapsed[i]`;
+ * `map[collapsed.length] = raw.length`. Pozwala odwzorowac offset w zwinietym
+ * tekscie z powrotem na surowy span.
+ */
+function collapseWhitespaceWithMap(raw: string): {
+    collapsed: string;
+    map: number[];
+} {
+    const chars: string[] = [];
+    const map: number[] = [];
+    const n = raw.length;
+    let i = 0;
+    while (i < n) {
+        if (/\s/.test(raw[i]!)) {
+            chars.push(" ");
+            map.push(i);
+            i++;
+            while (i < n && /\s/.test(raw[i]!)) i++;
+        } else {
+            chars.push(raw[i]!);
+            map.push(i);
+            i++;
+        }
+    }
+    map.push(n);
+    return { collapsed: chars.join(""), map };
+}
+
+/**
+ * Lokator tolerujacy roznice bialych znakow. Dopasowuje `text` do `sourceText`
+ * ignorujac zwijanie spacji/nowych linii - dokladnie roznice, jaka indekser RAG
+ * wprowadza w chunkach (`\s+` -> `" "`) i jaka pojawia sie miedzy cytatem LLM a
+ * surowym zrodlem - i odzyskuje DOSLOWNY surowy span zrodla.
+ *
+ * Wynikowy `rawText` jest verbatim w zrodle (niezmiennik ADR-0116), bez
+ * wiodacych/koncowych bialych znakow (wewnetrzne zostaja - to surowy fragment).
+ * Tylko biale znaki sa tolerowane; wielkosc liter i interpunkcja musza sie
+ * zgadzac (brak falszywych trafien). Zwraca null gdy brak dopasowania.
+ */
+export function locatorFromCollapsedQuote(
+    text: string,
+    sourceText: string,
+): CitationLocator | null {
+    const q = text.replace(/\s+/g, " ").trim();
+    if (q.length === 0 || sourceText.length === 0) {
+        return null;
+    }
+    const { collapsed, map } = collapseWhitespaceWithMap(sourceText);
+    const idx = collapsed.indexOf(q);
+    if (idx < 0) {
+        return null;
+    }
+    // q jest przyciety i konczy sie znakiem nie-bialym, wiec map[idx + q.length]
+    // wskazuje surowy indeks tuz za ostatnim dopasowanym znakiem (bez ogona ws).
+    const start = map[idx]!;
+    const end = map[idx + q.length]!;
+    return locatorFor(sourceText, { start, end });
+}

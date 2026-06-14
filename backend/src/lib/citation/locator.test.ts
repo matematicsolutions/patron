@@ -5,6 +5,7 @@ import {
     type CitationLocator,
     findOccurrences,
     locatorFor,
+    locatorFromCollapsedQuote,
     locatorFromQuote,
     reanchor,
 } from "./locator";
@@ -203,5 +204,46 @@ describe("locatorFromQuote", () => {
         const loc = locatorFromQuote("zgoda", src);
         expect(loc!.startHint).toBe(0);
         expect(loc!.occurrenceHint).toBe(0);
+    });
+});
+
+describe("locatorFromCollapsedQuote", () => {
+    it("dopasowuje mimo roznic bialych znakow i odzyskuje surowy span", () => {
+        // zrodlo z nowa linia i podwojnymi spacjami; cytat z pojedynczymi
+        const src = "Klauzula  poufnosci\nobowiazuje obie strony umowy.";
+        const quote = "Klauzula poufnosci obowiazuje obie strony";
+        const loc = locatorFromCollapsedQuote(quote, src);
+        expect(loc).not.toBeNull();
+        // rawText jest DOSLOWNYM surowym fragmentem (z oryginalnymi bialymi znakami)
+        const a = reanchor(loc!, src);
+        expect(src.slice(a!.start, a!.end)).toBe(loc!.rawText);
+        // i po zwinieciu == zapytanie
+        expect(loc!.rawText.replace(/\s+/g, " ")).toBe(quote);
+        // bez wiodacych/koncowych bialych znakow
+        expect(loc!.rawText).toBe(loc!.rawText.trim());
+    });
+
+    it("exact-quote tez dziala (degeneracja do pojedynczych spacji)", () => {
+        const src = "Sad orzekl, ze powodztwo jest zasadne.";
+        const loc = locatorFromCollapsedQuote("powodztwo jest zasadne", src);
+        expect(loc!.rawText).toBe("powodztwo jest zasadne");
+    });
+
+    it("rozne wielkosci liter NIE sa tolerowane (tylko whitespace)", () => {
+        const src = "Tekst Wielka Litera.";
+        expect(locatorFromCollapsedQuote("tekst wielka litera", src)).toBeNull();
+    });
+
+    it("brak dopasowania / puste -> null", () => {
+        expect(locatorFromCollapsedQuote("nie ma tego", "inny tekst")).toBeNull();
+        expect(locatorFromCollapsedQuote("", "abc")).toBeNull();
+        expect(locatorFromCollapsedQuote("abc", "")).toBeNull();
+    });
+
+    it("tabulacje i mieszane biale znaki", () => {
+        const src = "Pozycja\t1 000,00 zl netto";
+        const loc = locatorFromCollapsedQuote("Pozycja 1 000,00 zl", src);
+        expect(loc).not.toBeNull();
+        expect(loc!.rawText.replace(/\s+/g, " ")).toBe("Pozycja 1 000,00 zl");
     });
 });
