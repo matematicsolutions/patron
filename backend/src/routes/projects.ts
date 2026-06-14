@@ -11,6 +11,7 @@ import { convertedPdfKey } from "../lib/convert";
 import { checkProjectAccess } from "../lib/access";
 import { singleFileUpload } from "../lib/upload";
 import { handleDocumentUpload } from "../lib/documentIngest";
+import { forgetCase } from "../lib/rodo/forget";
 
 export const projectsRouter = Router();
 
@@ -309,12 +310,24 @@ projectsRouter.delete("/:projectId", requireAuth, async (req, res) => {
   const userId = res.locals.userId as string;
   const { projectId } = req.params;
   const db = createServerSupabase();
-  const { error } = await db
+
+  // Tylko wlasciciel kasuje sprawe (zachowane z poprzedniej wersji - delete
+  // bramkowany .eq("user_id", userId)). 404 zamiast 403, by nie ujawniac
+  // istnienia cudzej sprawy.
+  const { data: project } = await db
     .from("projects")
-    .delete()
+    .select("id, user_id")
     .eq("id", projectId)
-    .eq("user_id", userId);
-  if (error) return void res.status(500).json({ detail: error.message });
+    .single();
+  if (!project || project.user_id !== userId)
+    return void res.status(404).json({ detail: "Project not found" });
+
+  // Audyt P1 #2: zwykly DELETE projektu kasowal tylko rekord (kaskada FK na
+  // tabele relacyjne), ale ZOSTAWIAL pliki akt na dysku oraz wektory/encje PII
+  // i pamiec "brain". forgetCase (ADR-0061) jest kompletny i idempotentny:
+  // RAG/wektory/FTS + graf cytowan + pliki storage + brain + sam projekt.
+  // audit_log zostaje nietkniety (RODO art. 17 ust. 3 lit. b + AI Act art. 12).
+  await forgetCase(projectId, db);
   res.status(204).send();
 });
 

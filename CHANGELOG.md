@@ -7,6 +7,32 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ## [Unreleased]
 
+### Audyt PATRON: domkniecie usterek P1-P3 + runner migracji SQLite (ADR-0109)
+
+**Fixed**
+- P1 #2: szczelne kasowanie. `DELETE /projects/:id` wola `forgetCase` (pliki +
+  RAG/wektory/FTS + graf + brain), `DELETE /single-documents/:id` wola
+  `clearDocumentIndex` - koniec osieroconych chunkow/embeddingow/encji PII i
+  plikow akt po "normalnym" usunieciu z UI (RODO art. 17 dla zwyklej sciezki).
+- P1 #3: `openrouter` dodany do CHECK `user_api_keys` - wlasny klucz OpenRouter
+  zapisuje sie z UI (migracja rebuildujaca + `schema.sqlite.ts`).
+- P3 #12: `PRAGMA busy_timeout=5000` + `synchronous=NORMAL` pod WAL (anty
+  `SQLITE_BUSY`).
+- P3 #13: `clearDocumentIndex` czysci graf w obie strony (`to_doc_id` +
+  krawedzie po encjach dokumentu), nie tylko `from_doc_id`.
+- P3 #16: `getExtractor` nie cache'uje odrzuconego promise - nieudany load
+  modelu nie zabija embeddera do restartu procesu.
+
+**Added**
+- P2 #7: wersjonowany runner migracji SQLite (`backend/src/lib/db/migrate.sqlite.ts`)
+  na `PRAGMA user_version` - sciezka zmian CHECK/FK (rebuild tabeli) dla trybu
+  desktop, obok `ensureSchemaUpgrades` (ADD COLUMN). Test: `migrate.sqlite.test.ts`.
+
+Poza zakresem (osobne ADR): P1 #1 at-rest native swap (better-sqlite3-multiple-
+ciphers + safeStorage), P1 #4 maskowanie nazwisk w egress (domkniecie ADR-0067).
+tsc 0, vitest 1123 pass / 0 fail / 5 todo (+5 testow). Branch
+`fix/audyt-patron-p1-p3`; przed merge do `main`: 2x review WM + decyzja Operatora.
+
 ### Grounding: tagi proweniencji + stan needs_review (ADR-0102)
 
 **Added**

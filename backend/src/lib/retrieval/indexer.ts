@@ -93,8 +93,18 @@ export function clearDocumentIndex(docId: string): void {
       }
     }
     db.prepare("delete from doc_chunks where document_id = ?").run(docId);
+    // Audyt P3 #13: graf czyszczony tylko po from_doc_id zostawial krawedzie
+    // PRZYCHODZACE (to_doc_id) oraz krawedzie wskazujace na encje tego
+    // dokumentu (to_entity_id = UUID encji) jako osierocone. Kasujemy edge
+    // odwolujace sie do encji PRZED usunieciem samych encji (subquery musi je
+    // jeszcze widziec). source_entity_id to lokator tekstowy, nie UUID encji -
+    // nie jest FK, wiec go tu nie ruszamy.
+    db.prepare(
+      "delete from citation_graph where to_entity_id in (select id from extracted_entities where document_id = ?)",
+    ).run(docId);
     db.prepare("delete from extracted_entities where document_id = ?").run(docId);
     db.prepare("delete from citation_graph where from_doc_id = ?").run(docId);
+    db.prepare("delete from citation_graph where to_doc_id = ?").run(docId);
     // Zdarzenia (ADR-0089): event_roles przez FK cascade, ale kasujemy jawnie
     // (foreign_keys PRAGMA moze byc off) - najpierw role, potem wezly.
     db.prepare(

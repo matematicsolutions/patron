@@ -46,7 +46,7 @@ create index if not exists idx_user_profiles_user on user_profiles(user_id);
 create table if not exists user_api_keys (
   id text primary key,
   user_id text not null,
-  provider text not null check (provider in ('claude', 'gemini', 'openai')),
+  provider text not null check (provider in ('claude', 'gemini', 'openai', 'openrouter')),
   encrypted_key text not null,
   iv text not null,
   auth_tag text not null,

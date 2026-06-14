@@ -19,6 +19,7 @@ import os from "os";
 import path from "path";
 import { SQLITE_SCHEMA } from "./schema.sqlite";
 import { applyEncryptionKey } from "./atrest";
+import { runSqliteMigrations } from "./migrate.sqlite";
 
 /**
  * Wymiar embeddingu wektorowego (ADR-0054). Musi byc zgodny z modelem
@@ -80,8 +81,18 @@ export function getDb(): Database.Database {
   applyEncryptionKey(db);
   db.pragma("journal_mode = WAL");
   db.pragma("foreign_keys = ON");
+  // Audyt P3 #12: pod WAL przy rownoczesnym zapisie indeksera/Merkle w tle
+  // ryzyko SQLITE_BUSY. busy_timeout daje retry zamiast natychmiastowego bledu;
+  // synchronous=NORMAL jest bezpieczne i zalecane pod WAL (mniej fsync, bez
+  // ryzyka korupcji przy WAL).
+  db.pragma("busy_timeout = 5000");
+  db.pragma("synchronous = NORMAL");
   db.exec(SQLITE_SCHEMA);
   ensureSchemaUpgrades(db);
+  // Audyt P2 #7: wersjonowany runner migracji (PRAGMA user_version) dla zmian
+  // ktorych ALTER nie obsluguje (rebuild tabeli pod zmiane CHECK/FK). Po
+  // ensureSchemaUpgrades (proste ADD COLUMN), przed warstwa retrievalu.
+  runSqliteMigrations(db);
   setupRetrievalTables(db);
   seedLocalUser(db);
   return db;
