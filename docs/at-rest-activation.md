@@ -1,4 +1,4 @@
-# Aktywacja szyfrowania at-rest (P1 #1 / ADR-0072 / ADR-0118)
+# Aktywacja szyfrowania at-rest (P1 #1 / ADR-0072 / ADR-0129)
 
 > **Status:** SCAFFOLD. Ten branch (`feat/at-rest-native-cipher`) zawiera alias npm
 > sterownika cipher-capable. Aktywacja wymaga **natywnej kompilacji** - wykonaj

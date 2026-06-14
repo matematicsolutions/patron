@@ -26,7 +26,7 @@ export interface PATRONProject {
   review_count?: number;
   /** Klasyfikacja danych sprawy (data-residency, ADR-0067). */
   classification?: string;
-  /** Zgoda na model chmurowy dla tej sprawy (ADR-0117, audyt P2 #6). */
+  /** Zgoda na model chmurowy dla tej sprawy (ADR-0128, audyt P2 #6). */
   cloud_consent?: boolean;
 }
 

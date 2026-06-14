@@ -132,7 +132,7 @@ function ensureSchemaUpgrades(conn: Database.Database): void {
     conn.exec("alter table doc_chunks add column page_no integer");
   }
 
-  // ADR-0117 (audyt P2 #6): zgoda na chmure per-sprawa (nullable->default 0,
+  // ADR-0128 (audyt P2 #6): zgoda na chmure per-sprawa (nullable->default 0,
   // bez CHECK -> ADD COLUMN wystarczy). Istniejace sprawy: 0 (fail-closed).
   if (!hasColumn("projects", "cloud_consent")) {
     conn.exec(

@@ -17,7 +17,7 @@ export async function generateDocx(
         landscape?: boolean;
         projectId?: string | null;
         /**
-         * Preset "styl kancelarii" (audyt Propozycja #6 / CTO sek. D, ADR-0119):
+         * Preset "styl kancelarii" (audyt Propozycja #6 / CTO sek. D, ADR-0130):
          * bez tabel (renderowane jako wyliczenia), srodtytuly pogrubione w osobnym
          * wersie (HeadingLevel), numeracja stron w prawym-dolnym rogu.
          */

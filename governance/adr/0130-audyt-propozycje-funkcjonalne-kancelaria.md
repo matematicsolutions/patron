@@ -1,4 +1,4 @@
-# ADR-0119: Audyt PATRON - propozycje funkcjonalne pod kancelarie (workflow / weryfikacja cytatow / preset docx)
+# ADR-0130: Audyt PATRON - propozycje funkcjonalne pod kancelarie (workflow / weryfikacja cytatow / preset docx)
 
 - **Status:** Proponowany. Branch `feat/kancelaria-proposals` (off main), NIESCALONY do `main` (bramka: 2x review WM + decyzja Operatora).
 - **Data:** 2026-06-14

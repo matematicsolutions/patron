@@ -74,7 +74,7 @@ export const BUILTIN_WORKFLOWS: { id: string; title: string; prompt_md: string }
             "Generate the summary as a downloadable Word document.",
     },
     {
-        // ADR-0119 (audyt PATRON, Propozycja #7 / CTO sek. E): wbudowany obiektyw
+        // ADR-0130 (audyt PATRON, Propozycja #7 / CTO sek. E): wbudowany obiektyw
         // analityczny pod karnistyke. Reuzywa silnik workflows (zero kodu) -
         // strukturalny prompt PL prowadzacy 6-punktowa analize akt sprawy.
         id: "builtin-analiza-akt-karne",

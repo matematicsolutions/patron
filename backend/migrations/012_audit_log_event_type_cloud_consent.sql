@@ -1,9 +1,9 @@
 -- Migration 012: rozszerzenie whitelist event_type o project.cloud_consent.
--- ADR-0117 (governance/adr/0117-zgoda-chmura-per-sprawa-audyt.md), audyt P2 #6.
+-- ADR-0128 (governance/adr/0128-zgoda-chmura-per-sprawa-audyt.md), audyt P2 #6.
 -- Format UP/DOWN per ADR-0038.
 --
 -- Nowa wartosc (do listy z migracji 009):
---   project.cloud_consent   ADR-0117   routes/projects.ts PATCH /:id/cloud-consent
+--   project.cloud_consent   ADR-0128   routes/projects.ts PATCH /:id/cloud-consent
 --
 -- Use case: Operator wlacza/wylacza swiadoma zgode na model chmurowy DLA TEJ
 -- SPRAWY (per-sprawa, niezaleznie od globalnego PATRON_ALLOW_PRIVILEGED_CLOUD).

@@ -1,4 +1,4 @@
-// Testy wezlow PERSON w grafie (audyt P2 #11 follow-up, ADR-0116). Regula OSOBA
+// Testy wezlow PERSON w grafie (audyt P2 #11 follow-up, ADR-0127). Regula OSOBA
 // w pl-entities + mapowanie OSOBA -> wspomina_osobe w extractorze.
 
 import { describe, expect, it } from "vitest";

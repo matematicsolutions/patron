@@ -78,7 +78,7 @@ create table if not exists public.projects (
   -- fail-closed 'attorney_client_privileged'. Patrz migration 006.
   classification text not null default 'attorney_client_privileged'
     check (classification in ('public','internal','client_general','attorney_client_privileged')),
-  -- ADR-0117 (audyt P2 #6): swiadoma zgoda na model chmurowy per-sprawa
+  -- ADR-0128 (audyt P2 #6): swiadoma zgoda na model chmurowy per-sprawa
   -- (audytowana). Default false (fail-closed). Patrz migration 013.
   cloud_consent boolean not null default false,
   created_at timestamptz not null default now(),

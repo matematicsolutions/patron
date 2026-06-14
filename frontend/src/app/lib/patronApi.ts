@@ -233,7 +233,7 @@ export async function deleteProject(projectId: string): Promise<void> {
 }
 
 /**
- * Swiadoma zgoda na model chmurowy DLA TEJ SPRAWY (audyt P2 #6, ADR-0117).
+ * Swiadoma zgoda na model chmurowy DLA TEJ SPRAWY (audyt P2 #6, ADR-0128).
  * Owner-only po stronie backendu; zapisywane do audit_log. Zwraca nowy stan.
  */
 export async function setCloudConsent(
@@ -251,7 +251,7 @@ export async function setCloudConsent(
 }
 
 /**
- * "Zweryfikuj cytaty" (audyt Propozycja #8, ADR-0119) - mechaniczna weryfikacja
+ * "Zweryfikuj cytaty" (audyt Propozycja #8, ADR-0130) - mechaniczna weryfikacja
  * cytatow gotowego pisma wzgledem akt sprawy (ADR-0005, deterministyczna).
  * Zwraca werdykt per ref (verified/unverified/blocked) + podsumowanie.
  */

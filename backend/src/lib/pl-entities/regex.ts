@@ -178,7 +178,7 @@ const EMAIL_RE = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g;
 const FIRMA_Z_FORMA_RE = /\b[A-ZŁŚŻŹĆŃÓĄĘ][\wŁŚŻŹĆŃÓĄĘłśżźćńóąę.,\s&-]{0,80}?\s+(?:Sp\.\s+z\s+o\.o\.|S\.A\.|Sp\.\s+k\.|S\.K\.A\.|Sp\.\s+j\.|Sp\.\s+p\.|P\.S\.A\.)(?=\s|$|[.,;:!?])/g;
 
 /**
- * Osoba zakotwiczona na honoryfikatorze / tytule / roli procesowej (ADR-0116,
+ * Osoba zakotwiczona na honoryfikatorze / tytule / roli procesowej (ADR-0127,
  * domkniecie wezlow PERSON grafu - audyt P2 #11). Grupa (1) = sama nazwa
  * (1-3 tokeny z wielkiej litery, z polskimi znakami i lacznikiem), marker NIE
  * wchodzi do dopasowania (detectAll bierze m[1]). Zakotwiczenie daje wysoka
@@ -343,7 +343,7 @@ export const PL_EXTRACTION_RULES: ExtractionRule[] = [
         normalize: (v) => v.replace(/\s+/g, " ").trim(),
     },
 
-    // === Osoby zakotwiczone na markerze (ADR-0116, wezly PERSON grafu) ===
+    // === Osoby zakotwiczone na markerze (ADR-0127, wezly PERSON grafu) ===
     {
         id: "osoba-z-markerem",
         type: "OSOBA",

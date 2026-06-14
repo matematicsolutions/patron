@@ -1,4 +1,4 @@
-// Router "Zweryfikuj cytaty" (audyt Propozycja #8 / Raport CTO sek. F, ADR-0119).
+// Router "Zweryfikuj cytaty" (audyt Propozycja #8 / Raport CTO sek. F, ADR-0130).
 //
 // Wyeksponowanie istniejacej biblioteki citation (ADR-0005) jako AKCJI na gotowym
 // pismie: bierze liste cytatow {ref, doc_id, quote} + sprawe i zwraca werdykt

@@ -1,4 +1,4 @@
-# ADR-0117: Zgoda na model chmurowy per-sprawa (przelacznik w UI + audyt)
+# ADR-0128: Zgoda na model chmurowy per-sprawa (przelacznik w UI + audyt)
 
 - **Status:** Proponowany. Branch `fix/audyt-patron-p1-p3`, NIESCALONY do `main` (bramka: 2x review WM + decyzja Operatora). Domkniecie audytu P2 #6.
 - **Data:** 2026-06-14

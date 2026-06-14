@@ -73,7 +73,7 @@ function rebuildUserApiKeysAddOpenrouter(db: Database.Database): void {
 
 /**
  * Rebuild CHECK whitelist `audit_log.event_type` o `project.cloud_consent`
- * (audyt P2 #6 / ADR-0117). SQLite nie zmienia CHECK przez ALTER -> rebuild z
+ * (audyt P2 #6 / ADR-0128). SQLite nie zmienia CHECK przez ALTER -> rebuild z
  * ZACHOWANIEM wierszy (id, hash, prev_hash kopiowane verbatim, wiec hash-chain
  * i proof-y Merkle pozostaja wazne) + odtworzenie 3 indeksow. audit_log nie ma
  * incoming FK, wiec drop/rename jest bezpieczny.

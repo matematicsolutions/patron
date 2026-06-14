@@ -426,7 +426,7 @@ export function ProjectPage({ projectId, initialTab = "documents" }: Props) {
         await deleteProjectFolder(projectId, folderId);
     }
 
-    // ── Zgoda na chmure per-sprawa (ADR-0117, audyt P2 #6) ────────────────────
+    // ── Zgoda na chmure per-sprawa (ADR-0128, audyt P2 #6) ────────────────────
     async function handleCloudConsentToggle() {
         if (!project) return;
         const next = !project.cloud_consent;
@@ -1292,7 +1292,7 @@ export function ProjectPage({ projectId, initialTab = "documents" }: Props) {
                 onChange={handleTabChange}
                 actions={
                     <>
-                        {/* ADR-0117: swiadoma zgoda na model chmurowy dla tej sprawy
+                        {/* ADR-0128: swiadoma zgoda na model chmurowy dla tej sprawy
                             (per-sprawa, owner-only, zapisywana do audytu). */}
                         {project.is_owner && (
                             <label

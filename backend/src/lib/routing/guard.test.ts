@@ -128,7 +128,7 @@ describe("guardEgress", () => {
         expect(r.provider).toBe("openrouter");
     });
 
-    it("tajemnica + zgoda chmury PER-SPRAWA (cloud_consent=1) -> dozwolony, mimo globalnego env off (ADR-0117)", async () => {
+    it("tajemnica + zgoda chmury PER-SPRAWA (cloud_consent=1) -> dozwolony, mimo globalnego env off (ADR-0128)", async () => {
         delete process.env.PATRON_ALLOW_PRIVILEGED_CLOUD;
         const r = await guardEgress({
             db: fakeDb({
@@ -147,7 +147,7 @@ describe("guardEgress", () => {
     });
 });
 
-describe("resolveCloudConsent (P2 #6 / ADR-0117)", () => {
+describe("resolveCloudConsent (P2 #6 / ADR-0128)", () => {
     it("brak projectId -> false (czat ogolny)", async () => {
         expect(await resolveCloudConsent(fakeDb({ data: [] }), null)).toBe(false);
     });

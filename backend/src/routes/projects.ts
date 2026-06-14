@@ -333,7 +333,7 @@ projectsRouter.delete("/:projectId", requireAuth, async (req, res) => {
 });
 
 // PATCH /projects/:projectId/cloud-consent — swiadoma zgoda na model chmurowy
-// DLA TEJ SPRAWY (audyt P2 #6, ADR-0117). Owner-only (zmienia brame egress).
+// DLA TEJ SPRAWY (audyt P2 #6, ADR-0128). Owner-only (zmienia brame egress).
 // Zapisywane do audit_log (AI Act art. 12). Body: { enabled: boolean }.
 projectsRouter.patch("/:projectId/cloud-consent", requireAuth, async (req, res) => {
   const userId = res.locals.userId as string;

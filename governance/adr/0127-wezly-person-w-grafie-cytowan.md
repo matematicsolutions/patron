@@ -1,4 +1,4 @@
-# ADR-0116: Wezly PERSON w grafie cytowan - "pokaz dokumenty wspominajace osobe X"
+# ADR-0127: Wezly PERSON w grafie cytowan - "pokaz dokumenty wspominajace osobe X"
 
 - **Status:** Proponowany. Branch `fix/audyt-patron-p1-p3`, NIESCALONY do `main` (bramka: 2x review WM + decyzja Operatora). Domkniecie drugiej polowy P2 #11 (audyt).
 - **Data:** 2026-06-14

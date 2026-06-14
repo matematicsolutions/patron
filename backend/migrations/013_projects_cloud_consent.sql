@@ -1,5 +1,5 @@
 -- Migration 013: projects.cloud_consent (zgoda na model chmurowy per-sprawa).
--- ADR-0117 (governance/adr/0117-zgoda-chmura-per-sprawa-audyt.md), audyt P2 #6.
+-- ADR-0128 (governance/adr/0128-zgoda-chmura-per-sprawa-audyt.md), audyt P2 #6.
 -- Format UP/DOWN per ADR-0038.
 --
 -- Swiadoma, audytowana zgoda Operatora na model chmurowy DLA TEJ SPRAWY,

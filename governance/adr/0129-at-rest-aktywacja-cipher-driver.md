@@ -1,4 +1,4 @@
-# ADR-0118: Aktywacja szyfrowania at-rest - podmiana sterownika na cipher-capable
+# ADR-0129: Aktywacja szyfrowania at-rest - podmiana sterownika na cipher-capable
 
 - **Status:** Proponowany (SCAFFOLD - wymaga natywnej kompilacji do dokonczenia/weryfikacji). Branch `feat/at-rest-native-cipher`, NIESCALONY do `main`. Domkniecie P1 #1 audytu + ADR-0072.
 - **Data:** 2026-06-14
