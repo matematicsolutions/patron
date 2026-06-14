@@ -204,6 +204,10 @@ export interface PATRONMessage {
 export interface CitationQuote {
   page: number;
   quote: string;
+  /** ADR-0122: 0-based wystapienie frazy do podswietlenia (z
+   * `locator.occurrenceHint`). Brak / poza zakresem => pierwsze dopasowanie
+   * (bezpieczny fallback). */
+  occurrence?: number;
 }
 
 /**
@@ -249,6 +253,21 @@ export interface PATRONCitationProvenance {
   pinpoint: boolean;
 }
 
+/**
+ * ADR-0122: frontendowe lustro backendowego `CitationLocator` (ADR-0116) -
+ * trwaly lokator cytatu przewleczony z SSE (`citations.grounding[ref].locator`).
+ * Obecny tylko gdy cytat wystepuje DOSLOWNIE w surowym zrodle (typowe dla
+ * ZWERYFIKOWANY). `rawText` to zrodlo prawdy; `occurrenceHint` (0-based, w
+ * przestrzeni surowego zrodla backendu) steruje occurrence-aware highlightem -
+ * ktore wystapienie powtarzajacej sie frazy podswietlic. NIE niesie offsetow do
+ * DOM frontendu (inna ekstrakcja) - highlight pozostaje dopasowaniem tekstu.
+ */
+export interface PATRONCitationLocator {
+  rawText: string;
+  startHint?: number;
+  occurrenceHint?: number;
+}
+
 export interface PATRONCitationAnnotation {
   type: "citation_data";
   ref: number;
@@ -268,6 +287,11 @@ export interface PATRONCitationAnnotation {
   groundingVerdict?: PATRONGroundingVerdict;
   /** ADR-0102 (A): tag proweniencji (gdy flaga PATRON_PROVENANCE_TAGS wlaczona). Enum, zero PII. */
   provenance?: PATRONCitationProvenance;
+  /** ADR-0122: trwaly lokator (z eventu SSE `citations.grounding[ref].locator`).
+   * Obecny tylko dla cytatu zweryfikowanego verbatim. Steruje occurrence-aware
+   * highlightem. Brak = highlight pierwszego dopasowania (zachowanie sprzed
+   * ADR-0122). */
+  locator?: PATRONCitationLocator;
 }
 
 /**
@@ -319,7 +343,12 @@ export function expandCitationToEntries(
   const pageNum =
     typeof a.page === "number" ? a.page : parseInt(String(a.page), 10);
   if (!Number.isFinite(pageNum)) return [];
-  return [{ page: pageNum, quote: a.quote }];
+  // ADR-0122: na sciezce jednosegmentowej (bez page-break) przekazujemy
+  // occurrenceHint z lokatora, by highlighter wybral wlasciwe wystapienie
+  // powtarzajacej sie frazy. occurrence === undefined (brak lokatora) jest
+  // rownowazne brakowi pola (highlighter spada do pierwszego dopasowania).
+  // Sciezka page-break (wyzej) ma niejednoznaczna semantyke per-segment.
+  return [{ page: pageNum, quote: a.quote, occurrence: a.locator?.occurrenceHint }];
 }
 
 /** Format the page(s) of a citation for display, e.g. "Page 3" or "Page 41-42". */

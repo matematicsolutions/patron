@@ -9,6 +9,7 @@ import type {
     AssistantEvent,
     PATRONCitationAnnotation,
     PATRONCitationProvenance,
+    PATRONCitationLocator,
     PATRONGroundingDecision,
     PATRONGroundingVerdict,
     PATRONMcpCitation,
@@ -870,23 +871,33 @@ export function useAssistantChat({
                             // ADR-0005: werdykt groundingu przychodzi rownolegle
                             // jako mapa ref -> { decision }. Skladamy go w pole
                             // `grounding` kazdego cytatu, by UI pokazal badge.
+                            // ADR-0122: ta sama mapa niesie trwaly `locator`
+                            // (rawText + occurrenceHint) - przewlekamy go do
+                            // cytatu, by occurrence-aware highlight wybral
+                            // wlasciwe wystapienie frazy w dokumencie.
                             const groundingMap = (data.grounding ?? {}) as Record<
                                 string,
                                 {
                                     decision?: PATRONGroundingDecision;
                                     verdict?: PATRONGroundingVerdict;
                                     provenance?: PATRONCitationProvenance;
+                                    locator?: PATRONCitationLocator | null;
                                 }
                             >;
                             const incoming = (
                                 (data.citations ?? []) as PATRONCitationAnnotation[]
                             ).map((c) => {
                                 // ADR-0005 decision (deterministyczna) + ADR-0097 verdict
-                                // (semantyczny sedzia) + ADR-0102 provenance (tag zrodla).
-                                // Wszystkie to enumy; uzasadnienie sedziego (PII) NIE jest
-                                // pobierane.
+                                // (semantyczny sedzia) + ADR-0102 provenance (tag zrodla)
+                                // + ADR-0122 locator (occurrence-aware highlight). Wszystkie
+                                // to enumy/lokator; uzasadnienie sedziego (PII) NIE jest pobierane.
                                 const g = groundingMap[String(c.ref)];
-                                if (!g?.decision && !g?.verdict && !g?.provenance)
+                                if (
+                                    !g?.decision &&
+                                    !g?.verdict &&
+                                    !g?.provenance &&
+                                    !g?.locator
+                                )
                                     return c;
                                 return {
                                     ...c,
@@ -897,6 +908,7 @@ export function useAssistantChat({
                                     ...(g.provenance
                                         ? { provenance: g.provenance }
                                         : {}),
+                                    ...(g.locator ? { locator: g.locator } : {}),
                                 };
                             });
                             setMessages((prev) => {

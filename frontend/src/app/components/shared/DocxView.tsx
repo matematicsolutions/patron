@@ -230,7 +230,10 @@ export function DocxView({
     // Stable key for the quote list so the re-highlight effect re-fires
     // only when the actual text/order of quotes changes.
     const quoteKey = useMemo(
-        () => (quotes ?? []).map((q) => q.quote).join("||"),
+        () =>
+            (quotes ?? [])
+                .map((q) => `${q.occurrence ?? ""}:${q.quote}`)
+                .join("||"),
         [quotes],
     );
 
@@ -254,7 +257,7 @@ export function DocxView({
 
         let firstMatch: HTMLElement | null = null;
         for (const q of list) {
-            const match = highlightDocxQuote(containerEl, q.quote);
+            const match = highlightDocxQuote(containerEl, q.quote, q.occurrence);
             if (match && !firstMatch) firstMatch = match;
         }
         if (!firstMatch) return false;
@@ -398,7 +401,11 @@ export function DocxView({
                         // Highlight quotes too, but don't override the edit scroll
                         if (pendingQuotes?.length) {
                             for (const q of pendingQuotes)
-                                highlightDocxQuote(containerEl, q.quote);
+                                highlightDocxQuote(
+                                    containerEl,
+                                    q.quote,
+                                    q.occurrence,
+                                );
                         }
                     } else if (
                         pendingQuotes &&

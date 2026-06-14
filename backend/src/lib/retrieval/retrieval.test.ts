@@ -161,6 +161,74 @@ describe("indexDocument + retrieve (BM25 + graf + encje)", () => {
       .get() as { c: number };
     expect(fts.c).toBe(chunks.c); // FTS w sync z doc_chunks po re-index
   });
+
+  it("ADR-0124: indekser persystuje surowe offsety chunka (Route B 9b)", () => {
+    const db = conn.getDb();
+    const rows = db
+      .prepare(
+        "select content, source_offset_start as s, source_offset_end as e from doc_chunks where document_id = 'doc-A' order by chunk_index",
+      )
+      .all() as { content: string; s: number | null; e: number | null }[];
+    expect(rows.length).toBeGreaterThan(0);
+    for (const r of rows) {
+      expect(typeof r.s).toBe("number");
+      expect(typeof r.e).toBe("number");
+      expect(r.e!).toBeGreaterThan(r.s!);
+    }
+    // doc-A to jeden akapit -> pierwszy chunk kotwiczy sie na poczatku zrodla
+    expect(rows[0].s).toBe(0);
+  });
+
+  it("ADR-0125: auto-krawedzie zapisane jako proposed/analysis (KGLF 11b)", () => {
+    const db = conn.getDb();
+    const rows = db
+      .prepare(
+        "select status, origin, run_id from citation_graph where from_doc_id = 'doc-A'",
+      )
+      .all() as { status: string; origin: string; run_id: string | null }[];
+    expect(rows.length).toBeGreaterThan(0);
+    for (const r of rows) {
+      expect(r.status).toBe("proposed");
+      expect(r.origin).toBe("analysis");
+      expect(r.run_id).toBeNull(); // propozycja globalna (widoczna, nieratyfikowana)
+    }
+  });
+
+  it("ADR-0125: ratifyStoredEdge - akt ludzki proposed->ratified (KGLF 11c)", async () => {
+    const db = conn.getDb();
+    const { ratifyStoredEdge, getStoredEdge } = await import(
+      "../graph/kglf-edge-store"
+    );
+    const edge = db
+      .prepare("select id from citation_graph where from_doc_id = 'doc-A' limit 1")
+      .get() as { id: string } | undefined;
+    expect(edge).toBeDefined();
+
+    // nie-czlowiek odrzucony (fail-closed, bramka governance #2)
+    expect(ratifyStoredEdge(edge!.id, "analysis", "2026-06-14T12:00:00Z")).toBeNull();
+    const stillProposed = getStoredEdge(edge!.id);
+    expect(stillProposed!.status).toBe("proposed");
+
+    // prawnik ratyfikuje
+    const r = ratifyStoredEdge(edge!.id, "user-radca", "2026-06-14T12:00:00Z")!;
+    expect(r.status).toBe("ratified");
+    expect(r.ratifiedBy).toBe("user-radca");
+    const persisted = db
+      .prepare(
+        "select status, run_id, ratified_by from citation_graph where id = ?",
+      )
+      .get(edge!.id) as {
+      status: string;
+      run_id: string | null;
+      ratified_by: string | null;
+    };
+    expect(persisted.status).toBe("ratified");
+    expect(persisted.run_id).toBeNull();
+    expect(persisted.ratified_by).toBe("user-radca");
+
+    // idempotencja: ponowna ratyfikacja juz ratyfikowanej -> null
+    expect(ratifyStoredEdge(edge!.id, "user-radca", "2026-06-14T13:00:00Z")).toBeNull();
+  });
 });
 
 describe("narzedzie search_corpus (dispatch, bez LLM)", () => {

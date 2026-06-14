@@ -16,6 +16,10 @@
 import type { RetrievedChunk } from "../retrieval/retrieval";
 import { type CitationLocator, findOccurrences, locatorFor } from "./locator";
 
+// ADR-0124 (Route B 9c): gdy chunk niesie surowy span (source_offset_*),
+// budujemy EXACT lokator wprost ze spanu - bez fuzzy findOccurrences na
+// znormalizowanej tresci (ktore w v1 dawalo anchor "none" dla wiekszosci).
+
 /** Ziarnistosc feedu. v1 emituje wylacznie "passage"; "block" = rezerwacja. */
 export type FeedGranularity = "passage" | "block" | "both";
 
@@ -107,6 +111,19 @@ function anchorPassage(
     const source = resolveSource(hit.documentId);
     if (source == null) {
         return { ...base, locator: null, anchor: "none", anchorNote: NO_SOURCE_NOTE };
+    }
+
+    // Route B (ADR-0124): exact lokator ze stored span, gdy obecny i poprawny
+    // wzgledem biezacego zrodla. Stale/poza zakresem (re-ekstrakcja) -> null ->
+    // spadamy do best-effort ponizej (bez regresji).
+    if (hit.sourceOffsetStart != null && hit.sourceOffsetEnd != null) {
+        const spanLocator = locatorFor(source, {
+            start: hit.sourceOffsetStart,
+            end: hit.sourceOffsetEnd,
+        });
+        if (spanLocator != null) {
+            return { ...base, locator: spanLocator, anchor: "exact" };
+        }
     }
 
     const starts = findOccurrences(hit.content, source);

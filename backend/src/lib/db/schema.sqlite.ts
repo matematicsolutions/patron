@@ -326,6 +326,11 @@ create table if not exists doc_chunks (
   -- markery [Page N] (ekstrakcja PDF, lib/chat/pdf.ts); null dla zrodel bez
   -- stron (docx/plain). Pozwala cytowac "str. N".
   page_no integer,
+  -- ADR-0124 (Route B): surowy span chunka w tekscie zrodlowym (UTF-16, end
+  -- exclusive) do exact lokatora search-time. Nullable - stare chunki maja
+  -- NULL do re-indeksu (feed robi fallback best-effort).
+  source_offset_start integer,
+  source_offset_end integer,
   created_at text not null
 );
 create index if not exists idx_doc_chunks_document on doc_chunks(document_id);
@@ -368,6 +373,15 @@ create table if not exists citation_graph (
   relation text not null,
   confidence real not null,
   source_entity_id text,
+  -- ADR-0125 (T2.1 KGLF): governance krawedzi. Auto-ekstrakcja (ADR-0008) wpisuje
+  -- 'proposed'/'analysis'/run_id=null (propozycja globalna, widoczna, nieratyfikowana).
+  -- Ratyfikacja (akt ludzki) ustawia 'ratified' + ratified_by/at. DEFAULT 'proposed'
+  -- /'analysis' -> istniejace auto-krawedzie po migracji pozostaja widoczne (run_id null).
+  status text not null default 'proposed',
+  origin text not null default 'analysis',
+  run_id text,
+  ratified_by text,
+  ratified_at text,
   extracted_at text not null
 );
 create index if not exists idx_citation_graph_from on citation_graph(from_doc_id);

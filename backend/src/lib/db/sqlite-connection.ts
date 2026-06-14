@@ -139,6 +139,39 @@ function ensureSchemaUpgrades(conn: Database.Database): void {
       "alter table projects add column cloud_consent integer not null default 0",
     );
   }
+
+  // ADR-0124 (Route B): surowe offsety chunka w zrodle (exact lokator
+  // search-time). Nullable, bez DEFAULT - stare chunki maja NULL do re-indeksu
+  // (feed/grounding robi fallback best-effort). Backfill = re-index dokumentu.
+  if (!hasColumn("doc_chunks", "source_offset_start")) {
+    conn.exec("alter table doc_chunks add column source_offset_start integer");
+  }
+  if (!hasColumn("doc_chunks", "source_offset_end")) {
+    conn.exec("alter table doc_chunks add column source_offset_end integer");
+  }
+
+  // ADR-0125 (T2.1 KGLF): governance krawedzi grafu. Istniejace auto-krawedzie
+  // dostaja DEFAULT 'proposed'/'analysis' (run_id null = widoczne globalnie, bez
+  // regresji retrievalu); ratyfikacja (akt ludzki) ustawi 'ratified' pozniej.
+  if (!hasColumn("citation_graph", "status")) {
+    conn.exec(
+      "alter table citation_graph add column status text not null default 'proposed'",
+    );
+  }
+  if (!hasColumn("citation_graph", "origin")) {
+    conn.exec(
+      "alter table citation_graph add column origin text not null default 'analysis'",
+    );
+  }
+  if (!hasColumn("citation_graph", "run_id")) {
+    conn.exec("alter table citation_graph add column run_id text");
+  }
+  if (!hasColumn("citation_graph", "ratified_by")) {
+    conn.exec("alter table citation_graph add column ratified_by text");
+  }
+  if (!hasColumn("citation_graph", "ratified_at")) {
+    conn.exec("alter table citation_graph add column ratified_at text");
+  }
 }
 
 /** Model embeddera z env (lustro embeddings.ts; tu bez importu - unik cyklu). */

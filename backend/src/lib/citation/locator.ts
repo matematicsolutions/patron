@@ -174,3 +174,107 @@ export function locatorFromQuote(
     const start = starts[0]!;
     return locatorFor(sourceText, { start, end: start + text.length });
 }
+
+/**
+ * Zwija ciagi bialych znakow do pojedynczej spacji, zapamietujac surowe pozycje.
+ * `map[i]` = surowy indeks pierwszego znaku jednostki `collapsed[i]`;
+ * `map[collapsed.length] = raw.length`. Pozwala odwzorowac offset w zwinietym
+ * tekscie z powrotem na surowy span.
+ */
+function collapseWhitespaceWithMap(raw: string): {
+    collapsed: string;
+    map: number[];
+} {
+    const chars: string[] = [];
+    const map: number[] = [];
+    const n = raw.length;
+    let i = 0;
+    while (i < n) {
+        if (/\s/.test(raw[i]!)) {
+            chars.push(" ");
+            map.push(i);
+            i++;
+            while (i < n && /\s/.test(raw[i]!)) i++;
+        } else {
+            chars.push(raw[i]!);
+            map.push(i);
+            i++;
+        }
+    }
+    map.push(n);
+    return { collapsed: chars.join(""), map };
+}
+
+/**
+ * Lokator tolerujacy roznice bialych znakow. Dopasowuje `text` do `sourceText`
+ * ignorujac zwijanie spacji/nowych linii - dokladnie roznice, jaka indekser RAG
+ * wprowadza w chunkach (`\s+` -> `" "`) i jaka pojawia sie miedzy cytatem LLM a
+ * surowym zrodlem - i odzyskuje DOSLOWNY surowy span zrodla.
+ *
+ * Wynikowy `rawText` jest verbatim w zrodle (niezmiennik ADR-0116), bez
+ * wiodacych/koncowych bialych znakow (wewnetrzne zostaja - to surowy fragment).
+ * Tylko biale znaki sa tolerowane; wielkosc liter i interpunkcja musza sie
+ * zgadzac (brak falszywych trafien). Zwraca null gdy brak dopasowania.
+ */
+export function locatorFromCollapsedQuote(
+    text: string,
+    sourceText: string,
+): CitationLocator | null {
+    const q = text.replace(/\s+/g, " ").trim();
+    if (q.length === 0 || sourceText.length === 0) {
+        return null;
+    }
+    const { collapsed, map } = collapseWhitespaceWithMap(sourceText);
+    const idx = collapsed.indexOf(q);
+    if (idx < 0) {
+        return null;
+    }
+    // q jest przyciety i konczy sie znakiem nie-bialym, wiec map[idx + q.length]
+    // wskazuje surowy indeks tuz za ostatnim dopasowanym znakiem (bez ogona ws).
+    const start = map[idx]!;
+    const end = map[idx + q.length]!;
+    return locatorFor(sourceText, { start, end });
+}
+
+/** Surowy span chunka w tekscie zrodlowym (UTF-16, `end` exclusive). */
+export interface ChunkSpan {
+    start: number;
+    end: number;
+}
+
+/**
+ * ADR-0124 (Route B): mapuje liste tresci chunkow RAG na surowe spany w
+ * `sourceText`, ZACHOWUJAC PORZADEK dokumentu (forward-scan). Tresc chunka jest
+ * znormalizowana whitespace przez indekser (`\s+` -> `" "`), wiec jest ciaglym
+ * podlancuchem zwinietego zrodla - odzyskujemy surowy span przez wspolna mape
+ * collapse (jak locatorFromCollapsedQuote, ADR-0121), ale:
+ *   - jeden collapse na CALY dokument (nie per chunk) - O(n) zamiast O(n*m),
+ *   - forward-scan kursorem: dwa chunki o identycznej tresci dostaja KOLEJNE
+ *     wystapienia (locatorFromCollapsedQuote bralby zawsze pierwsze).
+ *
+ * Zwraca span per chunk w kolejnosci wejscia; null gdy tresci nie odnaleziono
+ * (fail-closed - chunk dostanie NULL offset, feed/grounding zrobi fallback).
+ * Czysta funkcja, zero IO, deterministyczna (Konstytucja Art. 1, 3).
+ */
+export function locateChunkSpans(
+    sourceText: string,
+    chunkContents: readonly string[],
+): (ChunkSpan | null)[] {
+    if (sourceText.length === 0) return chunkContents.map(() => null);
+    const { collapsed, map } = collapseWhitespaceWithMap(sourceText);
+    let cursor = 0;
+    return chunkContents.map((content) => {
+        const q = content.replace(/\s+/g, " ").trim();
+        if (q.length === 0) return null;
+        // Najpierw od kursora (porzadek dokumentu); gdy nie ma - globalnie
+        // (anomalia re-normalizacji), bez cofania kursora.
+        let idx = collapsed.indexOf(q, cursor);
+        if (idx >= 0) {
+            cursor = idx + q.length;
+        } else {
+            idx = collapsed.indexOf(q);
+            if (idx < 0) return null;
+        }
+        return { start: map[idx]!, end: map[idx + q.length]! };
+    });
+}
