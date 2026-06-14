@@ -1504,8 +1504,9 @@ export async function runToolCalls(
         } else if (tc.function.name === "generate_docx") {
             const title = args.title as string;
             const landscape = !!args.landscape;
+            const kancelaria = !!args.kancelaria;
             console.log(
-                `[generate_docx] title="${title}" landscape=${landscape} args.landscape=${args.landscape}`,
+                `[generate_docx] title="${title}" landscape=${landscape} kancelaria=${kancelaria}`,
             );
             const previewFilename = `${
                 title
@@ -1521,7 +1522,7 @@ export async function runToolCalls(
                 args.sections as unknown[],
                 userId,
                 db,
-                { landscape, projectId: projectId ?? null },
+                { landscape, kancelaria, projectId: projectId ?? null },
             );
             let newDocLabel: string | null = null;
             if ("filename" in result && "download_url" in result) {

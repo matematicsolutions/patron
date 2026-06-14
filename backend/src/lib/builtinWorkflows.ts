@@ -73,4 +73,44 @@ export const BUILTIN_WORKFLOWS: { id: string; title: string; prompt_md: string }
             "15. **Governing Law & Dispute Resolution** — Applicable law, forum, arbitration or litigation, and any mandatory escalation steps\n\n" +
             "Generate the summary as a downloadable Word document.",
     },
+    {
+        // ADR-0119 (audyt PATRON, Propozycja #7 / CTO sek. E): wbudowany obiektyw
+        // analityczny pod karnistyke. Reuzywa silnik workflows (zero kodu) -
+        // strukturalny prompt PL prowadzacy 6-punktowa analize akt sprawy.
+        id: "builtin-analiza-akt-karne",
+        title: "Analiza akt (6-punktowa, karne)",
+        prompt_md:
+            "## Analiza akt sprawy karnej (6-punktowa)\n\n" +
+            "Przeanalizuj akta sprawy obecnej w tym projekcie i sporzadz ustrukturyzowana analize " +
+            "obronczowa. Pracuj WYLACZNIE na dokumentach sprawy (uzyj narzedzi przeszukania korpusu i " +
+            "odczytu dokumentow). NIE zmyslaj faktow, nazwisk ani sygnatur - jezeli czegos NIE MA w aktach, " +
+            "napisz wprost \"brak w aktach\". To projekt do redakcji przez adwokata, nie pismo gotowe.\n\n" +
+            "**Twarda dyscyplina cytatu:** kazde przywolanie tresci akt podaj jako: doslowny cytat + " +
+            "dokument (nazwa pliku) + strona (\"str. N\", jezeli dostepna proweniencja strony). Bez tego nie " +
+            "przypisuj twierdzenia do akt. Tam gdzie cytujesz orzeczenie/przepis, podaj sygnature/artykul " +
+            "doslownie.\n\n" +
+            "Struktura analizy (6 punktow):\n\n" +
+            "1. **Zarzut** — dokladna tresc zarzutu/aktu oskarzenia: kwalifikacja prawna czynu, opis czynu, " +
+            "data/miejsce/kwota, znamiona. Cytat z aktu oskarzenia + strona.\n" +
+            "2. **Dowody** — wykaz dowodow oskarzenia i obrony (zeznania, dokumenty, opinie bieglych, " +
+            "protokoly). Dla kazdego: co dowodzi i z czego to wynika (cytat + strona). Wyraznie oznacz " +
+            "**SPRZECZNOSCI i LUKI** (zeznanie vs protokol, opinia vs opinia, brak dowodu na znamie). " +
+            "Opinie bieglych przeanalizuj pod art. 201 k.p.k. (niepelnosc / niejasnosc / sprzecznosc / " +
+            "przekroczenie granic opiniowania).\n" +
+            "3. **Wyrok I instancji** — rozstrzygniecie, ustalenia faktyczne, ocena dowodow. Wychwyc " +
+            "naruszenia: swobodna vs dowolna ocena dowodow (art. 7 k.p.k.), pominiecie calokształtu " +
+            "okolicznosci (art. 410), braki uzasadnienia (art. 424), watpliwosci na niekorzysc (art. 5 §2). " +
+            "Cytat z uzasadnienia + strona.\n" +
+            "4. **Apelacja** — podniesione zarzuty odwolawcze i ich podstawy (art. 438 k.p.k.: obraza prawa " +
+            "materialnego/procesowego, blad w ustaleniach, raznca niewspolmiernosc kary). Oce na ile " +
+            "trafiaja w ustalenia z pkt 3.\n" +
+            "5. **Wyrok II instancji** — rozstrzygniecie sadu odwolawczego, ktore zarzuty uwzglednione/" +
+            "oddalone i dlaczego (cytat + strona).\n" +
+            "6. **Wskazania / dalsza linia obrony** — wnioski: niewykorzystane sprzecznosci i luki, mozliwe " +
+            "dalsze srodki (kasacja, wznowienie), ryzyka. Jezeli sprawa dotyczy tymczasowego aresztowania - " +
+            "oce n przeslanki art. 249 i 258 k.p.k. (realne uzasadnienie, indywidualizacja, dowolnosc ocen).\n\n" +
+            "Dostarcz analize w odpowiedzi (inline). Wygeneruj dokument Word TYLKO jezeli uzytkownik " +
+            "wprost o to poprosi (wtedy uzyj generate_docx). Na koncu zaproponuj 'Zweryfikuj cytaty' przed " +
+            "wykorzystaniem fragmentow w pismie.",
+    },
 ];

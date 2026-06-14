@@ -291,6 +291,33 @@ opis w `governance/adr/`). Pogrupowane wg Keep a Changelog.
 > srodowisku). Backend fail-loud (ADR-0072) i Electron safeStorage (desktop/main.js)
 > JUZ wpiete - brakowalo tylko sterownika. Aktywacje skoordynowac z pipeline desktop.
 > Branch `feat/at-rest-native-cipher`, NIESCALONY.
+### Audyt PATRON Propozycja #6: preset eksportu .docx "styl kancelarii" (ADR-0119)
+
+**Added**
+- Opcja `kancelaria` w `generateDocx` + param w narzedziu `generate_docx`: bez
+  tabel (wiersze -> wyliczenia), srodtytuly pogrubione w osobnym wersie
+  (HeadingLevel), numeracja stron w prawym-dolnym rogu (Footer + PageNumber).
+  Default OFF (zero zmian zachowania). "Konkluzje podkreslane" / pelny "Doszlifuj"
+  (justowanie/typografia) = rezerwacja. Przycisk UI = follow-up.
+
+### Audyt PATRON Propozycja #8: "Zweryfikuj cytaty" jako akcja (ADR-0119)
+
+**Added**
+- `POST /api/citations/verify` (`routes/citations.ts`) - mechaniczna weryfikacja
+  cytatow gotowego pisma wzgledem akt sprawy (ADR-0005, deterministyczna, zero LLM,
+  READ-ONLY). Reuzywa `groundCitationsByRef` + `buildProjectDocContext`; kontrola
+  dostepu do sprawy (`checkProjectAccess`, 404 dla cudzej). Werdykt per ref +
+  summary + `blokada`. Klient `patronApi.verifyCitations`. Przycisk UI = follow-up.
+
+### Audyt PATRON Propozycja #7: wbudowany workflow "Analiza akt" (ADR-0119)
+
+**Added**
+- `builtin-analiza-akt-karne` w `lib/builtinWorkflows.ts` - wbudowany obiektyw
+  analityczny pod karnistyke (6-punktowy: zarzut -> dowody -> wyrok I -> apelacja
+  -> wyrok II -> wskazania). Reuzywa silnik workflows (czyste dane, zero kodu).
+  Dyscyplina cytatu (cytat + dokument + "str. N", proweniencja ADR-0113), obiektywy
+  art. 201/7/410/424/5§2/438/249/258 k.p.k., anty-zmyslanie ("brak w aktach"),
+  dostarczenie inline. Test `builtinWorkflows.test.ts`. Branch `feat/kancelaria-proposals`.
 
 ### Added
 
