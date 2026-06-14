@@ -133,6 +133,74 @@ function ensureSchemaUpgrades(conn: Database.Database): void {
   }
 }
 
+/** Model embeddera z env (lustro embeddings.ts; tu bez importu - unik cyklu). */
+function currentEmbedModel(): string {
+  return process.env.PATRON_EMBED_MODEL || "Xenova/multilingual-e5-small";
+}
+
+export type EmbedderMetaAction =
+  | "fresh"
+  | "unchanged"
+  | "dim-mismatch"
+  | "model-changed";
+
+/**
+ * Wersjonowanie embeddera (audyt P2 #8). Porownuje zapisany (model, wymiar)
+ * uzyty do zbudowania vec_chunks z biezacym. Niezgodnosc WYMIARU = drop
+ * vec_chunks (inaczej cicha korupcja - vec0 ma staly wymiar, a inserty innego
+ * wymiaru leca bledem/sa odrzucane) + wyzerowanie embedding_model w doc_chunks
+ * (sygnal do re-indeksu). Zmiana MODELU przy tym samym wymiarze = ostrzezenie
+ * (wektory z innego modelu sa nieporownywalne, zalecany re-index), bez dropu.
+ * Na koniec zapisuje biezace (model, wymiar). Zwraca rodzaj akcji.
+ *
+ * Eksport dla testow; produkcyjnie wolane z setupRetrievalTables PRZED utworzeniem
+ * vec_chunks. Wymaga tabel retrieval_meta i doc_chunks (SQLITE_SCHEMA).
+ */
+export function reconcileEmbedderMeta(
+  conn: Database.Database,
+  dim: number = EMBED_DIM,
+  model: string = currentEmbedModel(),
+): EmbedderMetaAction {
+  const get = (k: string): string | undefined =>
+    (
+      conn
+        .prepare("select value from retrieval_meta where key = ?")
+        .get(k) as { value: string } | undefined
+    )?.value;
+  const prevDim = get("embed_dim");
+  const prevModel = get("embed_model");
+
+  let action: EmbedderMetaAction = "fresh";
+  if (prevDim || prevModel) {
+    if (prevDim && Number(prevDim) !== dim) {
+      action = "dim-mismatch";
+      console.warn(
+        `[sqlite] EMBED_DIM zmieniony ${prevDim} -> ${dim}: usuwam vec_chunks ` +
+          `(niezgodny wymiar) i zeruje znaczniki embeddingow. BM25/graf dzialaja ` +
+          `dalej; uruchom re-index korpusu, by odbudowac warstwe wektorowa.`,
+      );
+      conn.exec("drop table if exists vec_chunks");
+      conn.prepare("update doc_chunks set embedding_model = null").run();
+    } else if (prevModel && prevModel !== model) {
+      action = "model-changed";
+      console.warn(
+        `[sqlite] PATRON_EMBED_MODEL zmieniony ${prevModel} -> ${model} (ten sam ` +
+          `wymiar). Wektory pochodza z poprzedniego modelu - zalecany re-index ` +
+          `korpusu dla spojnosci wyszukiwania.`,
+      );
+    } else {
+      action = "unchanged";
+    }
+  }
+
+  const up = conn.prepare(
+    "insert into retrieval_meta (key, value) values (?, ?) on conflict(key) do update set value = excluded.value",
+  );
+  up.run("embed_dim", String(dim));
+  up.run("embed_model", model);
+  return action;
+}
+
 /**
  * Laduje rozszerzenie sqlite-vec i tworzy virtual tables retrievalu (ADR-0054):
  *   vec_chunks(embedding float[EMBED_DIM]) - wektor (sqlite-vec)
@@ -154,6 +222,10 @@ function setupRetrievalTables(conn: Database.Database): void {
   }
   try {
     sqliteVec.load(conn);
+    // Audyt P2 #8: wykryj niezgodnosc wymiaru/modelu embeddera ZANIM utworzysz
+    // vec_chunks (create-if-not-exists nie zmieni wymiaru istniejacej tabeli ->
+    // cicha korupcja przy innym EMBED_DIM). Mismatch wymiaru => drop vec_chunks.
+    reconcileEmbedderMeta(conn);
     conn.exec(
       `create virtual table if not exists vec_chunks using vec0(embedding float[${EMBED_DIM}])`,
     );

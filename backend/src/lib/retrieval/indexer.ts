@@ -70,6 +70,9 @@ export interface IndexResult {
 
 const DEFAULT_MAX_CHARS = 900;
 const DEFAULT_MIN_CHARS = 200;
+// Audyt P3 #14: ~13% z maxChars. Zakladka miedzy sasiednimi chunkami, by fakt
+// na granicy chunka nie zostal rozciety na dwa nietrafialne fragmenty.
+const DEFAULT_OVERLAP_CHARS = 120;
 
 /**
  * Dzieli tekst na fragmenty akapitowo. Akapity laczone zachlannie do
@@ -80,6 +83,7 @@ export function chunkText(
   text: string,
   maxChars = DEFAULT_MAX_CHARS,
   minChars = DEFAULT_MIN_CHARS,
+  overlapChars = DEFAULT_OVERLAP_CHARS,
 ): ChunkPiece[] {
   const normalized = text.replace(/\r\n/g, "\n").trim();
   if (!normalized) return [];
@@ -110,7 +114,30 @@ export function chunkText(
   }
   flush();
 
-  return pieces.map((content, index) => ({ index, content }));
+  // Audyt P3 #14: zakladka (~overlapChars) miedzy sasiednimi chunkami - fakt na
+  // granicy chunka (ciety zachlannie) nie ginie. Doklejamy ogon POPRZEDNIEGO
+  // chunku (z oryginalow, bez kompoundowania) na poczatek nastepnego, przyciety
+  // do granicy slowa. Pojedynczy chunk / pusty wynik bez zmian (zero regresji).
+  if (overlapChars <= 0 || pieces.length < 2) {
+    return pieces.map((content, index) => ({ index, content }));
+  }
+  const overlapped = pieces.map((content, i) => {
+    if (i === 0) return content;
+    // Doklejamy ogon TYLKO w ramach pozostalego budzetu do maxChars - kontrakt
+    // "chunk <= maxChars" zostaje zachowany (overlap nie rozdyma chunku ponad
+    // limit; przy chunku pelnym = brak zakladki).
+    const room = maxChars - content.length - 1;
+    if (room <= 0) return content;
+    const prev = pieces[i - 1]!;
+    let tail = prev.slice(Math.max(0, prev.length - Math.min(overlapChars, room)));
+    // Zacznij ogon od granicy slowa: utnij ewentualne wiodace slowo-szczatek lub
+    // spacje (slice mogl trafic w srodek tokenu albo na spacje).
+    const ws = tail.search(/\s/);
+    if (ws >= 0) tail = tail.slice(ws + 1);
+    tail = tail.trimStart();
+    return tail ? `${tail} ${content}` : content;
+  });
+  return overlapped.map((content, index) => ({ index, content }));
 }
 
 /** Usuwa wszystkie artefakty indeksu dla dokumentu (re-index idempotentny). */

@@ -324,6 +324,14 @@ create table if not exists doc_chunks (
 );
 create index if not exists idx_doc_chunks_document on doc_chunks(document_id);
 
+-- Metadane warstwy retrievalu (audyt P2 #8). Klucz->wartosc; trzymamy model i
+-- wymiar embeddera, ktorym zbudowano vec_chunks. Niezgodnosc przy starcie =
+-- wykrycie zamiast cichej korupcji wektorow (mismatch wymiaru / modelu).
+create table if not exists retrieval_meta (
+  key   text primary key,
+  value text not null
+);
+
 -- Encje wykryte deterministycznie (ADR-0008, extractEntitiesAndEdges).
 -- Osobny cykl retencji RODO art. 17 (PII typy: PESEL/NIP/REGON/KRS/EMAIL/PHONE).
 create table if not exists extracted_entities (

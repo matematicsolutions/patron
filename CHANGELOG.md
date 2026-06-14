@@ -7,6 +7,24 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ## [Unreleased]
 
+### Audyt PATRON hygiena retrievalu: embedder + overlap + prefix-PL (ADR-0114)
+
+**Fixed**
+- P2 #8: zmiana wymiaru/modelu embeddera psula po cichu warstwe wektorowa
+  (`create if not exists` nie zmienia wymiaru `vec_chunks`). Tabela
+  `retrieval_meta` + `reconcileEmbedderMeta`: mismatch wymiaru -> drop vec_chunks
+  + sygnal re-indeksu + glosny log; zmiana modelu -> ostrzezenie. Koniec cichej
+  korupcji.
+- P3 #14: chunker bez zakladki rozcinal fakt na granicy chunka. `chunkText`
+  dostal overlap (~120 znakow, ~13%) doklejany w ramach budzetu maxChars
+  (kontrakt `chunk <= maxChars` zachowany).
+- P3 #15: BM25 bez stemmingu gubil formy odmienione. `buildFtsMatch` daje
+  prefix-match rdzenia (`rdzen*`) dla tokenow literowych >=7 znakow; sygnatury/
+  liczby/krotkie zostaja exact.
+
+tsc 0, vitest 1159 pass / 0 fail / 5 todo (+10 `hygiene.test.ts`).
+Branch `fix/audyt-patron-p1-p3`.
+
 ### Audyt PATRON P2 #10: proweniencja strony w chunkach RAG (ADR-0113)
 
 **Fixed**

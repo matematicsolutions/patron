@@ -111,10 +111,36 @@ export function reciprocalRankFusion(
 }
 
 /** Buduje bezpieczne zapytanie FTS5 MATCH z tokenow (OR). null jezeli brak. */
+/**
+ * Lekki rdzen morfologiczny PL dla prefix-matchu FTS (audyt P3 #15). Polska
+ * fleksja jest sufiksalna, wiec formy odmienione dziela rdzen prefiksowy:
+ * "oskarzonego"/"oskarzonemu"/"oskarzony" -> "oskarzon". Obcinamy do 3 znakow
+ * z konca, z podloga 5 znakow rdzenia (krotszy prefix = za duzo false-positive).
+ * Bez slownika sufiksow - jednolita truncacja jest stabilna i deterministyczna.
+ */
+function ftsStem(token: string): string {
+  const strip = Math.min(3, token.length - 5);
+  return strip > 0 ? token.slice(0, token.length - strip) : token;
+}
+
+/**
+ * Buduje wyrazenie FTS5 MATCH z zapytania. Tokeny czysto literowe dlugosci >=7
+ * dostaja prefix-match rdzenia (`rdzen*`) - lapie formy odmienione (recall PL,
+ * audyt P3 #15). Krotkie tokeny, liczby i sygnatury (czp/iii/11) zostaja exact
+ * (prefix krotki = za duzo false-positive). Term laczone przez OR.
+ */
 export function buildFtsMatch(query: string): string | null {
   const tokens = query.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
   if (tokens.length === 0) return null;
-  return tokens.map((t) => `"${t.replace(/"/g, '""')}"`).join(" OR ");
+  return tokens
+    .map((t) => {
+      if (/^\p{L}+$/u.test(t) && t.length >= 7) {
+        // prefix term FTS5 (bez cudzyslowu, z gwiazdka)
+        return `${ftsStem(t)}*`;
+      }
+      return `"${t.replace(/"/g, '""')}"`;
+    })
+    .join(" OR ");
 }
 
 /** Wektorowy MATCH (sqlite-vec). Zwraca chunk id best-first (distance asc). */
