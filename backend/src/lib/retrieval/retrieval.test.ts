@@ -62,6 +62,21 @@ describe("buildFtsMatch", () => {
 
 describe("indexDocument + retrieve (BM25 + graf + encje)", () => {
   beforeAll(async () => {
+    // Wiersze documents (standalone, project_id null) - w produkcji ingest je
+    // tworzy. Po audycie P2 #5 search_corpus w czacie ogolnym skopuje sie do
+    // dokumentow standalone, wiec fixture musi je miec (inaczej docFilter=[]).
+    const { createServerSupabase } = await import("../supabase");
+    const sdb = createServerSupabase();
+    for (const id of ["doc-A", "doc-B", "doc-C"]) {
+      await sdb.from("documents").insert({
+        id,
+        user_id: "u1",
+        project_id: null,
+        filename: `${id}.pdf`,
+        file_type: "pdf",
+        status: "ready",
+      });
+    }
     await indexer.indexDocument(
       "doc-A",
       "Opinia w sprawie zachowku. Sad odwolal sie do uchwaly Sygn. akt III CZP 11/13, " +

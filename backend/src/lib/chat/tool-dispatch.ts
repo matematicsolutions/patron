@@ -455,6 +455,59 @@ export type DocReplicatedResult = {
     }[];
 };
 
+/**
+ * Decyzja scope dla RAG (search_corpus) - audyt P2 #5. Izolacja tajemnicy
+ * miedzy sprawami:
+ *   - projectId ustawiony -> tylko dokumenty tej sprawy.
+ *   - projectId null (czat ogolny) -> DOMYSLNIE tylko dokumenty bez sprawy
+ *     (standalone). Wczesniej brak scope => retrieve przeszukiwal CALY korpus
+ *     usera, mieszajac akta roznych klientow.
+ *   - PATRON_RAG_CROSS_CASE=true -> swiadome wyszukiwanie przekrojowe (caly
+ *     korpus), z ostrzezeniem; tymczasowa furtka env do czasu przelacznika UI.
+ *
+ * Zwraca `documentIds`: lista (scoped) albo undefined (caly korpus, tylko
+ * cross-case). `[]` => retrieve zwraca zero trafien (NIE caly korpus).
+ */
+export async function resolveSearchScope(
+    db: ReturnType<typeof createServerSupabase>,
+    projectId: string | null | undefined,
+): Promise<{
+    documentIds: string[] | undefined;
+    scopeNote?: string;
+    crossCase: boolean;
+}> {
+    if (projectId) {
+        const { data: projDocs } = await db
+            .from("documents")
+            .select("id")
+            .eq("project_id", projectId)
+            .eq("status", "ready");
+        return {
+            documentIds: ((projDocs ?? []) as { id: string }[]).map((d) => d.id),
+            crossCase: false,
+        };
+    }
+    if (process.env.PATRON_RAG_CROSS_CASE === "true") {
+        return {
+            documentIds: undefined,
+            crossCase: true,
+            scopeNote:
+                "UWAGA: wyszukiwanie przekrojowe (PATRON_RAG_CROSS_CASE) - wyniki moga pochodzic z roznych spraw; zweryfikuj proweniencje przed uzyciem.",
+        };
+    }
+    const { data: loose } = await db
+        .from("documents")
+        .select("id")
+        .is("project_id", null)
+        .eq("status", "ready");
+    return {
+        documentIds: ((loose ?? []) as { id: string }[]).map((d) => d.id),
+        crossCase: false,
+        scopeNote:
+            "Czat ogolny: przeszukano tylko dokumenty bez przypisanej sprawy (izolacja tajemnicy). Aby pytac o akta konkretnej sprawy, otworz czat w jej kontekscie.",
+    };
+}
+
 export async function runToolCalls(
     toolCalls: ToolCall[],
     docStore: DocStore,
@@ -550,50 +603,92 @@ export async function runToolCalls(
             const query = (args.query as string) ?? "";
             const maxResults =
                 typeof args.max_results === "number" ? args.max_results : 8;
-            // Scope: dokumenty projektu (jezeli projektowy czat), inaczej caly
-            // korpus usera. retrieve() sam degraduje do BM25+graf bez wektora.
-            let docFilter: string[] | undefined;
-            if (projectId) {
-                const { data: projDocs } = await db
-                    .from("documents")
-                    .select("id")
-                    .eq("project_id", projectId)
-                    .eq("status", "ready");
-                docFilter = ((projDocs ?? []) as { id: string }[]).map(
-                    (d) => d.id,
-                );
-            }
+            // Scope RAG (audyt P2 #5) - izolacja tajemnicy miedzy sprawami.
+            // retrieve() degraduje do BM25+graf bez wektora. documentIds=[] =>
+            // zero trafien (NIE caly korpus). Logika w resolveSearchScope.
+            const {
+                documentIds: docFilter,
+                scopeNote,
+                crossCase: crossCaseSearch,
+            } = await resolveSearchScope(db, projectId);
             let content: string;
             try {
                 const hits = await retrieve(query, maxResults, {
                     documentIds: docFilter,
                 });
                 const ids = [...new Set(hits.map((h) => h.documentId))];
+                // Proweniencja: dokument -> (plik, sprawa). Pozwala pokazac, z
+                // ktorej sprawy pochodzi trafienie i ostrzec o przekroczeniu
+                // granicy sprawy (audyt P2 #5).
                 const fnMap = new Map<string, string>();
+                const projOfDoc = new Map<string, string | null>();
                 if (ids.length) {
                     const { data: docs } = await db
                         .from("documents")
-                        .select("id, filename")
+                        .select("id, filename, project_id")
                         .in("id", ids);
                     for (const d of (docs ?? []) as {
                         id: string;
                         filename: string;
+                        project_id: string | null;
                     }[]) {
                         fnMap.set(d.id, d.filename);
+                        projOfDoc.set(d.id, d.project_id ?? null);
                     }
                 }
+                const caseProjectIds = [
+                    ...new Set(
+                        [...projOfDoc.values()].filter(
+                            (p): p is string => !!p,
+                        ),
+                    ),
+                ];
+                const caseNameMap = new Map<string, string>();
+                if (caseProjectIds.length) {
+                    const { data: projs } = await db
+                        .from("projects")
+                        .select("id, name")
+                        .in("id", caseProjectIds);
+                    for (const p of (projs ?? []) as {
+                        id: string;
+                        name: string;
+                    }[]) {
+                        caseNameMap.set(p.id, p.name);
+                    }
+                }
+                const caseOf = (docId: string): string => {
+                    const pid = projOfDoc.get(docId) ?? null;
+                    return pid
+                        ? (caseNameMap.get(pid) ?? pid)
+                        : "bez sprawy";
+                };
+                // Ostrzezenie gdy trafienia przekraczaja granice jednej sprawy.
+                const distinctCases = new Set(ids.map((id) => caseOf(id)));
+                const crossNote =
+                    distinctCases.size > 1
+                        ? "UWAGA: wyniki pochodza z roznych spraw - sprawdz pole 'case' kazdego trafienia (granica tajemnicy)."
+                        : undefined;
                 content = JSON.stringify({
                     query,
+                    cross_case: crossCaseSearch,
                     results: hits.map((h) => ({
                         document_id: h.documentId,
                         filename: fnMap.get(h.documentId) ?? h.documentId,
+                        case: caseOf(h.documentId),
                         chunk_index: h.chunkIndex,
                         score: Number(h.score.toFixed(4)),
                         text: h.content,
                     })),
-                    note: hits.length
-                        ? undefined
-                        : "Brak trafien w korpusie dla tego zapytania.",
+                    note:
+                        [
+                            hits.length
+                                ? undefined
+                                : "Brak trafien w korpusie dla tego zapytania.",
+                            crossNote,
+                            scopeNote,
+                        ]
+                            .filter(Boolean)
+                            .join(" ") || undefined,
                 });
             } catch (e) {
                 content = JSON.stringify({

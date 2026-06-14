@@ -7,6 +7,26 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ## [Unreleased]
 
+### Audyt PATRON P2 #5: RAG scope - domyslna izolacja spraw (ADR-0111)
+
+**Fixed**
+- P2 #5: `search_corpus` w czacie ogolnym (bez `projectId`) przeszukiwal CALY
+  korpus usera -> fragmenty akt jednego klienta moglyby trafic do rozmowy o
+  innym (tajemnica miedzy klientami). Teraz czat ogolny skopuje sie DOMYSLNIE do
+  dokumentow bez przypisanej sprawy (standalone); akta sprawy sa osiagalne tylko
+  z czatu w jej kontekscie.
+
+**Added**
+- `resolveSearchScope(db, projectId)` (eksport z `tool-dispatch.ts`) - decyzja
+  scope RAG. Furtka `PATRON_RAG_CROSS_CASE=true` na swiadome wyszukiwanie
+  przekrojowe (z flaga `cross_case` + ostrzezeniem) do czasu przelacznika UI (P2 #6).
+- Proweniencja sprawy w kazdym trafieniu (`case` = nazwa sprawy / "bez sprawy")
+  + ostrzezenie gdy wyniki przekraczaja granice jednej sprawy.
+- Testy: `search-scope.test.ts` (+5). Fixture `retrieval.test.ts` uzupelniony o
+  wiersze `documents` standalone (w produkcji tworzy je ingest).
+
+tsc 0, vitest 1140 pass / 0 fail / 5 todo. Branch `fix/audyt-patron-p1-p3`.
+
 ### Audyt PATRON P1 #4: maskowanie nazwisk/podmiotow/adresow przed chmura (ADR-0110)
 
 **Fixed**
