@@ -7,6 +7,23 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ## [Unreleased]
 
+### Audyt PATRON P1 #1 (SCAFFOLD): aktywacja szyfrowania at-rest (ADR-0118)
+
+**Changed**
+- `backend/package.json`: alias sterownika ->
+  `"better-sqlite3": "npm:better-sqlite3-multiple-ciphers@^12.10.0"` (cipher-capable,
+  drop-in API). Zero zmian importow.
+
+**Docs**
+- `docs/at-rest-activation.md` - runbook aktywacji (npm install forka +
+  `@electron/rebuild` + odwrocenie 2 testow atrest + weryfikacja `cipher_version`
+  + migracja plaintext + rollback). ADR-0118.
+
+> SCAFFOLD: wymaga natywnej kompilacji + rebuild pod Electron (NIE wykonane w tym
+> srodowisku). Backend fail-loud (ADR-0072) i Electron safeStorage (desktop/main.js)
+> JUZ wpiete - brakowalo tylko sterownika. Aktywacje skoordynowac z pipeline desktop.
+> Branch `feat/at-rest-native-cipher`, NIESCALONY.
+
 ### Added
 
 - **ADR-0048 - Endpoint "Wymus compute Merkle root" + UI fallback dla audytora**
