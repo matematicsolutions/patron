@@ -21,8 +21,9 @@
 //
 // GRANICA: biblioteka. Funkcje czyste (jaccard, structuralSimilarity,
 // dualSimilarityRank) sa w pelni testowalne bez bazy; loadStructuralProfile jest
-// cienka warstwa DB. Wpiecie w retrieve() jest rezerwacja ADR-0086 (jak
-// ADR-0084/0085 - dostarczamy silnik, nie zmieniamy request-path).
+// cienka warstwa DB. dualReRank jest WPIETY w retrieve() (retrieval.ts, etap
+// dual-similarity po RRF, ADR-0087) - domyslnie ON gdy >1 kandydat, wylaczany
+// przez opts.dualSimilarity=false; waga przez PATRON_DUAL_ALPHA.
 //
 // DETERMINIZM: zero losowosci, zero zegara, stabilne sortowanie z jawnym
 // tie-breakiem. Te same wejscie daje ten sam ranking (Konstytucja Art. 3).

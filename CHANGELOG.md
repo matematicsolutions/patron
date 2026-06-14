@@ -7,6 +7,23 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ## [Unreleased]
 
+### Audyt PATRON P3 #17 + #18: panel "Stan systemu" + czyszczenie komentarzy (ADR-0115)
+
+**Added**
+- P3 #17: endpoint `/api/status` (admin, READ-ONLY) - migawka stanu: wektor on/off,
+  OCR on/off, model+wymiar embeddera, status kluczy API, zgody chmurowe,
+  **saldo kredytow OpenRouter** (`getOpenRouterCredits`, endpoint /credits,
+  best-effort) z flaga `depleted` (wczesny sygnal wyczerpania - realny incydent).
+  Osobno od publicznego liveness `/health`. Fundament pod frontendowy Panel stanu.
+
+**Fixed**
+- P3 #18: nieaktualne komentarze "Wpiecie w retrieve() jest rezerwacja" w
+  `dualSimilarity.ts`/`events.ts` - rerank JEST wpiety (ADR-0087/0089). Komentarze
+  poprawione na stan faktyczny.
+
+tsc 0, vitest 1168 pass / 0 fail / 5 todo (+9: health pure-fns + getOpenRouterCredits).
+Branch `fix/audyt-patron-p1-p3`.
+
 ### Audyt PATRON hygiena retrievalu: embedder + overlap + prefix-PL (ADR-0114)
 
 **Fixed**
