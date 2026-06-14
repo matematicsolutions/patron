@@ -26,7 +26,7 @@ async function injectComment(
   const xml =
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
     `<w:comments xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">` +
-    `<w:comment w:id="1" w:author="Beata" w:date="2026-05-28T10:00:00Z">` +
+    `<w:comment w:id="1" w:author="Rumpole" w:date="2026-05-28T10:00:00Z">` +
     `<w:p><w:r><w:t>${commentText}</w:t></w:r></w:p>` +
     `</w:comment></w:comments>`;
   zip.file("word/comments.xml", xml);
@@ -62,7 +62,7 @@ describe("parseTrackedChanges (petla applyTrackedEdits -> parse)", () => {
           context_after: " zl",
         },
       ],
-      { author: "Beata" },
+      { author: "Rumpole" },
     );
     expect(edited.changes.length).toBe(1);
 
@@ -72,7 +72,7 @@ describe("parseTrackedChanges (petla applyTrackedEdits -> parse)", () => {
     // collapseDiff minimalizuje 5000->8000 do wspolnego "000": del "5", ins "8".
     expect(ins?.text).toBe("8");
     expect(del?.text).toBe("5");
-    expect(ins?.author).toBe("Beata");
+    expect(ins?.author).toBe("Rumpole");
     expect(ins?.w_id).toBeTruthy();
   });
 
@@ -91,7 +91,7 @@ describe("parseComments + parseDocxRoundtrip", () => {
     );
     const comments = await parseComments(withComment);
     expect(comments.length).toBe(1);
-    expect(comments[0].author).toBe("Beata");
+    expect(comments[0].author).toBe("Rumpole");
     expect(comments[0].instruction).toBe(
       "dodaj podstawe prawna art. 415 KC",
     );

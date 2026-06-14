@@ -1,7 +1,7 @@
 // Word import roundtrip (ADR-0060) - strona ODCZYTU edytowanego DOCX wracajacego
 // z Worda. Komplementarne do docxTrackedChanges.ts (strona ZAPISU/eksportu).
 //
-// Beata edytuje pismo w Wordzie (tracked changes + komentarze), wrzuca z powrotem
+// Rumpole edytuje pismo w Wordzie (tracked changes + komentarze), wrzuca z powrotem
 // -> PATRON parsuje co zmienila (uczenie stylu przez Bibliotekarza) i wykrywa
 // komentarze-jako-instrukcje [PATRON: ...] do wykonania.
 

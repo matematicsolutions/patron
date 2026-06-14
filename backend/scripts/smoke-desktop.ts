@@ -187,7 +187,7 @@ async function main() {
           context_after: " zl",
         },
       ],
-      { author: "Beata" },
+      { author: "Rumpole" },
     );
     const rtForm = new FormData();
     rtForm.append("file", new Blob([edited.bytes]), "edited.docx");
