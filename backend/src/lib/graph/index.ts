@@ -10,3 +10,13 @@ export type {
 } from "./types";
 
 export { extractEntitiesAndEdges } from "./extractor";
+
+// ADR-0125 (T2.1): warstwa governance krawedzi KGLF (typ-jako-dane, ratyfikacja
+// czlowieka, run-privacy). Czysta - persystencja/wpiecie = rezerwacja.
+export type { KglfEdge, KglfEdgeStatus, KglfEdgeOrigin, ProposableEdge } from "./kglf-edge";
+export {
+    isValidRelationLabel,
+    proposeEdge,
+    ratifyEdge,
+    isEdgeVisible,
+} from "./kglf-edge";
