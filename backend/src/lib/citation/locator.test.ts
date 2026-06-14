@@ -4,6 +4,7 @@ import { describe, it, expect } from "vitest";
 import {
     type CitationLocator,
     findOccurrences,
+    locateChunkSpans,
     locatorFor,
     locatorFromCollapsedQuote,
     locatorFromQuote,
@@ -245,5 +246,59 @@ describe("locatorFromCollapsedQuote", () => {
         const loc = locatorFromCollapsedQuote("Pozycja 1 000,00 zl", src);
         expect(loc).not.toBeNull();
         expect(loc!.rawText.replace(/\s+/g, " ")).toBe("Pozycja 1 000,00 zl");
+    });
+});
+
+describe("locateChunkSpans (ADR-0124, Route B)", () => {
+    it("mapuje chunki collapsed na surowe spany; slice zwija sie do tresci", () => {
+        const src = "Akapit  pierwszy\nz lamaniem.\n\nAkapit drugi tutaj.";
+        const c1 = "Akapit pierwszy z lamaniem.";
+        const c2 = "Akapit drugi tutaj.";
+        const spans = locateChunkSpans(src, [c1, c2]);
+        expect(spans).toHaveLength(2);
+        expect(
+            src.slice(spans[0]!.start, spans[0]!.end).replace(/\s+/g, " "),
+        ).toBe(c1);
+        expect(src.slice(spans[1]!.start, spans[1]!.end)).toBe("Akapit drugi tutaj.");
+        expect(spans[1]!.start).toBeGreaterThan(spans[0]!.start);
+    });
+
+    it("forward-scan: dwa identyczne chunki dostaja KOLEJNE wystapienia", () => {
+        const src = "Klauzula poufnosci.\n\nInny tekst.\n\nKlauzula poufnosci.";
+        const spans = locateChunkSpans(src, [
+            "Klauzula poufnosci.",
+            "Klauzula poufnosci.",
+        ]);
+        expect(spans[0]).not.toBeNull();
+        expect(spans[1]).not.toBeNull();
+        expect(spans[1]!.start).toBeGreaterThan(spans[0]!.start);
+        expect(src.slice(spans[0]!.start, spans[0]!.end)).toBe("Klauzula poufnosci.");
+        expect(src.slice(spans[1]!.start, spans[1]!.end)).toBe("Klauzula poufnosci.");
+    });
+
+    it("chunk nieobecny w zrodle -> null (fail-closed), nie wywraca reszty", () => {
+        const src = "Tylko ten akapit istnieje.";
+        const spans = locateChunkSpans(src, [
+            "Tylko ten akapit istnieje.",
+            "Czego tu nie ma",
+        ]);
+        expect(spans[0]).not.toBeNull();
+        expect(spans[1]).toBeNull();
+    });
+
+    it("puste zrodlo / pusty chunk -> null", () => {
+        expect(locateChunkSpans("", ["cokolwiek"])).toEqual([null]);
+        expect(locateChunkSpans("abc def", ["   "])).toEqual([null]);
+    });
+
+    it("span jest re-kotwiczalny (round-trip przez locatorFor)", () => {
+        const src = "Sad  ustalil\nnastepujacy stan faktyczny sprawy.";
+        const [span] = locateChunkSpans(src, [
+            "Sad ustalil nastepujacy stan faktyczny sprawy.",
+        ]);
+        expect(span).not.toBeNull();
+        const loc = locatorFor(src, span!);
+        expect(loc).not.toBeNull();
+        expect(src.slice(span!.start, span!.end)).toBe(loc!.rawText);
     });
 });

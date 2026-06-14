@@ -235,3 +235,46 @@ export function locatorFromCollapsedQuote(
     const end = map[idx + q.length]!;
     return locatorFor(sourceText, { start, end });
 }
+
+/** Surowy span chunka w tekscie zrodlowym (UTF-16, `end` exclusive). */
+export interface ChunkSpan {
+    start: number;
+    end: number;
+}
+
+/**
+ * ADR-0124 (Route B): mapuje liste tresci chunkow RAG na surowe spany w
+ * `sourceText`, ZACHOWUJAC PORZADEK dokumentu (forward-scan). Tresc chunka jest
+ * znormalizowana whitespace przez indekser (`\s+` -> `" "`), wiec jest ciaglym
+ * podlancuchem zwinietego zrodla - odzyskujemy surowy span przez wspolna mape
+ * collapse (jak locatorFromCollapsedQuote, ADR-0121), ale:
+ *   - jeden collapse na CALY dokument (nie per chunk) - O(n) zamiast O(n*m),
+ *   - forward-scan kursorem: dwa chunki o identycznej tresci dostaja KOLEJNE
+ *     wystapienia (locatorFromCollapsedQuote bralby zawsze pierwsze).
+ *
+ * Zwraca span per chunk w kolejnosci wejscia; null gdy tresci nie odnaleziono
+ * (fail-closed - chunk dostanie NULL offset, feed/grounding zrobi fallback).
+ * Czysta funkcja, zero IO, deterministyczna (Konstytucja Art. 1, 3).
+ */
+export function locateChunkSpans(
+    sourceText: string,
+    chunkContents: readonly string[],
+): (ChunkSpan | null)[] {
+    if (sourceText.length === 0) return chunkContents.map(() => null);
+    const { collapsed, map } = collapseWhitespaceWithMap(sourceText);
+    let cursor = 0;
+    return chunkContents.map((content) => {
+        const q = content.replace(/\s+/g, " ").trim();
+        if (q.length === 0) return null;
+        // Najpierw od kursora (porzadek dokumentu); gdy nie ma - globalnie
+        // (anomalia re-normalizacji), bez cofania kursora.
+        let idx = collapsed.indexOf(q, cursor);
+        if (idx >= 0) {
+            cursor = idx + q.length;
+        } else {
+            idx = collapsed.indexOf(q);
+            if (idx < 0) return null;
+        }
+        return { start: map[idx]!, end: map[idx + q.length]! };
+    });
+}
