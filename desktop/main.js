@@ -106,7 +106,7 @@ function backendLocalEnv() {
 
   // OCR skanow/zdjec (ADR-0074/0075): silnik LOKALNY zero-cloud. Bez tego
   // isOcrConfigured()=false i obrazy (jpg/png/tiff) sa odrzucane na wejsciu -
-  // realny blocker uzytecznosci dla akt papierowych (pilot Beata: "nie czyta
+  // realny blocker uzytecznosci dla akt papierowych (pilot Rumpole: "nie czyta
   // dokumentow"). PATRON_OCR_CMD jest engine-agnostic (silnik wybierany env, nie
   // kodem). Priorytet rezolucji:
   //   1) jawny override Operatora (process.env.PATRON_OCR_CMD) - nie ruszamy,
@@ -290,7 +290,7 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      // Most do natywnego pickera folderu (FIX pilot Beata: "nie wiem jak skopiowac
+      // Most do natywnego pickera folderu (FIX pilot Rumpole: "nie wiem jak skopiowac
       // sciezke - chce jak zalacznik"). Wystawia tylko bezpieczne, jawne API
       // (window.patron.selectFolder) - bez nodeIntegration, bez require w rendererze.
       preload: path.join(__dirname, 'preload.js'),
@@ -349,7 +349,7 @@ function createWindow() {
       // Submenu Edytuj - bez niego skroty schowka (Ctrl+C/V/X/Z/A) sa martwe,
       // bo w Electronie akcje edycyjne sa podpiete przez role menu, a minimalne
       // menu ich nie mialo. Blokowalo wklejanie klucza API w Konto -> Modele
-      // (zgloszenie Pilot-01-Czechowicz). Jawne pozycje z polskimi labelami;
+      // (zgloszenie Pilot-01-Rumpole). Jawne pozycje z polskimi labelami;
       // akceleratory pochodza z domyslnych roli edycyjnych Electrona.
       label: 'Edytuj',
       submenu: [
@@ -459,7 +459,7 @@ function showSplash() {
 }
 
 // ── Boot sequence ──────────────────────────────────────────────────────────
-// IPC: natywny picker folderu sprawy (FIX pilot Beata). Renderer wola
+// IPC: natywny picker folderu sprawy (FIX pilot Rumpole). Renderer wola
 // window.patron.selectFolder() (patrz preload.js); zwraca wybrana sciezke albo
 // null gdy Operator anulowal. Read-only wybor katalogu - nie dotyka FS sam.
 ipcMain.handle('patron:selectFolder', async () => {

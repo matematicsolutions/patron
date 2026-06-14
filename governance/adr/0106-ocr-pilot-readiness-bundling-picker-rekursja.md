@@ -2,11 +2,11 @@
 
 - **Status:** Zaakceptowany (pilot-driven). Branch `feat/tier-governance-envelope`, NIESCALONY do `main` (bramka: 2x review WM).
 - **Data:** 2026-06-05
-- **Kontekst pilota:** Pilot-01-Czechowicz. Realne akta = 626 zeskanowanych JPG (sprawa Klamczynski). Beata: "PATRON nie czyta dokumentow".
+- **Kontekst pilota:** Pilot-01-Rumpole. Realne akta = 626 zeskanowanych JPG (sprawa Doe). Rumpole: "PATRON nie czyta dokumentow".
 
 ## Kontekst
 
-OCR jest w PATRONie engine-agnostic przez env `PATRON_OCR_CMD` (ADR-0074), a silnik (Tesseract/Chandra) mial byc wpiety w "next steps" ADR-0075 - **nigdy nie zaszipowany**. Na maszynach pilota `PATRON_OCR_CMD` byl PUSTY -> `isOcrConfigured()=false` -> obrazy odrzucane na wejsciu. Dodatkowo: importer folderu sprawy **pomijal podkatalogi**, a UI wymagalo **recznego wpisania sciezki** (nietechniczna Beata: "nie wiem jak skopiowac sciezke - chce jak zalacznik"). Cztery luki pilot-readiness OCR ("Libra nie przyjmuje zdjec, my tak").
+OCR jest w PATRONie engine-agnostic przez env `PATRON_OCR_CMD` (ADR-0074), a silnik (Tesseract/Chandra) mial byc wpiety w "next steps" ADR-0075 - **nigdy nie zaszipowany**. Na maszynach pilota `PATRON_OCR_CMD` byl PUSTY -> `isOcrConfigured()=false` -> obrazy odrzucane na wejsciu. Dodatkowo: importer folderu sprawy **pomijal podkatalogi**, a UI wymagalo **recznego wpisania sciezki** (nietechniczna Rumpole: "nie wiem jak skopiowac sciezke - chce jak zalacznik"). Cztery luki pilot-readiness OCR ("Libra nie przyjmuje zdjec, my tak").
 
 ## Decyzja
 

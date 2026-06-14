@@ -2,11 +2,11 @@
 
 - **Status:** Zaakceptowany (pilot-driven). Branch `feat/tier-governance-envelope`, NIESCALONY do `main` (bramka: 2x review WM).
 - **Data:** 2026-06-05
-- **Kontekst pilota:** Pilot-01-Czechowicz, runda 2. Po reinstalacji picker modeli sypal - klaster bugow "wybieram model a czesc nie dziala".
+- **Kontekst pilota:** Pilot-01-Rumpole, runda 2. Po reinstalacji picker modeli sypal - klaster bugow "wybieram model a czesc nie dziala".
 
 ## Kontekst
 
-Kilka defektow pickera modeli wykrytych na zywo (Beata na OpenRouter):
+Kilka defektow pickera modeli wykrytych na zywo (Rumpole na OpenRouter):
 
 1. **Martwy slug:** kafelek "Gemini 3 Flash" mial `openrouter/google/gemini-3-flash` - slug NIE ISTNIEJE na OpenRouter. Poprawny: `google/gemini-3-flash-preview`. Kafelek byl martwy od poczatku.
 2. **Domyslne modele backendu = Gemini-direct:** `DEFAULT_MAIN/TITLE/TABULAR_MODEL` (`models.ts`) byly `gemini-3-flash-preview` (direct, wymaga klucza Google). Czat na OpenRouterze dzialal, ale tytul czatu / przeglad tabelaryczny / fallback cicho padaly bez klucza Google.

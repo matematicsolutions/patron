@@ -92,14 +92,14 @@ describe("supabase-shim: filtry i modyfikatory", () => {
     // Lustro projects.ts: szukamy projektow wspoldzielonych z danym emailem.
     await db
       .from("projects")
-      .insert({ user_id: "u6", name: "Wspoldzielony", shared_with: ["beata@k.pl"] });
+      .insert({ user_id: "u6", name: "Wspoldzielony", shared_with: ["rumpole@kancelaria.test"] });
     await db
       .from("projects")
       .insert({ user_id: "u6", name: "Prywatny", shared_with: [] });
     const hit = await db
       .from("projects")
       .select("*")
-      .filter("shared_with", "cs", JSON.stringify(["beata@k.pl"]));
+      .filter("shared_with", "cs", JSON.stringify(["rumpole@kancelaria.test"]));
     expect(hit.error).toBeNull();
     expect(hit.data.some((p: { name: string }) => p.name === "Wspoldzielony")).toBe(true);
     expect(hit.data.every((p: { name: string }) => p.name !== "Prywatny")).toBe(true);
