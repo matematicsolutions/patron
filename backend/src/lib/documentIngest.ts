@@ -327,7 +327,7 @@ export interface FolderIngestEntry {
  *  pary {absolutna sciezka, sciezka wzgledna do korzenia} - sciezka wzgledna idzie
  *  do pola `file` (audyt/UI pokazuje z ktorego podfolderu, np. "Cz. 1/IMG_2462.JPG").
  *  Akta papierowe sa czesto cyfryzowane w podfolderach (Cz. 1/2/3) - pomijanie
- *  podkatalogow czynilo import bezuzytecznym dla realnych spraw (pilot Beata). */
+ *  podkatalogow czynilo import bezuzytecznym dla realnych spraw (pilot Rumpole). */
 async function collectSupportedFiles(
   rootPath: string,
 ): Promise<{ abs: string; rel: string }[]> {

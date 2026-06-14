@@ -37,7 +37,7 @@ async function injectNativeComment(docx: Buffer, text: string): Promise<Buffer> 
     const xml =
         `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
         `<w:comments xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">` +
-        `<w:comment w:id="1" w:author="Beata" w:date="2026-05-28T10:00:00Z">` +
+        `<w:comment w:id="1" w:author="Rumpole" w:date="2026-05-28T10:00:00Z">` +
         `<w:p><w:r><w:t>${text}</w:t></w:r></w:p></w:comment></w:comments>`;
     zip.file("word/comments.xml", xml);
     return zip.generateAsync({ type: "nodebuffer" });

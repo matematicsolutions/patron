@@ -11,7 +11,7 @@ import type { SecurityAction, SecurityScanResult } from "./types";
  * a odczyt read-time nie jest wstrzymywany. Powod: PATRON to desktop single-user,
  * gdzie Operator (adwokat) JEST czlowiekiem w petli i wciaga WLASNE akta; ostre
  * gardlowanie kwarantannowalo zeskanowane akta papierowe (false-positive HIGH na
- * szumie OCR) -> produkt "nie czytal dokumentow" (pilot Beata). Filozofia: najpierw
+ * szumie OCR) -> produkt "nie czytal dokumentow" (pilot Rumpole). Filozofia: najpierw
  * otwarte i uzyteczne, rygor pozniej na wniosek praktykow. Hardened/serwerowy
  * deployment wlacza egzekwowanie: PATRON_INPUT_SECURITY_ENFORCE=1.
  */

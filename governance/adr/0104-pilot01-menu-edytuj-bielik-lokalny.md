@@ -2,7 +2,7 @@
 
 - **Status:** Zaakceptowany (pilot-driven). Branch `feat/tier-governance-envelope`, NIESCALONY do `main` (bramka: 2x review WM).
 - **Data:** 2026-06-05
-- **Kontekst pilota:** Pilot-01-Czechowicz (pierwsza instalacja PATRON poza maszyna MateMatic, kancelaria karna adw. B. Czechowicz).
+- **Kontekst pilota:** Pilot-01-Rumpole (pierwsza instalacja PATRON poza maszyna MateMatic, kancelaria karna „Rumpole & Loophole" (adw. H. Rumpole)).
 
 ## Kontekst
 

@@ -193,14 +193,14 @@ describe("detectAll - sygnatury aktow prawnych", () => {
 describe("detectAll - firmy z forma prawna", () => {
     it("wykrywa Sp. z o.o. i S.A.", () => {
         const text =
-            "Allegro Sp. z o.o. zawarla umowe z PKN Orlen S.A. w marcu 2024.";
+            "Acme sp. z o.o. zawarla umowe z PKN Orlen S.A. w marcu 2024.";
         const matches = detectAll(text);
         const firmy = matches.filter((m) => m.type === "FIRMA");
         expect(firmy.length).toBeGreaterThanOrEqual(2);
     });
 
     it("nie wykrywa nazw bez formy prawnej (do LLM-fallback)", () => {
-        const text = "Klient Allegro zglosil reklamacje.";
+        const text = "Klient Acme zglosil reklamacje.";
         const matches = detectAll(text);
         const firmy = matches.filter((m) => m.type === "FIRMA");
         expect(firmy).toHaveLength(0);

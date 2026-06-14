@@ -10,7 +10,7 @@ ADR-0071 (zero-cloud: model OCR BUNDLOWANY, nie pobierany), ADR-0070 (H5 skan we
 
 ## Kontekst
 
-To jest powod powstania Patron Desktop. Najwiekszy bol kancelarii (Beata, dzisiejszy stack Libra):
+To jest powod powstania Patron Desktop. Najwiekszy bol kancelarii (Rumpole, dzisiejszy stack Libra):
 konwersja dokumentow - zdjecia, skany papierowe, PDF bez warstwy tekstu - z limitami rozmiaru/liczby
 plikow i recznym OCR. Patron ma przyjac *cokolwiek* bez limitu i lokalnie zamienic na tekst (Markdown),
 ktory zasila reszte pipeline (RAG + graf + analiza + marko/humanizer + Word).
@@ -70,7 +70,7 @@ zewnetrzne procesy (Python/Java), nie npm deps. Sciezki binarek z env (`PATRON_O
 ## Packaging (decyzja Wieslawa)
 
 **Wszystko w jednej instalce.** Rozmiar nieistotny (nawet 20 GB - mecenasi maja sprzet). Python + Java +
-wagi Chandry pakowane jako **bundled sidecar** (embeddable Python / PyInstaller + JRE + model). Beata:
+wagi Chandry pakowane jako **bundled sidecar** (embeddable Python / PyInstaller + JRE + model). Rumpole:
 next->next->finish, zero zewnetrznych instalacji. Instalacja osobnych narzedzi - ODRZUCONA. Zasada:
 "prawnika interesuje uzytecznosc, nie technologia" - technologia niewidzialna.
 
