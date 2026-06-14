@@ -7,6 +7,16 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ## [Unreleased]
 
+### Audyt PATRON Propozycja #7: wbudowany workflow "Analiza akt" (ADR-0119)
+
+**Added**
+- `builtin-analiza-akt-karne` w `lib/builtinWorkflows.ts` - wbudowany obiektyw
+  analityczny pod karnistyke (6-punktowy: zarzut -> dowody -> wyrok I -> apelacja
+  -> wyrok II -> wskazania). Reuzywa silnik workflows (czyste dane, zero kodu).
+  Dyscyplina cytatu (cytat + dokument + "str. N", proweniencja ADR-0113), obiektywy
+  art. 201/7/410/424/5§2/438/249/258 k.p.k., anty-zmyslanie ("brak w aktach"),
+  dostarczenie inline. Test `builtinWorkflows.test.ts`. Branch `feat/kancelaria-proposals`.
+
 ### Added
 
 - **ADR-0048 - Endpoint "Wymus compute Merkle root" + UI fallback dla audytora**
