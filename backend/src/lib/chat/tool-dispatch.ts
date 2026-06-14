@@ -471,12 +471,16 @@ export type DocReplicatedResult = {
 export async function resolveSearchScope(
     db: ReturnType<typeof createServerSupabase>,
     projectId: string | null | undefined,
+    userId?: string,
 ): Promise<{
     documentIds: string[] | undefined;
     scopeNote?: string;
     crossCase: boolean;
 }> {
     if (projectId) {
+        // Sprawa: scope po project_id (wspoldzielenie obsluguje warstwa dostepu
+        // do czatu/projektu - checkProjectAccess - wiec NIE zawezamy po user_id,
+        // by collaborator widzial akta wspolnej sprawy).
         const { data: projDocs } = await db
             .from("documents")
             .select("id")
@@ -495,11 +499,17 @@ export async function resolveSearchScope(
                 "UWAGA: wyszukiwanie przekrojowe (PATRON_RAG_CROSS_CASE) - wyniki moga pochodzic z roznych spraw; zweryfikuj proweniencje przed uzyciem.",
         };
     }
-    const { data: loose } = await db
+    // Czat ogolny: tylko dokumenty standalone WLASCICIELA. user_id zaweza
+    // cross-tenant (tryb serwerowy multi-tenant: dokumenty standalone sa osobiste,
+    // nigdy wspoldzielone - bez tego filtra czat ogolny moglby siegnac standalone
+    // innego usera). Desktop single-user: filtr nieszkodliwy.
+    let looseQuery = db
         .from("documents")
         .select("id")
         .is("project_id", null)
         .eq("status", "ready");
+    if (userId) looseQuery = looseQuery.eq("user_id", userId);
+    const { data: loose } = await looseQuery;
     return {
         documentIds: ((loose ?? []) as { id: string }[]).map((d) => d.id),
         crossCase: false,
@@ -610,7 +620,7 @@ export async function runToolCalls(
                 documentIds: docFilter,
                 scopeNote,
                 crossCase: crossCaseSearch,
-            } = await resolveSearchScope(db, projectId);
+            } = await resolveSearchScope(db, projectId, userId);
             let content: string;
             try {
                 const hits = await retrieve(query, maxResults, {

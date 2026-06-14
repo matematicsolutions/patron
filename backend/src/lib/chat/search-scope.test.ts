@@ -36,6 +36,15 @@ beforeAll(async () => {
             status: "ready",
         });
     }
+    // Dokument standalone INNEGO usera - nie moze wyciec do czatu ogolnego u1.
+    await db.from("documents").insert({
+        id: "docOther",
+        user_id: "u2",
+        project_id: null,
+        filename: "docOther.pdf",
+        file_type: "pdf",
+        status: "ready",
+    });
 });
 
 afterEach(() => {
@@ -62,12 +71,19 @@ describe("resolveSearchScope (P2 #5)", () => {
     });
 
     it("czat ogolny (bez sprawy) -> DOMYSLNIE tylko dokumenty standalone, NIE akta spraw", async () => {
-        const r = await resolveSearchScope(db, null);
+        const r = await resolveSearchScope(db, null, "u1");
         expect(r.documentIds).toEqual(["docLoose"]);
         expect(r.documentIds).not.toContain("docA1");
         expect(r.documentIds).not.toContain("docB1");
         expect(r.crossCase).toBe(false);
         expect(r.scopeNote).toMatch(/izolacj/i);
+    });
+
+    it("czat ogolny zaweza standalone po user_id (cross-tenant) - nie widzi docOther innego usera", async () => {
+        const r = await resolveSearchScope(db, null, "u1");
+        expect(r.documentIds).not.toContain("docOther");
+        const other = await resolveSearchScope(db, null, "u2");
+        expect(other.documentIds).toEqual(["docOther"]);
     });
 
     it("documentIds=[] (gdy brak standalone) => retrieve zwroci zero, nie caly korpus", async () => {
