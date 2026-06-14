@@ -14,7 +14,7 @@
 
 import crypto from "crypto";
 import { getDb, isVecEnabled } from "../db/sqlite-connection";
-import { extractEntitiesAndEdges } from "../graph";
+import { extractEntitiesAndEdges, resolveToDocLinks } from "../graph";
 import { buildRoleHits, buildEventFrames } from "./events";
 import { embed, EMBED_MODEL } from "./embeddings";
 import { chunkLegalText } from "./legalChunker";
@@ -104,7 +104,10 @@ export function clearDocumentIndex(docId: string): void {
     ).run(docId);
     db.prepare("delete from extracted_entities where document_id = ?").run(docId);
     db.prepare("delete from citation_graph where from_doc_id = ?").run(docId);
-    db.prepare("delete from citation_graph where to_doc_id = ?").run(docId);
+    // Krawedzie INNYCH dokumentow rozwiazane na ten (to_doc_id, ADR-0111 graf
+    // P2 #11): NIE kasujemy ich - cytujacy nadal cytuje te sygnature, znika tylko
+    // rozwiazany cel. Zerujemy to_doc_id (re-resolve przy nastepnej indeksacji).
+    db.prepare("update citation_graph set to_doc_id = null where to_doc_id = ?").run(docId);
     // Zdarzenia (ADR-0089): event_roles przez FK cascade, ale kasujemy jawnie
     // (foreign_keys PRAGMA moze byc off) - najpierw role, potem wezly.
     db.prepare(
@@ -263,6 +266,12 @@ export async function indexDocument(
     }
   });
   writeEvents();
+
+  // Audyt P2 #11: rozwiaz krawedzie dokument->dokument (to_doc_id) na poziomie
+  // korpusu. Po dodaniu tego dokumentu moze on byc "dokumentem, ktorym JEST"
+  // sygnatura cytowana przez starsze dokumenty (i odwrotnie) - przeliczamy caly
+  // graf (idempotentnie, tanio dla korpusu desktop single-user).
+  resolveToDocLinks(db);
 
   return {
     docId,

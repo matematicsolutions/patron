@@ -10,3 +10,4 @@ export type {
 } from "./types";
 
 export { extractEntitiesAndEdges } from "./extractor";
+export { resolveToDocLinks } from "./crossDocLinks";

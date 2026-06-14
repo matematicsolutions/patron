@@ -7,6 +7,28 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ## [Unreleased]
 
+### Audyt PATRON P2 #11: graf - rozwiazanie krawedzi dokument->dokument (ADR-0112)
+
+**Fixed**
+- P2 #11: `citation_graph.to_doc_id` byl martwy (extractor zawsze `toDocId=null`)
+  -> brak trwalej krawedzi "dokument X cytuje wyrok bedacy dokumentem Y".
+
+**Added**
+- `lib/graph/crossDocLinks.ts` - `resolveToDocLinks(db)`: deterministyczny
+  post-pass liczacy `to_doc_id`. Krawedz cytowania sygnatury wskazuje dokument,
+  ktory NIA JEST (inny dokument z ta sama `value_normalized`), TYLKO gdy taki jest
+  dokladnie jeden (jednoznacznosc); inaczej null. Wpiety w `indexDocument`
+  (przelicza korpus idempotentnie). Query-time centralnosc nietknieta.
+
+**Changed**
+- `clearDocumentIndex`: krawedzie INNYCH dokumentow rozwiazane na usuwany
+  dokument sa null-owane (`to_doc_id = null`), nie kasowane - cytat zostaje, znika
+  tylko rozwiazany cel (korekta ADR-0109 P3 #13 pod ozywiona kolumne).
+
+Poza zakresem (follow-up): wezly PERSON w grafie (wymaga wpiecia detekcji osob
+z warstwy pseudonim w sciezke grafu). tsc 0, vitest 1144 pass / 0 fail / 5 todo
+(+4 `crossDocLinks.test.ts`). Branch `fix/audyt-patron-p1-p3`.
+
 ### Audyt PATRON P2 #5: RAG scope - domyslna izolacja spraw (ADR-0111)
 
 **Fixed**
