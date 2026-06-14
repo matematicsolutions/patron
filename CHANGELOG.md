@@ -7,6 +7,17 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ## [Unreleased]
 
+### Audyt PATRON UI: przycisk "przewin w dol" w czacie (frontend)
+
+**Fixed**
+- Przycisk scroll-to-bottom (ChatView) zawodzil "przy wyniku zadania" - uzywal
+  `scrollIntoView` na zero-wysokosciowym markerze koncowym (cel liczony w momencie
+  klikniecia, nie dobijal do dna gdy odpowiedz wciaz sie renderowala/rosla). Teraz
+  `messagesContainerRef.scrollTo({ top: scrollHeight, behavior: "smooth" })` -
+  deterministyczne dno niezaleznie od markera i strumieniowania. Frontend tsc 0.
+  Weryfikacja: DocView/DocxView i czat projektowy uzywaja natywnego scrolla (brak
+  wlasnego przycisku w dol - nic do naprawy). Manualna weryfikacja u pilota.
+
 ### Audyt PATRON P2 #11 (cz. 2): wezly PERSON w grafie cytowan (ADR-0116)
 
 **Added**
