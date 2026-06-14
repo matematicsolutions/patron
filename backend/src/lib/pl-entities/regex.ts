@@ -170,7 +170,7 @@ const EMAIL_RE = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g;
  * Wymaga w dopasowaniu obecnosci formy prawnej (Sp. z o.o., S.A.,
  * Sp. k., S.K.A., Sp. j., Sp. p., P.S.A.) - sama nazwa nie wystarczy.
  *
- * Lapie tylko czesc nazw - "Acme sp. z o.o." OK, ale "Acme" bez
+ * Lapie tylko czesc nazw - "Acme Sp. z o.o." OK, ale "Acme" bez
  * formy nie. W praktyce do uzupelnienia LLM-fallbackiem + lookup KRS.
  */
 // `\b` po "S.A." nie matchuje bo kropka i nastepna spacja to oba non-word.

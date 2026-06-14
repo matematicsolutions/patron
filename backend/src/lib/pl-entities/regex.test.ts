@@ -193,7 +193,7 @@ describe("detectAll - sygnatury aktow prawnych", () => {
 describe("detectAll - firmy z forma prawna", () => {
     it("wykrywa Sp. z o.o. i S.A.", () => {
         const text =
-            "Acme sp. z o.o. zawarla umowe z PKN Orlen S.A. w marcu 2024.";
+            "Acme Sp. z o.o. zawarla umowe z PKN Orlen S.A. w marcu 2024.";
         const matches = detectAll(text);
         const firmy = matches.filter((m) => m.type === "FIRMA");
         expect(firmy.length).toBeGreaterThanOrEqual(2);

@@ -142,7 +142,7 @@ przed zielonym GATE i zgodą WM (2× review WM + Operator).
   Decyzje wykonawcze: baza = `feat/tier-governance-envelope` + scalone PR-y; realne
   identyfikatory pilota → **fikcyjne syntetyczne**, obsada „Rumpole Chambers" (angielski
   dystans): mec. **Rumpole** (adw. H. Rumpole), kancelaria **„Rumpole & Loophole"**, kryptonim
-  pilota **Pilot-01-Rumpole**, **sprawa Doe**, **sprawa Bloggs**, **Acme sp. z o.o.**,
+  pilota **Pilot-01-Rumpole**, **sprawa Doe**, **sprawa Bloggs**, **Acme Sp. z o.o.**,
   e-mail **rumpole@kancelaria.test**. Scrub wykonany na **wszystkich gałęziach** (re-skan
   0 trafień realnych identyfikatorów). Mapowanie realne→fikcyjne przechowywane wyłącznie
   prywatnie (poza repozytorium). **UWAGA:** powtórzyć scrub na drzewie kanonicznym po scaleniu

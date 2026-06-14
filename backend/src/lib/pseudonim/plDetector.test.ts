@@ -44,7 +44,7 @@ describe("plEntityDetector - PERSON (zakotwiczony na markerze)", () => {
 
 describe("plEntityDetector - ORG (reuse pl-entities, forma prawna)", () => {
     it("lapie nazwe spolki z forma prawna", async () => {
-        const h = await detect("Stroną umowy jest Acme sp. z o.o. z Poznania.");
+        const h = await detect("Stroną umowy jest Acme Sp. z o.o. z Poznania.");
         expect(cats(h, "ORG").some((s) => s.includes("Sp. z o.o."))).toBe(true);
     });
 
