@@ -15,11 +15,11 @@
 
 ## Kontekst
 
-Sedno integracji Word z roadmapy: Beata edytuje pismo w Wordzie (tracked changes + komentarze), wrzuca z powrotem do PATRON-a. Wymaga to odczytu edytowanego DOCX - strona zapisu juz istniala (docxTrackedChanges.ts wstawia w:ins/w:del i akceptuje/odrzuca po w:id), brakowalo parsowania tego co wraca.
+Sedno integracji Word z roadmapy: Rumpole edytuje pismo w Wordzie (tracked changes + komentarze), wrzuca z powrotem do PATRON-a. Wymaga to odczytu edytowanego DOCX - strona zapisu juz istniala (docxTrackedChanges.ts wstawia w:ins/w:del i akceptuje/odrzuca po w:id), brakowalo parsowania tego co wraca.
 
 Dwie rzeczy do wydobycia:
 1. **Tracked changes** (w:ins/w:del) - co i kto zmienil. Material dla Bibliotekarza (uczenie stylu) i dla diffu.
-2. **Komentarze-jako-instrukcje** - Beata zaznacza tekst i wstawia komentarz `[PATRON: rozwin ten argument]`. PATRON wykrywa prefiks i traktuje jako polecenie workflow, bez odrywania mecenasa od Worda.
+2. **Komentarze-jako-instrukcje** - Rumpole zaznacza tekst i wstawia komentarz `[PATRON: rozwin ten argument]`. PATRON wykrywa prefiks i traktuje jako polecenie workflow, bez odrywania mecenasa od Worda.
 
 ## Decyzja
 
