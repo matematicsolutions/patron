@@ -14,6 +14,7 @@ import { enforceEgressGuard, appendLlmRouteEvent } from "../routing";
 import {
     wrapConversation,
     PseudonimStreamUnwrapper,
+    plEntityDetector,
 } from "../pseudonim";
 import { createServerSupabase } from "../supabase";
 import { CITATIONS_OPEN_TAG, parseCitations, resolveDoc } from "./citations";
@@ -274,7 +275,12 @@ export async function runLLMStream(params: {
         guard.decision.egress !== "no-egress" &&
         guard.decision.classification !== "public"
     ) {
-        const wrapped = await wrapConversation(systemPrompt, chatMessages);
+        // Audyt P1 #4: realny detektor PERSON/ORG/ADDRESS (deterministyczny,
+        // zero-cloud) zamiast dotychczasowego no-op - nazwiska/nazwy podmiotow/
+        // adresy NIE wychodza juz do chmury otwartym tekstem (domkniecie ADR-0067).
+        const wrapped = await wrapConversation(systemPrompt, chatMessages, {
+            llmDetector: plEntityDetector,
+        });
         outboundSystemPrompt = wrapped.systemPrompt;
         outboundMessages = wrapped.messages;
         unwrapper = new PseudonimStreamUnwrapper(wrapped.map);

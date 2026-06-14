@@ -17,6 +17,7 @@ import {
     deleteDocument,
     createTabularReview,
     updateProject,
+    setCloudConsent,
     listProjectChats,
     deleteChat,
     renameChat,
@@ -423,6 +424,21 @@ export function ProjectPage({ projectId, initialTab = "documents" }: Props) {
             } : prev,
         );
         await deleteProjectFolder(projectId, folderId);
+    }
+
+    // ── Zgoda na chmure per-sprawa (ADR-0117, audyt P2 #6) ────────────────────
+    async function handleCloudConsentToggle() {
+        if (!project) return;
+        const next = !project.cloud_consent;
+        // Optymistycznie; revert przy bledzie. Backend zapisuje do audit_log.
+        setProject((prev) => (prev ? { ...prev, cloud_consent: next } : prev));
+        try {
+            await setCloudConsent(project.id, next);
+        } catch {
+            setProject((prev) =>
+                prev ? { ...prev, cloud_consent: !next } : prev,
+            );
+        }
     }
 
     // ── Doc/chat/review handlers ──────────────────────────────────────────────
@@ -1276,6 +1292,22 @@ export function ProjectPage({ projectId, initialTab = "documents" }: Props) {
                 onChange={handleTabChange}
                 actions={
                     <>
+                        {/* ADR-0117: swiadoma zgoda na model chmurowy dla tej sprawy
+                            (per-sprawa, owner-only, zapisywana do audytu). */}
+                        {project.is_owner && (
+                            <label
+                                className="flex items-center gap-1.5 text-xs text-gray-600 select-none cursor-pointer mr-2 whitespace-nowrap"
+                                title="Zezwól na model chmurowy dla tej sprawy. Świadoma zgoda zapisywana do audytu (AI Act art. 12). Domyślnie wyłączone (tajemnica → tylko model lokalny)."
+                            >
+                                <input
+                                    type="checkbox"
+                                    checked={!!project.cloud_consent}
+                                    onChange={handleCloudConsentToggle}
+                                    className="h-3 w-3 rounded border-gray-300 cursor-pointer accent-black"
+                                />
+                                Model chmurowy
+                            </label>
+                        )}
                         {toolbarActions}
                     </>
                 }

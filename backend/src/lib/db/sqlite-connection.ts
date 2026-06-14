@@ -19,6 +19,7 @@ import os from "os";
 import path from "path";
 import { SQLITE_SCHEMA } from "./schema.sqlite";
 import { applyEncryptionKey } from "./atrest";
+import { runSqliteMigrations } from "./migrate.sqlite";
 
 /**
  * Wymiar embeddingu wektorowego (ADR-0054). Musi byc zgodny z modelem
@@ -80,8 +81,18 @@ export function getDb(): Database.Database {
   applyEncryptionKey(db);
   db.pragma("journal_mode = WAL");
   db.pragma("foreign_keys = ON");
+  // Audyt P3 #12: pod WAL przy rownoczesnym zapisie indeksera/Merkle w tle
+  // ryzyko SQLITE_BUSY. busy_timeout daje retry zamiast natychmiastowego bledu;
+  // synchronous=NORMAL jest bezpieczne i zalecane pod WAL (mniej fsync, bez
+  // ryzyka korupcji przy WAL).
+  db.pragma("busy_timeout = 5000");
+  db.pragma("synchronous = NORMAL");
   db.exec(SQLITE_SCHEMA);
   ensureSchemaUpgrades(db);
+  // Audyt P2 #7: wersjonowany runner migracji (PRAGMA user_version) dla zmian
+  // ktorych ALTER nie obsluguje (rebuild tabeli pod zmiane CHECK/FK). Po
+  // ensureSchemaUpgrades (proste ADD COLUMN), przed warstwa retrievalu.
+  runSqliteMigrations(db);
   setupRetrievalTables(db);
   seedLocalUser(db);
   return db;
@@ -113,6 +124,89 @@ function ensureSchemaUpgrades(conn: Database.Database): void {
       "alter table projects add column classification text not null default 'attorney_client_privileged'",
     );
   }
+
+  // Audyt P2 #10: proweniencja strony w chunku RAG (nullable, bez CHECK ->
+  // ADD COLUMN wystarczy). Istniejace chunki zostaja z page_no = null do
+  // czasu re-indeksu; nowy ingest wypelnia z markerow [Page N].
+  if (!hasColumn("doc_chunks", "page_no")) {
+    conn.exec("alter table doc_chunks add column page_no integer");
+  }
+
+  // ADR-0117 (audyt P2 #6): zgoda na chmure per-sprawa (nullable->default 0,
+  // bez CHECK -> ADD COLUMN wystarczy). Istniejace sprawy: 0 (fail-closed).
+  if (!hasColumn("projects", "cloud_consent")) {
+    conn.exec(
+      "alter table projects add column cloud_consent integer not null default 0",
+    );
+  }
+}
+
+/** Model embeddera z env (lustro embeddings.ts; tu bez importu - unik cyklu). */
+function currentEmbedModel(): string {
+  return process.env.PATRON_EMBED_MODEL || "Xenova/multilingual-e5-small";
+}
+
+export type EmbedderMetaAction =
+  | "fresh"
+  | "unchanged"
+  | "dim-mismatch"
+  | "model-changed";
+
+/**
+ * Wersjonowanie embeddera (audyt P2 #8). Porownuje zapisany (model, wymiar)
+ * uzyty do zbudowania vec_chunks z biezacym. Niezgodnosc WYMIARU = drop
+ * vec_chunks (inaczej cicha korupcja - vec0 ma staly wymiar, a inserty innego
+ * wymiaru leca bledem/sa odrzucane) + wyzerowanie embedding_model w doc_chunks
+ * (sygnal do re-indeksu). Zmiana MODELU przy tym samym wymiarze = ostrzezenie
+ * (wektory z innego modelu sa nieporownywalne, zalecany re-index), bez dropu.
+ * Na koniec zapisuje biezace (model, wymiar). Zwraca rodzaj akcji.
+ *
+ * Eksport dla testow; produkcyjnie wolane z setupRetrievalTables PRZED utworzeniem
+ * vec_chunks. Wymaga tabel retrieval_meta i doc_chunks (SQLITE_SCHEMA).
+ */
+export function reconcileEmbedderMeta(
+  conn: Database.Database,
+  dim: number = EMBED_DIM,
+  model: string = currentEmbedModel(),
+): EmbedderMetaAction {
+  const get = (k: string): string | undefined =>
+    (
+      conn
+        .prepare("select value from retrieval_meta where key = ?")
+        .get(k) as { value: string } | undefined
+    )?.value;
+  const prevDim = get("embed_dim");
+  const prevModel = get("embed_model");
+
+  let action: EmbedderMetaAction = "fresh";
+  if (prevDim || prevModel) {
+    if (prevDim && Number(prevDim) !== dim) {
+      action = "dim-mismatch";
+      console.warn(
+        `[sqlite] EMBED_DIM zmieniony ${prevDim} -> ${dim}: usuwam vec_chunks ` +
+          `(niezgodny wymiar) i zeruje znaczniki embeddingow. BM25/graf dzialaja ` +
+          `dalej; uruchom re-index korpusu, by odbudowac warstwe wektorowa.`,
+      );
+      conn.exec("drop table if exists vec_chunks");
+      conn.prepare("update doc_chunks set embedding_model = null").run();
+    } else if (prevModel && prevModel !== model) {
+      action = "model-changed";
+      console.warn(
+        `[sqlite] PATRON_EMBED_MODEL zmieniony ${prevModel} -> ${model} (ten sam ` +
+          `wymiar). Wektory pochodza z poprzedniego modelu - zalecany re-index ` +
+          `korpusu dla spojnosci wyszukiwania.`,
+      );
+    } else {
+      action = "unchanged";
+    }
+  }
+
+  const up = conn.prepare(
+    "insert into retrieval_meta (key, value) values (?, ?) on conflict(key) do update set value = excluded.value",
+  );
+  up.run("embed_dim", String(dim));
+  up.run("embed_model", model);
+  return action;
 }
 
 /**
@@ -136,6 +230,10 @@ function setupRetrievalTables(conn: Database.Database): void {
   }
   try {
     sqliteVec.load(conn);
+    // Audyt P2 #8: wykryj niezgodnosc wymiaru/modelu embeddera ZANIM utworzysz
+    // vec_chunks (create-if-not-exists nie zmieni wymiaru istniejacej tabeli ->
+    // cicha korupcja przy innym EMBED_DIM). Mismatch wymiaru => drop vec_chunks.
+    reconcileEmbedderMeta(conn);
     conn.exec(
       `create virtual table if not exists vec_chunks using vec0(embedding float[${EMBED_DIM}])`,
     );

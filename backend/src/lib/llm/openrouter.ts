@@ -298,3 +298,50 @@ export async function completeOpenRouterText(params: {
   };
   return json.choices?.[0]?.message?.content ?? "";
 }
+
+const OPENROUTER_CREDITS_URL = "https://openrouter.ai/api/v1/credits";
+
+/** Saldo kredytow OpenRouter (audyt P3 #17 - panel stanu). */
+export interface OpenRouterCredits {
+  totalCredits: number;
+  totalUsage: number;
+  /** Pozostale saldo (totalCredits - totalUsage). Ujemne = wyczerpane. */
+  balance: number;
+}
+
+/**
+ * Pobiera saldo kredytow OpenRouter (endpoint /credits). Best-effort dla panelu
+ * stanu: zwraca null gdy brak klucza, blad sieci, niepoprawna odpowiedz albo
+ * timeout - panel stanu NIE moze sie wywrocic od niedostepnego salda. Egress
+ * tylko do dostawcy modelu (zero danych klienta), wiec zgodne z zero-cloud.
+ */
+export async function getOpenRouterCredits(
+  override?: string | null,
+  timeoutMs = 4000,
+): Promise<OpenRouterCredits | null> {
+  let key: string;
+  try {
+    key = apiKey(override);
+  } catch {
+    return null; // brak klucza - nic do sprawdzenia
+  }
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const resp = await fetch(OPENROUTER_CREDITS_URL, {
+      headers: headers(key),
+      signal: ctrl.signal,
+    });
+    if (!resp.ok) return null;
+    const json = (await resp.json()) as {
+      data?: { total_credits?: number; total_usage?: number };
+    };
+    const totalCredits = json.data?.total_credits ?? 0;
+    const totalUsage = json.data?.total_usage ?? 0;
+    return { totalCredits, totalUsage, balance: totalCredits - totalUsage };
+  } catch {
+    return null; // siec/timeout/parsowanie - best-effort
+  } finally {
+    clearTimeout(timer);
+  }
+}

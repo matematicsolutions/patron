@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import {
     resolveClassification,
+    resolveCloudConsent,
     guardEgress,
     allowUsProviders,
 } from "./guard";
@@ -125,5 +126,48 @@ describe("guardEgress", () => {
         expect(r.allowed).toBe(true);
         expect(r.decision.reason).toBe("us-allowed-by-administrator");
         expect(r.provider).toBe("openrouter");
+    });
+
+    it("tajemnica + zgoda chmury PER-SPRAWA (cloud_consent=1) -> dozwolony, mimo globalnego env off (ADR-0117)", async () => {
+        delete process.env.PATRON_ALLOW_PRIVILEGED_CLOUD;
+        const r = await guardEgress({
+            db: fakeDb({
+                data: [
+                    {
+                        classification: "attorney_client_privileged",
+                        cloud_consent: 1,
+                    },
+                ],
+            }),
+            model: "gemini-3-flash-preview",
+            projectId: "case-1",
+        });
+        expect(r.allowed).toBe(true);
+        expect(r.decision.reason).toBe("privileged-cloud-by-operator");
+    });
+});
+
+describe("resolveCloudConsent (P2 #6 / ADR-0117)", () => {
+    it("brak projectId -> false (czat ogolny)", async () => {
+        expect(await resolveCloudConsent(fakeDb({ data: [] }), null)).toBe(false);
+    });
+    it("cloud_consent=1 -> true", async () => {
+        expect(
+            await resolveCloudConsent(fakeDb({ data: [{ cloud_consent: 1 }] }), "c1"),
+        ).toBe(true);
+    });
+    it("cloud_consent=0 -> false (fail-closed)", async () => {
+        expect(
+            await resolveCloudConsent(fakeDb({ data: [{ cloud_consent: 0 }] }), "c1"),
+        ).toBe(false);
+    });
+    it("blad odczytu / brak sprawy -> false (fail-closed)", async () => {
+        expect(
+            await resolveCloudConsent(
+                fakeDb({ error: { message: "boom" } }),
+                "c1",
+            ),
+        ).toBe(false);
+        expect(await resolveCloudConsent(fakeDb({ data: [] }), "c1")).toBe(false);
     });
 });

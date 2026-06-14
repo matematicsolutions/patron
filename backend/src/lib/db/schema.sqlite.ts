@@ -46,7 +46,7 @@ create index if not exists idx_user_profiles_user on user_profiles(user_id);
 create table if not exists user_api_keys (
   id text primary key,
   user_id text not null,
-  provider text not null check (provider in ('claude', 'gemini', 'openai')),
+  provider text not null check (provider in ('claude', 'gemini', 'openai', 'openrouter')),
   encrypted_key text not null,
   iv text not null,
   auth_tag text not null,
@@ -69,6 +69,11 @@ create table if not exists projects (
   -- Lustro enum: lib/llm/provider.ts DataClassification + provider.schema.ts.
   classification text not null default 'attorney_client_privileged'
     check (classification in ('public','internal','client_general','attorney_client_privileged')),
+  -- ADR-0117 (audyt P2 #6): swiadoma zgoda Operatora na model chmurowy DLA TEJ
+  -- SPRAWY (per-sprawa, audytowana), niezaleznie od globalnego
+  -- PATRON_ALLOW_PRIVILEGED_CLOUD. 0 = brak zgody (fail-closed). Brama egress
+  -- (lib/routing/guard.ts) OR-uje to z globalna zgoda.
+  cloud_consent integer not null default 0,
   created_at text not null,
   updated_at text not null
 );
@@ -269,7 +274,8 @@ create table if not exists audit_log (
     'llm_route',
     'defense.pipeline.run',
     'document.edit_resolved',
-    'tabular.grounding'
+    'tabular.grounding',
+    'project.cloud_consent'
   )),
   chat_id text,
   document_id text,
@@ -316,9 +322,21 @@ create table if not exists doc_chunks (
   chunk_index integer not null,
   content text not null,
   embedding_model text,
+  -- Proweniencja strony zrodla (audyt P2 #10). Wypelniane gdy tekst niesie
+  -- markery [Page N] (ekstrakcja PDF, lib/chat/pdf.ts); null dla zrodel bez
+  -- stron (docx/plain). Pozwala cytowac "str. N".
+  page_no integer,
   created_at text not null
 );
 create index if not exists idx_doc_chunks_document on doc_chunks(document_id);
+
+-- Metadane warstwy retrievalu (audyt P2 #8). Klucz->wartosc; trzymamy model i
+-- wymiar embeddera, ktorym zbudowano vec_chunks. Niezgodnosc przy starcie =
+-- wykrycie zamiast cichej korupcji wektorow (mismatch wymiaru / modelu).
+create table if not exists retrieval_meta (
+  key   text primary key,
+  value text not null
+);
 
 -- Encje wykryte deterministycznie (ADR-0008, extractEntitiesAndEdges).
 -- Osobny cykl retencji RODO art. 17 (PII typy: PESEL/NIP/REGON/KRS/EMAIL/PHONE).

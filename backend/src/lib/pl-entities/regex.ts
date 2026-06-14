@@ -178,6 +178,39 @@ const EMAIL_RE = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g;
 const FIRMA_Z_FORMA_RE = /\b[A-ZŁŚŻŹĆŃÓĄĘ][\wŁŚŻŹĆŃÓĄĘłśżźćńóąę.,\s&-]{0,80}?\s+(?:Sp\.\s+z\s+o\.o\.|S\.A\.|Sp\.\s+k\.|S\.K\.A\.|Sp\.\s+j\.|Sp\.\s+p\.|P\.S\.A\.)(?=\s|$|[.,;:!?])/g;
 
 /**
+ * Osoba zakotwiczona na honoryfikatorze / tytule / roli procesowej (ADR-0116,
+ * domkniecie wezlow PERSON grafu - audyt P2 #11). Grupa (1) = sama nazwa
+ * (1-3 tokeny z wielkiej litery, z polskimi znakami i lacznikiem), marker NIE
+ * wchodzi do dopasowania (detectAll bierze m[1]). Zakotwiczenie daje wysoka
+ * precyzje: bez markera NIE lapiemy goych bigramow z wielkich liter (inaczej
+ * "Sad Najwyzszy", nazwy ustaw -> falszywe osoby). Lookbehind Unicode (NIE \b),
+ * bo marker moze zaczynac sie od polskiej litery ("świadek") - \b jest ASCII.
+ * Lustro logiki egress lib/pseudonim/plDetector.ts (tam maskowanie, tu encje z
+ * offsetami) - konwergencja do wspolnego zrodla = rezerwacja.
+ */
+const OSOBA_NAME = "[A-ZŁŚŻŹĆŃÓĄĘ][a-ząćęłńóśźż]+(?:[-\\s][A-ZŁŚŻŹĆŃÓĄĘ][a-ząćęłńóśźż]+){0,2}";
+// Markery w formie kanonicznej (male litery tam gdzie role; Pan/Pani jak w tekscie).
+const OSOBA_MARKERS_BASE = [
+    "Pan", "Pani", "Pana", "Panu", "Panią", "Państwo", "Państwa",
+    "adw\\.", "adwokat", "adwokata", "mec\\.", "mecenas", "mecenasa",
+    "r\\.\\s?pr\\.", "radca prawny", "radcy prawnego",
+    "sędzia", "sędziego", "prokurator", "prokuratora",
+    "świadek", "świadka", "oskarżony", "oskarżonego", "oskarżonej", "oskarżona",
+    "biegły", "biegłego", "biegła", "powód", "powoda", "pozwany", "pozwanego",
+    "pokrzywdzony", "pokrzywdzonego", "obrońca", "obrońcy",
+];
+// Pierwsza litera markera case-insensitive ([xX]) - role bywaja na poczatku
+// zdania z wielkiej ("Świadek X zeznal"); nazwa (grupa 1) wymagana z wielkiej.
+const OSOBA_MARKERS = OSOBA_MARKERS_BASE.map((m) => {
+    const c = m[0]!;
+    return `[${c}${c.toUpperCase()}]${m.slice(1)}`;
+}).join("|");
+const OSOBA_Z_MARKEREM_RE = new RegExp(
+    `(?<![\\p{L}\\p{N}_])(?:${OSOBA_MARKERS})\\s+(${OSOBA_NAME})`,
+    "gu",
+);
+
+/**
  * Komplet regul ekstrakcji. Wywolujacy moze rozszerzac/wylaczac
  * pojedyncze reguly per use case (graf cytowan moze potrzebowac wszystkie,
  * pseudonim PII tylko subset PESEL/NIP/REGON/KRS/EMAIL/PHONE/OSOBA/FIRMA).
@@ -306,6 +339,15 @@ export const PL_EXTRACTION_RULES: ExtractionRule[] = [
         id: "firma-z-forma-prawna",
         type: "FIRMA",
         pattern: FIRMA_Z_FORMA_RE,
+        baseConfidence: 0.75,
+        normalize: (v) => v.replace(/\s+/g, " ").trim(),
+    },
+
+    // === Osoby zakotwiczone na markerze (ADR-0116, wezly PERSON grafu) ===
+    {
+        id: "osoba-z-markerem",
+        type: "OSOBA",
+        pattern: OSOBA_Z_MARKEREM_RE,
         baseConfidence: 0.75,
         normalize: (v) => v.replace(/\s+/g, " ").trim(),
     },

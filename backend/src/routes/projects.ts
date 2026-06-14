@@ -11,6 +11,8 @@ import { convertedPdfKey } from "../lib/convert";
 import { checkProjectAccess } from "../lib/access";
 import { singleFileUpload } from "../lib/upload";
 import { handleDocumentUpload } from "../lib/documentIngest";
+import { forgetCase } from "../lib/rodo/forget";
+import { appendAuditEvent } from "../lib/audit";
 
 export const projectsRouter = Router();
 
@@ -309,13 +311,61 @@ projectsRouter.delete("/:projectId", requireAuth, async (req, res) => {
   const userId = res.locals.userId as string;
   const { projectId } = req.params;
   const db = createServerSupabase();
+
+  // Tylko wlasciciel kasuje sprawe (zachowane z poprzedniej wersji - delete
+  // bramkowany .eq("user_id", userId)). 404 zamiast 403, by nie ujawniac
+  // istnienia cudzej sprawy.
+  const { data: project } = await db
+    .from("projects")
+    .select("id, user_id")
+    .eq("id", projectId)
+    .single();
+  if (!project || project.user_id !== userId)
+    return void res.status(404).json({ detail: "Project not found" });
+
+  // Audyt P1 #2: zwykly DELETE projektu kasowal tylko rekord (kaskada FK na
+  // tabele relacyjne), ale ZOSTAWIAL pliki akt na dysku oraz wektory/encje PII
+  // i pamiec "brain". forgetCase (ADR-0061) jest kompletny i idempotentny:
+  // RAG/wektory/FTS + graf cytowan + pliki storage + brain + sam projekt.
+  // audit_log zostaje nietkniety (RODO art. 17 ust. 3 lit. b + AI Act art. 12).
+  await forgetCase(projectId, db);
+  res.status(204).send();
+});
+
+// PATCH /projects/:projectId/cloud-consent — swiadoma zgoda na model chmurowy
+// DLA TEJ SPRAWY (audyt P2 #6, ADR-0117). Owner-only (zmienia brame egress).
+// Zapisywane do audit_log (AI Act art. 12). Body: { enabled: boolean }.
+projectsRouter.patch("/:projectId/cloud-consent", requireAuth, async (req, res) => {
+  const userId = res.locals.userId as string;
+  const { projectId } = req.params;
+  const enabled = req.body?.enabled === true || req.body?.enabled === 1;
+  const db = createServerSupabase();
+
+  // Tylko wlasciciel zmienia zgode chmurowa sprawy (404 zamiast 403 - nie
+  // ujawniamy istnienia cudzej sprawy).
+  const { data: project } = await db
+    .from("projects")
+    .select("id, user_id")
+    .eq("id", projectId)
+    .single();
+  if (!project || project.user_id !== userId)
+    return void res.status(404).json({ detail: "Project not found" });
+
   const { error } = await db
     .from("projects")
-    .delete()
+    .update({ cloud_consent: enabled ? 1 : 0, updated_at: new Date().toISOString() })
     .eq("id", projectId)
     .eq("user_id", userId);
   if (error) return void res.status(500).json({ detail: error.message });
-  res.status(204).send();
+
+  // Slad decyzji zmieniajacej brame egress (kto/kiedy/ktora sprawa/stan, bez tresci).
+  await appendAuditEvent(db, {
+    event_type: "project.cloud_consent",
+    actor_user_id: userId,
+    payload: { project_id: projectId, enabled },
+  });
+
+  res.json({ id: projectId, cloud_consent: enabled });
 });
 
 // GET /projects/:projectId/documents

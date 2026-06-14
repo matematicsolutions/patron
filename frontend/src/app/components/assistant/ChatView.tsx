@@ -375,7 +375,14 @@ export function ChatView({
     }, [messages, updateScrollButton]);
 
     const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        // Audyt UI: przycisk "w dol" zawodzil "przy wyniku zadania". scrollIntoView
+        // na zero-wysokosciowym markerze koncowym liczy cel w momencie klikniecia -
+        // gdy odpowiedz wciaz sie renderuje/rosnie, smooth-scroll nie dobija do
+        // realnego dna. Scrollujemy bezposrednio kontener do jego scrollHeight
+        // (deterministyczne dno niezaleznie od markera i strumieniowania).
+        const c = messagesContainerRef.current;
+        if (!c) return;
+        c.scrollTo({ top: c.scrollHeight, behavior: "smooth" });
     };
 
     const scrollLatestUserToTop = useCallback(() => {

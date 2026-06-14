@@ -78,6 +78,9 @@ create table if not exists public.projects (
   -- fail-closed 'attorney_client_privileged'. Patrz migration 006.
   classification text not null default 'attorney_client_privileged'
     check (classification in ('public','internal','client_general','attorney_client_privileged')),
+  -- ADR-0117 (audyt P2 #6): swiadoma zgoda na model chmurowy per-sprawa
+  -- (audytowana). Default false (fail-closed). Patrz migration 013.
+  cloud_consent boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -438,7 +441,8 @@ create table if not exists public.audit_log (
     'llm_route',
     'defense.pipeline.run',
     'document.edit_resolved',
-    'tabular.grounding'
+    'tabular.grounding',
+    'project.cloud_consent'
   ))
 );
 

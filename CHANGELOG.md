@@ -7,6 +7,203 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ## [Unreleased]
 
+### Audyt PATRON P2 #6: zgoda na model chmurowy per-sprawa + audyt (ADR-0117)
+
+**Added**
+- Przelacznik "Model chmurowy" per-sprawa w UI (`ProjectPage`, owner-only) zamiast
+  globalnej zmiennej srodowiskowej. `PATCH /projects/:id/cloud-consent` +
+  `patronApi.setCloudConsent`.
+- `projects.cloud_consent` (sqlite + `ensureSchemaUpgrades`; Postgres + migracja 013).
+- Brama egress (`guard.ts` `resolveCloudConsent`) OR-uje zgode globalna (env) i
+  per-sprawa -> `decideRoute`. Fail-closed (default brak zgody; tajemnica nadal
+  wymaga swiadomej zgody).
+- Audit: nowy `event_type = 'project.cloud_consent'` (AI Act art. 12, bez tresci).
+  Whitelist: EVENT_TYPES + schema.sqlite.ts + schema.sql + **migracja sqlite v2**
+  (runner ADR-0109 rebuilduje CHECK `audit_log` z zachowaniem wierszy/hash-chain)
+  + Postgres migracja 012.
+
+Defense-in-depth nietkniete: PII maskowane przed chmura (ADR-0110), kazdy call
+egress audytowany (ADR-0067). backend tsc 0 + vitest 1180 pass / 0 fail / 5 todo
+(+11). Frontend tsc 0. Branch `fix/audyt-patron-p1-p3`.
+
+### Audyt PATRON UI: przycisk "przewin w dol" w czacie (frontend)
+
+**Fixed**
+- Przycisk scroll-to-bottom (ChatView) zawodzil "przy wyniku zadania" - uzywal
+  `scrollIntoView` na zero-wysokosciowym markerze koncowym (cel liczony w momencie
+  klikniecia, nie dobijal do dna gdy odpowiedz wciaz sie renderowala/rosla). Teraz
+  `messagesContainerRef.scrollTo({ top: scrollHeight, behavior: "smooth" })` -
+  deterministyczne dno niezaleznie od markera i strumieniowania. Frontend tsc 0.
+  Weryfikacja: DocView/DocxView i czat projektowy uzywaja natywnego scrolla (brak
+  wlasnego przycisku w dol - nic do naprawy). Manualna weryfikacja u pilota.
+
+### Audyt PATRON P2 #11 (cz. 2): wezly PERSON w grafie cytowan (ADR-0116)
+
+**Added**
+- Regula `osoba-z-markerem` w `pl-entities` (`PL_EXTRACTION_RULES`) -
+  `extractEntitiesAndEdges` tworzy z niej encje OSOBA + krawedzie `wspomina_osobe`
+  (typ i mapowanie juz istnialy, brakowalo reguly). Odpowiada na "pokaz dokumenty
+  wspominajace osobe X" (wspolny `value_normalized`).
+- Detekcja deterministyczna, zakotwiczona na markerze (honoryfikator/rola
+  procesowa) + nazwa z wielkiej; bez markera nie lapie (precyzja - nie maskuje
+  "Sad Najwyzszy"). Pierwsza litera markera case-insensitive (rola na poczatku
+  zdania). Lookbehind Unicode.
+
+RODO: OSOBA to PII w `extracted_entities` - objete istniejaca purga
+(`clearDocumentIndex` / `forgetCase`). Krawedz osoby celuje w encje, nie dokument
+(`resolveToDocLinks` jej nie dotyka). Detekcja lokalna (graf/sqlite), zero egress;
+osobno od maskowania PII przed chmura (ADR-0110) - konwergencja markerow = rezerwacja.
+tsc 0, vitest 1174 pass / 0 fail / 5 todo (+5 `person-nodes.test.ts`).
+Branch `fix/audyt-patron-p1-p3`.
+
+### Audyt PATRON P3 #17 + #18: panel "Stan systemu" + czyszczenie komentarzy (ADR-0115)
+
+**Added**
+- P3 #17: endpoint `/api/status` (admin, READ-ONLY) - migawka stanu: wektor on/off,
+  OCR on/off, model+wymiar embeddera, status kluczy API, zgody chmurowe,
+  **saldo kredytow OpenRouter** (`getOpenRouterCredits`, endpoint /credits,
+  best-effort) z flaga `depleted` (wczesny sygnal wyczerpania - realny incydent).
+  Osobno od publicznego liveness `/health`. Fundament pod frontendowy Panel stanu.
+
+**Fixed**
+- P3 #18: nieaktualne komentarze "Wpiecie w retrieve() jest rezerwacja" w
+  `dualSimilarity.ts`/`events.ts` - rerank JEST wpiety (ADR-0087/0089). Komentarze
+  poprawione na stan faktyczny.
+
+tsc 0, vitest 1168 pass / 0 fail / 5 todo (+9: health pure-fns + getOpenRouterCredits).
+Branch `fix/audyt-patron-p1-p3`.
+
+### Audyt PATRON hygiena retrievalu: embedder + overlap + prefix-PL (ADR-0114)
+
+**Fixed**
+- P2 #8: zmiana wymiaru/modelu embeddera psula po cichu warstwe wektorowa
+  (`create if not exists` nie zmienia wymiaru `vec_chunks`). Tabela
+  `retrieval_meta` + `reconcileEmbedderMeta`: mismatch wymiaru -> drop vec_chunks
+  + sygnal re-indeksu + glosny log; zmiana modelu -> ostrzezenie. Koniec cichej
+  korupcji.
+- P3 #14: chunker bez zakladki rozcinal fakt na granicy chunka. `chunkText`
+  dostal overlap (~120 znakow, ~13%) doklejany w ramach budzetu maxChars
+  (kontrakt `chunk <= maxChars` zachowany).
+- P3 #15: BM25 bez stemmingu gubil formy odmienione. `buildFtsMatch` daje
+  prefix-match rdzenia (`rdzen*`) dla tokenow literowych >=7 znakow; sygnatury/
+  liczby/krotkie zostaja exact.
+
+tsc 0, vitest 1159 pass / 0 fail / 5 todo (+10 `hygiene.test.ts`).
+Branch `fix/audyt-patron-p1-p3`.
+
+### Audyt PATRON P2 #10: proweniencja strony w chunkach RAG (ADR-0113)
+
+**Fixed**
+- P2 #10: `doc_chunks` nie mial numeru strony -> RAG nie wskazywal "str. N"
+  przy cytacie (styl "cytat + sygnatura + strona").
+- Latentny bug: markery `[Page N]` trafialy do tresci chunkow (embeddingi/FTS)
+  - teraz odrywane od tresci.
+
+**Added**
+- `doc_chunks.page_no` (schema + `ensureSchemaUpgrades` ADD COLUMN).
+- `splitByPageMarkers` + chunking per strona w `indexDocument` (markery `[Page N]`
+  z ekstrakcji PDF). Bez markerow (docx/plain) -> jeden segment, page_no null
+  (zero regresji).
+- `RetrievedChunk.pageNo` + `page` w wynikach `search_corpus` -> model cytuje "str. N".
+
+Render "str. N" w UI cytatu = frontend (poza tym repo); backend dostarcza dane.
+tsc 0, vitest 1149 pass / 0 fail / 5 todo (+5 `pageProvenance.test.ts`).
+Branch `fix/audyt-patron-p1-p3`.
+
+### Audyt PATRON P2 #11: graf - rozwiazanie krawedzi dokument->dokument (ADR-0112)
+
+**Fixed**
+- P2 #11: `citation_graph.to_doc_id` byl martwy (extractor zawsze `toDocId=null`)
+  -> brak trwalej krawedzi "dokument X cytuje wyrok bedacy dokumentem Y".
+
+**Added**
+- `lib/graph/crossDocLinks.ts` - `resolveToDocLinks(db)`: deterministyczny
+  post-pass liczacy `to_doc_id`. Krawedz cytowania sygnatury wskazuje dokument,
+  ktory NIA JEST (inny dokument z ta sama `value_normalized`), TYLKO gdy taki jest
+  dokladnie jeden (jednoznacznosc); inaczej null. Wpiety w `indexDocument`
+  (przelicza korpus idempotentnie). Query-time centralnosc nietknieta.
+
+**Changed**
+- `clearDocumentIndex`: krawedzie INNYCH dokumentow rozwiazane na usuwany
+  dokument sa null-owane (`to_doc_id = null`), nie kasowane - cytat zostaje, znika
+  tylko rozwiazany cel (korekta ADR-0109 P3 #13 pod ozywiona kolumne).
+
+Poza zakresem (follow-up): wezly PERSON w grafie (wymaga wpiecia detekcji osob
+z warstwy pseudonim w sciezke grafu). tsc 0, vitest 1144 pass / 0 fail / 5 todo
+(+4 `crossDocLinks.test.ts`). Branch `fix/audyt-patron-p1-p3`.
+
+### Audyt PATRON P2 #5: RAG scope - domyslna izolacja spraw (ADR-0111)
+
+**Fixed**
+- P2 #5: `search_corpus` w czacie ogolnym (bez `projectId`) przeszukiwal CALY
+  korpus usera -> fragmenty akt jednego klienta moglyby trafic do rozmowy o
+  innym (tajemnica miedzy klientami). Teraz czat ogolny skopuje sie DOMYSLNIE do
+  dokumentow bez przypisanej sprawy (standalone); akta sprawy sa osiagalne tylko
+  z czatu w jej kontekscie.
+
+**Added**
+- `resolveSearchScope(db, projectId)` (eksport z `tool-dispatch.ts`) - decyzja
+  scope RAG. Furtka `PATRON_RAG_CROSS_CASE=true` na swiadome wyszukiwanie
+  przekrojowe (z flaga `cross_case` + ostrzezeniem) do czasu przelacznika UI (P2 #6).
+- Proweniencja sprawy w kazdym trafieniu (`case` = nazwa sprawy / "bez sprawy")
+  + ostrzezenie gdy wyniki przekraczaja granice jednej sprawy.
+- Testy: `search-scope.test.ts` (+5). Fixture `retrieval.test.ts` uzupelniony o
+  wiersze `documents` standalone (w produkcji tworzy je ingest).
+
+tsc 0, vitest 1140 pass / 0 fail / 5 todo. Branch `fix/audyt-patron-p1-p3`.
+
+### Audyt PATRON P1 #4: maskowanie nazwisk/podmiotow/adresow przed chmura (ADR-0110)
+
+**Fixed**
+- P1 #4: `wrapConversation` w egress (`lib/chat/stream.ts`) byl wolany BEZ
+  detektora (`noopLlmDetector`) -> imiona, nazwiska, nazwy podmiotow i adresy
+  wychodzily do modelu chmurowego otwartym tekstem (maskowane byly tylko
+  identyfikatory regexowe). Domkniecie ADR-0067.
+
+**Added**
+- `lib/pseudonim/plDetector.ts` - deterministyczny, zero-cloud detektor
+  PERSON/ORG/ADDRESS (`plEntityDetector`) wpiety w `wrapConversation`:
+  - PERSON: zakotwiczone na honoryfikatorze/roli (Pan/Pani/adw./mec./swiadek/
+    oskarzony/...) + tokeny z wielkiej litery; maskowana sama nazwa, nie marker;
+    bez goych bigramow z wielkich liter (zeby nie maskowac "Sad Najwyzszy" itp.).
+  - ORG: reuzycie regexu form prawnych z `pl-entities` (FIRMA), bez forka.
+  - ADDRESS: kod pocztowy + ulica/aleja/plac z numerem.
+  Maskowanie odwracane przez unwrap (nad-maskowanie nie psuje outputu); recall >
+  precyzja. Aktywne wraz z `PATRON_PSEUDONIM_EGRESS` (bez nowej flagi).
+- Testy: `plDetector.test.ts` (+12, regresja PL: PERSON/ORG/ADDRESS, round-trip).
+  Bug zlapany: `\b` ASCII nie lapal markera od polskiej litery ("świadek") ->
+  lookbehind Unicode `(?<![\p{L}\p{N}_])`.
+
+tsc 0, vitest 1135 pass / 0 fail / 5 todo. Branch `fix/audyt-patron-p1-p3`;
+przed merge do `main`: 2x review WM + decyzja Operatora. Pozostaje P1 #1 (at-rest
+native swap) - osobny PR.
+
+### Audyt PATRON: domkniecie usterek P1-P3 + runner migracji SQLite (ADR-0109)
+
+**Fixed**
+- P1 #2: szczelne kasowanie. `DELETE /projects/:id` wola `forgetCase` (pliki +
+  RAG/wektory/FTS + graf + brain), `DELETE /single-documents/:id` wola
+  `clearDocumentIndex` - koniec osieroconych chunkow/embeddingow/encji PII i
+  plikow akt po "normalnym" usunieciu z UI (RODO art. 17 dla zwyklej sciezki).
+- P1 #3: `openrouter` dodany do CHECK `user_api_keys` - wlasny klucz OpenRouter
+  zapisuje sie z UI (migracja rebuildujaca + `schema.sqlite.ts`).
+- P3 #12: `PRAGMA busy_timeout=5000` + `synchronous=NORMAL` pod WAL (anty
+  `SQLITE_BUSY`).
+- P3 #13: `clearDocumentIndex` czysci graf w obie strony (`to_doc_id` +
+  krawedzie po encjach dokumentu), nie tylko `from_doc_id`.
+- P3 #16: `getExtractor` nie cache'uje odrzuconego promise - nieudany load
+  modelu nie zabija embeddera do restartu procesu.
+
+**Added**
+- P2 #7: wersjonowany runner migracji SQLite (`backend/src/lib/db/migrate.sqlite.ts`)
+  na `PRAGMA user_version` - sciezka zmian CHECK/FK (rebuild tabeli) dla trybu
+  desktop, obok `ensureSchemaUpgrades` (ADD COLUMN). Test: `migrate.sqlite.test.ts`.
+
+Poza zakresem (osobne ADR): P1 #1 at-rest native swap (better-sqlite3-multiple-
+ciphers + safeStorage), P1 #4 maskowanie nazwisk w egress (domkniecie ADR-0067).
+tsc 0, vitest 1123 pass / 0 fail / 5 todo (+5 testow). Branch
+`fix/audyt-patron-p1-p3`; przed merge do `main`: 2x review WM + decyzja Operatora.
+
 ### Grounding: tagi proweniencji + stan needs_review (ADR-0102)
 
 **Added**
