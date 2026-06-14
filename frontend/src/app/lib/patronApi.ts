@@ -179,6 +179,41 @@ export async function deleteProject(projectId: string): Promise<void> {
     await apiRequest(`/projects/${projectId}`, { method: "DELETE" });
 }
 
+/**
+ * "Zweryfikuj cytaty" (audyt Propozycja #8, ADR-0119) - mechaniczna weryfikacja
+ * cytatow gotowego pisma wzgledem akt sprawy (ADR-0005, deterministyczna).
+ * Zwraca werdykt per ref (verified/unverified/blocked) + podsumowanie.
+ */
+export interface CitationVerifyResult {
+    ref: number;
+    doc_id: string;
+    status: string;
+    decision: "verified" | "unverified" | "blocked";
+    worstRatio: number;
+    offset: number;
+    note?: string;
+}
+export interface CitationVerifyReport {
+    results: Record<number, CitationVerifyResult>;
+    summary: {
+        total: number;
+        verified: number;
+        unverified: number;
+        blocked: number;
+    };
+    blokada: boolean;
+}
+export async function verifyCitations(
+    projectId: string,
+    citations: { ref: number; doc_id: string; quote: string }[],
+): Promise<CitationVerifyReport> {
+    return apiRequest<CitationVerifyReport>(`/api/citations/verify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ project_id: projectId, citations }),
+    });
+}
+
 export interface ProjectPeople {
     owner: {
         user_id: string;

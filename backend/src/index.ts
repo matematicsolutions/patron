@@ -18,6 +18,7 @@ import { foldersRouter } from "./routes/folders";
 import { draftRouter } from "./routes/draft";
 import { rodoRouter } from "./routes/rodo";
 import { usageRouter } from "./routes/usage";
+import { citationsRouter } from "./routes/citations";
 import { createServerSupabase, isSqliteBackend } from "./lib/supabase";
 import { runAutoCompute } from "./lib/audit-merkle-roots";
 import {
@@ -168,6 +169,7 @@ app.use("/folders", foldersRouter);
 app.use("/draft", draftRouter);
 app.use("/rodo", rodoRouter);
 app.use("/api/usage", usageRouter);
+app.use("/api/citations", citationsRouter);
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
 

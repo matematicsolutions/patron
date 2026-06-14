@@ -7,6 +7,15 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ## [Unreleased]
 
+### Audyt PATRON Propozycja #8: "Zweryfikuj cytaty" jako akcja (ADR-0119)
+
+**Added**
+- `POST /api/citations/verify` (`routes/citations.ts`) - mechaniczna weryfikacja
+  cytatow gotowego pisma wzgledem akt sprawy (ADR-0005, deterministyczna, zero LLM,
+  READ-ONLY). Reuzywa `groundCitationsByRef` + `buildProjectDocContext`; kontrola
+  dostepu do sprawy (`checkProjectAccess`, 404 dla cudzej). Werdykt per ref +
+  summary + `blokada`. Klient `patronApi.verifyCitations`. Przycisk UI = follow-up.
+
 ### Audyt PATRON Propozycja #7: wbudowany workflow "Analiza akt" (ADR-0119)
 
 **Added**
