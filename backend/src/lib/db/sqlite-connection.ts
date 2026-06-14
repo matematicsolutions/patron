@@ -131,6 +131,14 @@ function ensureSchemaUpgrades(conn: Database.Database): void {
   if (!hasColumn("doc_chunks", "page_no")) {
     conn.exec("alter table doc_chunks add column page_no integer");
   }
+
+  // ADR-0117 (audyt P2 #6): zgoda na chmure per-sprawa (nullable->default 0,
+  // bez CHECK -> ADD COLUMN wystarczy). Istniejace sprawy: 0 (fail-closed).
+  if (!hasColumn("projects", "cloud_consent")) {
+    conn.exec(
+      "alter table projects add column cloud_consent integer not null default 0",
+    );
+  }
 }
 
 /** Model embeddera z env (lustro embeddings.ts; tu bez importu - unik cyklu). */

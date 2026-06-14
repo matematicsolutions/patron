@@ -7,6 +7,25 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ## [Unreleased]
 
+### Audyt PATRON P2 #6: zgoda na model chmurowy per-sprawa + audyt (ADR-0117)
+
+**Added**
+- Przelacznik "Model chmurowy" per-sprawa w UI (`ProjectPage`, owner-only) zamiast
+  globalnej zmiennej srodowiskowej. `PATCH /projects/:id/cloud-consent` +
+  `patronApi.setCloudConsent`.
+- `projects.cloud_consent` (sqlite + `ensureSchemaUpgrades`; Postgres + migracja 013).
+- Brama egress (`guard.ts` `resolveCloudConsent`) OR-uje zgode globalna (env) i
+  per-sprawa -> `decideRoute`. Fail-closed (default brak zgody; tajemnica nadal
+  wymaga swiadomej zgody).
+- Audit: nowy `event_type = 'project.cloud_consent'` (AI Act art. 12, bez tresci).
+  Whitelist: EVENT_TYPES + schema.sqlite.ts + schema.sql + **migracja sqlite v2**
+  (runner ADR-0109 rebuilduje CHECK `audit_log` z zachowaniem wierszy/hash-chain)
+  + Postgres migracja 012.
+
+Defense-in-depth nietkniete: PII maskowane przed chmura (ADR-0110), kazdy call
+egress audytowany (ADR-0067). backend tsc 0 + vitest 1180 pass / 0 fail / 5 todo
+(+11). Frontend tsc 0. Branch `fix/audyt-patron-p1-p3`.
+
 ### Audyt PATRON UI: przycisk "przewin w dol" w czacie (frontend)
 
 **Fixed**

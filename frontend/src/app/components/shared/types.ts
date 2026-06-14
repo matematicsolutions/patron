@@ -24,6 +24,10 @@ export interface PATRONProject {
   document_count?: number;
   chat_count?: number;
   review_count?: number;
+  /** Klasyfikacja danych sprawy (data-residency, ADR-0067). */
+  classification?: string;
+  /** Zgoda na model chmurowy dla tej sprawy (ADR-0117, audyt P2 #6). */
+  cloud_consent?: boolean;
 }
 
 export interface PATRONDocument {

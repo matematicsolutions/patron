@@ -232,6 +232,24 @@ export async function deleteProject(projectId: string): Promise<void> {
     await apiRequest(`/projects/${projectId}`, { method: "DELETE" });
 }
 
+/**
+ * Swiadoma zgoda na model chmurowy DLA TEJ SPRAWY (audyt P2 #6, ADR-0117).
+ * Owner-only po stronie backendu; zapisywane do audit_log. Zwraca nowy stan.
+ */
+export async function setCloudConsent(
+    projectId: string,
+    enabled: boolean,
+): Promise<{ id: string; cloud_consent: boolean }> {
+    return apiRequest<{ id: string; cloud_consent: boolean }>(
+        `/projects/${projectId}/cloud-consent`,
+        {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ enabled }),
+        },
+    );
+}
+
 export interface ProjectPeople {
     owner: {
         user_id: string;

@@ -69,6 +69,11 @@ create table if not exists projects (
   -- Lustro enum: lib/llm/provider.ts DataClassification + provider.schema.ts.
   classification text not null default 'attorney_client_privileged'
     check (classification in ('public','internal','client_general','attorney_client_privileged')),
+  -- ADR-0117 (audyt P2 #6): swiadoma zgoda Operatora na model chmurowy DLA TEJ
+  -- SPRAWY (per-sprawa, audytowana), niezaleznie od globalnego
+  -- PATRON_ALLOW_PRIVILEGED_CLOUD. 0 = brak zgody (fail-closed). Brama egress
+  -- (lib/routing/guard.ts) OR-uje to z globalna zgoda.
+  cloud_consent integer not null default 0,
   created_at text not null,
   updated_at text not null
 );
@@ -269,7 +274,8 @@ create table if not exists audit_log (
     'llm_route',
     'defense.pipeline.run',
     'document.edit_resolved',
-    'tabular.grounding'
+    'tabular.grounding',
+    'project.cloud_consent'
   )),
   chat_id text,
   document_id text,

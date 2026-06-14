@@ -128,3 +128,88 @@ describe("migracja v1: openrouter w CHECK user_api_keys (P1 #3)", () => {
         db.close();
     });
 });
+
+// audit_log ze STARYM CHECK (bez project.cloud_consent) + indeksy.
+const LEGACY_AUDIT_LOG = `
+  create table audit_log (
+    id integer primary key autoincrement,
+    ts text not null,
+    actor_user_id text,
+    event_type text not null check (event_type in ('chat.message.user','llm_route')),
+    chat_id text,
+    document_id text,
+    payload text not null,
+    prev_hash text not null,
+    hash text not null unique
+  );
+  create index idx_audit_log_chat on audit_log(chat_id, ts);
+  create index idx_audit_log_actor on audit_log(actor_user_id, ts);
+  create index idx_audit_log_event_type on audit_log(event_type, ts);
+`;
+
+function auditCheckSql(db: Database.Database): string {
+    return (
+        db
+            .prepare(
+                "select sql from sqlite_master where type='table' and name='audit_log'",
+            )
+            .get() as { sql: string }
+    ).sql;
+}
+
+describe("migracja v2: project.cloud_consent w CHECK audit_log (P2 #6)", () => {
+    it("rebuilduje audit_log ZACHOWUJAC wiersze i hash-chain, dodaje event_type", () => {
+        const db = new Database(":memory:");
+        db.exec(LEGACY_AUDIT_LOG);
+        db.prepare(
+            "insert into audit_log (id,ts,actor_user_id,event_type,payload,prev_hash,hash) values (?,?,?,?,?,?,?)",
+        ).run(1, "t0", "u1", "chat.message.user", "{}", "GENESIS", "h1");
+        db.prepare(
+            "insert into audit_log (id,ts,actor_user_id,event_type,payload,prev_hash,hash) values (?,?,?,?,?,?,?)",
+        ).run(2, "t1", "u1", "llm_route", '{"model":"x"}', "h1", "h2");
+
+        // Przed: nowy event_type lamie CHECK.
+        expect(() =>
+            db
+                .prepare(
+                    "insert into audit_log (id,ts,event_type,payload,prev_hash,hash) values (?,?,?,?,?,?)",
+                )
+                .run(3, "t2", "project.cloud_consent", "{}", "h2", "h3"),
+        ).toThrow();
+
+        runSqliteMigrations(db, SQLITE_MIGRATIONS);
+
+        // Po: CHECK ma nowy typ, wiersze + hash-chain zachowane (id/hash/prev_hash).
+        expect(auditCheckSql(db)).toContain("project.cloud_consent");
+        const rows = db
+            .prepare("select id, prev_hash, hash, event_type from audit_log order by id")
+            .all() as { id: number; prev_hash: string; hash: string; event_type: string }[];
+        expect(rows).toEqual([
+            { id: 1, prev_hash: "GENESIS", hash: "h1", event_type: "chat.message.user" },
+            { id: 2, prev_hash: "h1", hash: "h2", event_type: "llm_route" },
+        ]);
+        // Indeksy odtworzone.
+        const idx = db
+            .prepare(
+                "select count(*) c from sqlite_master where type='index' and name in ('idx_audit_log_chat','idx_audit_log_actor','idx_audit_log_event_type')",
+            )
+            .get() as { c: number };
+        expect(idx.c).toBe(3);
+        // Nowy event_type teraz przechodzi; nieznany nadal odrzucany.
+        expect(() =>
+            db
+                .prepare(
+                    "insert into audit_log (id,ts,event_type,payload,prev_hash,hash) values (?,?,?,?,?,?)",
+                )
+                .run(3, "t2", "project.cloud_consent", "{}", "h2", "h3"),
+        ).not.toThrow();
+        expect(() =>
+            db
+                .prepare(
+                    "insert into audit_log (id,ts,event_type,payload,prev_hash,hash) values (?,?,?,?,?,?)",
+                )
+                .run(4, "t3", "totally.bogus", "{}", "h3", "h4"),
+        ).toThrow();
+        db.close();
+    });
+});

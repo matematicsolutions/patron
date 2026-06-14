@@ -71,12 +71,79 @@ function rebuildUserApiKeysAddOpenrouter(db: Database.Database): void {
     `);
 }
 
+/**
+ * Rebuild CHECK whitelist `audit_log.event_type` o `project.cloud_consent`
+ * (audyt P2 #6 / ADR-0117). SQLite nie zmienia CHECK przez ALTER -> rebuild z
+ * ZACHOWANIEM wierszy (id, hash, prev_hash kopiowane verbatim, wiec hash-chain
+ * i proof-y Merkle pozostaja wazne) + odtworzenie 3 indeksow. audit_log nie ma
+ * incoming FK, wiec drop/rename jest bezpieczny.
+ *
+ * Lista event_type = lustro EVENT_TYPES (lib/audit.ts) w momencie tej migracji.
+ * Kolejne nowe typy = kolejne migracje (jak Postgres migrations/NNN).
+ * Samo-pomijalny: jezeli CHECK juz zawiera 'project.cloud_consent', wychodzi.
+ */
+function rebuildAuditLogEventTypeCheck(db: Database.Database): void {
+    const row = db
+        .prepare(
+            "select sql from sqlite_master where type = 'table' and name = 'audit_log'",
+        )
+        .get() as { sql?: string } | undefined;
+    if (!row?.sql || row.sql.includes("project.cloud_consent")) return;
+
+    db.exec(`
+      create table audit_log_new (
+        id integer primary key autoincrement,
+        ts text not null,
+        actor_user_id text,
+        event_type text not null check (event_type in (
+          'chat.message.user',
+          'chat.message.assistant',
+          'input_security_scan',
+          'mcp_security.gateway',
+          'ring_policy.decision',
+          'rodo.delete',
+          'rodo.export',
+          'admin.access.audit_viewer',
+          'admin.access.audit_export',
+          'admin.access.merkle_compute_now',
+          'admin.access.security_banner',
+          'admin.access.metrics',
+          'migrate.rollback',
+          'llm_route',
+          'defense.pipeline.run',
+          'document.edit_resolved',
+          'tabular.grounding',
+          'project.cloud_consent'
+        )),
+        chat_id text,
+        document_id text,
+        payload text not null,
+        prev_hash text not null,
+        hash text not null unique
+      );
+      insert into audit_log_new
+        (id, ts, actor_user_id, event_type, chat_id, document_id, payload, prev_hash, hash)
+        select id, ts, actor_user_id, event_type, chat_id, document_id, payload, prev_hash, hash
+        from audit_log;
+      drop table audit_log;
+      alter table audit_log_new rename to audit_log;
+      create index if not exists idx_audit_log_chat on audit_log(chat_id, ts);
+      create index if not exists idx_audit_log_actor on audit_log(actor_user_id, ts);
+      create index if not exists idx_audit_log_event_type on audit_log(event_type, ts);
+    `);
+}
+
 /** Lista migracji SQLite (kolejnosc = version rosnaco). */
 export const SQLITE_MIGRATIONS: ReadonlyArray<SqliteMigration> = [
     {
         version: 1,
         name: "user_api_keys_add_openrouter_check",
         up: rebuildUserApiKeysAddOpenrouter,
+    },
+    {
+        version: 2,
+        name: "audit_log_add_project_cloud_consent_event_type",
+        up: rebuildAuditLogEventTypeCheck,
     },
 ];
 

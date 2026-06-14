@@ -93,6 +93,12 @@ export const EVENT_TYPES = [
     // Wymaga migracji 009 ALTER CHECK. Lustro: schema.sqlite.ts, schema.sql,
     // migrations/009. Patrz routes/tabular.ts + lib/tabular/audit-grounding.ts.
     "tabular.grounding",
+    // ADR-0117 (audyt P2 #6): swiadoma zgoda Operatora na model chmurowy
+    // per-sprawa (wlaczenie/wylaczenie) - kto/kiedy/ktora sprawa/stan, bez tresci.
+    // AI Act art. 12 (decyzja zmieniajaca brame egress). Wymaga ALTER CHECK
+    // whitelist: sqlite przez runSqliteMigrations v2 (rebuild audit_log),
+    // Postgres migracja 012. Lustro: schema.sqlite.ts, schema.sql, migrations/012.
+    "project.cloud_consent",
 ] as const;
 
 /** Union literal lustrzany dla CHECK constraint w audit_log. */
