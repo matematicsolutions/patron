@@ -124,6 +124,13 @@ function ensureSchemaUpgrades(conn: Database.Database): void {
       "alter table projects add column classification text not null default 'attorney_client_privileged'",
     );
   }
+
+  // Audyt P2 #10: proweniencja strony w chunku RAG (nullable, bez CHECK ->
+  // ADD COLUMN wystarczy). Istniejace chunki zostaja z page_no = null do
+  // czasu re-indeksu; nowy ingest wypelnia z markerow [Page N].
+  if (!hasColumn("doc_chunks", "page_no")) {
+    conn.exec("alter table doc_chunks add column page_no integer");
+  }
 }
 
 /**

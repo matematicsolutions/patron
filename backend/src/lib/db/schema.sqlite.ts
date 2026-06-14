@@ -316,6 +316,10 @@ create table if not exists doc_chunks (
   chunk_index integer not null,
   content text not null,
   embedding_model text,
+  -- Proweniencja strony zrodla (audyt P2 #10). Wypelniane gdy tekst niesie
+  -- markery [Page N] (ekstrakcja PDF, lib/chat/pdf.ts); null dla zrodel bez
+  -- stron (docx/plain). Pozwala cytowac "str. N".
+  page_no integer,
   created_at text not null
 );
 create index if not exists idx_doc_chunks_document on doc_chunks(document_id);

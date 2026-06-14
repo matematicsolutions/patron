@@ -84,6 +84,8 @@ export interface RetrievedChunk {
   chunkId: number;
   documentId: string;
   chunkIndex: number;
+  /** Numer strony zrodla (audyt P2 #10) lub null (zrodlo bez stron / stary index). */
+  pageNo: number | null;
   content: string;
   score: number;
 }
@@ -379,13 +381,14 @@ export async function retrieve(
     const placeholders = fused.map(() => "?").join(",");
     const rows = db
       .prepare(
-        `select id, document_id, chunk_index, content from doc_chunks where id in (${placeholders})`,
+        `select id, document_id, chunk_index, content, page_no from doc_chunks where id in (${placeholders})`,
       )
       .all(...fused.map((f) => f.id)) as {
       id: number;
       document_id: string;
       chunk_index: number;
       content: string;
+      page_no: number | null;
     }[];
 
     return rows
@@ -393,6 +396,7 @@ export async function retrieve(
         chunkId: r.id,
         documentId: r.document_id,
         chunkIndex: r.chunk_index,
+        pageNo: r.page_no ?? null,
         content: r.content,
         score: byId.get(r.id) ?? 0,
       }))
@@ -409,13 +413,14 @@ export async function retrieve(
   const placeholders = reranked.map(() => "?").join(",");
   const rows = db
     .prepare(
-      `select id, document_id, chunk_index, content from doc_chunks where id in (${placeholders})`,
+      `select id, document_id, chunk_index, content, page_no from doc_chunks where id in (${placeholders})`,
     )
     .all(...reranked.map((f) => f.id)) as {
     id: number;
     document_id: string;
     chunk_index: number;
     content: string;
+    page_no: number | null;
   }[];
 
   // Zachowaj kolejnosc re-rankingu (z jego deterministycznym tie-breakiem),
@@ -425,6 +430,7 @@ export async function retrieve(
       chunkId: r.id,
       documentId: r.document_id,
       chunkIndex: r.chunk_index,
+      pageNo: r.page_no ?? null,
       content: r.content,
       score: byId.get(r.id) ?? 0,
     }))

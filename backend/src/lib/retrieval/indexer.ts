@@ -24,6 +24,40 @@ export interface ChunkPiece {
   content: string;
 }
 
+/** Segment tekstu przypisany do strony zrodla (audyt P2 #10). */
+export interface PageSegment {
+  /** Numer strony z markera [Page N], albo null (zrodlo bez stron). */
+  page: number | null;
+  /** Tekst segmentu (bez markera). */
+  text: string;
+}
+
+/**
+ * Dzieli tekst na segmenty stron po markerach `[Page N]` wstawianych przez
+ * ekstrakcje PDF (lib/chat/pdf.ts). Brak markerow -> jeden segment page=null
+ * (zachowanie jak dotad dla docx/plain). Tekst przed pierwszym markerem (rzadki)
+ * trafia jako segment page=null. Marker NIE wchodzi do tresci segmentu (dotad
+ * "[Page N]" zanieczyszczalo chunki/embeddingi).
+ */
+export function splitByPageMarkers(text: string): PageSegment[] {
+  const re = /\[Page (\d+)\]/g;
+  const markers = [...text.matchAll(re)];
+  if (markers.length === 0) return [{ page: null, text }];
+  const segs: PageSegment[] = [];
+  const firstIdx = markers[0].index ?? 0;
+  if (firstIdx > 0) {
+    const pre = text.slice(0, firstIdx).trim();
+    if (pre) segs.push({ page: null, text: pre });
+  }
+  for (let i = 0; i < markers.length; i++) {
+    const m = markers[i];
+    const start = (m.index ?? 0) + m[0].length;
+    const end = i + 1 < markers.length ? (markers[i + 1].index ?? text.length) : text.length;
+    segs.push({ page: Number(m[1]), text: text.slice(start, end) });
+  }
+  return segs;
+}
+
 export interface IndexResult {
   docId: string;
   chunks: number;
@@ -133,7 +167,17 @@ export async function indexDocument(
   // Tryb prawniczy aktywuje sie tylko przy markerze mocnym albo jednostce
   // redakcyjnej; dla dokumentow bez tej struktury deleguje do chunkText
   // (akapitowego) - identyczny wynik jak dotad, zero regresji.
-  const pieces = chunkLegalText(text);
+  //
+  // Audyt P2 #10: chunkujemy PER STRONA (segmenty z markerow [Page N]), zeby
+  // przypisac chunkowi numer strony zrodla. Bez markerow = jeden segment
+  // page=null -> chunkLegalText(text) jak dotad (zero regresji dla docx/plain).
+  const pieces: { index: number; content: string; page: number | null }[] = [];
+  let pieceIndex = 0;
+  for (const seg of splitByPageMarkers(text)) {
+    for (const p of chunkLegalText(seg.text)) {
+      pieces.push({ index: pieceIndex++, content: p.content, page: seg.page });
+    }
+  }
 
   // Embeddingi passage (jezeli warstwa wektorowa dostepna). Brak embeddera /
   // sqlite-vec => indeksujemy tylko BM25 + graf (Faza 1 wg ADR-0007).
@@ -158,7 +202,7 @@ export async function indexDocument(
 
   const nowIso = new Date().toISOString();
   const insertChunk = db.prepare(
-    "insert into doc_chunks (document_id, chunk_index, content, embedding_model, created_at) values (?, ?, ?, ?, ?)",
+    "insert into doc_chunks (document_id, chunk_index, content, embedding_model, page_no, created_at) values (?, ?, ?, ?, ?, ?)",
   );
   const insertFts = db.prepare(
     "insert into doc_chunks_fts (rowid, content) values (?, ?)",
@@ -175,6 +219,7 @@ export async function indexDocument(
         pieces[i].index,
         pieces[i].content,
         vec ? EMBED_MODEL : null,
+        pieces[i].page,
         nowIso,
       );
       const rowid = Number(info.lastInsertRowid);

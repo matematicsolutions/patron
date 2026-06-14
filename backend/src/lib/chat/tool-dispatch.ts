@@ -675,6 +675,8 @@ export async function runToolCalls(
                         document_id: h.documentId,
                         filename: fnMap.get(h.documentId) ?? h.documentId,
                         case: caseOf(h.documentId),
+                        // Proweniencja strony (audyt P2 #10) - pozwala cytowac "str. N".
+                        page: h.pageNo ?? null,
                         chunk_index: h.chunkIndex,
                         score: Number(h.score.toFixed(4)),
                         text: h.content,

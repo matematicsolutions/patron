@@ -7,6 +7,25 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ## [Unreleased]
 
+### Audyt PATRON P2 #10: proweniencja strony w chunkach RAG (ADR-0113)
+
+**Fixed**
+- P2 #10: `doc_chunks` nie mial numeru strony -> RAG nie wskazywal "str. N"
+  przy cytacie (styl "cytat + sygnatura + strona").
+- Latentny bug: markery `[Page N]` trafialy do tresci chunkow (embeddingi/FTS)
+  - teraz odrywane od tresci.
+
+**Added**
+- `doc_chunks.page_no` (schema + `ensureSchemaUpgrades` ADD COLUMN).
+- `splitByPageMarkers` + chunking per strona w `indexDocument` (markery `[Page N]`
+  z ekstrakcji PDF). Bez markerow (docx/plain) -> jeden segment, page_no null
+  (zero regresji).
+- `RetrievedChunk.pageNo` + `page` w wynikach `search_corpus` -> model cytuje "str. N".
+
+Render "str. N" w UI cytatu = frontend (poza tym repo); backend dostarcza dane.
+tsc 0, vitest 1149 pass / 0 fail / 5 todo (+5 `pageProvenance.test.ts`).
+Branch `fix/audyt-patron-p1-p3`.
+
 ### Audyt PATRON P2 #11: graf - rozwiazanie krawedzi dokument->dokument (ADR-0112)
 
 **Fixed**
