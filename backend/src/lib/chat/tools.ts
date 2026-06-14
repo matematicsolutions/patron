@@ -270,6 +270,11 @@ export const TOOLS = [
                         description:
                             "Set to true for landscape page orientation. Default is portrait.",
                     },
+                    kancelaria: {
+                        type: "boolean",
+                        description:
+                            "Preset 'styl kancelarii' (polskie pisma): bez tabel (renderowane jako wyliczenia), srodtytuly pogrubione w osobnym wersie, numeracja stron w prawym-dolnym rogu. Uzyj dla pism procesowych / pism do kancelarii.",
+                    },
                     sections: {
                         type: "array",
                         description:

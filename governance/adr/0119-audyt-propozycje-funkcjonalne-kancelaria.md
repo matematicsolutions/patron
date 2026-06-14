@@ -13,8 +13,12 @@ Governance wbudowane w prompt: praca tylko na aktach sprawy, "brak w aktach" zam
 ### #8 - "Zweryfikuj cytaty" jako akcja [ZROBIONE]
 Endpoint `POST /api/citations/verify` (`routes/citations.ts`, requireAuth) - wyeksponowanie biblioteki `lib/citation` (ADR-0005) jako akcji na gotowym pismie. Body `{ project_id, citations:[{ref,doc_id,quote}] }` -> werdykt per ref (ZWERYFIKOWANY/ZMODYFIKOWANY/NIEZWERYFIKOWANY/BRAK_ZRODLA) + summary + `blokada`. Deterministyczne, zero LLM, READ-ONLY. Reuzywa `groundCitationsByRef` (prefetch tekstu akt + `verifyCitations`) i `buildProjectDocContext`. **Kontrola dostepu do sprawy** (`checkProjectAccess`, 404 dla cudzej - inaczej cross-tenant wyciek tresci akt). Klient `patronApi.verifyCitations`. Przycisk w UI drafta = cienki follow-up (substancja = endpoint; czat i tak groundinguje inline, workflow #7 sugeruje akcje).
 
-### #6 - Preset eksportu .docx "styl kancelarii" [PLANOWANE w tej galezi]
-Bez tabel, srodtytul pogrubiony w osobnym wersie, konkluzje podkreslane, numeracja prawy-dolny rog (wzorzec "MS_zalacznik OSTATECZNY"). Patrz kolejny krok.
+### #6 - Preset eksportu .docx "styl kancelarii" [ZROBIONE]
+Opcja `kancelaria` w `generateDocx` (`lib/chat/docx-generate.ts`) + param `kancelaria` w narzedziu `generate_docx` (tools.ts + tool-dispatch.ts). Gdy aktywny:
+- **bez tabel** - tabela renderowana jako wyliczenie (kazdy wiersz -> akapit-bullet "Naglowek: wartosc; ...");
+- **srodtytuly pogrubione w osobnym wersie** - juz przez HeadingLevel (zachowane);
+- **numeracja stron w prawym-dolnym rogu** - Footer z `PageNumber.CURRENT`, `AlignmentType.RIGHT`.
+Default OFF -> zero zmian zachowania (gated flaga). "Konkluzje podkreslane" wymaga semantycznego markupu (nie da sie auto-wykryc) - rezerwacja; pelny "Doszlifuj" (CTO D, justowanie/typografia/emfaza) = osobny wiekszy transform. Przycisk "Styl kancelarii" w UI = follow-up (model moze juz przekazac kancelaria=true).
 
 ## Konsekwencje
 

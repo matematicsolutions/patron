@@ -7,6 +7,15 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ## [Unreleased]
 
+### Audyt PATRON Propozycja #6: preset eksportu .docx "styl kancelarii" (ADR-0119)
+
+**Added**
+- Opcja `kancelaria` w `generateDocx` + param w narzedziu `generate_docx`: bez
+  tabel (wiersze -> wyliczenia), srodtytuly pogrubione w osobnym wersie
+  (HeadingLevel), numeracja stron w prawym-dolnym rogu (Footer + PageNumber).
+  Default OFF (zero zmian zachowania). "Konkluzje podkreslane" / pelny "Doszlifuj"
+  (justowanie/typografia) = rezerwacja. Przycisk UI = follow-up.
+
 ### Audyt PATRON Propozycja #8: "Zweryfikuj cytaty" jako akcja (ADR-0119)
 
 **Added**

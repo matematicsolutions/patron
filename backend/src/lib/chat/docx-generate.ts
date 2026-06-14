@@ -13,7 +13,16 @@ export async function generateDocx(
     sections: unknown[],
     userId: string,
     db: ReturnType<typeof createServerSupabase>,
-    options?: { landscape?: boolean; projectId?: string | null },
+    options?: {
+        landscape?: boolean;
+        projectId?: string | null;
+        /**
+         * Preset "styl kancelarii" (audyt Propozycja #6 / CTO sek. D, ADR-0119):
+         * bez tabel (renderowane jako wyliczenia), srodtytuly pogrubione w osobnym
+         * wersie (HeadingLevel), numeracja stron w prawym-dolnym rogu.
+         */
+        kancelaria?: boolean;
+    },
 ) {
     try {
         const {
@@ -32,7 +41,10 @@ export async function generateDocx(
             LevelSuffix,
             PageOrientation,
             PageBreak,
+            Footer,
+            PageNumber,
         } = await import("docx");
+        const kancelaria = options?.kancelaria === true;
 
         const FONT = "Times New Roman";
         const SIZE = 22; // 11pt in half-points
@@ -299,7 +311,32 @@ export async function generateDocx(
                 }
             }
             const normalizedTable = normalizeTable(section.table);
-            if (normalizedTable) {
+            if (normalizedTable && kancelaria) {
+                // Preset kancelarii: BEZ tabel. Kazdy wiersz -> akapit-wyliczenie
+                // "Naglowek: wartosc; ..." (czytelne, bez siatki tabeli).
+                const { headers, rows } = normalizedTable;
+                for (const row of rows) {
+                    const pairs = row
+                        .map((cell, i) =>
+                            cell.trim()
+                                ? `${(headers[i] ?? "").trim()}: ${cell.trim()}`
+                                : "",
+                        )
+                        .filter(Boolean)
+                        .join("; ");
+                    if (!pairs) continue;
+                    children.push(
+                        new Paragraph({
+                            bullet: { level: 0 },
+                            spacing: { after: 120 },
+                            children: [
+                                new TextRun({ text: pairs, font: FONT, size: SIZE }),
+                            ],
+                        }),
+                    );
+                }
+                children.push(new Paragraph({ text: "" }));
+            } else if (normalizedTable) {
                 const { headers, rows } = normalizedTable;
                 const colCount = headers.length;
                 const tableRows: InstanceType<typeof TableRow>[] = [];
@@ -422,6 +459,28 @@ export async function generateDocx(
             ? { page: { size: { orientation: PageOrientation.LANDSCAPE } } }
             : {};
 
+        // Preset kancelarii: numeracja stron w prawym-dolnym rogu.
+        const sectionFooters = kancelaria
+            ? {
+                  footers: {
+                      default: new Footer({
+                          children: [
+                              new Paragraph({
+                                  alignment: AlignmentType.RIGHT,
+                                  children: [
+                                      new TextRun({
+                                          children: [PageNumber.CURRENT],
+                                          font: FONT,
+                                          size: SIZE,
+                                      }),
+                                  ],
+                              }),
+                          ],
+                      }),
+                  },
+              }
+            : {};
+
         const doc = new Document({
             numbering: {
                 config: [
@@ -431,7 +490,7 @@ export async function generateDocx(
                     },
                 ],
             },
-            sections: [{ properties: pageSetup, children }],
+            sections: [{ properties: pageSetup, ...sectionFooters, children }],
         });
         const buf = await Packer.toBuffer(doc);
         const zip = await import("jszip");
