@@ -20,3 +20,5 @@ export {
     ratifyEdge,
     isEdgeVisible,
 } from "./kglf-edge";
+// Persystencja governance krawedzi (odczyt + ratyfikacja). SQLite (desktop).
+export { getStoredEdge, ratifyStoredEdge } from "./kglf-edge-store";

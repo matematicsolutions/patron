@@ -355,6 +355,15 @@ create table if not exists citation_graph (
   relation text not null,
   confidence real not null,
   source_entity_id text,
+  -- ADR-0125 (T2.1 KGLF): governance krawedzi. Auto-ekstrakcja (ADR-0008) wpisuje
+  -- 'proposed'/'analysis'/run_id=null (propozycja globalna, widoczna, nieratyfikowana).
+  -- Ratyfikacja (akt ludzki) ustawia 'ratified' + ratified_by/at. DEFAULT 'proposed'
+  -- /'analysis' -> istniejace auto-krawedzie po migracji pozostaja widoczne (run_id null).
+  status text not null default 'proposed',
+  origin text not null default 'analysis',
+  run_id text,
+  ratified_by text,
+  ratified_at text,
   extracted_at text not null
 );
 create index if not exists idx_citation_graph_from on citation_graph(from_doc_id);

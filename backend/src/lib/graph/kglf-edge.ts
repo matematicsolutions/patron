@@ -36,8 +36,12 @@ export interface KglfEdge {
     /** Kto utworzyl krawedz (auto vs czlowiek). Ratyfikacja NIE zmienia origin. */
     origin: KglfEdgeOrigin;
     /**
-     * Run, do ktorego krawedz `proposed` jest prywatna. `null` dla `ratified`
-     * (firm-public, widoczna we wszystkich runach).
+     * Prywatnosc krawedzi `proposed`:
+     *   - `null` = propozycja GLOBALNA (np. auto-ekstrakcja indeksera) -
+     *     widoczna jako kandydat, ale nieratyfikowana;
+     *   - string = propozycja prywatna do TEGO runu (hipoteza agenta w jednej
+     *     sprawie) - widoczna tylko w nim, dopoki czlowiek nie ratyfikuje.
+     * Po ratyfikacji zawsze `null` (firm-public).
      */
     runId: string | null;
     /** actorId prawnika ktory ratyfikowal (tylko gdy `ratified`). */
@@ -69,12 +73,16 @@ export interface ProposableEdge {
 }
 
 /**
- * Owija auto-wykryta krawedz jako PROPOZYCJE prywatna do `runId`. Pochodzenie
- * `analysis`. Fail-closed: nieprawidlowa etykieta albo pusty `runId` -> null
- * (nie tworzymy krawedzi ktorej nie da sie zakotwiczyc w runie/ontologii).
+ * Owija auto-wykryta krawedz jako PROPOZYCJE. `runId` string -> prywatna do
+ * runu (hipoteza agenta w sprawie); `runId` null/pusty -> propozycja GLOBALNA
+ * (auto-ekstrakcja indeksera, widoczna jako kandydat). Pochodzenie `analysis`.
+ * Fail-closed: nieprawidlowa etykieta relacji -> null (nie tworzymy krawedzi
+ * spoza ontologii).
  */
-export function proposeEdge(edge: ProposableEdge, runId: string): KglfEdge | null {
-    if (!runId) return null;
+export function proposeEdge(
+    edge: ProposableEdge,
+    runId: string | null,
+): KglfEdge | null {
     if (!isValidRelationLabel(edge.relation)) return null;
     return {
         fromDocId: edge.fromDocId,
@@ -85,7 +93,7 @@ export function proposeEdge(edge: ProposableEdge, runId: string): KglfEdge | nul
         sourceEntityId: edge.sourceEntityId,
         status: "proposed",
         origin: "analysis",
-        runId,
+        runId: runId && runId.length > 0 ? runId : null,
     };
 }
 
@@ -117,11 +125,15 @@ export function ratifyEdge(
 }
 
 /**
- * Widocznosc wg run-privacy: `ratified` widoczna zawsze (firm-public);
- * `proposed` widoczna TYLKO w runie ktory ja zaproponowal. Chroni przed
- * wyciekiem niezatwierdzonych hipotez analizy do innych spraw/runow.
+ * Widocznosc wg run-privacy:
+ *   - `ratified` -> zawsze (firm-public);
+ *   - `proposed` z `runId` null (propozycja globalna, np. indeksera) -> zawsze
+ *     widoczna jako kandydat;
+ *   - `proposed` z `runId` ustawionym (hipoteza prywatna do runu) -> TYLKO w
+ *     tym runie. Chroni przed wyciekiem hipotez agenta z jednej sprawy do innej.
  */
 export function isEdgeVisible(edge: KglfEdge, queryRunId: string | null): boolean {
     if (edge.status === "ratified") return true;
-    return edge.runId !== null && edge.runId === queryRunId;
+    if (edge.runId === null) return true;
+    return edge.runId === queryRunId;
 }

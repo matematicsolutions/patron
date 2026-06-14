@@ -15,7 +15,7 @@
 import crypto from "crypto";
 import { getDb, isVecEnabled } from "../db/sqlite-connection";
 import { locateChunkSpans } from "../citation/locator";
-import { extractEntitiesAndEdges } from "../graph";
+import { extractEntitiesAndEdges, proposeEdge } from "../graph";
 import { buildRoleHits, buildEventFrames } from "./events";
 import { embed, EMBED_MODEL } from "./embeddings";
 import { chunkLegalText } from "./legalChunker";
@@ -200,10 +200,13 @@ export async function indexDocument(
        source_offset_start, source_offset_end, rule_id, metadata, source, created_at)
      values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'auto', ?)`,
   );
+  // ADR-0125 (T2.1 KGLF): auto-krawedzie zapisywane jako PROPOZYCJE globalne
+  // (status 'proposed', origin 'analysis', run_id null) - widoczne jako kandydat,
+  // nieratyfikowane. Ratyfikacja (akt ludzki) jest osobna operacja.
   const insertEdge = db.prepare(
     `insert into citation_graph
-      (id, from_doc_id, to_doc_id, to_entity_id, relation, confidence, source_entity_id, extracted_at)
-     values (?, ?, ?, ?, ?, ?, ?, ?)`,
+      (id, from_doc_id, to_doc_id, to_entity_id, relation, confidence, source_entity_id, extracted_at, status, origin, run_id)
+     values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   );
 
   const writeGraph = db.transaction(() => {
@@ -229,6 +232,20 @@ export async function indexDocument(
       const toEntityId = edge.sourceEntityId
         ? (entityIdByLocator.get(edge.sourceEntityId) ?? null)
         : null;
+      // Owijamy przez model KGLF (ADR-0125): propozycja globalna (runId null).
+      // Gdyby etykieta byla spoza ontologii (nie zdarza sie dla CitationRelation)
+      // fallback do tych samych wartosci - nie gubimy krawedzi grafu.
+      const kglf = proposeEdge(
+        {
+          fromDocId: docId,
+          toDocId: edge.toDocId ?? null,
+          toEntityId,
+          relation: edge.relation,
+          confidence: edge.confidence,
+          sourceEntityId: edge.sourceEntityId,
+        },
+        null,
+      );
       insertEdge.run(
         crypto.randomUUID(),
         docId,
@@ -238,6 +255,9 @@ export async function indexDocument(
         edge.confidence,
         edge.sourceEntityId ?? null,
         edge.extractedAt.toISOString(),
+        kglf?.status ?? "proposed",
+        kglf?.origin ?? "analysis",
+        kglf?.runId ?? null,
       );
     }
   });

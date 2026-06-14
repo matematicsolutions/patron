@@ -44,9 +44,16 @@ describe("proposeEdge", () => {
         expect(e.relationLabel).toBe("cytuje_orzeczenie");
         expect(e.ratifiedBy).toBeUndefined();
     });
-    it("fail-closed: pusty runId albo zla etykieta -> null", () => {
-        expect(proposeEdge(AUTO, "")).toBeNull();
+    it("null/pusty runId -> propozycja GLOBALNA (run_id null), nie null", () => {
+        const g = proposeEdge(AUTO, null)!;
+        expect(g.status).toBe("proposed");
+        expect(g.runId).toBeNull();
+        const g2 = proposeEdge(AUTO, "")!;
+        expect(g2.runId).toBeNull();
+    });
+    it("fail-closed: zla etykieta -> null", () => {
         expect(proposeEdge({ ...AUTO, relation: "ZLA ETYKIETA" }, "run-1")).toBeNull();
+        expect(proposeEdge({ ...AUTO, relation: "" }, null)).toBeNull();
     });
 });
 
@@ -82,9 +89,15 @@ describe("isEdgeVisible (run-privacy)", () => {
         expect(isEdgeVisible(ratified, "run-2")).toBe(true);
         expect(isEdgeVisible(ratified, null)).toBe(true);
     });
-    it("proposed widoczna TYLKO w swoim runie", () => {
+    it("proposed run-scoped widoczna TYLKO w swoim runie", () => {
         expect(isEdgeVisible(proposed, "run-1")).toBe(true);
         expect(isEdgeVisible(proposed, "run-2")).toBe(false);
         expect(isEdgeVisible(proposed, null)).toBe(false);
+    });
+    it("proposed GLOBALNA (run_id null, np. indekser) widoczna wszedzie", () => {
+        const global = proposeEdge(AUTO, null)!;
+        expect(isEdgeVisible(global, "run-1")).toBe(true);
+        expect(isEdgeVisible(global, "run-2")).toBe(true);
+        expect(isEdgeVisible(global, null)).toBe(true);
     });
 });
