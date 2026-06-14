@@ -307,14 +307,10 @@ export function expandCitationToEntries(
   if (!Number.isFinite(pageNum)) return [];
   // ADR-0122: na sciezce jednosegmentowej (bez page-break) przekazujemy
   // occurrenceHint z lokatora, by highlighter wybral wlasciwe wystapienie
-  // powtarzajacej sie frazy. Sciezka page-break (wyzej) ma niejednoznaczna
-  // semantyke wystapienia per-segment -> celowo bez occurrence.
-  const occurrence = a.locator?.occurrenceHint;
-  return [
-    occurrence !== undefined
-      ? { page: pageNum, quote: a.quote, occurrence }
-      : { page: pageNum, quote: a.quote },
-  ];
+  // powtarzajacej sie frazy. occurrence === undefined (brak lokatora) jest
+  // rownowazne brakowi pola (highlighter spada do pierwszego dopasowania).
+  // Sciezka page-break (wyzej) ma niejednoznaczna semantyke per-segment.
+  return [{ page: pageNum, quote: a.quote, occurrence: a.locator?.occurrenceHint }];
 }
 
 /** Format the page(s) of a citation for display, e.g. "Page 3" or "Page 41-42". */

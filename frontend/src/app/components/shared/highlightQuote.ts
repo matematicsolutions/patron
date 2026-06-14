@@ -96,10 +96,16 @@ export async function highlightQuote(
     const divHighlightRanges = new Map<number, [number, number]>();
 
     for (const segment of segments) {
-        const searchKey = segment.slice(0, 30);
+        // Bez occurrence: 30-znakowy prefiks + pierwsze trafienie (tolerancja,
+        // gdy cytat LLM jest dluzszy niz zrodlo). Z occurrence (locator =
+        // verbatim): liczymy wystapienia PELNEGO segmentu, by ordynalnosc
+        // zgadzala sie z occurrenceHint backendu (liczonym na pelnym rawText),
+        // a nie na wspoldzielonym prefiksie boilerplate.
+        const needle =
+            useOccurrence === undefined ? segment.slice(0, 30) : segment;
         const matchPos = nthOccurrenceIndex(
             fullStripped,
-            searchKey,
+            needle,
             useOccurrence,
         );
         if (matchPos === -1) {
