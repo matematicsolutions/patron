@@ -1,6 +1,6 @@
 # ADR-0062: Frontend tryb local (single-user, bez logowania Supabase)
 
-**Status**: PROPONOWANY (2026-05-28). Pozwala frontendowi dzialac bez Supabase auth - jeden lokalny mecenas, brak ekranu logowania. Krytyczna sciezka do soft-launch (Beata dwuklikiem uruchamia app bez rejestracji). Weryfikacja live w przegladarce odlozona (patrz Bramki).
+**Status**: PROPONOWANY (2026-05-28). Pozwala frontendowi dzialac bez Supabase auth - jeden lokalny mecenas, brak ekranu logowania. Krytyczna sciezka do soft-launch (Rumpole dwuklikiem uruchamia app bez rejestracji). Weryfikacja live w przegladarce odlozona (patrz Bramki).
 
 **Data**: 2026-05-28
 
@@ -14,7 +14,7 @@
 
 ## Kontekst
 
-Backend dziala bez Supabase (ADR-0053, auth bypass w trybie sqlite), ale frontend wciaz zakladal logowanie przez Supabase: `AuthContext` gatuje na `supabase.auth.getSession()`, layout stron przekierowuje niezalogowanych do `/login`, a `patronApi` dolacza token z sesji Supabase. W rezultacie Beata nie przeszlaby nawet przez ekran logowania w wersji zero-cloud. To realny blocker do soft-launch.
+Backend dziala bez Supabase (ADR-0053, auth bypass w trybie sqlite), ale frontend wciaz zakladal logowanie przez Supabase: `AuthContext` gatuje na `supabase.auth.getSession()`, layout stron przekierowuje niezalogowanych do `/login`, a `patronApi` dolacza token z sesji Supabase. W rezultacie Rumpole nie przeszlaby nawet przez ekran logowania w wersji zero-cloud. To realny blocker do soft-launch.
 
 ## Decyzja
 
