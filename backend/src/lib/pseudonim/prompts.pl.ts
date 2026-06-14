@@ -42,7 +42,7 @@ Analizujesz fragment tekstu i wypisujesz wszystkie wystapienia:
 - ORG - nazwy organizacji, w tym spolek z forma prawna polska:
   "sp. z o.o.", "S.A.", "sp. j.", "sp. k.", "sp. p.", "Sp. z o.o. Sp. k.",
   "spolka cywilna", "fundacja", "stowarzyszenie". Razem z forma prawna.
-  Przyklady: "ABC sp. z o.o.", "Bank Pekao S.A.", "Kowalski i Wspolnicy
+  Przyklady: "ABC sp. z o.o.", "Megabank S.A.", "Kowalski i Wspolnicy
   sp. k.".
 
 - ADDRESS - adresy pocztowe: ulica + numer + kod pocztowy + miasto.
