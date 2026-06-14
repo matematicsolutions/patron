@@ -113,6 +113,16 @@ function ensureSchemaUpgrades(conn: Database.Database): void {
       "alter table projects add column classification text not null default 'attorney_client_privileged'",
     );
   }
+
+  // ADR-0124 (Route B): surowe offsety chunka w zrodle (exact lokator
+  // search-time). Nullable, bez DEFAULT - stare chunki maja NULL do re-indeksu
+  // (feed/grounding robi fallback best-effort). Backfill = re-index dokumentu.
+  if (!hasColumn("doc_chunks", "source_offset_start")) {
+    conn.exec("alter table doc_chunks add column source_offset_start integer");
+  }
+  if (!hasColumn("doc_chunks", "source_offset_end")) {
+    conn.exec("alter table doc_chunks add column source_offset_end integer");
+  }
 }
 
 /**

@@ -316,6 +316,11 @@ create table if not exists doc_chunks (
   chunk_index integer not null,
   content text not null,
   embedding_model text,
+  -- ADR-0124 (Route B): surowy span chunka w tekscie zrodlowym (UTF-16, end
+  -- exclusive) do exact lokatora search-time. Nullable - stare chunki maja
+  -- NULL do re-indeksu (feed robi fallback best-effort).
+  source_offset_start integer,
+  source_offset_end integer,
   created_at text not null
 );
 create index if not exists idx_doc_chunks_document on doc_chunks(document_id);

@@ -14,6 +14,7 @@
 
 import crypto from "crypto";
 import { getDb, isVecEnabled } from "../db/sqlite-connection";
+import { locateChunkSpans } from "../citation/locator";
 import { extractEntitiesAndEdges } from "../graph";
 import { buildRoleHits, buildEventFrames } from "./events";
 import { embed, EMBED_MODEL } from "./embeddings";
@@ -143,9 +144,17 @@ export async function indexDocument(
     }
   }
 
+  // ADR-0124 (Route B): surowy span kazdego chunka w tekscie zrodlowym
+  // (zero dodatkowego IO - mamy `text` w reku). Forward-scan w kolejnosci
+  // dokumentu; chunk nieodnaleziony -> null (feed robi fallback best-effort).
+  const spans = locateChunkSpans(
+    text,
+    pieces.map((p) => p.content),
+  );
+
   const nowIso = new Date().toISOString();
   const insertChunk = db.prepare(
-    "insert into doc_chunks (document_id, chunk_index, content, embedding_model, created_at) values (?, ?, ?, ?, ?)",
+    "insert into doc_chunks (document_id, chunk_index, content, embedding_model, source_offset_start, source_offset_end, created_at) values (?, ?, ?, ?, ?, ?, ?)",
   );
   const insertFts = db.prepare(
     "insert into doc_chunks_fts (rowid, content) values (?, ?)",
@@ -157,11 +166,14 @@ export async function indexDocument(
   const writeChunks = db.transaction(() => {
     for (let i = 0; i < pieces.length; i++) {
       const vec = vectors[i];
+      const span = spans[i];
       const info = insertChunk.run(
         docId,
         pieces[i].index,
         pieces[i].content,
         vec ? EMBED_MODEL : null,
+        span?.start ?? null,
+        span?.end ?? null,
         nowIso,
       );
       const rowid = Number(info.lastInsertRowid);

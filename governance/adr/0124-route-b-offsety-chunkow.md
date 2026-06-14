@@ -1,6 +1,6 @@
 # ADR-0124: Route B - surowe offsety chunkow dla exact lokatora search-time
 
-**Status**: Proponowany 2026-06-14. Konstytucja v1.5.0. Decyzja Route B (odblokowana przez WM 2026-06-14 po wczesniejszym odlozeniu z ADR-0118). Implementacja ETAPOWA: **9a** `locateChunkSpans` (locator.ts, czysty mapper + testy) ZROBIONE; **9b** migracja `doc_chunks` (offsety) + populacja w indekserze = REZERWACJA; **9c** wpiecie w `search-feed.ts` (exact lokator bez czytania zrodla) = REZERWACJA. Stacked na ADR-0116/0120/0121/0122/0123 (branch feat/oc-locator-loose-match).
+**Status**: Proponowany 2026-06-14. Konstytucja v1.5.0. Decyzja Route B (odblokowana przez WM 2026-06-14 po wczesniejszym odlozeniu z ADR-0118). Implementacja ETAPOWA: **9a** `locateChunkSpans` (locator.ts, czysty mapper + testy) ZROBIONE; **9b** kolumny `doc_chunks` (offsety) + populacja w indekserze ZROBIONE; **9c** wpiecie w `search-feed.ts` (exact lokator bez czytania zrodla) = REZERWACJA. UWAGA: `doc_chunks` jest SQLite/desktop-only (hybrid retrieval sqlite-vec, ADR-0054) - NIE wystepuje w schema.sql/migrations Postgres, wiec 9b nie wymaga migracji serwerowej. Stacked na ADR-0116/0120/0121/0122/0123 (branch feat/oc-locator-loose-match).
 
 **Data**: 2026-06-14
 

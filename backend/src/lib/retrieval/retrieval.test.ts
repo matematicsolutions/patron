@@ -146,6 +146,23 @@ describe("indexDocument + retrieve (BM25 + graf + encje)", () => {
       .get() as { c: number };
     expect(fts.c).toBe(chunks.c); // FTS w sync z doc_chunks po re-index
   });
+
+  it("ADR-0124: indekser persystuje surowe offsety chunka (Route B 9b)", () => {
+    const db = conn.getDb();
+    const rows = db
+      .prepare(
+        "select content, source_offset_start as s, source_offset_end as e from doc_chunks where document_id = 'doc-A' order by chunk_index",
+      )
+      .all() as { content: string; s: number | null; e: number | null }[];
+    expect(rows.length).toBeGreaterThan(0);
+    for (const r of rows) {
+      expect(typeof r.s).toBe("number");
+      expect(typeof r.e).toBe("number");
+      expect(r.e!).toBeGreaterThan(r.s!);
+    }
+    // doc-A to jeden akapit -> pierwszy chunk kotwiczy sie na poczatku zrodla
+    expect(rows[0].s).toBe(0);
+  });
 });
 
 describe("narzedzie search_corpus (dispatch, bez LLM)", () => {
