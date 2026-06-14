@@ -5,6 +5,7 @@ import {
     type CitationLocator,
     findOccurrences,
     locatorFor,
+    locatorFromQuote,
     reanchor,
 } from "./locator";
 
@@ -175,5 +176,32 @@ describe("locatorFor + round-trip", () => {
         // mimo to re-kotwiczy verbatim (najblizej startHint=1 -> wystapienie 0 lub 1)
         const a = reanchor(loc!, src);
         expect(src.slice(a!.start, a!.end)).toBe("aa");
+    });
+});
+
+describe("locatorFromQuote", () => {
+    const SRC = "Sad uznal, ze powodztwo jest zasadne w calosci.";
+
+    it("fragment verbatim -> lokator na pierwszym wystapieniu", () => {
+        const loc = locatorFromQuote("powodztwo jest zasadne", SRC);
+        expect(loc).not.toBeNull();
+        expect(loc!.rawText).toBe("powodztwo jest zasadne");
+        expect(loc!.startHint).toBe(SRC.indexOf("powodztwo jest zasadne"));
+        // niezmiennik: re-kotwiczy verbatim
+        const a = reanchor(loc!, SRC);
+        expect(SRC.slice(a!.start, a!.end)).toBe("powodztwo jest zasadne");
+    });
+
+    it("fragment nie-verbatim -> null (fail-closed)", () => {
+        expect(locatorFromQuote("fraza ktorej nie ma", SRC)).toBeNull();
+        expect(locatorFromQuote("", SRC)).toBeNull();
+        expect(locatorFromQuote("x", "")).toBeNull();
+    });
+
+    it("wielokrotny fragment -> kotwiczy pierwsze, occurrenceHint 0", () => {
+        const src = "zgoda. zgoda. zgoda.";
+        const loc = locatorFromQuote("zgoda", src);
+        expect(loc!.startHint).toBe(0);
+        expect(loc!.occurrenceHint).toBe(0);
     });
 });

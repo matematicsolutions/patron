@@ -9,6 +9,7 @@ import {
     type GroundingResult,
     verifyCitations,
 } from "../citation/grounding";
+import { type CitationLocator, locatorFromQuote } from "../citation/locator";
 import type { ParsedCitation } from "./types";
 import type { DocIndex, DocStore } from "./types";
 import { getDocumentTextForGrounding } from "./tool-dispatch";
@@ -16,6 +17,18 @@ import type { createServerSupabase } from "../supabase";
 
 /** Minimalny ksztalt cytatu potrzebny do groundingu (wspolny dla obu galezi stream). */
 type GroundableCitation = { ref: number; doc_id: string; quote: string };
+
+/**
+ * Werdykt groundingu (ADR-0005) wzbogacony o trwaly lokator cytatu (ADR-0116).
+ * `locator` powstaje gdy cytat wystepuje DOSLOWNIE w surowym zrodle (typowe dla
+ * ZWERYFIKOWANY) - daje persystowalna, re-kotwiczalna pozycje pod highlight i
+ * audit bundle (AI Act art. 12). null gdy nie da sie verbatim (fail-closed).
+ * UWAGA: lokator (zawiera rawText=cytat) leci do SSE/persistence, NIE do
+ * audit_log - audyt dostaje groundingSummary (same liczby).
+ */
+export interface GroundedCitation extends GroundingResult {
+    locator: CitationLocator | null;
+}
 
 /**
  * Bezpieczna ekstrakcja {ref, doc_id, quote} z nieznanego rekordu cytatu.
@@ -49,7 +62,7 @@ export async function groundCitationsByRef(
     docStore: DocStore,
     docIndex?: DocIndex,
     db?: ReturnType<typeof createServerSupabase>,
-): Promise<Record<number, GroundingResult>> {
+): Promise<Record<number, GroundedCitation>> {
     const citations = rawCitations
         .map(toGroundable)
         .filter((c): c is GroundableCitation => c !== null);
@@ -80,8 +93,18 @@ export async function groundCitationsByRef(
     }));
     const report = verifyCitations(parsed, (id) => textByDocId.get(id) ?? null);
 
-    const byRef: Record<number, GroundingResult> = {};
-    for (const r of report.results) byRef[r.ref] = r;
+    // 3) trwaly lokator (ADR-0116) z surowego, juz prefetchowanego zrodla.
+    // Bez dodatkowego I/O - textByDocId trzyma raw text. Lokator powstaje gdy
+    // cytat jest verbatim w zrodle (locatorFromQuote = exact-or-null).
+    const citByRef = new Map(citations.map((c) => [c.ref, c]));
+    const byRef: Record<number, GroundedCitation> = {};
+    for (const r of report.results) {
+        const cit = citByRef.get(r.ref);
+        const src = cit ? (textByDocId.get(cit.doc_id) ?? null) : null;
+        const locator =
+            cit && src ? locatorFromQuote(cit.quote, src) : null;
+        byRef[r.ref] = { ...r, locator };
+    }
     return byRef;
 }
 

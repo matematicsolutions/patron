@@ -92,4 +92,33 @@ describe("groundCitationsByRef", () => {
         );
         expect(Object.keys(out)).toEqual(["1"]);
     });
+
+    it("dolacza trwaly lokator do cytatu verbatim, null gdy nie-verbatim", async () => {
+        getText.mockResolvedValue(SRC);
+        const out = await groundCitationsByRef(
+            [
+                { ref: 1, doc_id: "doc-0", quote: "ustawowe przeslanki winy" },
+                { ref: 2, doc_id: "doc-0", quote: "powod zadal 50000 zl tytulem" },
+            ],
+            docStore,
+        );
+        expect(out[1].decision).toBe("verified");
+        expect(out[1].locator).not.toBeNull();
+        expect(out[1].locator!.rawText).toBe("ustawowe przeslanki winy");
+        const s = out[1].locator!.startHint!;
+        expect(SRC.slice(s, s + out[1].locator!.rawText.length)).toBe(
+            "ustawowe przeslanki winy",
+        );
+        // blocked / nie-verbatim -> brak lokatora (fail-closed)
+        expect(out[2].locator).toBeNull();
+    });
+
+    it("brak zrodla -> locator null", async () => {
+        getText.mockResolvedValue(null);
+        const out = await groundCitationsByRef(
+            [{ ref: 1, doc_id: "doc-x", quote: "x" }],
+            docStore,
+        );
+        expect(out[1].locator).toBeNull();
+    });
 });

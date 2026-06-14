@@ -153,3 +153,24 @@ export function locatorFor(
     }
     return { rawText, startHint: span.start, occurrenceHint };
 }
+
+/**
+ * Buduje trwaly lokator z fragmentu, ktory MA wystepowac doslownie w zrodle
+ * (np. zweryfikowany cytat LLM albo trafienie wyszukiwania). Kotwiczy pierwsze
+ * wystapienie. Zwraca null gdy fragment nie wystepuje verbatim (fail-closed) -
+ * niezmiennik ADR-0116 zachowany.
+ *
+ * Cienka kompozycja findOccurrences + locatorFor; wspolny punkt dla groundingu
+ * (ADR-0005) i feedu (ADR-0118), zeby nie powielac wzorca exact-or-null.
+ */
+export function locatorFromQuote(
+    text: string,
+    sourceText: string,
+): CitationLocator | null {
+    const starts = findOccurrences(text, sourceText);
+    if (starts.length === 0) {
+        return null;
+    }
+    const start = starts[0]!;
+    return locatorFor(sourceText, { start, end: start + text.length });
+}
