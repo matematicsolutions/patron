@@ -115,7 +115,7 @@ describe("extractEntitiesAndEdges - akty prawne CELEX/ELI", () => {
 
 describe("extractEntitiesAndEdges - firmy", () => {
     it("firma z forma prawna generuje krawedz wspomina_firme", () => {
-        const text = "Allegro Sp. z o.o. zlozyla pozew.";
+        const text = "Acme sp. z o.o. zlozyla pozew.";
         const r = extractEntitiesAndEdges("doc-firma", text);
         const e = r.entities.find((e) => e.type === "FIRMA");
         expect(e).toBeDefined();
@@ -152,7 +152,7 @@ describe("extractEntitiesAndEdges - opcje", () => {
 
 describe("extractEntitiesAndEdges - integracja", () => {
     it("kompletny tekst z mixed encjami daje spojny ExtractionResult", () => {
-        const text = `Pozew Allegro Sp. z o.o. (NIP 525-228-70-09, KRS: 0000028860)
+        const text = `Pozew Acme sp. z o.o. (NIP 525-228-70-09, KRS: 0000028860)
 przeciwko klientowi PESEL 44051401458. Powolujemy sie na wyrok SN
 sygn. akt III CZP 11/13 oraz na wyrok II SA/Wa 1234/24. Regulacja
 32024R1689 ma zastosowanie.`;
