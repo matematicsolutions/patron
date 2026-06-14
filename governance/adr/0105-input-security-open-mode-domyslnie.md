@@ -2,7 +2,7 @@
 
 - **Status:** Zaakceptowany (pilot-driven, decyzja Operatora WM). Branch `feat/tier-governance-envelope`, NIESCALONY do `main` (bramka: 2x review WM).
 - **Data:** 2026-06-05
-- **Kontekst pilota:** Pilot-01-Czechowicz. Realne akta karne/gospodarcze (sprawa Klamczynski - 626 zeskanowanych stron, sprawa Tataj - DOCX).
+- **Kontekst pilota:** Pilot-01-Rumpole. Realne akta karne/gospodarcze (sprawa Doe - 626 zeskanowanych stron, sprawa Bloggs - DOCX).
 
 ## Kontekst
 
@@ -13,7 +13,7 @@ Pipeline input-security (ADR-0019/0020) skanuje kazdy dokument wejsciowy (prompt
 - `blocked` (critical) -> 422, bajty nieutrwalone.
 - read-time (W4): `human_review`/`blocked` **wstrzymywaly odczyt** tresci do modelu.
 
-**Problem ujawniony na realnych aktach:** skonsolidowany OCR akt Klamczynskiego (skany papierowe) dostal `threat_level: high` -> `human_review` -> 0 chunkow w RAG -> PATRON "nie czytal dokumentow". To **false-positive**: szum OCR + struktura pisma procesowego wyglada dla detektorow jak evasion/obfuskacja/injection. Ten sam mechanizm tlumaczy brak statusu `ready` dla DOCX Tataja. Skutek: **zabezpieczenie tak ostre, ze produkt staje sie bezuzyteczny** dla swojego podstawowego zadania - czytania akt kancelarii.
+**Problem ujawniony na realnych aktach:** skonsolidowany OCR akt Doe'a (skany papierowe) dostal `threat_level: high` -> `human_review` -> 0 chunkow w RAG -> PATRON "nie czytal dokumentow". To **false-positive**: szum OCR + struktura pisma procesowego wyglada dla detektorow jak evasion/obfuskacja/injection. Ten sam mechanizm tlumaczy brak statusu `ready` dla DOCX Bloggsa. Skutek: **zabezpieczenie tak ostre, ze produkt staje sie bezuzyteczny** dla swojego podstawowego zadania - czytania akt kancelarii.
 
 Kluczowa obserwacja modelu zagrozen: PATRON to **desktop single-user**. Operator (adwokat) JEST czlowiekiem w petli (Konstytucja Art. 6) i wciaga **WLASNE akta wlasnego klienta**. Chowanie tych akt przed nim, by chronic go przed injection w jego wlasnych dokumentach, jest paternalistyczne i lamie rdzenny use-case. Realne wektory (exfiltracja) sa domkniete innymi warstwami: egress guard (chmura blokowana dla tajemnicy bez zgody - ADR-0099/0101), maskowanie PII, opcja modelu lokalnego zero-cloud.
 
@@ -34,7 +34,7 @@ Kluczowa obserwacja modelu zagrozen: PATRON to **desktop single-user**. Operator
 
 ## Konsekwencje
 
-- (+) **Uzytecznosc wraca:** wlasne akta Operatora zawsze indeksowane i przeszukiwalne. Klamczynski: 1157 chunkow, PATRON odpowiedzial na pytanie o zarzut (art. 300 § 2 k.k.).
+- (+) **Uzytecznosc wraca:** wlasne akta Operatora zawsze indeksowane i przeszukiwalne. Doe: 1157 chunkow, PATRON odpowiedzial na pytanie o zarzut (art. 300 § 2 k.k.).
 - (+) **Governance zachowane:** detekcja + audyt + badge - sygnal jest, dowod AI Act jest, tylko nie ukrywamy. "Najpierw otwarte i uzyteczne, rygor pozniej na wniosek praktykow" (decyzja WM).
 - (+) **Odwracalne z danymi:** gdy praktyk powie "za luzno", `PATRON_INPUT_SECURITY_ENFORCE=1` przywraca pelny rygor ADR-0020 - bez zmiany kodu, z realnymi przypadkami w rece.
 - (-) **Swiadome obnizenie obrony w glab:** wrogi dokument (genuine injection) tez sie zaindeksuje i trafi do modelu. Ryzyko ograniczone: single-user desktop, egress guard + maskowanie PII + opcja modelu lokalnego. Dla trybu serwerowego/multi-tenant ENFORCE powinno byc domyslnie ON (rezerwacja: wpiecie per-mode w starcie).

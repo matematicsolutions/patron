@@ -6,7 +6,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('patron', {
   // Natywny picker folderu sprawy. Zwraca sciezke (string) albo null (anulowano).
-  // FIX pilot Beata: nietechniczny uzytkownik nie umie skopiowac sciezki ("chce
+  // FIX pilot Rumpole: nietechniczny uzytkownik nie umie skopiowac sciezki ("chce
   // jak zalacznik") - picker zastepuje recznie wpisywane pole tekstowe.
   selectFolder: () => ipcRenderer.invoke('patron:selectFolder'),
   // Flaga obecnosci powloki Electron - frontend wlacza picker tylko w desktopie

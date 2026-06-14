@@ -21,7 +21,7 @@
 
 Twardy blok `decideRoute` (`attorney_client_privileged` -> tylko `no-egress`, kazda chmura = block `privileged-requires-local`, bez wyjatku - flaga `ALLOW_US_PROVIDERS` NIE odblokowywala tajemnicy) okazal sie w praktyce ZA OSTRY:
 
-- Blokowal realna prace. Polscy prawnicy pracuja dzis na modelu chmurowym (Libra = Anthropic to glowne narzedzie), a wybor mecenasa to swiadoma, odpowiedzialna decyzja - nie naruszenie. Decyzja wlasciciela produktu (WM, 2026-06-03): "nie Libra - KAZDY model; Beata to odpowiedzialny adwokat, wie co robi; nie badzmy swietsi od papieza".
+- Blokowal realna prace. Polscy prawnicy pracuja dzis na modelu chmurowym (Libra = Anthropic to glowne narzedzie), a wybor mecenasa to swiadoma, odpowiedzialna decyzja - nie naruszenie. Decyzja wlasciciela produktu (WM, 2026-06-03): "nie Libra - KAZDY model; Rumpole to odpowiedzialny adwokat, wie co robi; nie badzmy swietsi od papieza".
 - Blokowal nawet demonstracje i testy na realnych sprawach (sprawa pilota domyslnie klasyfikowana `attorney_client_privileged`, fail-closed).
 - Sprzeczny z faktem, ze to instalacja jednoosobowa na maszynie kancelarii: dane i tak sa na sprzecie Operatora, ktory sam decyduje o ich przetwarzaniu.
 
