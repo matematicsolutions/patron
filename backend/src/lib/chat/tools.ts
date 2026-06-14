@@ -220,6 +220,35 @@ export const TOOLS = [
     {
         type: "function",
         function: {
+            name: "get_document_text",
+            description:
+                "Read a document in bounded windows instead of all at once. Like read_document but returns at most max_chars characters starting at char_offset, plus next_offset and truncated so you can page through long files (umowy, akta na setki stron) without flooding the context. To continue, call again with char_offset set to the previous response's next_offset until next_offset is null. Prefer this over read_document for large documents; use find_in_document for targeted lookups.",
+            parameters: {
+                type: "object",
+                properties: {
+                    doc_id: {
+                        type: "string",
+                        description:
+                            "The document ID to read (e.g. 'doc-0', 'doc-1').",
+                    },
+                    char_offset: {
+                        type: "integer",
+                        description:
+                            "Start offset in characters (default 0). Pass the previous response's next_offset to read the next window.",
+                    },
+                    max_chars: {
+                        type: "integer",
+                        description:
+                            "Maximum characters to return (default 50000, hard cap 200000).",
+                    },
+                },
+                required: ["doc_id"],
+            },
+        },
+    },
+    {
+        type: "function",
+        function: {
             name: "find_in_document",
             description:
                 "Search for specific strings inside a document — a Ctrl+F equivalent. Returns each match with surrounding context so you can locate and quote the exact text without reading the whole document. Matching is case-insensitive and whitespace-tolerant. Use this for targeted lookups (e.g. finding a clause title, party name, or a specific phrase) rather than reading the whole document.",

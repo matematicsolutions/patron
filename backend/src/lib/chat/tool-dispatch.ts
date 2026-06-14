@@ -15,6 +15,7 @@ import { createServerSupabase } from "../supabase";
 import { citationReminder } from "./prompts";
 import { resolveDocLabel } from "./citations";
 import { extractPdfText } from "./pdf";
+import { boundedDocumentText } from "./document-window";
 import { analyzeInput, isHardThreat } from "../input-security";
 import { generateDocx } from "./docx-generate";
 import {
@@ -624,6 +625,58 @@ export async function runToolCalls(
                     ? `${citationReminder(docId, filename)}\n\n${content}`
                     : content,
             });
+        } else if (tc.function.name === "get_document_text") {
+            // ADR-0117: stronicowany odczyt. Ta sama sciezka co read_document
+            // (resolver, wersja tracked-changes, ekstrakcja, guard input-security
+            // przez readDocumentContent), tylko zwracamy okno char_offset/max_chars
+            // z jawnym next_offset/truncated zamiast calego tekstu.
+            const rawDocId = args.doc_id as string;
+            const docId =
+                resolveDocLabel(rawDocId, docStore, docIndex) ?? rawDocId;
+            const charOffset =
+                typeof args.char_offset === "number" ? args.char_offset : 0;
+            const maxChars =
+                typeof args.max_chars === "number" ? args.max_chars : undefined;
+            const full = await readDocumentContent(
+                docId,
+                docStore,
+                write,
+                docIndex,
+                db,
+            );
+            if (isReadFailureSentinel(full)) {
+                // Brak dokumentu / blad odczytu / wstrzymanie input-security -
+                // zwroc komunikat bez okienkowania (jak read_document), nie udawaj
+                // okna tekstu.
+                toolResults.push({
+                    role: "tool",
+                    tool_call_id: tc.id,
+                    content: full,
+                });
+            } else {
+                const filename = docStore.get(docId)?.filename;
+                const documentId = docIndex?.[docId]?.document_id;
+                if (filename)
+                    docsRead.push({ filename, document_id: documentId });
+                const window = boundedDocumentText(full, charOffset, maxChars);
+                toolResults.push({
+                    role: "tool",
+                    tool_call_id: tc.id,
+                    content: JSON.stringify({
+                        doc_id: docId,
+                        filename: filename ?? docId,
+                        char_offset: window.charOffset,
+                        max_chars: window.maxChars,
+                        total_chars: window.totalChars,
+                        next_offset: window.nextOffset,
+                        truncated: window.truncated,
+                        note: filename
+                            ? citationReminder(docId, filename)
+                            : undefined,
+                        text: window.text,
+                    }),
+                });
+            }
         } else if (tc.function.name === "find_in_document") {
             const rawDocId = args.doc_id as string;
             const docId =
