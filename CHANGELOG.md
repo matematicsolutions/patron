@@ -7,6 +7,25 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ## [Unreleased]
 
+### Audyt PATRON P2 #11 (cz. 2): wezly PERSON w grafie cytowan (ADR-0116)
+
+**Added**
+- Regula `osoba-z-markerem` w `pl-entities` (`PL_EXTRACTION_RULES`) -
+  `extractEntitiesAndEdges` tworzy z niej encje OSOBA + krawedzie `wspomina_osobe`
+  (typ i mapowanie juz istnialy, brakowalo reguly). Odpowiada na "pokaz dokumenty
+  wspominajace osobe X" (wspolny `value_normalized`).
+- Detekcja deterministyczna, zakotwiczona na markerze (honoryfikator/rola
+  procesowa) + nazwa z wielkiej; bez markera nie lapie (precyzja - nie maskuje
+  "Sad Najwyzszy"). Pierwsza litera markera case-insensitive (rola na poczatku
+  zdania). Lookbehind Unicode.
+
+RODO: OSOBA to PII w `extracted_entities` - objete istniejaca purga
+(`clearDocumentIndex` / `forgetCase`). Krawedz osoby celuje w encje, nie dokument
+(`resolveToDocLinks` jej nie dotyka). Detekcja lokalna (graf/sqlite), zero egress;
+osobno od maskowania PII przed chmura (ADR-0110) - konwergencja markerow = rezerwacja.
+tsc 0, vitest 1174 pass / 0 fail / 5 todo (+5 `person-nodes.test.ts`).
+Branch `fix/audyt-patron-p1-p3`.
+
 ### Audyt PATRON P3 #17 + #18: panel "Stan systemu" + czyszczenie komentarzy (ADR-0115)
 
 **Added**
