@@ -34,7 +34,7 @@
         "docx-preview": "^0.3.7",
         "exceljs": "^4.4.0",
         "katex": "^0.16.27",
-        "lucide-react": "^1.16.0",
+        "lucide-react": "^1.18.0",
         "mammoth": "^1.11.0",
         "marked": "^18.0.4",
         "next": "^16.2.6",
