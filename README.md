@@ -1,7 +1,7 @@
 # Patron
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](./LICENSE)
-[![Tests](https://img.shields.io/badge/tests-1265_passing-brightgreen)](./backend)
+[![Tests](https://img.shields.io/badge/tests-1267_passing-brightgreen)](./backend)
 [![AI Act](https://img.shields.io/badge/AI_Act-Art._12_record--keeping-orange)](./governance/CONSTITUTION.md)
 [![RODO](https://img.shields.io/badge/RODO-art._5%2F25%2F30%2F32-orange)](./governance/CONSTITUTION.md)
 [![Stack](https://img.shields.io/badge/stack-zero--cloud-success)](./governance/CONSTITUTION.md)
