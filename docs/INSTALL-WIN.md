@@ -32,7 +32,7 @@ cloud account required — one installer and you are running.
 
 ## Install steps
 
-1. **Download** `PATRON Setup 0.1.0.exe` from the
+1. **Download** `PATRON Setup 1.0.0.exe` from the
    [latest release](https://github.com/matematicsolutions/patron/releases).
 2. **SmartScreen notice.** Until the installer carries a commercial publisher
    certificate, Windows shows a blue *"Windows protected your PC"* screen — this

@@ -1,6 +1,6 @@
 {
   "name": "patron-desktop",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "PATRON — Desktop dla Prawnika",
   "main": "main.js",
   "scripts": {
