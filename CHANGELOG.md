@@ -22,6 +22,9 @@ przed egressem, bring-your-own-model (Gemini / Claude / Ollama lokalny / OpenRou
 - Adopcja OpenContracts: trwaly lokator cytatu + re-anchoring, bounded document read,
   typed search feed, occurrence-aware highlight, Route B (surowe offsety chunkow),
   model governance krawedzi grafu KGLF (ADR-0116..0126).
+- Fidelity na zadanie (ADR-0131): doskonalenie pisma (Recenzent / Adwokat diabla /
+  Pisz po ludzku) jest WYBIERALNE per etap, domyslnie 1 szybki przebieg - koniec
+  wymuszonego 3-etapowego pipeline'u (latencja). Pelne przyciski na odpowiedzi = v1.0.1.
 - Szyfrowanie at-rest: **dostepne jako scaffold, do aktywacji** (ADR-0129) - domyslnie
   plaintext; aktywacja = natywny sterownik cipher + rebuild (runbook
   `docs/at-rest-activation.md`). Decyzja CTO: poza krytyczna sciezka 1.0.0 (first-mover).
@@ -784,7 +787,8 @@ First public release as **Patron** (re-branded fork of
 
 ### Changed
 
-- **License**: MIT (Mike upstream) → AGPL-3.0-only (Patron shell).
+- **License**: AGPL-3.0-only (Patron shell, dziedziczone z AGPL-3.0-only
+  Mike upstream jako dzieło zależne). Konektory MCP: MIT (osobne repo).
   See `NOTICE` for full attribution.
 - README rewritten with Polish-first framing, connector table,
   governance pointers.

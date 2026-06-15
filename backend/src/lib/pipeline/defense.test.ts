@@ -81,6 +81,29 @@ describe("runDefensePipeline (fake LLM)", () => {
     expect(r.final).toBe("OUT3");
   });
 
+  it("ADR-0131: pusta lista etapow = 0 wywolan LLM, final = wejscie", async () => {
+    const { fake, calls } = recordingLlm();
+    const r = await runDefensePipeline(
+      "DRAFT_NOOP",
+      { model: "m", stages: [] },
+      fake,
+    );
+    expect(calls.length).toBe(0);
+    expect(r.stages.length).toBe(0);
+    expect(r.final).toBe("DRAFT_NOOP");
+  });
+
+  it("ADR-0131: wybor jednego etapu = 1 wywolanie", async () => {
+    const { fake, calls } = recordingLlm();
+    const r = await runDefensePipeline(
+      "D",
+      { model: "m", stages: ["pisz-po-ludzku"] },
+      fake,
+    );
+    expect(calls.length).toBe(1);
+    expect(r.stages.map((s) => s.stage)).toEqual(["pisz-po-ludzku"]);
+  });
+
   it("domyslny tryb adwokata = strona-przeciwna", async () => {
     const { fake } = recordingLlm();
     const r = await runDefensePipeline("d", { model: "m" }, fake);

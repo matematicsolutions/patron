@@ -7,8 +7,10 @@ Ten jednostronicowy poradnik dołączamy **do pliku instalatora** (`PATRON Setup
 ## 1. Czego potrzebujesz
 
 - **Windows 10/11, 64-bit.**
-- **Internet** — do modelu AI w chmurze (np. Libra/Anthropic) i do wyszukiwania orzecznictwa na żywo (SAOS, NSA, ISAP, KRS, EUR-Lex). Wyszukiwanie w Twoich dokumentach i baza prawa UE działają też offline.
-- **Klucz modelu AI** — np. Libra/Anthropic (główne narzędzie prawników w PL), Gemini lub OpenAI. Wpiszesz go raz, już w aplikacji.
+- **Model AI — wybierz jedną z dwóch ścieżek:**
+  - **Lokalnie (zero-cloud, zalecane dla akt objętych tajemnicą).** Zainstaluj [Ollama](https://ollama.com) i pobierz model wskazany w aplikacji. Dane **nie opuszczają Twojego komputera**, brak kosztów tokenów. Zalecany mocniejszy sprzęt (16 GB RAM+).
+  - **Chmura (wygoda i jakość).** Klucz modelu — np. Libra/Anthropic (główne narzędzie prawników w PL), Gemini lub OpenAI. Wpiszesz go raz, już w aplikacji. Uwaga: przy modelu chmurowym treść akt jest wysyłana do dostawcy modelu — używaj za zgodą Administratora i zgodnie z polityką kancelarii.
+- **Internet** — wymagany przy modelu chmurowym oraz do wyszukiwania orzecznictwa na żywo (SAOS, NSA, ISAP, KRS, EUR-Lex). Wyszukiwanie w Twoich dokumentach i baza prawa UE działają też offline.
 - **LibreOffice** (bezpłatny, opcjonalnie) — przyda się do konwersji starszych plików `.doc` i podglądu PDF. Można doinstalować później: [libreoffice.org](https://www.libreoffice.org).
 
 ---
@@ -24,7 +26,7 @@ Ten jednostronicowy poradnik dołączamy **do pliku instalatora** (`PATRON Setup
 
 ## 3. Pierwsza minuta w aplikacji
 
-1. Otwórz **Konto → Modele i klucze API** i wklej swój klucz modelu (np. Libra/Anthropic). Zapisz.
+1. Otwórz **Konto → Modele i klucze API**. Wybierz **model lokalny (Ollama)** — wtedy dane nie opuszczają komputera — albo wklej **klucz modelu chmurowego** (np. Libra/Anthropic). Zapisz.
 2. Załóż pierwszą sprawę (projekt) i wgraj do niej akta — przeciągnij pliki lub użyj **„Importuj folder sprawy"**.
 3. Zadaj pierwsze pytanie w czacie po prawej, np. *„Wymień terminy i kary umowne w tej umowie."* Albo zapytaj wprost: **„Co potrafisz?"** — Patron oprowadzi Cię po funkcjach.
 

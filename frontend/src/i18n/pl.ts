@@ -723,10 +723,12 @@ export const pl = {
         open: "Draft odpowiedzi",
         title: "Draft odpowiedzi",
         subtitle:
-            "Pismo przejdzie przez recenzję, adwokata diabła i redakcję pod kątem naturalnego języka.",
+            "Wybierz etapy doskonalenia. Domyślnie szybka redakcja językowa; recenzję i adwokata diabła włącz, gdy potrzebujesz głębszej pracy.",
         textLabel: "Tekst pisma",
         textPlaceholder: "Wklej lub wpisz treść pisma do doskonalenia…",
-        modeLabel: "Adwokat diabła — z czyjej perspektywy",
+        stagesSelectLabel:
+            "Etapy doskonalenia (każdy to osobny przebieg - więcej etapów, dłuższe oczekiwanie)",
+        modeLabel: "Adwokat diabła - z czyjej perspektywy",
         refine: "Doskonal pismo",
         refining: "Doskonalę pismo…",
         resultTitle: "Gotowy draft",

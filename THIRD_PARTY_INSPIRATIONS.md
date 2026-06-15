@@ -157,10 +157,12 @@ wszystkich trzech ADR PO wpieciu Faza 6.
 features, czy ontologia legal w roadmap). Status 2026-08 do 2026-10 -
 ponowny check czy v0.5+ ma cokolwiek bezposrednio uzytecznego dla PL.
 
-## willchen96/mike (MIT - baza forka)
+## willchen96/mike (AGPL-3.0 - baza forka)
 
 **Repo**: https://github.com/willchen96/mike (original)
-**Licencja**: MIT
+**Licencja**: AGPL-3.0-only (forensic 2026-06-15: plik LICENSE = GNU AGPL v3
++ backend/package.json i frontend/package.json = "AGPL-3.0-only"; ZERO sladu
+MIT w drzewie - jedyne "MIT" to licencje zaleznosci npm w package-lock.json)
 **Pattern wzorcowany**: caly szkielet aplikacji asystenta dokumentowego
 (chat / projekty / tabular reviews / workflowy / lib/llm) jako baza
 Patrona.

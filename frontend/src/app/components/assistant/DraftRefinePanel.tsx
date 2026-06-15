@@ -20,6 +20,11 @@ const ADWOKAT_MODES: AdwokatMode[] = [
     "prokurator",
 ];
 
+// ADR-0131: etapy fidelity w kolejnosci kanonicznej. Wybor uzytkownika (opt-in),
+// nie wymuszony pipeline - domyslnie 1 szybki etap (szybkosc na launch).
+const ALL_STAGE_IDS: DefenseStage[] = ["recenzent", "adwokat", "pisz-po-ludzku"];
+const DEFAULT_STAGES: DefenseStage[] = ["pisz-po-ludzku"];
+
 function stageLabel(s: DraftStageResult): string {
     // Custom skill z paczki - etykieta z manifestu (brak klucza i18n).
     if (s.label) return s.label;
@@ -83,6 +88,8 @@ interface Props {
 export function DraftRefinePanel({ open, onClose, initialText }: Props) {
     const [text, setText] = useState(initialText);
     const [mode, setMode] = useState<AdwokatMode>("strona-przeciwna");
+    const [selectedStages, setSelectedStages] =
+        useState<DefenseStage[]>(DEFAULT_STAGES);
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState<DraftRefineResult | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -92,6 +99,7 @@ export function DraftRefinePanel({ open, onClose, initialText }: Props) {
     useEffect(() => {
         if (open) {
             setText(initialText);
+            setSelectedStages(DEFAULT_STAGES);
             setResult(null);
             setError(null);
             setCopied(false);
@@ -111,7 +119,8 @@ export function DraftRefinePanel({ open, onClose, initialText }: Props) {
 
     if (!open) return null;
 
-    const canRefine = text.trim().length > 0 && !loading;
+    const canRefine =
+        text.trim().length > 0 && selectedStages.length > 0 && !loading;
 
     const handleRefine = async () => {
         if (!canRefine) return;
@@ -122,6 +131,8 @@ export function DraftRefinePanel({ open, onClose, initialText }: Props) {
             const res = await refineDraft({
                 text: text.trim(),
                 adwokat_mode: mode,
+                // Kolejnosc kanoniczna niezaleznie od kolejnosci klikania checkboxow.
+                stages: ALL_STAGE_IDS.filter((s) => selectedStages.includes(s)),
             });
             setResult(res);
         } catch (e) {
@@ -180,25 +191,56 @@ export function DraftRefinePanel({ open, onClose, initialText }: Props) {
                         />
                     </div>
 
-                    {/* Tryb adwokata */}
+                    {/* Etapy doskonalenia - wybor (ADR-0131: opt-in, nie wymuszony pipeline) */}
                     <div>
                         <label className="mb-1 block text-xs font-medium text-gray-600">
-                            {t("draft.modeLabel")}
+                            {t("draft.stagesSelectLabel")}
                         </label>
-                        <select
-                            value={mode}
-                            onChange={(e) =>
-                                setMode(e.target.value as AdwokatMode)
-                            }
-                            className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-800 outline-none focus:border-gray-400"
-                        >
-                            {ADWOKAT_MODES.map((m) => (
-                                <option key={m} value={m}>
-                                    {t(`draft.mode.${m}` as const)}
-                                </option>
+                        <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+                            {ALL_STAGE_IDS.map((s) => (
+                                <label
+                                    key={s}
+                                    className="inline-flex cursor-pointer items-center gap-1.5 text-sm text-gray-700"
+                                >
+                                    <input
+                                        type="checkbox"
+                                        checked={selectedStages.includes(s)}
+                                        onChange={() =>
+                                            setSelectedStages((prev) =>
+                                                prev.includes(s)
+                                                    ? prev.filter((x) => x !== s)
+                                                    : [...prev, s],
+                                            )
+                                        }
+                                        className="rounded border-gray-300"
+                                    />
+                                    {t(`draft.stage.${s}` as const)}
+                                </label>
                             ))}
-                        </select>
+                        </div>
                     </div>
+
+                    {/* Tryb adwokata - tylko gdy etap "adwokat" wybrany */}
+                    {selectedStages.includes("adwokat") && (
+                        <div>
+                            <label className="mb-1 block text-xs font-medium text-gray-600">
+                                {t("draft.modeLabel")}
+                            </label>
+                            <select
+                                value={mode}
+                                onChange={(e) =>
+                                    setMode(e.target.value as AdwokatMode)
+                                }
+                                className="rounded-md border border-gray-200 bg-white px-3 py-1.5 text-sm text-gray-800 outline-none focus:border-gray-400"
+                            >
+                                {ADWOKAT_MODES.map((m) => (
+                                    <option key={m} value={m}>
+                                        {t(`draft.mode.${m}` as const)}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
 
                     {error && (
                         <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-serif text-red-700">

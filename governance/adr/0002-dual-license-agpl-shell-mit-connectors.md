@@ -17,10 +17,14 @@ Patron jest stackiem dwu-licencyjnym:
 ## Kontekst
 
 Patron jest forkiem [Mike](https://github.com/willchen96/mike)
-(MIT) z istotnymi modyfikacjami (polonizacja, 6 konektorów polskiego
+(AGPL-3.0-only) z istotnymi modyfikacjami (polonizacja, 6 konektorów polskiego
 i unijnego prawa, audit trail hash-chain, Konstytucja AI, docker-compose stack).
-MIT pozwala na zmianę licencji w forku, pod warunkiem zachowania
-oryginalnej noty (zob. `NOTICE`).
+Mike jest na AGPL-3.0-only (potwierdzone forensic 2026-06-15: plik `LICENSE`
+= GNU AGPL v3 + `backend/package.json` i `frontend/package.json` = `AGPL-3.0-only`),
+więc powłoka Patrona jako dzieło zależne **musi** pozostać AGPL-3.0 (copyleft) -
+to nie jest swobodny wybór, lecz wymóg licencji. Konektory MCP to osobne,
+niezależne repozytoria (nie pochodne Mike), więc ich licencja jest naszym
+wyborem (zob. `NOTICE`).
 
 Stoimy przed wyborem licencji dla nowych komponentów:
 

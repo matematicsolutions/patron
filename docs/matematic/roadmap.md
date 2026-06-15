@@ -178,7 +178,7 @@ Cel: jeden instalowalny stack. Kancelaria stawia Patrona bez wiedzy devops.
 - [x] 5.4 Decyzja licencyjna AGPL - ZAMKNIETE 2026-05-20. Dual-license stack:
       patron AGPL-3.0-only (powloka), 5 konektorow MCP MIT (infrastruktura).
       LICENSE pliki we wszystkich 6 repo (4 nowe MIT dla mcp-nsa/isap/krs/eu-sparql),
-      patron/NOTICE (attribution forka Mike MIT), CONTRIBUTING.md rebrand z tabela licencji,
+      patron/NOTICE (attribution forka Mike AGPL-3.0), CONTRIBUTING.md rebrand z tabela licencji,
       ADR-0002 z uzasadnieniem, Konstytucja AI bump v1.0.0->v1.1.0 (Art. 9 doprecyzowany).
       Update 2026-05-22: dodany 6. konektor mcp-eu-compliance (MIT) - ADR-0022/0023.
       Stack to obecnie patron + 6 mcp-* (7 repo lacznie).

@@ -103,8 +103,10 @@ draftRouter.post("/refine", requireAuth, async (req, res) => {
   try {
     const apiKeys = await getUserApiKeys(userId, db);
     const selectedModel = resolveModel(model, DEFAULT_MAIN_MODEL);
-    const effectiveStages =
-      requestedStages && requestedStages.length ? requestedStages : ALL_STAGES;
+    // ADR-0131: etapy fidelity sa OPT-IN (klient wybiera w panelu). Jawna lista
+    // (rowniez pusta) jest honorowana -> brak wymuszonego 3-etapowego pipeline'u
+    // (latencja). Pominiecie `stages` w zadaniu = ALL_STAGES (kompatybilnosc API).
+    const effectiveStages = requestedStages ?? ALL_STAGES;
 
     // ADR-0067 (domkniecie luki): pipeline obrony robi do 3 wywolan LLM - musi
     // przejsc przez TEN SAM straznik data-residency co czat (enforceEgressGuard).
