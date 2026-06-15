@@ -82,6 +82,15 @@ Wymaga osobno postawionego Supabase + MinIO (osobne stack). Patrz runbook.
 Kancelaria przed wdrożeniem czyta i podpisuje **Konstytucję v1.6.1**
 (sekcja podpisów na końcu pliku).
 
+## Standard otwarty — MCS v0.1
+
+Patron jest **implementacją referencyjną** otwartego standardu cytowań
+[**MateMatic Connector Standard (MCS) v0.1**](./MCS-v0.1.md): kontrakt
+`structuredContent.citations` (source_id / url / exact_quote / locator / confidence)
++ 3-kolorowy gradient wiarygodności (`verbatim` / `paraphrase` / `unverified` =
+istnienie / treść / fragment) + test zgodności (citation roundtrip). Każdy konektor
+do źródła prawa, który spełnia MCS, wpina się w warstwę weryfikacji cytatów bez przeróbek.
+
 ## Licencja
 
 Stack jest **dual-license** (zob. [ADR-0002](./governance/adr/0002-dual-license-agpl-shell-mit-connectors.md)):
