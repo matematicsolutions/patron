@@ -14,8 +14,9 @@
 > bring-your-own-model (Gemini / Claude / Ollama lokalny / OpenRouter). Tryb serwerowy (Postgres + MinIO) pozostaje jako alternatywa.
 
 Patron jest forkiem [Mike](https://github.com/willchen96/mike) (dokumentowy
-asystent prawny, MIT). Dodaje polonizację, polski legal stack i wymogi
-compliance, których potrzebuje kancelaria. Pełne zasady opisuje
+asystent prawny, **AGPL-3.0**) - powłoka Patrona dziedziczy AGPL-3.0 jako dzieło
+zależne. Dodaje polonizację, polski legal stack i wymogi compliance, których
+potrzebuje kancelaria. Pełne zasady opisuje
 [governance/CONSTITUTION.md](./governance/CONSTITUTION.md).
 
 ## Zawartość
@@ -102,7 +103,7 @@ Kancelaria self-host używa, modyfikuje i dystrybuuje Patrona wewnątrz
 organizacji bez dodatkowych obowiązków. Konkurent, który oferuje
 Patrona jako SaaS osobom trzecim, otwiera swoje modyfikacje.
 
-Patron jest forkiem [Mike](https://github.com/willchen96/mike) (MIT,
+Patron jest forkiem [Mike](https://github.com/willchen96/mike) (AGPL-3.0,
 ©2025 Will Chen). Pełne attribution: [NOTICE](./NOTICE).
 
 ---

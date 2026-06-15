@@ -9,7 +9,7 @@ This product is a fork of the **Mike** legal document assistant.
 
   Mike - https://github.com/willchen96/mike
   Copyright (c) 2025 Will Chen and contributors
-  Licensed under MIT License
+  Licensed under GNU Affero General Public License v3.0 (AGPL-3.0)
 
 The fork dates from 2026-05-19. Significant additions in Patron:
   - Polish locale and SYSTEM_PROMPT for Polish legal practice
@@ -23,9 +23,10 @@ The fork dates from 2026-05-19. Significant additions in Patron:
   - Docker compose deployment + multi-stage Dockerfiles
   - LibreOffice in-container support for .docx → .pdf
 
-The original Mike codebase remains MIT. Files derived from Mike retain
-their original MIT permission notice in NOTICE-MIKE-MIT (a copy of Mike's
-LICENSE preserved here for attribution).
+The upstream Mike repository (https://github.com/willchen96/mike) is
+licensed under AGPL-3.0. Patron's shell is therefore distributed under
+AGPL-3.0 as a derivative work, and files derived from Mike remain under
+AGPL-3.0. See LICENSE for full text.
 
 Why AGPL-3.0?
 -------------
