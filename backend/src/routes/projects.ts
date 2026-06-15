@@ -327,8 +327,15 @@ projectsRouter.delete("/:projectId", requireAuth, async (req, res) => {
   // tabele relacyjne), ale ZOSTAWIAL pliki akt na dysku oraz wektory/encje PII
   // i pamiec "brain". forgetCase (ADR-0061) jest kompletny i idempotentny:
   // RAG/wektory/FTS + graf cytowan + pliki storage + brain + sam projekt.
-  // audit_log zostaje nietkniety (RODO art. 17 ust. 3 lit. b + AI Act art. 12).
-  await forgetCase(projectId, db);
+  // Istniejace wpisy audit_log zostaja nietkniete (RODO art. 17 ust. 3 lit. b),
+  // ale sam AKT usuniecia jest DOPISYWANY do lancucha (AI Act art. 12) - to
+  // slad nalezytej starannosci, ktory docs/BAZA_WIEDZY obiecuja klientowi.
+  const report = await forgetCase(projectId, db);
+  await appendAuditEvent(db, {
+    event_type: "rodo.delete",
+    actor_user_id: userId,
+    payload: { project_id: projectId, report },
+  });
   res.status(204).send();
 });
 
