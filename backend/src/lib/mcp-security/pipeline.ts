@@ -2,8 +2,8 @@
 // input-security/pipeline.ts (ADR-0019). Pattern (4 detektory, scan przed
 // zaladowaniem) cherry-picked z Microsoft AGT (ADR-0024/0025).
 //
-// SKELETON: czysta funkcja, zero-LLM, zero-cloud, bezstanowa. NIE wpieta
-// w startup backendu - wpiecie to osobna decyzja (przyszly ADR-0028).
+// Czysta funkcja, zero-LLM, zero-cloud, bezstanowa. WPIETA w startup backendu
+// przez `lib/mcp/index.ts` (scanMcpRegistry przed registracja toolow), ADR-0028.
 
 import type {
     McpDetector,

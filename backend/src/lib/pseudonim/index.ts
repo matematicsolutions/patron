@@ -1,8 +1,9 @@
 // Barrel exportu warstwy pseudonimizacji PII.
 //
-// Skeleton w fazie 4.5 roadmapy (ADR-0003) - NIE wpiety w
-// streamChatWithTools. Wyjscie publiczne dla testow i przyszlej
-// integracji.
+// WPIETE w egress: `plEntityDetector` jest podawany do `wrapConversation`
+// w `streamChatWithTools` (ADR-0110). Wyjscie publiczne dla testow i sciezki
+// produkcyjnej. (Scaffolding LLM-detektora `prompts.pl.ts` pozostaje rezerwacja
+// pod przyszla integracje - ADR-0003.)
 
 export * from "./types";
 export {

@@ -1,6 +1,6 @@
 # ADR-0110: Maskowanie nazwisk/podmiotow/adresow przed chmura - deterministyczny detektor PERSON/ORG/ADDRESS
 
-- **Status:** Proponowany. Branch `fix/audyt-patron-p1-p3` (off `feat/tier-governance-envelope`), NIESCALONY do `main` (bramka: 2x review WM + decyzja Operatora). Domyka ADR-0067 / blocker B1.
+- **Status:** Zaakceptowany - `plEntityDetector` wpiety w egress `lib/chat/stream.ts` (`wrapConversation({ llmDetector: plEntityDetector })`). Domyka ADR-0067 / blocker B1.
 - **Data:** 2026-06-14
 - **Kontekst:** Audyt PATRON P1 #4 (`AUDYT_PATRON.md`). W egress (`lib/chat/stream.ts`) `wrapConversation` byl wolany BEZ detektora -> `llmDetector` = `noopLlmDetector`. Skutek: PESEL/NIP/REGON/KRS/email/telefon maskowane (regex), ale **imiona, nazwiska, nazwy podmiotow i adresy wychodzily do modelu chmurowego otwartym tekstem**. Szkielet detektora + polski prompt (`POLISH_DETECTION_PROMPT`) istnialy - to niedokonczone ADR-0067.
 
