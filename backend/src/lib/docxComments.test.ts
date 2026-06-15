@@ -1,0 +1,402 @@
+// Testy emisji komentarzy DOCX (ADR-0077). Domyka petle zapis->odczyt:
+// applyDocxComments (zapis) -> parseComments (odczyt, docxRoundtrip.ts).
+// Plus asserty plumbingu OOXML (markery, [Content_Types].xml, rels) i bramki
+// nakladania na istniejace tracked changes.
+
+import {
+    Document,
+    Packer,
+    Paragraph,
+    Table,
+    TableCell,
+    TableRow,
+    TextRun,
+} from "docx";
+import JSZip from "jszip";
+import { describe, expect, it } from "vitest";
+import { applyDocxComments } from "./docxComments";
+import { applyTrackedEdits } from "./docxTrackedChanges";
+import { parseComments, parseDocxRoundtrip, parseTrackedChanges } from "./docxRoundtrip";
+
+async function makeDocx(...paragraphs: string[]): Promise<Buffer> {
+    const d = new Document({
+        sections: [{ children: paragraphs.map((t) => new Paragraph(t)) }],
+    });
+    return Packer.toBuffer(d);
+}
+
+async function readEntry(buf: Buffer, path: string): Promise<string> {
+    const zip = await JSZip.loadAsync(buf);
+    const f = zip.file(path) ?? zip.file(path.replace(/\//g, "\\"));
+    return f ? f.async("string") : "";
+}
+
+/** Wstrzykuje natywny (nie-PATRONowy) word/comments.xml z jednym komentarzem. */
+async function injectNativeComment(docx: Buffer, text: string): Promise<Buffer> {
+    const zip = await JSZip.loadAsync(docx);
+    const xml =
+        `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+        `<w:comments xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">` +
+        `<w:comment w:id="1" w:author="Rumpole" w:date="2026-05-28T10:00:00Z">` +
+        `<w:p><w:r><w:t>${text}</w:t></w:r></w:p></w:comment></w:comments>`;
+    zip.file("word/comments.xml", xml);
+    return zip.generateAsync({ type: "nodebuffer" });
+}
+
+const ABUSIVE = "Sprzedawca moze jednostronnie zmienic cene w dowolnym czasie.";
+
+describe("applyDocxComments - round-trip przez parseComments", () => {
+    it("dokleja komentarz do zakotwiczonego fragmentu i odczytuje go z powrotem", async () => {
+        const base = await makeDocx(`Par. 5. ${ABUSIVE} Pozostale postanowienia.`);
+        const res = await applyDocxComments(
+            base,
+            [
+                {
+                    find: "jednostronnie zmienic cene",
+                    context_before: "moze ",
+                    context_after: " w dowolnym",
+                    text: "Rozwaz czy ten zapis nie jest abuzywny (art. 385(3) pkt 20 KC).",
+                },
+            ],
+            { author: "PATRON", initials: "PAT" },
+        );
+
+        expect(res.errors).toEqual([]);
+        expect(res.comments.length).toBe(1);
+        expect(res.comments[0].anchoredText).toBe("jednostronnie zmienic cene");
+
+        const parsed = await parseComments(res.bytes);
+        expect(parsed.length).toBe(1);
+        expect(parsed[0].author).toBe("PATRON");
+        expect(parsed[0].text).toContain("abuzywny");
+    });
+
+    it("emituje pelny plumbing OOXML (markery + content-type + rels)", async () => {
+        const base = await makeDocx(`Tekst. ${ABUSIVE}`);
+        const res = await applyDocxComments(base, [
+            {
+                find: "jednostronnie",
+                context_before: "moze ",
+                context_after: " zmienic",
+                text: "Flaga recenzenta.",
+            },
+        ]);
+        const doc = await readEntry(res.bytes, "word/document.xml");
+        const ct = await readEntry(res.bytes, "[Content_Types].xml");
+        const rels = await readEntry(res.bytes, "word/_rels/document.xml.rels");
+
+        expect(doc).toContain("w:commentRangeStart");
+        expect(doc).toContain("w:commentRangeEnd");
+        expect(doc).toContain("w:commentReference");
+        expect(ct).toContain("wordprocessingml.comments+xml");
+        expect(rels).toContain("/officeDocument/2006/relationships/comments");
+    });
+
+    it("komentarz-instrukcja [PATRON: ...] domyka sie z detektorem instrukcji", async () => {
+        const base = await makeDocx("Wstep pisma procesowego.");
+        const res = await applyDocxComments(base, [
+            {
+                find: "Wstep",
+                context_before: "",
+                context_after: " pisma",
+                text: "[PATRON: skroc wstep do dwoch zdan]",
+            },
+        ]);
+        expect(res.comments.length).toBe(1);
+        const r = await parseDocxRoundtrip(res.bytes);
+        expect(r.instructions).toContain("skroc wstep do dwoch zdan");
+    });
+
+    it("zachowuje wieloliniowy tekst komentarza", async () => {
+        const base = await makeDocx("Klauzula poufnosci.");
+        const res = await applyDocxComments(base, [
+            {
+                find: "poufnosci",
+                context_before: "Klauzula ",
+                context_after: "",
+                text: "Linia 1.\nLinia 2.",
+            },
+        ]);
+        const parsed = await parseComments(res.bytes);
+        expect(parsed[0].text).toContain("Linia 1.");
+        expect(parsed[0].text).toContain("Linia 2.");
+    });
+});
+
+describe("applyDocxComments - wiele komentarzy i unikalne id", () => {
+    it("dokleja dwa komentarze z roznymi w:id", async () => {
+        const base = await makeDocx(
+            "Strony zawieraja umowe.",
+            "Zaplata nastapi w terminie 7 dni.",
+        );
+        const res = await applyDocxComments(base, [
+            { find: "umowe", context_before: "zawieraja ", context_after: "", text: "Jaka umowa?" },
+            { find: "7 dni", context_before: "terminie ", context_after: "", text: "Za krotki termin." },
+        ]);
+        expect(res.errors).toEqual([]);
+        expect(res.comments.length).toBe(2);
+        const ids = new Set(res.comments.map((c) => c.id));
+        expect(ids.size).toBe(2);
+        expect((await parseComments(res.bytes)).length).toBe(2);
+    });
+});
+
+describe("applyDocxComments - bledy kotwiczenia", () => {
+    it("nieznaleziony fragment -> blad, bajty bez zmian", async () => {
+        const base = await makeDocx("Krotki tekst.");
+        const res = await applyDocxComments(base, [
+            { find: "nieistniejaca fraza", context_before: "", context_after: "", text: "x" },
+        ]);
+        expect(res.comments.length).toBe(0);
+        expect(res.errors.length).toBe(1);
+        expect(res.bytes).toBe(base); // ten sam Buffer - nic nie zapisano
+        expect((await parseComments(res.bytes)).length).toBe(0);
+    });
+
+    it("niejednoznaczna kotwica bez kontekstu -> blad; z kontekstem -> sukces", async () => {
+        const base = await makeDocx("cena rosnie, cena spada, cena stoi.");
+        const ambiguous = await applyDocxComments(base, [
+            { find: "cena", context_before: "", context_after: "", text: "ktora?" },
+        ]);
+        expect(ambiguous.comments.length).toBe(0);
+        expect(ambiguous.errors[0].reason.toLowerCase()).toContain("ambiguous");
+
+        const ok = await applyDocxComments(base, [
+            { find: "cena", context_before: "", context_after: " rosnie", text: "ta pierwsza" },
+        ]);
+        expect(ok.comments.length).toBe(1);
+    });
+
+    it("pusty komentarz -> blad", async () => {
+        const base = await makeDocx("Tekst.");
+        const res = await applyDocxComments(base, [
+            { find: "Tekst", context_before: "", context_after: "", text: "   " },
+        ]);
+        expect(res.comments.length).toBe(0);
+        expect(res.errors[0].reason).toContain("empty");
+    });
+});
+
+describe("applyDocxComments - wspolistnienie z tracked changes", () => {
+    it("komentarz na CZYSTYM fragmencie dokumentu, ktory ma tracked changes gdzie indziej", async () => {
+        const base = await makeDocx(
+            "Powodka zada kwoty 5000 zl.",
+            "Pozwana wnosi o oddalenie.",
+        );
+        const edited = await applyTrackedEdits(
+            base,
+            [{ find: "5000", replace: "8000", context_before: "kwoty ", context_after: " zl" }],
+            { author: "PATRON" },
+        );
+        const res = await applyDocxComments(edited.bytes, [
+            { find: "oddalenie", context_before: "o ", context_after: "", text: "Brak uzasadnienia." },
+        ]);
+        expect(res.comments.length).toBe(1);
+        // tracked change nadal obecny
+        const doc = await readEntry(res.bytes, "word/document.xml");
+        expect(doc).toContain("w:del");
+        expect(doc).toContain("w:ins");
+        expect(doc).toContain("w:commentRangeStart");
+    });
+
+    it("ADR-0079: komentarz NACHODZACY na istniejacy w:ins -> zalozony, w:ins nietkniety", async () => {
+        const base = await makeDocx("Powodka zada kwoty 5000 zl tytulem odszkodowania.");
+        const edited = await applyTrackedEdits(
+            base,
+            [{ find: "5000", replace: "8000", context_before: "kwoty ", context_after: " zl" }],
+            { author: "PATRON" },
+        );
+        // Widok zaakceptowany pokazuje "8000" (ins "8" + plain "000"); kotwica
+        // na "8000" obejmuje wewnetrzny run w:ins. ADR-0079: zamiast bramki,
+        // komentarz bracketuje na granicy dzieci, a w:ins zostaje nietkniety.
+        const res = await applyDocxComments(edited.bytes, [
+            { find: "8000", context_before: "kwoty ", context_after: " zl", text: "Sprawdz kwote." },
+        ]);
+        expect(res.errors).toEqual([]);
+        expect(res.comments.length).toBe(1);
+        expect(res.comments[0].anchoredText).toBe("8000");
+
+        const doc = await readEntry(res.bytes, "word/document.xml");
+        // tracked change przetrwal (slad zmiany - autor/ins/del):
+        expect(doc).toContain("w:ins");
+        expect(doc).toContain("w:del");
+        expect(doc).toContain('w:author="PATRON"');
+        // markery komentarza wstawione:
+        expect(doc).toContain("w:commentRangeStart");
+        expect(doc).toContain("w:commentRangeEnd");
+        // komentarz round-trip przez nasz wlasny parser:
+        const parsed = await parseComments(res.bytes);
+        expect(parsed.length).toBe(1);
+        expect(parsed[0].text).toBe("Sprawdz kwote.");
+        // tracked change nadal parsowalny obok komentarza:
+        const tracked = await parseTrackedChanges(res.bytes);
+        expect(tracked.length).toBeGreaterThanOrEqual(1);
+    });
+
+    it("ADR-0079: komentarz na spanie obejmujacym w:del -> zalozony, w:del nietkniety", async () => {
+        const base = await makeDocx("Powodka zada kwoty 5000 zl tytulem odszkodowania.");
+        // Usuwamy "kwoty " - w widoku zaakceptowanym znika, ale w:del zostaje
+        // jako dziecko paragrafu miedzy "zada " a "5000".
+        const edited = await applyTrackedEdits(
+            base,
+            [{ find: "kwoty ", replace: "", context_before: "zada ", context_after: "5000" }],
+            { author: "PATRON" },
+        );
+        const res = await applyDocxComments(edited.bytes, [
+            { find: "zada 5000", context_before: "Powodka ", context_after: " zl", text: "Zweryfikuj kwote." },
+        ]);
+        expect(res.errors).toEqual([]);
+        expect(res.comments.length).toBe(1);
+
+        const doc = await readEntry(res.bytes, "word/document.xml");
+        expect(doc).toContain("w:del");
+        expect(doc).toContain("w:commentRangeStart");
+        const parsed = await parseComments(res.bytes);
+        expect(parsed.length).toBe(1);
+    });
+
+    it("ADR-0079: dwa komentarze w jednym paragrafie - jeden na w:ins, drugi na czystym runie", async () => {
+        const base = await makeDocx("Strona zobowiazuje sie zaplacic kwote w terminie.");
+        const edited = await applyTrackedEdits(
+            base,
+            [{ find: "w terminie", replace: "niezwlocznie w terminie", context_before: "kwote ", context_after: "." }],
+            { author: "PATRON" },
+        );
+        const res = await applyDocxComments(edited.bytes, [
+            { find: "niezwlocznie", context_before: "kwote ", context_after: " w terminie", text: "Doprecyzuj termin." },
+            { find: "zaplacic", context_before: "sie ", context_after: " kwote", text: "Kto placi?" },
+        ]);
+        expect(res.errors).toEqual([]);
+        expect(res.comments.length).toBe(2);
+
+        const doc = await readEntry(res.bytes, "word/document.xml");
+        expect(doc).toContain("w:ins");
+        const parsed = await parseComments(res.bytes);
+        expect(parsed.length).toBe(2);
+        const texts = new Set(parsed.map((c) => c.text));
+        expect(texts.has("Doprecyzuj termin.")).toBe(true);
+        expect(texts.has("Kto placi?")).toBe(true);
+    });
+});
+
+describe("applyDocxComments - rozszerzanie istniejacych komentarzy", () => {
+    it("dokleja do dokumentu, ktory juz ma komentarz; id nie koliduja; plumbing nie dubluje", async () => {
+        const base = await makeDocx(`Par. 1. ${ABUSIVE}`);
+        const first = await applyDocxComments(base, [
+            { find: "Par. 1.", context_before: "", context_after: "", text: "Pierwszy." },
+        ]);
+        const second = await applyDocxComments(first.bytes, [
+            { find: "jednostronnie", context_before: "moze ", context_after: " zmienic", text: "Drugi." },
+        ]);
+        const parsed = await parseComments(second.bytes);
+        expect(parsed.length).toBe(2);
+        const ids = new Set(parsed.map((c) => c.id));
+        expect(ids.size).toBe(2);
+
+        // Content-type override i relationship wystepuja dokladnie raz.
+        const ct = await readEntry(second.bytes, "[Content_Types].xml");
+        const rels = await readEntry(second.bytes, "word/_rels/document.xml.rels");
+        const ctCount = ct.split("wordprocessingml.comments+xml").length - 1;
+        const relCount = rels.split("/officeDocument/2006/relationships/comments").length - 1;
+        expect(ctCount).toBe(1);
+        expect(relCount).toBe(1);
+    });
+
+    it("dokleja obok NATYWNEGO comments.xml (nie-PATRON) bez kolizji id", async () => {
+        const base = await makeDocx(`Klauzula: ${ABUSIVE}`);
+        const withNative = await injectNativeComment(base, "Uwaga Beaty.");
+        const res = await applyDocxComments(withNative, [
+            {
+                find: "jednostronnie",
+                context_before: "moze ",
+                context_after: " zmienic",
+                text: "Uwaga PATRONa.",
+            },
+        ]);
+        expect(res.comments.length).toBe(1);
+        // Nowy komentarz dostaje id powyzej natywnego (1) -> brak kolizji.
+        expect(res.comments[0].id).not.toBe("1");
+        const parsed = await parseComments(res.bytes);
+        expect(parsed.length).toBe(2);
+        const texts = parsed.map((c) => c.text).join(" | ");
+        expect(texts).toContain("Uwaga Beaty.");
+        expect(texts).toContain("Uwaga PATRONa.");
+    });
+});
+
+describe("applyDocxComments - struktury realnych pism", () => {
+    it("kotwiczy komentarz w komorce TABELI (w:tbl traversal)", async () => {
+        const d = new Document({
+            sections: [
+                {
+                    children: [
+                        new Paragraph("Przed tabela."),
+                        new Table({
+                            rows: [
+                                new TableRow({
+                                    children: [
+                                        new TableCell({
+                                            children: [
+                                                new Paragraph(
+                                                    "Wartosc przedmiotu sporu: 50000 zl.",
+                                                ),
+                                            ],
+                                        }),
+                                    ],
+                                }),
+                            ],
+                        }),
+                    ],
+                },
+            ],
+        });
+        const base = await Packer.toBuffer(d);
+        const res = await applyDocxComments(base, [
+            {
+                find: "50000 zl",
+                context_before: "sporu: ",
+                context_after: "",
+                text: "Zweryfikuj wps wzgledem wlasciwosci sadu.",
+            },
+        ]);
+        expect(res.errors).toEqual([]);
+        expect(res.comments.length).toBe(1);
+        const doc = await readEntry(res.bytes, "word/document.xml");
+        // Markery wstrzykniete wewnatrz tabeli (po w:tc, przed koncem akapitu komorki).
+        expect(doc).toContain("w:commentRangeStart");
+        expect((await parseComments(res.bytes))[0].text).toContain("wps");
+    });
+
+    it("kotwiczy fragment przechodzacy przez granice dwoch runow (rozne formatowanie)", async () => {
+        const d = new Document({
+            sections: [
+                {
+                    children: [
+                        new Paragraph({
+                            children: [
+                                new TextRun("Termin platnosci wynosi "),
+                                new TextRun({ text: "siedem dni", bold: true }),
+                                new TextRun(" od dnia."),
+                            ],
+                        }),
+                    ],
+                },
+            ],
+        });
+        const base = await Packer.toBuffer(d);
+        // "wynosi siedem dni" zaczyna sie w runie zwyklym, konczy w pogrubionym.
+        const res = await applyDocxComments(base, [
+            {
+                find: "wynosi siedem dni",
+                context_before: "Termin platnosci ",
+                context_after: " od",
+                text: "Za krotki termin platnosci.",
+            },
+        ]);
+        expect(res.errors).toEqual([]);
+        expect(res.comments.length).toBe(1);
+        expect(res.comments[0].anchoredText).toBe("wynosi siedem dni");
+        const parsed = await parseComments(res.bytes);
+        expect(parsed.length).toBe(1);
+    });
+});

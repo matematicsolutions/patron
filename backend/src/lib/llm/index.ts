@@ -1,0 +1,39 @@
+import { streamClaude, completeClaudeText } from "./claude";
+import { streamGemini, completeGeminiText } from "./gemini";
+import { streamOpenAI, completeOpenAIText } from "./openai";
+import { streamOpenRouter, completeOpenRouterText } from "./openrouter";
+import { completeOllamaText, streamOllama } from "./ollama";
+import { isOllamaModel, providerForModel } from "./models";
+import type { StreamChatParams, StreamChatResult, UserApiKeys } from "./types";
+
+export * from "./types";
+export * from "./models";
+
+export async function streamChatWithTools(
+    params: StreamChatParams,
+): Promise<StreamChatResult> {
+    // Ollama (no-egress, lokalny) dispatchowany przed providerForModel - nie jest
+    // w unii `Provider` warstwy funkcyjnej (patrz models.ts).
+    if (isOllamaModel(params.model)) return streamOllama(params);
+    const provider = providerForModel(params.model);
+    if (provider === "claude") return streamClaude(params);
+    if (provider === "openai") return streamOpenAI(params);
+    if (provider === "openrouter") return streamOpenRouter(params);
+    return streamGemini(params);
+}
+
+export async function completeText(params: {
+    model: string;
+    systemPrompt?: string;
+    user: string;
+    maxTokens?: number;
+    apiKeys?: UserApiKeys;
+}): Promise<string> {
+    // Ollama (no-egress, lokalny) - patrz uwaga w streamChatWithTools.
+    if (isOllamaModel(params.model)) return completeOllamaText(params);
+    const provider = providerForModel(params.model);
+    if (provider === "claude") return completeClaudeText(params);
+    if (provider === "openai") return completeOpenAIText(params);
+    if (provider === "openrouter") return completeOpenRouterText(params);
+    return completeGeminiText(params);
+}

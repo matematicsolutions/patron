@@ -1,0 +1,36 @@
+node_modules
+backend/mcp-servers.json
+backend/mcp-servers.docker.json
+backend/mcp-bundled/
+.next
+dist
+out
+build
+.open-next
+
+.env
+.env.*
+!.env.example
+!.env.local.example
+!.env.docker.example
+
+*.log
+*.tsbuildinfo
+next-env.d.ts
+.DS_Store
+.vercel
+coverage
+
+.claude/*.local.*
+.claude/settings.local.json
+.claude/security/
+
+# Canon menedzera = npm (backend/Dockerfile npm ci + package-lock.json).
+# bun.lock bywa generowany lokalnie i dryfuje (brak better-sqlite3/sqlite-vec/transformers) -
+# trzymamy go poza repo, zeby nixpacks/CI nie wybralo bun --frozen-lockfile.
+backend/bun.lock
+backend/bun.lockb
+
+# Pakowanie desktop (ADR-0091): staging zasobow + output electron-builder.
+desktop/dist-resources/
+desktop/dist/

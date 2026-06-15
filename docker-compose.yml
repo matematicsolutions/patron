@@ -1,0 +1,78 @@
+# Patron - powloka (backend + frontend) w jednym stacku.
+#
+# Zakladamy ze Supabase i MinIO juz dzialaja - osobny stack po stronie
+# kancelarii (typowy self-host Supabase to wlasne docker-compose w
+# /opt/supabase albo zarzadzane przez Coolify/Caprover).
+#
+# Sekrety i URL-e laduja przez .env (kopia .env.docker.example).
+#
+# Build:
+#   1) sklonuj 4 repo MCP (mcp-saos, mcp-nsa, mcp-isap, mcp-eu-sparql) na host
+#   2) w kazdym: npm install && npm run build
+#   3) node scripts/bundle-mcp.cjs        # kopiuje dist do backend/mcp-bundled
+#   4) docker compose build               # buduje obrazy
+#   5) docker compose up -d               # uruchamia powloke
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: patron-backend:latest
+    container_name: patron-backend
+    restart: unless-stopped
+    env_file:
+      - .env.docker
+    environment:
+      # FRONTEND_URL wskazuje na publiczny adres frontendu (CORS).
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      PORT: 3001
+      # MCP servers config wskazuje na manifest produkowany przez bundle-mcp.cjs.
+      # Sciezka jest WZGLEDNA wzgledem CWD procesu (czyli /app w obrazie).
+      # Backend automatycznie czyta mcp-servers.json z katalogu nadrzednego dist'a.
+    ports:
+      - "${BACKEND_PORT:-3001}:3001"
+    networks:
+      - patron
+    # Logi do stdout - kancelarie typowo agreguja przez docker logs / Coolify / Loki.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        # Te NEXT_PUBLIC_* zostaja zaszyte w bundlu klienckim - musimy je
+        # podac jako build-args. Reszta sekretow (NEXT_PUBLIC_SUPABASE_SECRET
+        # nie istnieje - klient widzi tylko anon key).
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY: ${NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY}
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:3001}
+    image: patron-frontend:latest
+    container_name: patron-frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      # SUPABASE_SECRET_KEY uzywany przez sciezki API frontu (np. /api/sitemap)
+      SUPABASE_SECRET_KEY: ${SUPABASE_SECRET_KEY}
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+    networks:
+      - patron
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+networks:
+  patron:
+    name: patron-net
+    driver: bridge

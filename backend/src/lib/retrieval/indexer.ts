@@ -1,0 +1,389 @@
+// Indexer korpusu (ADR-0054). Przy zapisie tekstu dokumentu:
+//   1. chunkuje tekst (akapitowo, ~maxChars)
+//   2. liczy embeddingi (passage) i zapisuje do doc_chunks + vec_chunks + FTS5
+//   3. ekstrahuje encje + krawedzie grafu (extractEntitiesAndEdges, ADR-0008,
+//      zero LLM) i zapisuje do extracted_entities + citation_graph
+//
+// Idempotentny: re-index tego samego docId usuwa poprzednie chunki/encje/
+// krawedzie. Uzywa polaczenia SQLite bezposrednio (nie shim) - to wewnetrzna
+// warstwa infrastruktury, nie sciezka kontraktu supabase-js.
+//
+// Audit event "entities.extracted" = REZERWACJA (poza whitelist event_type
+// ADR-0035). Wpiecie loga wymaga migracji + bumpu EVENT_TYPES - odlozone,
+// zeby nie lamac bramki governance. Patrz ADR-0054 "Co NIE jest".
+
+import crypto from "crypto";
+import { getDb, isVecEnabled } from "../db/sqlite-connection";
+import { locateChunkSpans } from "../citation/locator";
+import { extractEntitiesAndEdges, resolveToDocLinks, proposeEdge } from "../graph";
+import { buildRoleHits, buildEventFrames } from "./events";
+import { embed, EMBED_MODEL } from "./embeddings";
+import { chunkLegalText } from "./legalChunker";
+
+export interface ChunkPiece {
+  index: number;
+  content: string;
+}
+
+/** Segment tekstu przypisany do strony zrodla (audyt P2 #10). */
+export interface PageSegment {
+  /** Numer strony z markera [Page N], albo null (zrodlo bez stron). */
+  page: number | null;
+  /** Tekst segmentu (bez markera). */
+  text: string;
+}
+
+/**
+ * Dzieli tekst na segmenty stron po markerach `[Page N]` wstawianych przez
+ * ekstrakcje PDF (lib/chat/pdf.ts). Brak markerow -> jeden segment page=null
+ * (zachowanie jak dotad dla docx/plain). Tekst przed pierwszym markerem (rzadki)
+ * trafia jako segment page=null. Marker NIE wchodzi do tresci segmentu (dotad
+ * "[Page N]" zanieczyszczalo chunki/embeddingi).
+ */
+export function splitByPageMarkers(text: string): PageSegment[] {
+  const re = /\[Page (\d+)\]/g;
+  const markers = [...text.matchAll(re)];
+  if (markers.length === 0) return [{ page: null, text }];
+  const segs: PageSegment[] = [];
+  const firstIdx = markers[0].index ?? 0;
+  if (firstIdx > 0) {
+    const pre = text.slice(0, firstIdx).trim();
+    if (pre) segs.push({ page: null, text: pre });
+  }
+  for (let i = 0; i < markers.length; i++) {
+    const m = markers[i];
+    const start = (m.index ?? 0) + m[0].length;
+    const end = i + 1 < markers.length ? (markers[i + 1].index ?? text.length) : text.length;
+    segs.push({ page: Number(m[1]), text: text.slice(start, end) });
+  }
+  return segs;
+}
+
+export interface IndexResult {
+  docId: string;
+  chunks: number;
+  embedded: number;
+  entities: number;
+  edges: number;
+  events: number;
+  durationMs: number;
+}
+
+const DEFAULT_MAX_CHARS = 900;
+const DEFAULT_MIN_CHARS = 200;
+// Audyt P3 #14: ~13% z maxChars. Zakladka miedzy sasiednimi chunkami, by fakt
+// na granicy chunka nie zostal rozciety na dwa nietrafialne fragmenty.
+const DEFAULT_OVERLAP_CHARS = 120;
+
+/**
+ * Dzieli tekst na fragmenty akapitowo. Akapity laczone zachlannie do
+ * maxChars; akapit dluzszy od maxChars ciety twardo. Zwraca fragmenty z
+ * indeksem porzadkowym. Deterministyczne (Konstytucja Art. 3).
+ */
+export function chunkText(
+  text: string,
+  maxChars = DEFAULT_MAX_CHARS,
+  minChars = DEFAULT_MIN_CHARS,
+  overlapChars = DEFAULT_OVERLAP_CHARS,
+): ChunkPiece[] {
+  const normalized = text.replace(/\r\n/g, "\n").trim();
+  if (!normalized) return [];
+  const paragraphs = normalized
+    .split(/\n{2,}/)
+    .map((p) => p.replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+
+  const pieces: string[] = [];
+  let buf = "";
+  const flush = () => {
+    const t = buf.trim();
+    if (t) pieces.push(t);
+    buf = "";
+  };
+
+  for (const para of paragraphs) {
+    if (para.length > maxChars) {
+      flush();
+      for (let i = 0; i < para.length; i += maxChars) {
+        pieces.push(para.slice(i, i + maxChars).trim());
+      }
+      continue;
+    }
+    if (buf.length + para.length + 1 > maxChars) flush();
+    buf = buf ? `${buf} ${para}` : para;
+    if (buf.length >= minChars && buf.length >= maxChars * 0.8) flush();
+  }
+  flush();
+
+  // Audyt P3 #14: zakladka (~overlapChars) miedzy sasiednimi chunkami - fakt na
+  // granicy chunka (ciety zachlannie) nie ginie. Doklejamy ogon POPRZEDNIEGO
+  // chunku (z oryginalow, bez kompoundowania) na poczatek nastepnego, przyciety
+  // do granicy slowa. Pojedynczy chunk / pusty wynik bez zmian (zero regresji).
+  if (overlapChars <= 0 || pieces.length < 2) {
+    return pieces.map((content, index) => ({ index, content }));
+  }
+  const overlapped = pieces.map((content, i) => {
+    if (i === 0) return content;
+    // Doklejamy ogon TYLKO w ramach pozostalego budzetu do maxChars - kontrakt
+    // "chunk <= maxChars" zostaje zachowany (overlap nie rozdyma chunku ponad
+    // limit; przy chunku pelnym = brak zakladki).
+    const room = maxChars - content.length - 1;
+    if (room <= 0) return content;
+    const prev = pieces[i - 1]!;
+    let tail = prev.slice(Math.max(0, prev.length - Math.min(overlapChars, room)));
+    // Zacznij ogon od granicy slowa: utnij ewentualne wiodace slowo-szczatek lub
+    // spacje (slice mogl trafic w srodek tokenu albo na spacje).
+    const ws = tail.search(/\s/);
+    if (ws >= 0) tail = tail.slice(ws + 1);
+    tail = tail.trimStart();
+    return tail ? `${tail} ${content}` : content;
+  });
+  return overlapped.map((content, index) => ({ index, content }));
+}
+
+/** Usuwa wszystkie artefakty indeksu dla dokumentu (re-index idempotentny). */
+export function clearDocumentIndex(docId: string): void {
+  const db = getDb();
+  const chunkIds = db
+    .prepare("select id from doc_chunks where document_id = ?")
+    .all(docId) as { id: number }[];
+  const tx = db.transaction(() => {
+    for (const { id } of chunkIds) {
+      db.prepare("delete from doc_chunks_fts where rowid = ?").run(id);
+      if (isVecEnabled()) {
+        db.prepare("delete from vec_chunks where rowid = ?").run(BigInt(id));
+      }
+    }
+    db.prepare("delete from doc_chunks where document_id = ?").run(docId);
+    // Audyt P3 #13: graf czyszczony tylko po from_doc_id zostawial krawedzie
+    // PRZYCHODZACE (to_doc_id) oraz krawedzie wskazujace na encje tego
+    // dokumentu (to_entity_id = UUID encji) jako osierocone. Kasujemy edge
+    // odwolujace sie do encji PRZED usunieciem samych encji (subquery musi je
+    // jeszcze widziec). source_entity_id to lokator tekstowy, nie UUID encji -
+    // nie jest FK, wiec go tu nie ruszamy.
+    db.prepare(
+      "delete from citation_graph where to_entity_id in (select id from extracted_entities where document_id = ?)",
+    ).run(docId);
+    db.prepare("delete from extracted_entities where document_id = ?").run(docId);
+    db.prepare("delete from citation_graph where from_doc_id = ?").run(docId);
+    // Krawedzie INNYCH dokumentow rozwiazane na ten (to_doc_id, ADR-0111 graf
+    // P2 #11): NIE kasujemy ich - cytujacy nadal cytuje te sygnature, znika tylko
+    // rozwiazany cel. Zerujemy to_doc_id (re-resolve przy nastepnej indeksacji).
+    db.prepare("update citation_graph set to_doc_id = null where to_doc_id = ?").run(docId);
+    // Zdarzenia (ADR-0089): event_roles przez FK cascade, ale kasujemy jawnie
+    // (foreign_keys PRAGMA moze byc off) - najpierw role, potem wezly.
+    db.prepare(
+      "delete from event_roles where event_id in (select id from events where document_id = ?)",
+    ).run(docId);
+    db.prepare("delete from events where document_id = ?").run(docId);
+  });
+  tx();
+}
+
+/**
+ * Indeksuje dokument do hybrid retrieval + grafu cytowan. Zwraca podsumowanie.
+ */
+export async function indexDocument(
+  docId: string,
+  text: string,
+): Promise<IndexResult> {
+  const start = Date.now();
+  const db = getDb();
+  clearDocumentIndex(docId);
+
+  // ADR-0083: ciecie po granicach sekcji wyroku i jednostek redakcyjnych.
+  // Tryb prawniczy aktywuje sie tylko przy markerze mocnym albo jednostce
+  // redakcyjnej; dla dokumentow bez tej struktury deleguje do chunkText
+  // (akapitowego) - identyczny wynik jak dotad, zero regresji.
+  //
+  // Audyt P2 #10: chunkujemy PER STRONA (segmenty z markerow [Page N]), zeby
+  // przypisac chunkowi numer strony zrodla. Bez markerow = jeden segment
+  // page=null -> chunkLegalText(text) jak dotad (zero regresji dla docx/plain).
+  const pieces: { index: number; content: string; page: number | null }[] = [];
+  let pieceIndex = 0;
+  for (const seg of splitByPageMarkers(text)) {
+    for (const p of chunkLegalText(seg.text)) {
+      pieces.push({ index: pieceIndex++, content: p.content, page: seg.page });
+    }
+  }
+
+  // Embeddingi passage (jezeli warstwa wektorowa dostepna). Brak embeddera /
+  // sqlite-vec => indeksujemy tylko BM25 + graf (Faza 1 wg ADR-0007).
+  let vectors: Float32Array[] = [];
+  let embedded = 0;
+  if (isVecEnabled() && pieces.length > 0) {
+    try {
+      vectors = await embed(
+        pieces.map((p) => p.content),
+        "passage",
+      );
+      embedded = vectors.length;
+    } catch (e) {
+      console.warn(
+        "[indexer] embedding failed - tylko BM25+graf:",
+        e instanceof Error ? e.message : String(e),
+      );
+      vectors = [];
+      embedded = 0;
+    }
+  }
+
+  // ADR-0124 (Route B): surowy span kazdego chunka w tekscie zrodlowym
+  // (zero dodatkowego IO - mamy `text` w reku). Forward-scan w kolejnosci
+  // dokumentu; chunk nieodnaleziony -> null (feed robi fallback best-effort).
+  const spans = locateChunkSpans(
+    text,
+    pieces.map((p) => p.content),
+  );
+
+  const nowIso = new Date().toISOString();
+  const insertChunk = db.prepare(
+    "insert into doc_chunks (document_id, chunk_index, content, embedding_model, page_no, source_offset_start, source_offset_end, created_at) values (?, ?, ?, ?, ?, ?, ?, ?)",
+  );
+  const insertFts = db.prepare(
+    "insert into doc_chunks_fts (rowid, content) values (?, ?)",
+  );
+  const insertVec = isVecEnabled()
+    ? db.prepare("insert into vec_chunks (rowid, embedding) values (?, ?)")
+    : null;
+
+  const writeChunks = db.transaction(() => {
+    for (let i = 0; i < pieces.length; i++) {
+      const vec = vectors[i];
+      const span = spans[i];
+      const info = insertChunk.run(
+        docId,
+        pieces[i].index,
+        pieces[i].content,
+        vec ? EMBED_MODEL : null,
+        pieces[i].page,
+        span?.start ?? null,
+        span?.end ?? null,
+        nowIso,
+      );
+      const rowid = Number(info.lastInsertRowid);
+      insertFts.run(rowid, pieces[i].content);
+      if (insertVec && vec) {
+        // vec0 wymaga rowid jako integer-bind => BigInt (zwykly number jest
+        // bindowany jako REAL i odrzucany przez sqlite-vec).
+        insertVec.run(
+          BigInt(rowid),
+          Buffer.from(vec.buffer, vec.byteOffset, vec.byteLength),
+        );
+      }
+    }
+  });
+  writeChunks();
+
+  // Graf cytowan + encje (deterministyczne, zero LLM - ADR-0008).
+  const extraction = extractEntitiesAndEdges(docId, text);
+  const entityIdByLocator = new Map<string, string>();
+
+  const insertEntity = db.prepare(
+    `insert into extracted_entities
+      (id, document_id, entity_type, value, value_normalized, confidence,
+       source_offset_start, source_offset_end, rule_id, metadata, source, created_at)
+     values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'auto', ?)`,
+  );
+  // ADR-0125 (T2.1 KGLF): auto-krawedzie zapisywane jako PROPOZYCJE globalne
+  // (status 'proposed', origin 'analysis', run_id null) - widoczne jako kandydat,
+  // nieratyfikowane. Ratyfikacja (akt ludzki) jest osobna operacja.
+  const insertEdge = db.prepare(
+    `insert into citation_graph
+      (id, from_doc_id, to_doc_id, to_entity_id, relation, confidence, source_entity_id, extracted_at, status, origin, run_id)
+     values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+  );
+
+  const writeGraph = db.transaction(() => {
+    for (const ent of extraction.entities) {
+      const id = crypto.randomUUID();
+      const locator = `${ent.ruleId}:${ent.sourceOffsetStart}:${ent.sourceOffsetEnd}`;
+      entityIdByLocator.set(locator, id);
+      insertEntity.run(
+        id,
+        docId,
+        ent.type,
+        ent.value,
+        ent.valueNormalized,
+        ent.confidence,
+        ent.sourceOffsetStart,
+        ent.sourceOffsetEnd,
+        ent.ruleId,
+        ent.metadata ? JSON.stringify(ent.metadata) : null,
+        nowIso,
+      );
+    }
+    for (const edge of extraction.edges) {
+      const toEntityId = edge.sourceEntityId
+        ? (entityIdByLocator.get(edge.sourceEntityId) ?? null)
+        : null;
+      // Owijamy przez model KGLF (ADR-0125): propozycja globalna (runId null).
+      // Gdyby etykieta byla spoza ontologii (nie zdarza sie dla CitationRelation)
+      // fallback do tych samych wartosci - nie gubimy krawedzi grafu.
+      const kglf = proposeEdge(
+        {
+          fromDocId: docId,
+          toDocId: edge.toDocId ?? null,
+          toEntityId,
+          relation: edge.relation,
+          confidence: edge.confidence,
+          sourceEntityId: edge.sourceEntityId,
+        },
+        null,
+      );
+      insertEdge.run(
+        crypto.randomUUID(),
+        docId,
+        edge.toDocId ?? null,
+        toEntityId,
+        edge.relation,
+        edge.confidence,
+        edge.sourceEntityId ?? null,
+        edge.extractedAt.toISOString(),
+        kglf?.status ?? "proposed",
+        kglf?.origin ?? "analysis",
+        kglf?.runId ?? null,
+      );
+    }
+  });
+  writeGraph();
+
+  // Zdarzenia (ADR-0089, Faza C / US1): ramki rol z encji (ADR-0008) + bliskosci
+  // w tekscie, deterministyczne, zero LLM. Wezel = events, krawedzie = event_roles.
+  const frames = buildEventFrames(buildRoleHits(extraction.entities, text));
+  const insertEvent = db.prepare(
+    "insert into events (document_id, frame_index, span_start, span_end, created_at) values (?, ?, ?, ?, ?)",
+  );
+  const insertRole = db.prepare(
+    "insert into event_roles (event_id, role, value_normalized, created_at) values (?, ?, ?, ?)",
+  );
+  const writeEvents = db.transaction(() => {
+    for (let i = 0; i < frames.length; i++) {
+      const f = frames[i];
+      const info = insertEvent.run(docId, i, f.span[0], f.span[1], nowIso);
+      const eventId = Number(info.lastInsertRowid);
+      for (const role of f.roles.keys()) {
+        for (const value of f.roles.get(role)!) {
+          insertRole.run(eventId, role, value, nowIso);
+        }
+      }
+    }
+  });
+  writeEvents();
+
+  // Audyt P2 #11: rozwiaz krawedzie dokument->dokument (to_doc_id) na poziomie
+  // korpusu. Po dodaniu tego dokumentu moze on byc "dokumentem, ktorym JEST"
+  // sygnatura cytowana przez starsze dokumenty (i odwrotnie) - przeliczamy caly
+  // graf (idempotentnie, tanio dla korpusu desktop single-user).
+  resolveToDocLinks(db);
+
+  return {
+    docId,
+    chunks: pieces.length,
+    embedded,
+    entities: extraction.entities.length,
+    edges: extraction.edges.length,
+    events: frames.length,
+    durationMs: Date.now() - start,
+  };
+}

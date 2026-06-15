@@ -1,0 +1,52 @@
+{
+  "name": "patron-desktop",
+  "version": "1.0.0",
+  "description": "PATRON — Desktop dla Prawnika",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "prepare:resources": "node scripts/prepare-resources.cjs",
+    "build": "node scripts/prepare-resources.cjs && electron-builder --win --x64",
+    "build:dir": "node scripts/prepare-resources.cjs && electron-builder --win --x64 --dir",
+    "build:only": "electron-builder --win --x64"
+  },
+  "build": {
+    "appId": "co.matematicsolutions.patron",
+    "productName": "PATRON",
+    "copyright": "© 2026 MateMatic",
+    "files": [
+      "main.js",
+      "preload.js",
+      "package.json",
+      "assets/**/*"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "assets/icon.ico",
+      "signingHashAlgorithms": [],
+      "sign": null
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerLanguages": ["pl-PL"],
+      "language": "1045"
+    },
+    "extraResources": [
+      {
+        "from": "dist-resources/backend",
+        "to": "backend"
+      },
+      {
+        "from": "dist-resources/frontend",
+        "to": "frontend"
+      }
+    ]
+  },
+  "devDependencies": {
+    "@electron/rebuild": "^3.7.0",
+    "electron": "^35.0.0",
+    "electron-builder": "^25.0.0"
+  }
+}

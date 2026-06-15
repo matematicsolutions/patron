@@ -1,0 +1,128 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="100 100 300 300">
+  <defs>
+    <clipPath id="topClip">
+      <rect x="30" y="-25" width="130" height="23" />
+    </clipPath>
+    <path id="blade" d="M 40,0 A 4,4 0 0 1 43,-3 Q 95,-22 147,-3 A 4,4 0 0 1 150,0 A 4,4 0 0 1 147,3 Q 95,22 43,3 A 4,4 0 0 1 40,0 Z" />
+    <linearGradient id="specular" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%"   stop-color="#ffffff" stop-opacity="0.85" />
+      <stop offset="25%"  stop-color="#ffffff" stop-opacity="0.4" />
+      <stop offset="50%"  stop-color="#ffffff" stop-opacity="0" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0" />
+    </linearGradient>
+    <linearGradient id="glassBorder" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%"   stop-color="#ffffff" stop-opacity="0.8" />
+      <stop offset="50%"  stop-color="#6699cc" stop-opacity="0.5" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0.65" />
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="1.5" stdDeviation="3" flood-color="#111827" flood-opacity="0.35" />
+    </filter>
+    <linearGradient id="glassFill" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#374151" stop-opacity="0.9" />
+      <stop offset="30%"  stop-color="#4b5563" stop-opacity="0.8" />
+      <stop offset="70%"  stop-color="#1f2937" stop-opacity="0.9" />
+      <stop offset="100%" stop-color="#374151" stop-opacity="0.9" />
+    </linearGradient>
+    <linearGradient id="prism" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#111827" stop-opacity="0.95" />
+      <stop offset="20%"  stop-color="#374151" stop-opacity="0.85" />
+      <stop offset="40%"  stop-color="#0f172a" stop-opacity="0.95" />
+      <stop offset="60%"  stop-color="#1f2937" stop-opacity="0.85" />
+      <stop offset="80%"  stop-color="#111827" stop-opacity="0.95" />
+      <stop offset="100%" stop-color="#374151" stop-opacity="0.75" />
+    </linearGradient>
+    <linearGradient id="innerLight" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%"   stop-color="#ffffff" stop-opacity="0" />
+      <stop offset="40%"  stop-color="#6b7280" stop-opacity="0.3" />
+      <stop offset="60%"  stop-color="#111827" stop-opacity="0.2" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0" />
+    </linearGradient>
+  </defs>
+  <g transform="translate(250,250)">
+    <g transform="rotate(0)" filter="url(#shadow)">
+      <use href="#blade" fill="url(#glassFill)" />
+      <use href="#blade" fill="url(#innerLight)" />
+      <use href="#blade" fill="url(#prism)" opacity="0.3" />
+      <use href="#blade" fill="url(#specular)" clip-path="url(#topClip)" />
+      <use href="#blade" fill="none" stroke="url(#glassBorder)" stroke-width="1" />
+    </g>
+    <g transform="rotate(30)" filter="url(#shadow)">
+      <use href="#blade" fill="url(#glassFill)" />
+      <use href="#blade" fill="url(#innerLight)" />
+      <use href="#blade" fill="url(#prism)" opacity="0.3" />
+      <use href="#blade" fill="url(#specular)" clip-path="url(#topClip)" />
+      <use href="#blade" fill="none" stroke="url(#glassBorder)" stroke-width="1" />
+    </g>
+    <g transform="rotate(60)" filter="url(#shadow)">
+      <use href="#blade" fill="url(#glassFill)" />
+      <use href="#blade" fill="url(#innerLight)" />
+      <use href="#blade" fill="url(#prism)" opacity="0.3" />
+      <use href="#blade" fill="url(#specular)" clip-path="url(#topClip)" />
+      <use href="#blade" fill="none" stroke="url(#glassBorder)" stroke-width="1" />
+    </g>
+    <g transform="rotate(90)" filter="url(#shadow)">
+      <use href="#blade" fill="url(#glassFill)" />
+      <use href="#blade" fill="url(#innerLight)" />
+      <use href="#blade" fill="url(#prism)" opacity="0.3" />
+      <use href="#blade" fill="url(#specular)" clip-path="url(#topClip)" />
+      <use href="#blade" fill="none" stroke="url(#glassBorder)" stroke-width="1" />
+    </g>
+    <g transform="rotate(120)" filter="url(#shadow)">
+      <use href="#blade" fill="url(#glassFill)" />
+      <use href="#blade" fill="url(#innerLight)" />
+      <use href="#blade" fill="url(#prism)" opacity="0.3" />
+      <use href="#blade" fill="url(#specular)" clip-path="url(#topClip)" />
+      <use href="#blade" fill="none" stroke="url(#glassBorder)" stroke-width="1" />
+    </g>
+    <g transform="rotate(150)" filter="url(#shadow)">
+      <use href="#blade" fill="url(#glassFill)" />
+      <use href="#blade" fill="url(#innerLight)" />
+      <use href="#blade" fill="url(#prism)" opacity="0.3" />
+      <use href="#blade" fill="url(#specular)" clip-path="url(#topClip)" />
+      <use href="#blade" fill="none" stroke="url(#glassBorder)" stroke-width="1" />
+    </g>
+    <g transform="rotate(180)" filter="url(#shadow)">
+      <use href="#blade" fill="url(#glassFill)" />
+      <use href="#blade" fill="url(#innerLight)" />
+      <use href="#blade" fill="url(#prism)" opacity="0.3" />
+      <use href="#blade" fill="url(#specular)" clip-path="url(#topClip)" />
+      <use href="#blade" fill="none" stroke="url(#glassBorder)" stroke-width="1" />
+    </g>
+    <g transform="rotate(210)" filter="url(#shadow)">
+      <use href="#blade" fill="url(#glassFill)" />
+      <use href="#blade" fill="url(#innerLight)" />
+      <use href="#blade" fill="url(#prism)" opacity="0.3" />
+      <use href="#blade" fill="url(#specular)" clip-path="url(#topClip)" />
+      <use href="#blade" fill="none" stroke="url(#glassBorder)" stroke-width="1" />
+    </g>
+    <g transform="rotate(240)" filter="url(#shadow)">
+      <use href="#blade" fill="url(#glassFill)" />
+      <use href="#blade" fill="url(#innerLight)" />
+      <use href="#blade" fill="url(#prism)" opacity="0.3" />
+      <use href="#blade" fill="url(#specular)" clip-path="url(#topClip)" />
+      <use href="#blade" fill="none" stroke="url(#glassBorder)" stroke-width="1" />
+    </g>
+    <g transform="rotate(270)" filter="url(#shadow)">
+      <use href="#blade" fill="url(#glassFill)" />
+      <use href="#blade" fill="url(#innerLight)" />
+      <use href="#blade" fill="url(#prism)" opacity="0.3" />
+      <use href="#blade" fill="url(#specular)" clip-path="url(#topClip)" />
+      <use href="#blade" fill="none" stroke="url(#glassBorder)" stroke-width="1" />
+    </g>
+    <g transform="rotate(300)" filter="url(#shadow)">
+      <use href="#blade" fill="url(#glassFill)" />
+      <use href="#blade" fill="url(#innerLight)" />
+      <use href="#blade" fill="url(#prism)" opacity="0.3" />
+      <use href="#blade" fill="url(#specular)" clip-path="url(#topClip)" />
+      <use href="#blade" fill="none" stroke="url(#glassBorder)" stroke-width="1" />
+    </g>
+    <g transform="rotate(330)" filter="url(#shadow)">
+      <use href="#blade" fill="url(#glassFill)" />
+      <use href="#blade" fill="url(#innerLight)" />
+      <use href="#blade" fill="url(#prism)" opacity="0.3" />
+      <use href="#blade" fill="url(#specular)" clip-path="url(#topClip)" />
+      <use href="#blade" fill="none" stroke="url(#glassBorder)" stroke-width="1" />
+    </g>
+  </g>
+</svg>
