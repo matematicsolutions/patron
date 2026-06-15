@@ -120,9 +120,9 @@ na zewnątrz (publikacja, ogłoszenie) zostają przy człowieku — agent przygo
 | Article I — dane klienta | ✅ PASS (po scrubie) | Realne dane pilota (kancelaria, imię, dwie sprawy) usunięte ze WSZYSTKICH gałęzi → fikcyjna obsada „Rumpole Chambers"; re-skan 0 trafień. ⚠️ Powtórzyć scrub na drzewie kanonicznym po scaleniu PR (PR#2 wnosi ADR-y z odwołaniami) |
 | Article II — 100% open | ✅ PASS | Moat świadomie do świata |
 | Article III — licencja | ✅ PASS | AGPL-3.0 powłoka + MIT konektory + DCO; bez zmian |
-| Article IV — proweniencja | 🟡 do potwierdzenia | NOTICE/atrybucja obecne; re-weryfikacja na zbudowanym drzewie |
+| Article IV — proweniencja | ✅ PASS | NOTICE/THIRD_PARTY_INSPIRATIONS + atrybucja mike/willchen96 obecne na drzewie kanonicznym |
 | Article V — standard (MCS) | 🟡 TODO | Draft v0.1 istnieje; publish w KROK 6 |
-| Bramka jakości | 🟡 częściowo | tsc/testy do potwierdzenia na drzewie kanonicznym po scrubbingu |
+| Bramka jakości | ✅ PASS | drzewo kanoniczne: backend tsc 0, frontend tsc 0, vitest 1265 pass/0 fail/5 todo |
 | Bramka strategii | ✅ PASS | first-mover + standard-play + współpraca |
 
 **Werdykt GATE:** dane klienta i sekrety — czyste (scrub na wszystkich gałęziach, re-skan
@@ -147,3 +147,13 @@ przed zielonym GATE i zgodą WM (2× review WM + Operator).
   0 trafień realnych identyfikatorów). Mapowanie realne→fikcyjne przechowywane wyłącznie
   prywatnie (poza repozytorium). **UWAGA:** powtórzyć scrub na drzewie kanonicznym po scaleniu
   PR-ów (część PR-ów wnosi ADR-y z odwołaniami do realnego pilota — nieobecne na tej gałęzi).
+
+- **2026-06-14 — KROK 3-5 (zielone WM, „decydujesz").** KROK 3: scalono 6 PR (audyt/at-rest/
+  kancelaria/OC #3-#4) w drzewo kanoniczne `release/v1.0.0-prep`; konflikty rozwiązane
+  (grounding semantycznie: provenance+judge+locator; graf: resolveToDocLinks ADR-0112 +
+  proposeEdge ADR-0125); kolizja ADR przenumerowana (OC 0116-0126, audyt/kancelaria 0127-0130);
+  re-skan 0 danych klienta; backend+frontend tsc 0, vitest 1265 pass/0 fail. KROK 4: higiena docs
+  (README badge/wersje, AGENTS, CHANGELOG v1.0.0 + nota renumeru). KROK 5 (decyzja CTO): at-rest
+  NIE aktywowany w 1.0.0 — wydany jako scaffold „do aktywacji" (ADR-0129), runbook obecny;
+  default plaintext (szybkość first-mover > ryzyko infra, Art. VII). NEXT: KROK 6 MCS v0.1,
+  KROK 7 świeży snapshot + launch (oba czekają na zgodę WM — akty na zewnątrz).

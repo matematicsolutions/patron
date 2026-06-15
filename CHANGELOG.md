@@ -5,9 +5,37 @@ All notable changes to **Patron** are documented in this file.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.0.0] - 2026-06-14
 
-### Audyt PATRON P2 #6: zgoda na model chmurowy per-sprawa + audyt (ADR-0117)
+Pierwsze publiczne wydanie open source. Lokalny, zero-cloud agent AI dla polskiej
+kancelarii: powloka **AGPL-3.0** + 6 konektorow MCP (**MIT**) polskiego i unijnego
+prawa, mechaniczny grounding cytatow (istnienie/tresc/fragment), audit trail
+hash-chain + Merkle (AI Act art. 12), pseudonimizacja PL (PESEL/NIP/REGON/osoby)
+przed egressem, bring-your-own-model (Gemini / Claude / Ollama lokalny / OpenRouter).
+
+**Najwazniejsze w 1.0.0**
+- Audyt P1-P3: szczelne kasowanie spraw/dokumentow, runner migracji SQLite, zgoda
+  na model chmurowy per-sprawa (ADR-0128), maskowanie nazwisk w egressie (ADR-0110),
+  wezly PERSON w grafie cytowan (ADR-0127).
+- Propozycje pod kancelarie: wbudowane workflow, "Zweryfikuj cytaty", preset eksportu
+  .docx "styl kancelarii" (ADR-0130).
+- Adopcja OpenContracts: trwaly lokator cytatu + re-anchoring, bounded document read,
+  typed search feed, occurrence-aware highlight, Route B (surowe offsety chunkow),
+  model governance krawedzi grafu KGLF (ADR-0116..0126).
+- Szyfrowanie at-rest: **dostepne jako scaffold, do aktywacji** (ADR-0129) - domyslnie
+  plaintext; aktywacja = natywny sterownik cipher + rebuild (runbook
+  `docs/at-rest-activation.md`). Decyzja CTO: poza krytyczna sciezka 1.0.0 (first-mover).
+
+> **Numeracja ADR:** przy scaleniu dwoch rownoleglych strumieni (adopcja OpenContracts
+> oraz audyt/kancelaria) numery ADR uzgodniono - OC zajmuje **0116-0126**, strumien
+> audyt/kancelaria **0127-0130**. Wczesniejsze szczegolowe wpisy ponizej moga wskazywac
+> stare numery sprzed uzgodnienia.
+
+Bramka jakosci 1.0.0: backend tsc 0, frontend tsc 0, **vitest 1265 pass / 0 fail / 5 todo**.
+
+---
+
+### Audyt PATRON P2 #6: zgoda na model chmurowy per-sprawa + audyt (ADR-0128)
 
 **Added**
 - Przelacznik "Model chmurowy" per-sprawa w UI (`ProjectPage`, owner-only) zamiast

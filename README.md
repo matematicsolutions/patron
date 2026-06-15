@@ -1,7 +1,7 @@
 # Patron
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](./LICENSE)
-[![Tests](https://img.shields.io/badge/tests-817%2F822_passing-brightgreen)](./backend)
+[![Tests](https://img.shields.io/badge/tests-1265_passing-brightgreen)](./backend)
 [![AI Act](https://img.shields.io/badge/AI_Act-Art._12_record--keeping-orange)](./governance/CONSTITUTION.md)
 [![RODO](https://img.shields.io/badge/RODO-art._5%2F25%2F30%2F32-orange)](./governance/CONSTITUTION.md)
 [![Stack](https://img.shields.io/badge/stack-zero--cloud-success)](./governance/CONSTITUTION.md)
@@ -67,19 +67,19 @@ Wymaga osobno postawionego Supabase + MinIO (osobne stack). Patrz runbook.
 
 ## Governance (przed wdrożeniem)
 
-- [**Konstytucja AI Patrona v1.2.0**](./governance/CONSTITUTION.md) -
+- [**Konstytucja AI Patrona v1.6.1**](./governance/CONSTITUTION.md) -
   9 zasad, granice produktu, role (Administrator / Operator / Inspektor),
   audyt, ewolucja. Mapowanie na AI Act art. 12, RODO art. 5/25/30/32
   i etykę zawodową. Art. 5 obejmuje kontrolę wejścia dokumentów.
 - [**Implementation Playbook**](./governance/IMPLEMENTATION_PLAYBOOK.md) -
   6-8 tygodni wdrożenia krok po kroku, z macierzą RACI.
-- [**ADR**](./governance/adr/) - Architecture Decision Records (0001-0020),
+- [**ADR**](./governance/adr/) - Architecture Decision Records (0001-0130),
   m.in. [0001 hash-chain](./governance/adr/0001-hash-chain-audit-trail.md),
   [0002 dual-license](./governance/adr/0002-dual-license-agpl-shell-mit-connectors.md),
   [0019 skan dokumentów wejściowych](./governance/adr/0019-input-document-security-pipeline-pl.md),
   [0020 wpięcie w ingest](./governance/adr/0020-wpiecie-input-security-w-ingest.md).
 
-Kancelaria przed wdrożeniem czyta i podpisuje **Konstytucję v1.2.0**
+Kancelaria przed wdrożeniem czyta i podpisuje **Konstytucję v1.6.1**
 (sekcja podpisów na końcu pliku).
 
 ## Licencja
@@ -87,7 +87,7 @@ Kancelaria przed wdrożeniem czyta i podpisuje **Konstytucję v1.2.0**
 Stack jest **dual-license** (zob. [ADR-0002](./governance/adr/0002-dual-license-agpl-shell-mit-connectors.md)):
 
 - `patron` (ten repo, powłoka) - **AGPL-3.0-only** ([LICENSE](./LICENSE) + [NOTICE](./NOTICE))
-- `mcp-saos`, `mcp-nsa`, `mcp-isap`, `mcp-krs`, `mcp-eu-sparql` - **MIT**
+- `mcp-saos`, `mcp-nsa`, `mcp-isap`, `mcp-krs`, `mcp-eu-sparql`, `mcp-eu-compliance` - **MIT**
 
 Kancelaria self-host używa, modyfikuje i dystrybuuje Patrona wewnątrz
 organizacji bez dodatkowych obowiązków. Konkurent, który oferuje

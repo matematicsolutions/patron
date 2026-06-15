@@ -44,7 +44,7 @@ cp .env.docker.example .env.docker
 docker compose --env-file .env.docker up -d
 ```
 
-Testy: 817/822 pass na 2026-05-30 (5 todo, 0 fail). TSC clean. **Nie commituj jezeli testy fail** - bramka jakosci z [Konstytucja](./governance/CONSTITUTION.md) Art. 7.
+Testy: 1265/1270 pass (5 todo, 0 fail) na 2026-06-14. TSC clean (backend + frontend). **Nie commituj jezeli testy fail** - bramka jakosci z [Konstytucja](./governance/CONSTITUTION.md) Art. 7.
 
 ## Zasady kodu
 
@@ -69,9 +69,9 @@ Testy: 817/822 pass na 2026-05-30 (5 todo, 0 fail). TSC clean. **Nie commituj je
 ## Zrodla prawdy (kolejnosc czytania)
 
 1. [README.md](./README.md) - opis dla ludzi
-2. [governance/CONSTITUTION.md](./governance/CONSTITUTION.md) - 9 zasad, role, audyt (v1.4.6, podpisywana przez kancelarie)
+2. [governance/CONSTITUTION.md](./governance/CONSTITUTION.md) - 9 zasad, role, audyt (v1.6.1, podpisywana przez kancelarie)
 3. [governance/IMPLEMENTATION_PLAYBOOK.md](./governance/IMPLEMENTATION_PLAYBOOK.md) - 6-8 tyg wdrozenia, RACI
-4. [governance/adr/](./governance/adr/) - Architecture Decision Records (0001-0100)
+4. [governance/adr/](./governance/adr/) - Architecture Decision Records (0001-0130)
 5. [THIRD_PARTY_INSPIRATIONS.md](./THIRD_PARTY_INSPIRATIONS.md) - co cherry-pickowalismy i skad (Mike, Lavern, gbrain, isaacus/tabular-review, PII-Shield, earendil/pi, awesome-llm-apps)
 6. [CHANGELOG.md](./CHANGELOG.md), [SECURITY.md](./SECURITY.md), [CONTRIBUTING.md](./CONTRIBUTING.md)
 
