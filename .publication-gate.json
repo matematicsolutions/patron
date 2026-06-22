@@ -1,0 +1,20 @@
+{
+  "_comment": "matematic-publication-gate config dla PATRON-Desktop. allow_paths = lokalizacje z CELOWO syntetycznymi danymi (testy, smoke, przyklady w promptach) + zaszumione assety. deny_paths = sciezki ktore NIE moga trafic do publicznego repo. Skanuje tylko pliki git-tracked.",
+  "deny_terms": [],
+  "deny_paths": [
+    "docs/matematic",
+    "klienci/",
+    "sprawy/",
+    "internal/"
+  ],
+  "allow_paths": [
+    "test",
+    "spec",
+    "fixtures",
+    "mock",
+    "__snapshot",
+    "backend/scripts/smoke-pseudonim.mjs",
+    "frontend/src/app/components/tabular/columnPresets.ts",
+    "frontend/public/globe.svg"
+  ]
+}
