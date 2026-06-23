@@ -8,6 +8,16 @@
 [![MCP](https://img.shields.io/badge/MCP-6_connectors-blue)](https://github.com/matematicsolutions)
 [![Node](https://img.shields.io/badge/Node-20%2B-brightgreen)](https://nodejs.org)
 
+🇬🇧 **English** · 🇵🇱 **Polski poniżej ↓** · [matematicsolutions.com/en/patron](https://matematicsolutions.com/en/patron)
+
+> **A local AI agent for a law firm.** A zero-cloud desktop app (Electron), single-user by default (local SQLite): 6 connectors to Polish and EU law (SAOS / NSA / ISAP / KRS / EUR-Lex / EU-Compliance), a hash-chain audit trail (AI Act art. 12), bring-your-own-model (Gemini / Claude / local Ollama / OpenRouter).
+
+Patron is a fork of [Mike](https://github.com/willchen96/mike) (AGPL-3.0); the Patron shell inherits AGPL-3.0 as a derivative work. It adds Polish localisation, a Polish legal stack and the compliance a law firm needs. Product overview in English: **[matematicsolutions.com/en/patron](https://matematicsolutions.com/en/patron)**.
+
+*The detailed documentation below is in Polish.*
+
+---
+
 > **Lokalny agent AI dla polskiej kancelarii prawnej.** Aplikacja desktop (Electron)
 > zero-cloud, single-user: domyślnie lokalny SQLite ([ADR-0053](./governance/adr/0053-sqlite-single-user-zero-cloud.md)), 6 konektorów polskiego i unijnego prawa
 > (SAOS / NSA / ISAP / KRS / EUR-Lex / EU-Compliance), audit trail z hash-chain (AI Act art. 12),
