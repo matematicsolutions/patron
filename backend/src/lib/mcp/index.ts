@@ -31,7 +31,7 @@ export type { McpCitation, McpToolResult } from "./types";
 // Config types
 // ---------------------------------------------------------------------------
 
-interface McpServerConfig {
+export interface McpServerConfig {
     name: string;
     transport: "stdio" | "http";
     // stdio
@@ -137,6 +137,66 @@ function loadConfig(): McpServerConfig[] {
     } catch (err) {
         console.warn("[MCP] Failed to parse mcp-servers.json:", err);
         return [];
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Connector picker I/O (ADR-0133) - surowy odczyt + zapis flagi `enabled`.
+// W odroznieniu od loadConfig(): NIE filtruje wylaczonych i NIE rozwiazuje
+// sciezek stdio - sluzy prezentacji/zmianie stanu w pickerze, nie uruchomieniu.
+// Cala styk z plikiem konfiguracji konektorow jest w tym module (jedno zrodlo
+// dostepu - latwiejszy audyt bezpieczenstwa).
+// ---------------------------------------------------------------------------
+
+/** Surowa lista konektorow (WSZYSTKICH, lacznie z enabled=false). */
+export function listConnectorConfigs(): McpServerConfig[] {
+    if (!fs.existsSync(CONFIG_PATH)) return [];
+    try {
+        const parsed = JSON.parse(
+            fs.readFileSync(CONFIG_PATH, "utf-8"),
+        ) as McpServerConfig[];
+        return Array.isArray(parsed) ? parsed : [];
+    } catch (err) {
+        console.warn("[MCP] listConnectorConfigs: parse failed:", err);
+        return [];
+    }
+}
+
+/**
+ * Ustawia flage `enabled` konektora w mcp-servers.json (atomowy tmp+rename).
+ * NIE waliduje ring - autoryzacja (tylko Ring 1 przez picker) jest w connectors.ts.
+ * Zmiana wchodzi w zycie po restarcie/reloadzie (konektory czytane przy starcie).
+ */
+export function setConnectorEnabledInConfig(
+    name: string,
+    enabled: boolean,
+): { ok: boolean; error?: string } {
+    if (!fs.existsSync(CONFIG_PATH)) {
+        return { ok: false, error: "mcp-servers.json not found" };
+    }
+    let parsed: McpServerConfig[];
+    try {
+        parsed = JSON.parse(
+            fs.readFileSync(CONFIG_PATH, "utf-8"),
+        ) as McpServerConfig[];
+    } catch (err) {
+        return { ok: false, error: `parse error: ${String(err)}` };
+    }
+    if (!Array.isArray(parsed)) {
+        return { ok: false, error: "config is not an array" };
+    }
+    const idx = parsed.findIndex((s) => s.name === name);
+    if (idx === -1) {
+        return { ok: false, error: `connector "${name}" not found` };
+    }
+    parsed[idx] = { ...parsed[idx], enabled };
+    try {
+        const tmp = `${CONFIG_PATH}.tmp`;
+        fs.writeFileSync(tmp, `${JSON.stringify(parsed, null, 2)}\n`, "utf-8");
+        fs.renameSync(tmp, CONFIG_PATH);
+        return { ok: true };
+    } catch (err) {
+        return { ok: false, error: `write error: ${String(err)}` };
     }
 }
 

@@ -19,6 +19,7 @@ import { draftRouter } from "./routes/draft";
 import { rodoRouter } from "./routes/rodo";
 import { usageRouter } from "./routes/usage";
 import { skillsRouter } from "./routes/skills";
+import { connectorsRouter } from "./routes/connectors";
 import { healthRouter } from "./routes/health";
 import { citationsRouter } from "./routes/citations";
 import { createServerSupabase, isSqliteBackend } from "./lib/supabase";
@@ -172,6 +173,7 @@ app.use("/draft", draftRouter);
 app.use("/rodo", rodoRouter);
 app.use("/api/usage", usageRouter);
 app.use("/skills", skillsRouter);
+app.use("/connectors", connectorsRouter);
 // Panel "Stan systemu" (audyt P3 #17) - bogata migawka stanu (admin). Osobno od
 // publicznego liveness /health ponizej (probe bez auth, zero detali).
 app.use("/api/status", healthRouter);

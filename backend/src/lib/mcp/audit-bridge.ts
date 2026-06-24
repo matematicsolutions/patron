@@ -86,6 +86,53 @@ export async function recordMcpSecurityEvent(
 }
 
 // ---------------------------------------------------------------------------
+// Connector toggle event (ADR-0133)
+// ---------------------------------------------------------------------------
+
+export const CONNECTOR_TOGGLE_EVENT_TYPE = "connector.toggle" as const;
+
+export interface RecordConnectorToggleArgs {
+    /** Nazwa konektora MCP (np. "saos", "de-eli"). */
+    serverName: string;
+    /** Nowy stan po przelaczeniu. */
+    enabled: boolean;
+    /** Ring konektora (1 = zaufany; picker zmienia tylko Ring 1). */
+    ring: number;
+}
+
+/**
+ * Zapisuje zmiane stanu konektora (picker) do audit_log z hash-chain
+ * (event_type = "connector.toggle"). Zmiana powierzchni narzedzi dostepnych
+ * agentowi jest istotna dla AI Act art. 12. Nigdy nie rzuca - bledy w `reason`.
+ * Patrz ADR-0133.
+ */
+export async function recordConnectorToggleEvent(
+    args: RecordConnectorToggleArgs,
+    factory: SupabaseFactory = defaultSupabaseFactory,
+): Promise<RecordMcpSecurityEventResult> {
+    let db: ReturnType<typeof createServerSupabase>;
+    try {
+        db = factory();
+    } catch {
+        return { ok: false, reason: "env_missing" };
+    }
+
+    const result = await appendAuditEvent(db, {
+        event_type: CONNECTOR_TOGGLE_EVENT_TYPE,
+        actor_user_id: null,
+        chat_id: null,
+        document_id: null,
+        payload: {
+            server_name: args.serverName,
+            enabled: args.enabled,
+            ring: args.ring,
+        },
+    });
+
+    return result.ok ? { ok: true } : { ok: false, reason: "audit_failed" };
+}
+
+// ---------------------------------------------------------------------------
 // Ring policy event propagation (ADR-0027)
 // ---------------------------------------------------------------------------
 
