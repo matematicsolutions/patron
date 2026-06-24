@@ -831,13 +831,5 @@ export const pl = {
     },
 } as const;
 
-// English fallback - tylko klucze, ktore moga nie miec tlumaczenia PL.
-// Domyslnie wszystkie sa po polsku - en jest awaryjny.
-export const en = {
-    common: {
-        loading: "Loading…",
-        save: "Save",
-        cancel: "Cancel",
-    },
-    // ... (rozszerzymy gdy pojawi sie potrzeba EN-only flow)
-} as const;
+// EN -> osobny plik `en.ts` (ADR-0132). PL pozostaje zrodlem kluczy
+// (TranslationKey generowane z `pl`); brak klucza EN -> fallback do PL w `t()`.
