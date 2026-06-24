@@ -44,5 +44,15 @@
     "command": "node",
     "args": ["/path/to/mcp-eu-compliance/dist/index.js"],
     "enabled": false
+  },
+  {
+    "_comment": "PRZYKLAD konektora Python (ADR-0134). runtime:python -> bundlowany jako frozen-exe (PyInstaller) w mcp-bundled/<name>/. NIE jest w APPROVED_PATRON_CONNECTORS - dopoki nie przejdzie MCP Security Gateway pozostaje Ring 2 (Operator-only, fail-closed).",
+    "_comment_dev": "Dev przez interpreter: command 'python', args ['-m','de_eli_mcp.server']. Bundle desktop: command 'mcp-bundled/de-eli/de-eli-mcp.exe' (wzgledna sciezka rozwiazywana wzgledem korzenia backendu).",
+    "name": "de-eli",
+    "transport": "stdio",
+    "runtime": "python",
+    "command": "/path/to/de-eli-mcp.exe",
+    "args": [],
+    "enabled": false
   }
 ]

@@ -1,5 +1,55 @@
 import { describe, expect, it } from "vitest";
-import { extractMcpCitations } from "./index";
+import path from "path";
+import { extractMcpCitations, resolveStdioSpawn } from "./index";
+
+describe("resolveStdioSpawn (ADR-0134 poliglot runtime)", () => {
+    const base = { name: "x", transport: "stdio" as const };
+
+    it("http transport - bez zmian", () => {
+        const cfg = { name: "h", transport: "http" as const, url: "http://x" };
+        expect(resolveStdioSpawn(cfg)).toEqual(cfg);
+    });
+
+    it("node (bare) bez Electrona - command zostaje, arg .js rozwiazany", () => {
+        const out = resolveStdioSpawn({
+            ...base,
+            command: "node",
+            args: ["mcp-bundled/saos/dist/index.js"],
+        });
+        expect(out.command).toBe("node");
+        expect(path.isAbsolute(out.args?.[0] ?? "")).toBe(true);
+        expect((out.args?.[0] ?? "").endsWith("index.js")).toBe(true);
+    });
+
+    it("python frozen-exe - wzgledny command rozwiazany do absolutnego", () => {
+        const out = resolveStdioSpawn({
+            ...base,
+            runtime: "python",
+            command: "mcp-bundled/de-eli/de-eli-mcp.exe",
+            args: [],
+        });
+        expect(path.isAbsolute(out.command ?? "")).toBe(true);
+        expect((out.command ?? "").endsWith("de-eli-mcp.exe")).toBe(true);
+    });
+
+    it("python script - arg .py rozwiazany", () => {
+        const out = resolveStdioSpawn({
+            ...base,
+            runtime: "python",
+            command: "python",
+            args: ["mcp-bundled/de-eli/server.py"],
+        });
+        expect(out.command).toBe("python");
+        expect(path.isAbsolute(out.args?.[0] ?? "")).toBe(true);
+        expect((out.args?.[0] ?? "").endsWith("server.py")).toBe(true);
+    });
+
+    it("absolutny command - bez zmian", () => {
+        const abs = path.resolve("/opt/x/connector.exe");
+        const out = resolveStdioSpawn({ ...base, command: abs, args: [] });
+        expect(out.command).toBe(abs);
+    });
+});
 
 describe("extractMcpCitations", () => {
     it("zwraca puste gdy structuredContent jest undefined/null/skalary", () => {

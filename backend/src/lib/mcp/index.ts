@@ -40,6 +40,10 @@ export interface McpServerConfig {
     env?: Record<string, string>;
     // http
     url?: string;
+    // ADR-0134: runtime konektora dla bundlingu desktop. "node" (domyslny) =
+    // dist/index.js pod Node Electrona; "python" = frozen-exe (PyInstaller).
+    // Nie zmienia kontraktu MCP ani trust - tylko sposob uruchomienia/bundlowania.
+    runtime?: "node" | "python";
     // enabled flag - absent means enabled
     enabled?: boolean;
     // ADR-0027 privilege rings - pola dla Ring 2 explicit allow przez Operatora.
@@ -95,7 +99,7 @@ const BACKEND_ROOT = path.dirname(CONFIG_PATH);
  * W trybie dev/docker (command "node" dostepny, args absolutne) funkcja jest
  * no-op - sciezki absolutne nie sa ruszane, podmiana execPath nie odpala.
  */
-function resolveStdioSpawn(cfg: McpServerConfig): McpServerConfig {
+export function resolveStdioSpawn(cfg: McpServerConfig): McpServerConfig {
     if (cfg.transport !== "stdio") return cfg;
 
     const underElectron = process.env.ELECTRON_RUN_AS_NODE === "1";
@@ -113,10 +117,18 @@ function resolveStdioSpawn(cfg: McpServerConfig): McpServerConfig {
         // (StdioClientTransport: { ...getDefaultEnvironment(), ...env }) - konektor
         // startuje, sekrety nie wyciekaja do procesu-dziecka.
         env = { ...(cfg.env ?? {}), ELECTRON_RUN_AS_NODE: "1" };
+    } else if (command && !path.isAbsolute(command) && /[\\/]/.test(command)) {
+        // ADR-0134: konektor nie-Node bundlowany jako artefakt (np. frozen Python
+        // exe). `command` jest sciezka WZGLEDNA do bundla -> rozwiaz wzgledem
+        // BACKEND_ROOT (jak args .js/.py). Bare nazwy ("node"/"python") bez
+        // separatora zostaja - znajdzie je SDK na PATH.
+        command = path.resolve(BACKEND_ROOT, command);
     }
 
     const args = (cfg.args ?? []).map((a) =>
-        a.endsWith(".js") && !path.isAbsolute(a) ? path.resolve(BACKEND_ROOT, a) : a,
+        (a.endsWith(".js") || a.endsWith(".py")) && !path.isAbsolute(a)
+            ? path.resolve(BACKEND_ROOT, a)
+            : a,
     );
 
     return { ...cfg, command, args, env };
