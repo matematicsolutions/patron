@@ -153,6 +153,53 @@ export async function removeSkill(id: string): Promise<void> {
     });
 }
 
+// ---------------------------------------------------------------------------
+// Picker konektorow MCP (ADR-0133) - wybor jurysdykcji
+// ---------------------------------------------------------------------------
+
+export type ConnectorJurisdiction =
+    | "PL"
+    | "EU"
+    | "DE"
+    | "AT"
+    | "ES"
+    | "FI"
+    | "IE"
+    | "NL"
+    | "SE"
+    | "FR"
+    | "LU"
+    | "OTHER";
+
+export interface ConnectorInfo {
+    name: string;
+    enabled: boolean;
+    ring: 1 | 2;
+    toggleable: boolean;
+    jurisdiction: ConnectorJurisdiction;
+    trustLevel?: "trusted" | "untrusted";
+    operatorApproved?: boolean;
+}
+
+export async function getConnectors(): Promise<ConnectorInfo[]> {
+    const res = await apiRequest<{ connectors: ConnectorInfo[] }>("/connectors");
+    return res.connectors;
+}
+
+export async function setConnectorEnabled(
+    name: string,
+    enabled: boolean,
+): Promise<{ connector: ConnectorInfo; restartRequired: boolean }> {
+    return apiRequest<{ connector: ConnectorInfo; restartRequired: boolean }>(
+        `/connectors/${encodeURIComponent(name)}`,
+        {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ enabled }),
+        },
+    );
+}
+
 export interface UserProfile {
     displayName: string | null;
     organisation: string | null;

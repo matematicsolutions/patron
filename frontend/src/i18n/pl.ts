@@ -293,6 +293,7 @@ export const pl = {
         email: "Email",
         models: "Modele i klucze API",
         usage: "Zużycie",
+        connectors: "Konektory",
         provider: "Dostawca",
         apiKey: "Klucz API",
         apiKeyMissing: "Brakuje klucza API dla tego modelu.",
@@ -828,6 +829,38 @@ export const pl = {
         toggleError: "Nie udało się zmienić stanu umiejętności.",
         removeError: "Nie udało się usunąć umiejętności.",
         close: "Zamknij",
+    },
+
+    // ---------------------------------------------------------------------
+    // Picker konektorow MCP (ADR-0133) - wybor jurysdykcji
+    // ---------------------------------------------------------------------
+    connectors: {
+        title: "Konektory prawa",
+        subtitle:
+            "Wybierz, z których źródeł prawa korzysta Patron. Wybór konektora to wybór jurysdykcji.",
+        enabled: "Włączony",
+        disabled: "Wyłączony",
+        trustedBadge: "zaufany",
+        operatorOnly: "Tylko Operator",
+        operatorOnlyHint:
+            "Konektor spoza zaufanego zestawu - włącza go Operator kancelarii.",
+        restartNote:
+            "Zmiana zacznie obowiązywać po ponownym uruchomieniu aplikacji.",
+        empty: "Brak skonfigurowanych konektorów.",
+        loadError: "Nie udało się wczytać konektorów.",
+        toggleError: "Nie udało się zmienić stanu konektora.",
+        jurisdictionPL: "Polska",
+        jurisdictionEU: "Unia Europejska",
+        jurisdictionDE: "Niemcy",
+        jurisdictionAT: "Austria",
+        jurisdictionES: "Hiszpania",
+        jurisdictionFI: "Finlandia",
+        jurisdictionIE: "Irlandia",
+        jurisdictionNL: "Holandia",
+        jurisdictionSE: "Szwecja",
+        jurisdictionFR: "Francja",
+        jurisdictionLU: "Luksemburg",
+        jurisdictionOTHER: "Inne",
     },
 } as const;
 
