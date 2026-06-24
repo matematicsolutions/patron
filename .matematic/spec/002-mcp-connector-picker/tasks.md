@@ -1,7 +1,15 @@
 # Tasks: Wybor konektorow MCP przez mecenasa + zestaw UE
 
-**Spec:** [spec.md](./spec.md) · **Plan:** [plan.md](./plan.md) · **ADR:** 0133
+**Spec:** [spec.md](./spec.md) · **Plan:** [plan.md](./plan.md) · **ADR:** 0133 + 0134
 Format: `[ID] [P?] [Story] Opis`. `[P]` = parallel-safe (rozne pliki).
+
+## STAN WYKONANIA (2026-06-24, branch `feat/mcp-connector-picker`, niepushniety)
+
+- ✅ **US1 picker** - KOMPLETNY+ZWERYFIKOWANY. Backend (serwis ring+jurysdykcja, route GET/PATCH, audyt connector.toggle w 5 mirrorach + migracja SQLite v3/Postgres 014) commit 3f7047d; frontend (picker Konto->Konektory, i18n PL/EN) commit 6bb45c8. tsc=0 (back+front), 262+ testy pass, 6 testow CHECK audytu.
+- ✅ **Blocker Node-vs-Python ROZWIAZANY** (ADR-0134, commit 45ed2e3): warstwa MCP poliglotyczna (runtime node|python, resolveStdioSpawn rozwiazuje frozen-exe). tsc=0, 79 testow mcp (5 nowych).
+- ✅ **US2 zaufanie 9 UE** - REALNY gateway-scan wszystkich 9 (uv run+listTools+scanMcpRegistry): czyste (threat=low, zero hidden-instructions/tool-poisoning). Dodane do APPROVED (15 total), re-scan czysty (brak typosquatu rodzenstwa). commit 74ef5f0. Dzialaja w dev/serwer przez uv -> picker pokazuje wg jurysdykcji.
+- 🟡 **POZOSTALO: bundle desktop** = PyInstaller freeze 9 konektorow -> exe w mcp-bundled/ + stageFrozenPython w prepare-resources.cjs (komentarz TODO dodany). Wymaga realnego buildu instalatora do weryfikacji - osobny krok. Plus: hot-reload (T030), FR-PISTE klucz (T026).
+- 🔴 Bramki WM: review ADR-0132/0133/0134 (status Proponowany), push/merge.
 
 ## Phase 1 — Setup
 - [ ] T001 Branch `feat/mcp-connector-picker` off aktualnego `main`.
