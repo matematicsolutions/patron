@@ -5,6 +5,18 @@ All notable changes to **Patron** are documented in this file.
 Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Dwujezyczne UI (PL/EN)** - cala warstwa interfejsu i format dat/liczb
+  lokalizowane (ADR-0132). Jeden jezyk per instalacja, wybierany zmienna
+  build-time `NEXT_PUBLIC_PATRON_LOCALE` (`pl` domyslnie | `en`); bez next-intl,
+  bez locale w URL. `frontend/src/i18n/` (`pl.ts` zrodlo kluczy, `en.ts`
+  deep-partial + fallback PL, `index.ts` = `t()` + helpery formatu locale-aware).
+  Granica: UI/metoda -> EN; substancja prawna wg jurysdykcji, glebokie skille PL i
+  pl-entities zostaja PL. Terminologia legal-EN: pierwsza warstwa (przeglad
+  reviewer-en zalecany przed finalizacja).
+
 ## [1.0.0] - 2026-06-14
 
 Pierwsze publiczne wydanie open source. Lokalny, zero-cloud agent AI dla polskiej

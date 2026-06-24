@@ -1,6 +1,6 @@
 # ADR-0132: Wybor jezyka UI (locale) - jeden jezyk per instalacja
 
-**Status**: Proponowany (2026-06-24) — wymaga 2x wewnetrznego review tresci + akceptacji WM przed merge (AGENTS.md)
+**Status**: Przyjety (2026-06-24) — WM zatwierdzil ship EN UI 2026-06-24. Mechanizm zaimplementowany i zweryfikowany (frontend tsc=0, runtime PL/EN OK).
 
 ## Kontekst
 
