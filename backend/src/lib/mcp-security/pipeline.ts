@@ -44,6 +44,20 @@ export const APPROVED_PATRON_CONNECTORS: ReadonlyArray<string> = [
     "krs",
     "eu-sparql",
     "eu-compliance",
+    // ADR-0133/0134: konektory krajowe UE (Python, runtime frozen-exe w bundlu
+    // desktop; w dev/serwer uruchamiane przez uv). Dodane po REALNYM gateway-scan
+    // 2026-06-24 - wszystkie 9: action=audit, threat=low, risk=2, ZERO
+    // hidden-instructions/tool-poisoning (jedyne findingi: not-approved +
+    // first-baseline, znikaja po dodaniu tutaj). Bundle PyInstaller = osobny krok.
+    "de-eli",
+    "at-eli",
+    "es-eli",
+    "fi-eli",
+    "ie-eli",
+    "nl-eli",
+    "se-eli",
+    "fr-eli",
+    "lu-eli",
 ];
 
 /** Skanuje pojedynczy konektor MCP. */

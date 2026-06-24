@@ -46,13 +46,78 @@
     "enabled": false
   },
   {
-    "_comment": "PRZYKLAD konektora Python (ADR-0134). runtime:python -> bundlowany jako frozen-exe (PyInstaller) w mcp-bundled/<name>/. NIE jest w APPROVED_PATRON_CONNECTORS - dopoki nie przejdzie MCP Security Gateway pozostaje Ring 2 (Operator-only, fail-closed).",
-    "_comment_dev": "Dev przez interpreter: command 'python', args ['-m','de_eli_mcp.server']. Bundle desktop: command 'mcp-bundled/de-eli/de-eli-mcp.exe' (wzgledna sciezka rozwiazywana wzgledem korzenia backendu).",
+    "_comment": "Konektory krajowe UE (Python, ADR-0133/0134). Gateway-scan 2026-06-24: wszystkie 9 czyste (threat=low, zero hidden-instructions/tool-poisoning) -> w APPROVED_PATRON_CONNECTORS. runtime:python.",
+    "_comment_dev": "Dev/serwer: uruchamiane przez uv (command 'uv', args ['run','--directory','/path/to/<x>-eli-mcp','<x>-eli-mcp']). Bundle desktop: frozen-exe (PyInstaller) w mcp-bundled/<name>/, command 'mcp-bundled/<name>/<name>-mcp.exe' (sciezka wzgledna rozwiazywana wzgledem korzenia backendu).",
+    "_comment_fr": "fr-eli (Legifrance/PISTE) wymaga kluczy OAuth w env do wywolan; listTools dziala bez kluczy.",
     "name": "de-eli",
     "transport": "stdio",
     "runtime": "python",
-    "command": "/path/to/de-eli-mcp.exe",
-    "args": [],
+    "command": "uv",
+    "args": ["run", "--directory", "/path/to/de-eli-mcp", "de-eli-mcp"],
+    "enabled": false
+  },
+  {
+    "name": "at-eli",
+    "transport": "stdio",
+    "runtime": "python",
+    "command": "uv",
+    "args": ["run", "--directory", "/path/to/at-eli-mcp", "at-eli-mcp"],
+    "enabled": false
+  },
+  {
+    "name": "es-eli",
+    "transport": "stdio",
+    "runtime": "python",
+    "command": "uv",
+    "args": ["run", "--directory", "/path/to/es-eli-mcp", "es-eli-mcp"],
+    "enabled": false
+  },
+  {
+    "name": "fi-eli",
+    "transport": "stdio",
+    "runtime": "python",
+    "command": "uv",
+    "args": ["run", "--directory", "/path/to/fi-eli-mcp", "fi-eli-mcp"],
+    "enabled": false
+  },
+  {
+    "name": "ie-eli",
+    "transport": "stdio",
+    "runtime": "python",
+    "command": "uv",
+    "args": ["run", "--directory", "/path/to/ie-eli-mcp", "ie-eli-mcp"],
+    "enabled": false
+  },
+  {
+    "name": "nl-eli",
+    "transport": "stdio",
+    "runtime": "python",
+    "command": "uv",
+    "args": ["run", "--directory", "/path/to/nl-eli-mcp", "nl-eli-mcp"],
+    "enabled": false
+  },
+  {
+    "name": "se-eli",
+    "transport": "stdio",
+    "runtime": "python",
+    "command": "uv",
+    "args": ["run", "--directory", "/path/to/se-eli-mcp", "se-eli-mcp"],
+    "enabled": false
+  },
+  {
+    "name": "fr-eli",
+    "transport": "stdio",
+    "runtime": "python",
+    "command": "uv",
+    "args": ["run", "--directory", "/path/to/fr-eli-mcp", "fr-eli-mcp"],
+    "enabled": false
+  },
+  {
+    "name": "lu-eli",
+    "transport": "stdio",
+    "runtime": "python",
+    "command": "uv",
+    "args": ["run", "--directory", "/path/to/lu-eli-mcp", "lu-eli-mcp"],
     "enabled": false
   }
 ]
