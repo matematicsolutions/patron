@@ -8,6 +8,18 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 ## [Unreleased]
 
 ### Added
+- **Jezyk agenta wg locale (US2, ADR-0135)** - `SYSTEM_PROMPT` skladany przez
+  `buildSystemPrompt(locale)`; `PATRON_LOCALE=en` przelacza jezyk odpowiedzi, opis
+  struktury sadow i przewodnik mozliwosci na EN (przez reviewer-en + humanizer-en).
+  Substancja jurysdykcyjna - drafting pism PL, formuly grzecznosciowe, cytowanie prawa
+  PL, dyscyplina SAOS - **zostaje PL w obu locale** (pismo do polskiego sadu jest po
+  polsku). Default `pl` -> zero regresji. Konstrukcja promptu nadal w sciezce audit
+  hash-chain (AI Act art. 12).
+- **Picker konektorow MCP + 9 konektorow UE (US1/US2, ADR-0133/0134)** - mecenas wybiera
+  konektory wg jurysdykcji (toggle Ring1, Ring2 = Operator-gated), audyt `connector.toggle`
+  w hash-chain. Poliglotyczny runtime Node+Python (ADR-0134); 9 konektorow UE
+  (de/at/es/fi/ie/nl/se/fr/lu) zaufanych po gateway-scan, dolaczone do
+  `APPROVED_PATRON_CONNECTORS` (15). Bundle desktop (PyInstaller freeze) = TODO.
 - **Dwujezyczne UI (PL/EN)** - cala warstwa interfejsu i format dat/liczb
   lokalizowane (ADR-0132). Jeden jezyk per instalacja, wybierany zmienna
   build-time `NEXT_PUBLIC_PATRON_LOCALE` (`pl` domyslnie | `en`); bez next-intl,

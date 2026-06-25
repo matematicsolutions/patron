@@ -99,6 +99,11 @@ export const EVENT_TYPES = [
     // whitelist: sqlite przez runSqliteMigrations v2 (rebuild audit_log),
     // Postgres migracja 012. Lustro: schema.sqlite.ts, schema.sql, migrations/012.
     "project.cloud_consent",
+    // ADR-0133: zmiana stanu konektora MCP przez picker (mecenas wlacza/wylacza
+    // konektor = wybor jurysdykcji). Zmiana powierzchni narzedzi agenta -> AI Act
+    // art. 12. Wymaga migracji: SQLite v3 (rebuild) + Postgres 014 (ALTER CHECK).
+    // Lustro: schema.sqlite.ts, schema.sql, migrate.sqlite.ts, migrations/014.
+    "connector.toggle",
 ] as const;
 
 /** Union literal lustrzany dla CHECK constraint w audit_log. */

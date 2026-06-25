@@ -44,5 +44,80 @@
     "command": "node",
     "args": ["/path/to/mcp-eu-compliance/dist/index.js"],
     "enabled": false
+  },
+  {
+    "_comment": "Konektory krajowe UE (Python, ADR-0133/0134). Gateway-scan 2026-06-24: wszystkie 9 czyste (threat=low, zero hidden-instructions/tool-poisoning) -> w APPROVED_PATRON_CONNECTORS. runtime:python.",
+    "_comment_dev": "Dev/serwer: uruchamiane przez uv (command 'uv', args ['run','--directory','/path/to/<x>-eli-mcp','<x>-eli-mcp']). Bundle desktop: frozen-exe (PyInstaller) w mcp-bundled/<name>/, command 'mcp-bundled/<name>/<name>-mcp.exe' (sciezka wzgledna rozwiazywana wzgledem korzenia backendu).",
+    "_comment_fr": "fr-eli (Legifrance/PISTE) wymaga kluczy OAuth w env do wywolan; listTools dziala bez kluczy.",
+    "name": "de-eli",
+    "transport": "stdio",
+    "runtime": "python",
+    "command": "uv",
+    "args": ["run", "--directory", "/path/to/de-eli-mcp", "de-eli-mcp"],
+    "enabled": false
+  },
+  {
+    "name": "at-eli",
+    "transport": "stdio",
+    "runtime": "python",
+    "command": "uv",
+    "args": ["run", "--directory", "/path/to/at-eli-mcp", "at-eli-mcp"],
+    "enabled": false
+  },
+  {
+    "name": "es-eli",
+    "transport": "stdio",
+    "runtime": "python",
+    "command": "uv",
+    "args": ["run", "--directory", "/path/to/es-eli-mcp", "es-eli-mcp"],
+    "enabled": false
+  },
+  {
+    "name": "fi-eli",
+    "transport": "stdio",
+    "runtime": "python",
+    "command": "uv",
+    "args": ["run", "--directory", "/path/to/fi-eli-mcp", "fi-eli-mcp"],
+    "enabled": false
+  },
+  {
+    "name": "ie-eli",
+    "transport": "stdio",
+    "runtime": "python",
+    "command": "uv",
+    "args": ["run", "--directory", "/path/to/ie-eli-mcp", "ie-eli-mcp"],
+    "enabled": false
+  },
+  {
+    "name": "nl-eli",
+    "transport": "stdio",
+    "runtime": "python",
+    "command": "uv",
+    "args": ["run", "--directory", "/path/to/nl-eli-mcp", "nl-eli-mcp"],
+    "enabled": false
+  },
+  {
+    "name": "se-eli",
+    "transport": "stdio",
+    "runtime": "python",
+    "command": "uv",
+    "args": ["run", "--directory", "/path/to/se-eli-mcp", "se-eli-mcp"],
+    "enabled": false
+  },
+  {
+    "name": "fr-eli",
+    "transport": "stdio",
+    "runtime": "python",
+    "command": "uv",
+    "args": ["run", "--directory", "/path/to/fr-eli-mcp", "fr-eli-mcp"],
+    "enabled": false
+  },
+  {
+    "name": "lu-eli",
+    "transport": "stdio",
+    "runtime": "python",
+    "command": "uv",
+    "args": ["run", "--directory", "/path/to/lu-eli-mcp", "lu-eli-mcp"],
+    "enabled": false
   }
 ]

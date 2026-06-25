@@ -442,7 +442,8 @@ create table if not exists public.audit_log (
     'defense.pipeline.run',
     'document.edit_resolved',
     'tabular.grounding',
-    'project.cloud_consent'
+    'project.cloud_consent',
+    'connector.toggle'
   ))
 );
 

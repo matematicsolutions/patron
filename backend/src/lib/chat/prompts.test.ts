@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { SYSTEM_PROMPT, citationReminder } from "./prompts";
+import { SYSTEM_PROMPT, buildSystemPrompt, citationReminder } from "./prompts";
 
 describe("SYSTEM_PROMPT", () => {
     it("zawiera polska sekcje jurysdykcji", () => {
@@ -67,6 +67,61 @@ describe("SYSTEM_PROMPT", () => {
         it("zawiera formul Wysoki Sad", () => {
             expect(SYSTEM_PROMPT).toContain("Wysoki Sąd");
         });
+    });
+});
+
+describe("buildSystemPrompt (US2, ADR-0135)", () => {
+    it("SYSTEM_PROMPT to domyslny build PL", () => {
+        expect(SYSTEM_PROMPT).toBe(buildSystemPrompt("pl"));
+    });
+
+    describe("locale=en - metoda/UX po angielsku", () => {
+        const en = buildSystemPrompt("en");
+
+        it("przelacza jezyk odpowiedzi na EN", () => {
+            expect(en).toContain("Respond in English");
+            expect(en).not.toContain("Odpowiadaj po polsku");
+        });
+
+        it("opisuje strukture sadow po angielsku", () => {
+            expect(en).toContain("POLISH COURT STRUCTURE");
+            expect(en).toContain("Supreme Court");
+            expect(en).not.toContain("POLSKA STRUKTURA SĄDOWNICTWA");
+        });
+
+        it("przewodnik mozliwosci po angielsku", () => {
+            expect(en).toContain("CAPABILITIES AND GUIDE");
+            expect(en).toContain("Tabular review");
+            expect(en).not.toContain("PATRON - MOŻLIWOŚCI I PRZEWODNIK");
+        });
+    });
+
+    describe("locale=en - substancja jurysdykcyjna ZOSTAJE PL", () => {
+        const en = buildSystemPrompt("en");
+
+        it("drafting pism PL pozostaje po polsku", () => {
+            expect(en).toContain("DRAFTING PISM PL");
+            expect(en).toContain("Wysoki Sąd");
+            expect(en).toContain("ZASADA DRAFTU");
+        });
+
+        it("dyscyplina SAOS pozostaje po polsku", () => {
+            expect(en).toContain("KONEKTOR SAOS");
+        });
+
+        it("cytowanie prawa PL (DD.MM.RRRR / Dz.U. / ELI) pozostaje", () => {
+            expect(en).toContain("DD.MM.RRRR");
+            expect(en).toContain("Dz.U.");
+            expect(en).toContain("ELI");
+        });
+    });
+
+    it("oba locale zachowuja kontrakt cytatow (metoda wspolna)", () => {
+        for (const loc of ["pl", "en"] as const) {
+            const p = buildSystemPrompt(loc);
+            expect(p).toContain("<CITATIONS>");
+            expect(p).toContain("doc_id");
+        }
     });
 });
 

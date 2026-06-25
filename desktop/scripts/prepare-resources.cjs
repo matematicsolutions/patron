@@ -59,6 +59,16 @@ const MCP_SERVERS = [
   { name: "eu-compliance", repoDir: "mcp-eu-compliance", needsData: true },
 ];
 
+// ADR-0133/0134: 9 konektorow krajowych UE (de/at/es/fi/ie/nl/se/fr/lu-eli) sa
+// JUZ zaufane (APPROVED_PATRON_CONNECTORS, po realnym gateway-scan 2026-06-24),
+// ale to Python (fastmcp), a powyzsze stage'owanie zaklada Node (dist/index.js).
+// Bundle desktop tych konektorow wymaga osobnej sciezki: PyInstaller freeze ->
+// samodzielny exe w mcp-bundled/<name>/, config runtime:"python" + command
+// wskazujacy na exe (resolveStdioSpawn rozwiazuje wzgledna sciezke). NIE sa tu
+// dopisane, bo logika freeze nie jest jeszcze zaimplementowana - dodanie ich bez
+// niej zlamaloby build desktop. W trybie dev/serwer dzialaja przez `uv run`
+// (patrz mcp-servers.example.json). TODO: MCP_SERVERS_PYTHON + stageFrozenPython.
+
 // Model embeddera (RAG-wektory). Bundlowany lokalnie zeby retrieval semantyczny
 // dzialal bez pobierania z sieci na maszynie klienta (ADR-0071 fail-closed).
 // Pobierany RAZ przy budowaniu do dist-resources/backend/models; runtime celuje

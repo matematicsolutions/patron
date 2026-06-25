@@ -275,7 +275,8 @@ create table if not exists audit_log (
     'defense.pipeline.run',
     'document.edit_resolved',
     'tabular.grounding',
-    'project.cloud_consent'
+    'project.cloud_consent',
+    'connector.toggle'
   )),
   chat_id text,
   document_id text,
