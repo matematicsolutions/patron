@@ -1,5 +1,5 @@
 {
-  "_comment": "Bramka leak-scan przed publikacja publiczna (Article I konstytucji publikacji). allow_paths wycisza CELOWE syntetyczne fixtury (testy pipeline anonimizacji uzywaja PESEL/NIP/REGON z poprawna suma kontrolna) oraz 2 udokumentowane false-positives (globe.svg = cyfry w path SVG; columnPresets.ts = przykladowy KRS 0000123456 w promptcie). deny_terms realnych nazw klienta NIE trafiaja tu - mapowanie realne->fikcyjne (obsada Rumpole) trzymane prywatnie poza repo; ewentualny prywatny przebieg: --config <plik poza repo>.",
+  "_comment": "Bramka leak-scan przed publikacja publiczna (Article I konstytucji publikacji). allow_paths wycisza CELOWE syntetyczne fixtury (testy pipeline anonimizacji uzywaja PESEL/NIP/REGON z poprawna suma kontrolna) oraz 2 udokumentowane false-positives (globe.svg = cyfry w path SVG; columnPresets.ts = placeholderowy numer rejestru w przykladzie promptu). deny_terms realnych nazw klienta NIE trafiaja tu - mapowanie realne->fikcyjne (obsada Rumpole) trzymane prywatnie poza repo; ewentualny prywatny przebieg: --config <plik poza repo>.",
   "deny_terms": [],
   "deny_paths": [],
   "allow_paths": [
