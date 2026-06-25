@@ -14,9 +14,8 @@ This product is a fork of the **Mike** legal document assistant.
 The fork dates from 2026-05-19. Significant additions in Patron:
   - Polish locale and SYSTEM_PROMPT for Polish legal practice
   - Zero-cloud self-host (Supabase + MinIO, no Cloudflare R2)
-  - 6 Polish and EU legal MCP connectors (mcp-saos, mcp-nsa, mcp-isap,
-    mcp-krs, mcp-eu-sparql, mcp-eu-compliance - all MIT-licensed,
-    separate repositories)
+  - 5 Polish legal MCP connectors (mcp-saos, mcp-nsa, mcp-isap,
+    mcp-krs, mcp-eu-sparql - all MIT-licensed, separate repositories)
   - Hash-chain audit trail (AI Act art. 12 compliant)
   - Constitution AI v1.0.0 and Implementation Playbook (governance/)
   - Modular chat layer (lib/chat/* - 12 modules from monolithic chatTools.ts)
@@ -46,8 +45,7 @@ agent**. AGPL-3.0 is the right license because:
    service - undermining the moat we build with the community.
 
 3. **The MCP connectors are intentionally MIT.** Each connector
-   (mcp-saos, mcp-nsa, mcp-isap, mcp-krs, mcp-eu-sparql,
-   mcp-eu-compliance) lives in a
+   (mcp-saos, mcp-nsa, mcp-isap, mcp-krs, mcp-eu-sparql) lives in a
    separate repository under MIT so that the broader Polish legal-tech
    ecosystem can integrate them into other products - even commercial,
    closed-source ones. Connectors are infrastructure; the value-add is
