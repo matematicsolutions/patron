@@ -1,0 +1,17 @@
+{
+  "_comment": "Bramka leak-scan przed publikacja publiczna (Article I konstytucji publikacji). allow_paths wycisza CELOWE syntetyczne fixtury (testy pipeline anonimizacji uzywaja PESEL/NIP/REGON z poprawna suma kontrolna) oraz 2 udokumentowane false-positives (globe.svg = cyfry w path SVG; columnPresets.ts = przykladowy KRS 0000123456 w promptcie). deny_terms realnych nazw klienta NIE trafiaja tu - mapowanie realne->fikcyjne (obsada Rumpole) trzymane prywatnie poza repo; ewentualny prywatny przebieg: --config <plik poza repo>.",
+  "deny_terms": [],
+  "deny_paths": [],
+  "allow_paths": [
+    "backend/src/lib/pl-entities/",
+    "backend/src/lib/pseudonim/",
+    "backend/scripts/smoke-pseudonim.mjs",
+    "backend/src/lib/graph/extractor.test.ts",
+    "backend/src/lib/chat/document-window.test.ts",
+    "backend/src/lib/pipeline/defense.test.ts",
+    ".test.ts",
+    ".test.mjs",
+    "frontend/public/globe.svg",
+    "frontend/src/app/components/tabular/columnPresets.ts"
+  ]
+}
