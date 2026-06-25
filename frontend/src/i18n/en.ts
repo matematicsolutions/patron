@@ -8,9 +8,9 @@
 // - Date format is handled by the `formatDate` helper (locale-aware), not in the
 //   dictionary.
 //
-// NOTE (Q3, spec 001): this is a FIRST-PASS translation. Legal-EN terminology
-// (e.g. "Counsel", "Case ref.", court names) needs a `reviewer-en` + legal-EN
-// terminology pass before it is treated as final.
+// NOTE (spec 001): legal-EN terminology pass applied (reviewer-en, 2026-06-25).
+// Court names and register abbreviations expanded for an EN audience; house-style
+// hyphens enforced. "Counsel" is kept as the form of address by design.
 
 import type { pl } from "./pl";
 
@@ -209,9 +209,9 @@ export const en: DictShape<typeof pl> = {
         pages: "Pages",
         openSource: "Open source",
         noCitations: "No citations for this response.",
-        saos: "Judgments from SAOS (common courts, Supreme Court, Constitutional Tribunal, NAC)",
-        nsa: "Judgments from CBOSA (NSA / WSA - administrative courts)",
-        isap: "Polish legislation (Journal of Laws / M.P. - Sejm ELI)",
+        saos: "Judgments from SAOS (common courts, Supreme Court, Constitutional Tribunal, National Appeals Chamber)",
+        nsa: "Judgments from CBOSA (Supreme Administrative Court / regional administrative courts)",
+        isap: "Polish legislation (Journal of Laws / Monitor Polski - Sejm ELI)",
         krs: "National Court Register (KRS - Ministry of Justice)",
         euSparql: "EU legislation (EUR-Lex / CJEU)",
         unknownServer: "Related sources",
@@ -226,7 +226,7 @@ export const en: DictShape<typeof pl> = {
         provenanceEurlex: "source: EUR-Lex",
         provenanceUzytkownik: "source: client document",
         provenanceModel: "model knowledge - verify",
-        provenancePinpoint: "- verify the unit number",
+        provenancePinpoint: "- verify the provision number",
     },
 
     usage: {
@@ -340,7 +340,7 @@ export const en: DictShape<typeof pl> = {
         emailPlaceholder: "name@lawfirm.com",
         passwordLabel: "Password",
         passwordPlaceholder: "Your password",
-        passwordPlaceholderCreate: "Create a password (min. 6 characters)",
+        passwordPlaceholderCreate: "Create a password (at least 6 characters)",
         confirmPasswordLabel: "Repeat password",
         confirmPasswordPlaceholder: "Enter the password again",
         nameLabel: "Name",
@@ -635,7 +635,7 @@ export const en: DictShape<typeof pl> = {
         emptyText: "Enter or paste the pleading text.",
         error: "Could not refine the pleading. Try again.",
         disclaimer:
-            "AI can make mistakes. Check the pleading before sending — this is not legal advice.",
+            "AI can make mistakes. Check the pleading before sending - this is not legal advice.",
         close: "Close",
         stage: {
             recenzent: "Reviewer",
@@ -644,7 +644,7 @@ export const en: DictShape<typeof pl> = {
         },
         mode: {
             "strona-przeciwna": "Opposing party",
-            sad: "Bench",
+            sad: "The court",
             prokurator: "Prosecutor",
         },
     },
@@ -671,7 +671,7 @@ export const en: DictShape<typeof pl> = {
             "Supported files: PDF, DOCX, DOC and JPG/PNG/TIFF scans (OCR). Subfolders are searched.",
         browseBtn: "Choose folder…",
         browseHero: "Choose a folder with case files",
-        browseHeroHint: "A picker will open — choose a folder and the import starts right away.",
+        browseHeroHint: "A picker will open - choose a folder and the import starts right away.",
         manualLabel: "or enter the path manually",
         importBtn: "Import",
         importing: "Importing files…",
