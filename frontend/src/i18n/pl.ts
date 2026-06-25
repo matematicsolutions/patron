@@ -738,7 +738,7 @@ export const pl = {
         emptyText: "Wpisz lub wklej tekst pisma.",
         error: "Nie udało się doskonalić pisma. Spróbuj ponownie.",
         disclaimer:
-            "AI może się mylić. Sprawdź pismo przed wysłaniem — to nie jest porada prawna.",
+            "AI może się mylić. Sprawdź pismo przed wysłaniem - to nie jest porada prawna.",
         close: "Zamknij",
         stage: {
             recenzent: "Recenzent",
@@ -780,7 +780,7 @@ export const pl = {
             "Obsługiwane pliki: PDF, DOCX, DOC oraz skany JPG/PNG/TIFF (OCR). Podkatalogi są przeszukiwane.",
         browseBtn: "Wybierz folder…",
         browseHero: "Wybierz folder z aktami",
-        browseHeroHint: "Otworzy się okno wyboru — wskaż folder, import ruszy od razu.",
+        browseHeroHint: "Otworzy się okno wyboru - wskaż folder, import ruszy od razu.",
         manualLabel: "lub podaj ścieżkę ręcznie",
         importBtn: "Importuj",
         importing: "Importuję pliki…",
