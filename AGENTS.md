@@ -32,10 +32,18 @@ node scripts/bundle-mcp.cjs
 # Bundle 6 konektorow MCP + model embeddera do instalatora DESKTOP (Electron)
 # odbywa sie w prepare-resources.cjs (stageMcpConnectors + stageEmbedModel),
 # wymaga 6 zbudowanych repo mcp-* obok patron/ (MCP_REPOS_DIR, default `..`).
-# Patrz ADR-0100. Dodajac konektor, zsynchronizuj jego nazwe w TRZECH miejscach:
+# Patrz ADR-0100. Dodajac konektor NODE, zsynchronizuj jego nazwe w TRZECH miejscach:
 # backend/src/lib/mcp-security/pipeline.ts (APPROVED_PATRON_CONNECTORS),
 # desktop/scripts/prepare-resources.cjs (MCP_SERVERS) i mcp-servers.example.json -
 # rozjazd nazw = bramka typosquat + ring-policy blokuja WLASNY konektor (ADR-0027/0028).
+#
+# Konektory PYTHON (9 krajowych UE, Opcja C - ADR-0136): NIE freeze per konektor,
+# lecz JEDEN bundlowany standalone CPython + `uv pip install` 9 do jego site-packages
+# przy buildzie (stageBundledPython w prepare-resources.cjs). Repo eli w ~/Projects
+# (MCP_PY_REPOS_DIR, nie obok patron). 3-sync nazw: pipeline.ts APPROVED +
+# prepare-resources.cjs MCP_SERVERS_PYTHON + mcp-servers.example.json. Spawn:
+# py-runtime/python.exe -s -E -c "from <modul>.server import main; main()".
+# Build locale: NEXT_PUBLIC_PATRON_LOCALE=en daje zestaw UE-first + samouczek EN.
 cd desktop && npm run build
 
 # Pelny stack (Docker, wymaga Supabase + MinIO osobno)

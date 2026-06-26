@@ -68,3 +68,40 @@ frontend/package.json. Their licenses can be inspected via
 LibreOffice (runtime dependency for docx-to-pdf conversion):
   - Mozilla Public License v2.0
   - https://www.libreoffice.org
+
+
+Bundled EU national legal MCP connectors (desktop installer)
+------------------------------------------------------------
+
+The desktop installer additionally bundles nine national EU legal MCP
+connectors, each in a separate repository under the Apache License 2.0
+(distinct from the MIT connectors above; Apache-2.0 is compatible with
+AGPL-3.0 for distribution):
+
+  - de-eli-mcp, at-eli-mcp, es-eli-mcp, fi-eli-mcp, ie-eli-mcp,
+    nl-eli-mcp, se-eli-mcp, fr-eli-mcp, lu-eli-mcp
+  - Copyright (c) 2026 MateMatic Solutions / Wiesław Mazur
+  - Licensed under the Apache License, Version 2.0
+  - https://github.com/matematicsolutions/<name>-eli-mcp
+
+These connectors are Python (fastmcp) and are run from a bundled CPython
+runtime (see below). See governance/adr/0136-bundled-python-runtime-eli.md.
+
+
+Bundled CPython runtime (desktop installer)
+-------------------------------------------
+
+To run the Python EU connectors offline without requiring a system Python,
+the desktop installer bundles a standalone CPython build:
+
+  - CPython - Python Software Foundation License v2
+    https://www.python.org (via python-build-standalone, astral-sh/uv)
+  - python-build-standalone - https://github.com/astral-sh/python-build-standalone
+
+Python packages installed into the bundled runtime (resolved at build time):
+  - fastmcp (Apache-2.0), mcp (MIT), httpx (BSD-3-Clause),
+    pydantic (MIT), anyio (MIT), diskcache (Apache-2.0),
+    uvicorn/starlette and transitive dependencies (BSD/MIT/Apache-2.0).
+  Their full licenses can be inspected via
+  `py-runtime/python.exe -m pip show <package>` or in each package's
+  site-packages dist-info.
