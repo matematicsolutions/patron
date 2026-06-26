@@ -42,6 +42,11 @@ const OUT_FRONTEND = path.join(OUT_DIR, "frontend");
 const SKIP_BUILD = process.env.SKIP_BUILD === "1";
 const IS_WIN = process.platform === "win32";
 
+// Locale buildu (ADR-0132): "en" => zestaw konektorow UE-first + samouczek EN,
+// "pl" => zachowanie dotychczasowe (PL-first). Czytane z tego samego env co
+// frontend (NEXT_PUBLIC_PATRON_LOCALE), wiec jeden build = jeden locale.
+const LOCALE = process.env.NEXT_PUBLIC_PATRON_LOCALE === "en" ? "en" : "pl";
+
 // ── Konektory MCP do zbundlowania w instalatorze (ADR-0091) ──────────────────
 // Kazdy konektor zyje w osobnym repo (domyslnie obok patron/). Do instalatora
 // kopiujemy dist/ + node_modules/ (+ data/ dla eu-compliance, ktory wozi lokalny
@@ -59,15 +64,64 @@ const MCP_SERVERS = [
   { name: "eu-compliance", repoDir: "mcp-eu-compliance", needsData: true },
 ];
 
-// ADR-0133/0134: 9 konektorow krajowych UE (de/at/es/fi/ie/nl/se/fr/lu-eli) sa
-// JUZ zaufane (APPROVED_PATRON_CONNECTORS, po realnym gateway-scan 2026-06-24),
-// ale to Python (fastmcp), a powyzsze stage'owanie zaklada Node (dist/index.js).
-// Bundle desktop tych konektorow wymaga osobnej sciezki: PyInstaller freeze ->
-// samodzielny exe w mcp-bundled/<name>/, config runtime:"python" + command
-// wskazujacy na exe (resolveStdioSpawn rozwiazuje wzgledna sciezke). NIE sa tu
-// dopisane, bo logika freeze nie jest jeszcze zaimplementowana - dodanie ich bez
-// niej zlamaloby build desktop. W trybie dev/serwer dzialaja przez `uv run`
-// (patrz mcp-servers.example.json). TODO: MCP_SERVERS_PYTHON + stageFrozenPython.
+// ── Konektory Python (9 krajowych UE) - Opcja C (ADR-0133/0134/0136) ─────────
+// de/at/es/fi/ie/nl/se/fr/lu-eli sa JUZ zaufane (APPROVED_PATRON_CONNECTORS, po
+// gateway-scan 2026-06-24) i sa w mcp-servers.example.json (dev: `uv run`). Do
+// instalatora desktop NIE robimy PyInstaller-freeze per konektor (duplikacja
+// runtime x9). Zamiast tego OPCJA C: bundlujemy JEDEN standalone CPython
+// (python-build-standalone z uv) i instalujemy 9 konektorow do jego site-packages
+// przy buildzie (offline, deterministycznie). Runtime spawnuje
+// `py-runtime/python.exe -s -E -c "from <modul>.server import main; main()"`;
+// `-s -E` izoluje od user-site (inaczej dociaga stary mcp z %APPDATA%\Python).
+// resolveStdioSpawn (backend lib/mcp/index.ts) rozwiazuje wzgledny command do
+// BACKEND_ROOT - bez zmian w backendzie. Repo eli zyja w ~/Projects (nie obok
+// patron jak konektory Node) - patrz MCP_PY_REPOS_DIR.
+const MCP_PY_REPOS_DIR = process.env.MCP_PY_REPOS_DIR
+  ? path.resolve(process.env.MCP_PY_REPOS_DIR)
+  : path.resolve(REPO_ROOT, "..", "Projects");
+// Kolejnosc largest-first (UE-first dla locale EN). Nazwy MUSZA sie zgadzac z
+// APPROVED_PATRON_CONNECTORS (pipeline.ts) i JURISDICTION_BY_CONNECTOR
+// (connectors.ts) - inaczej bramka typosquat/3-sync blokuje wlasny konektor.
+const MCP_SERVERS_PYTHON = [
+  { name: "de-eli", repoDir: "de-eli-mcp", module: "de_eli_mcp" },
+  { name: "fr-eli", repoDir: "fr-eli-mcp", module: "fr_eli_mcp", needsKey: true },
+  { name: "es-eli", repoDir: "es-eli-mcp", module: "es_eli_mcp" },
+  { name: "nl-eli", repoDir: "nl-eli-mcp", module: "nl_eli_mcp" },
+  { name: "se-eli", repoDir: "se-eli-mcp", module: "se_eli_mcp" },
+  { name: "at-eli", repoDir: "at-eli-mcp", module: "at_eli_mcp" },
+  { name: "fi-eli", repoDir: "fi-eli-mcp", module: "fi_eli_mcp" },
+  { name: "ie-eli", repoDir: "ie-eli-mcp", module: "ie_eli_mcp" },
+  { name: "lu-eli", repoDir: "lu-eli-mcp", module: "lu_eli_mcp" },
+];
+const SKIP_PYTHON_CONNECTORS = process.env.SKIP_PYTHON_CONNECTORS === "1";
+
+// Jurysdykcja per konektor (mirror connectors.ts) - decyduje o defaultach enabled
+// i kolejnosci wg locale. Konektory wymagajace klucza (FR-PISTE) = domyslnie OFF.
+const JURISDICTION = {
+  saos: "PL", nsa: "PL", isap: "PL", krs: "PL",
+  "eu-sparql": "EU", "eu-compliance": "EU",
+  "de-eli": "DE", "at-eli": "AT", "es-eli": "ES", "fi-eli": "FI", "ie-eli": "IE",
+  "nl-eli": "NL", "se-eli": "SE", "fr-eli": "FR", "lu-eli": "LU",
+};
+const NEEDS_KEY = new Set(["fr-eli"]); // Legifrance/PISTE OAuth - off do podania klucza
+// EN: UE-first (largest-first), PL na koncu. PL: dotychczasowe PL-first.
+const ORDER_EN = [
+  "de-eli", "fr-eli", "es-eli", "nl-eli", "se-eli", "at-eli", "fi-eli", "ie-eli",
+  "lu-eli", "eu-sparql", "eu-compliance", "saos", "nsa", "isap", "krs",
+];
+const ORDER_PL = [
+  "saos", "nsa", "isap", "krs", "eu-sparql", "eu-compliance", "de-eli", "fr-eli",
+  "es-eli", "nl-eli", "se-eli", "at-eli", "fi-eli", "ie-eli", "lu-eli",
+];
+
+// Domyslny stan enabled wg locale. EN: wszystko poza PL wlaczone (FR off - klucz).
+// PL: PL + UE-zbiorcze wlaczone, krajowe UE off (obecne, przelaczalne pickerem).
+function defaultEnabled(name) {
+  if (NEEDS_KEY.has(name)) return false;
+  const jur = JURISDICTION[name] || "OTHER";
+  if (LOCALE === "en") return jur !== "PL";
+  return jur === "PL" || jur === "EU";
+}
 
 // Model embeddera (RAG-wektory). Bundlowany lokalnie zeby retrieval semantyczny
 // dzialal bez pobierania z sieci na maszynie klienta (ADR-0071 fail-closed).
@@ -229,17 +283,108 @@ function stageMcpConnectors() {
       transport: "stdio",
       command: "node",
       args: [`mcp-bundled/${s.name}/dist/index.js`],
-      enabled: true,
     });
     log(`  + ${s.name} zbundlowany`);
   }
 
+  log(`Konektory Node gotowe: ${manifest.length}. (zapis mcp-servers.json: writeMcpManifest)`);
+  return manifest;
+}
+
+// ── 3b-py. Bundlowany standalone Python + 9 konektorow UE (Opcja C, ADR-0136) ─
+// Kopiuje managed python-build-standalone (z uv) do dist-resources/backend/
+// py-runtime, usuwa marker EXTERNALLY-MANAGED (to NASZA kopia) i instaluje 9 repo
+// eli do jego site-packages (`uv pip install --python`). Offline w runtime: nic
+// nie pobiera u klienta. Zwraca wpisy manifestu (lub [] gdy SKIP/niezbudowane).
+function stageBundledPython() {
+  if (SKIP_PYTHON_CONNECTORS) {
+    log("SKIP_PYTHON_CONNECTORS=1 - pomijam bundlowany Python (9 konektorow UE).");
+    return [];
+  }
+  log("Bundlowanie standalone Pythona + 9 konektorow UE (Opcja C)...");
+  const uv = "uv";
+
+  // 1. upewnij sie, ze managed standalone cpython-3.13 jest pobrany.
+  try {
+    run(uv, ["python", "install", "cpython-3.13", "--managed-python"], DESKTOP_DIR);
+  } catch {
+    log("  (uv python install zwrocil blad linku - sprawdzam czy drzewo i tak jest)");
+  }
+
+  // 2. zlokalizuj managed standalone w `uv python dir` (pelna wersja z python.exe).
+  const uvPyDir = execFileSync(uv, ["python", "dir"], { shell: IS_WIN })
+    .toString().trim();
+  let srcRuntime = null;
+  for (const name of fs.readdirSync(uvPyDir)) {
+    if (!/^cpython-3\.13\.\d+-windows-x86_64/.test(name)) continue;
+    const exe = path.join(uvPyDir, name, "python.exe");
+    if (fs.existsSync(exe)) { srcRuntime = path.join(uvPyDir, name); break; }
+  }
+  if (!srcRuntime) {
+    fail(`nie znaleziono managed standalone cpython-3.13 w ${uvPyDir} ` +
+      `(uruchom: uv python install cpython-3.13 --managed-python)`);
+  }
+
+  // 3. kopia -> py-runtime (relokowalna; python-build-standalone jest self-contained).
+  const pyRuntime = path.join(OUT_BACKEND, "py-runtime");
+  rmrf(pyRuntime);
+  copyDir(srcRuntime, pyRuntime);
+  const pyExe = path.join(pyRuntime, "python.exe");
+  mustExist(pyExe, "py-runtime/python.exe (kopia standalone)");
+
+  // 4. usun EXTERNALLY-MANAGED (blokuje pip; to NASZA kopia, instalujemy do niej).
+  const marker = path.join(pyRuntime, "Lib", "EXTERNALLY-MANAGED");
+  if (fs.existsSync(marker)) fs.rmSync(marker, { force: true });
+
+  // 5. install 9 konektorow z lokalnych repo do site-packages runtime (jedno
+  //    polecenie - wspolne deps rozwiazane raz; zrodlo = repo eli = to co na PyPI).
+  const repoArgs = MCP_SERVERS_PYTHON.map((s) => {
+    const repo = path.resolve(MCP_PY_REPOS_DIR, s.repoDir);
+    mustExist(path.join(repo, "pyproject.toml"), `${s.name}: repo Python w ${repo}`);
+    return repo;
+  });
+  log(`  uv pip install ${MCP_SERVERS_PYTHON.length} konektorow do py-runtime...`);
+  run(uv, ["pip", "install", "--python", pyExe, ...repoArgs], DESKTOP_DIR);
+
+  // 6. weryfikacja importu kazdego z -s -E (izolacja od user-site).
+  //    BEZ shell - pyExe to absolutny .exe; shell:true na Windows rozbija
+  //    `-c "import X"` (cmd gubi cudzyslow -> python dostaje samo "import").
+  for (const s of MCP_SERVERS_PYTHON) {
+    execFileSync(pyExe, ["-s", "-E", "-c", `import ${s.module}.server`], {
+      stdio: "inherit",
+    });
+    log(`  + ${s.name} (import ${s.module}.server OK)`);
+  }
+
+  log(`Standalone Python + ${MCP_SERVERS_PYTHON.length} konektorow UE gotowe.`);
+  return MCP_SERVERS_PYTHON.map((s) => ({
+    name: s.name,
+    transport: "stdio",
+    runtime: "python",
+    command: IS_WIN ? "py-runtime/python.exe" : "py-runtime/bin/python3",
+    args: ["-s", "-E", "-c", `from ${s.module}.server import main; main()`],
+  }));
+}
+
+// Zapis mcp-servers.json: laczy konektory Node + Python, ustala enabled+kolejnosc
+// wg LOCALE (UE-first dla EN, PL-first dla PL). enabled!==false => aktywny.
+function writeMcpManifest(entries) {
+  const order = LOCALE === "en" ? ORDER_EN : ORDER_PL;
+  const rank = (n) => {
+    const i = order.indexOf(n);
+    return i === -1 ? 999 : i;
+  };
+  const out = entries
+    .map((e) => ({ ...e, enabled: defaultEnabled(e.name) }))
+    .sort((a, b) => rank(a.name) - rank(b.name));
   fs.writeFileSync(
     path.join(OUT_BACKEND, "mcp-servers.json"),
-    JSON.stringify(manifest, null, 2) + "\n",
+    JSON.stringify(out, null, 2) + "\n",
     "utf8",
   );
-  log(`Konektory MCP gotowe: ${manifest.length} (mcp-servers.json zapisany).`);
+  const on = out.filter((e) => e.enabled !== false).map((e) => e.name);
+  log(`mcp-servers.json: ${out.length} konektorow (locale=${LOCALE}), ` +
+    `domyslnie ON (${on.length}): ${on.join(", ")}`);
 }
 
 // ── 3c. Staging modelu embeddera (RAG-wektory offline) ───────────────────────
@@ -281,18 +426,37 @@ function stageEmbedModel() {
 // Dwa dokumenty jada z instalatorem: mecenas ma je na dysku, a asystent moze
 // do nich odsylac (prompt systemowy o nich wie). Trafiaja do backend/docs/.
 function stageDocs() {
-  log("Staging dokumentacji (baza wiedzy + samouczek)...");
+  log(`Staging dokumentacji (baza wiedzy + samouczek, locale=${LOCALE})...`);
   const outDocs = path.join(OUT_BACKEND, "docs");
   fs.mkdirSync(outDocs, { recursive: true });
-  const docs = ["BAZA_WIEDZY.md", "SAMOUCZEK.md"];
-  for (const d of docs) {
-    const src = path.join(REPO_ROOT, "docs", d);
-    if (!fs.existsSync(src)) {
-      log(`  UWAGA: brak ${d} w docs/ - pomijam.`);
-      continue;
+
+  // BAZA_WIEDZY: na razie tylko PL (tlumaczenie EN poza zakresem spec 003).
+  const baza = path.join(REPO_ROOT, "docs", "BAZA_WIEDZY.md");
+  if (fs.existsSync(baza)) {
+    fs.copyFileSync(baza, path.join(outDocs, "BAZA_WIEDZY.md"));
+    log("  + BAZA_WIEDZY.md");
+  } else {
+    log("  UWAGA: brak BAZA_WIEDZY.md - pomijam.");
+  }
+
+  // SAMOUCZEK locale-aware: EN bierze SAMOUCZEK_EN.md, pakowany pod kanoniczna
+  // nazwa SAMOUCZEK.md (prompt systemowy odwoluje sie do niej niezaleznie od jezyka).
+  const samSrcName = LOCALE === "en" ? "SAMOUCZEK_EN.md" : "SAMOUCZEK.md";
+  const samSrc = path.join(REPO_ROOT, "docs", samSrcName);
+  const samDst = path.join(outDocs, "SAMOUCZEK.md");
+  if (fs.existsSync(samSrc)) {
+    fs.copyFileSync(samSrc, samDst);
+    log(`  + SAMOUCZEK.md (z ${samSrcName})`);
+  } else if (LOCALE === "en") {
+    const samPl = path.join(REPO_ROOT, "docs", "SAMOUCZEK.md");
+    if (fs.existsSync(samPl)) {
+      fs.copyFileSync(samPl, samDst);
+      log("  UWAGA: brak SAMOUCZEK_EN.md - pakuje polski fallback (uzupelnij tlumaczenie).");
+    } else {
+      log("  UWAGA: brak SAMOUCZEK_EN.md i SAMOUCZEK.md - pomijam.");
     }
-    fs.copyFileSync(src, path.join(outDocs, d));
-    log(`  + ${d}`);
+  } else {
+    log("  UWAGA: brak SAMOUCZEK.md - pomijam.");
   }
 }
 
@@ -383,12 +547,14 @@ function main() {
   fs.mkdirSync(OUT_DIR, { recursive: true });
   buildSources();
   stageBackend();
-  stageMcpConnectors();
+  const nodeManifest = stageMcpConnectors();
+  const pyManifest = stageBundledPython();
+  writeMcpManifest([...nodeManifest, ...pyManifest]);
   stageEmbedModel();
   stageOcrEngine();
   stageDocs();
   stageFrontend();
-  log(`OK. Zasoby w ${path.relative(REPO_ROOT, OUT_DIR)} (backend + konektory MCP + model + OCR + docs + frontend).`);
+  log(`OK. Zasoby w ${path.relative(REPO_ROOT, OUT_DIR)} (backend + konektory MCP Node+Python + model + OCR + docs + frontend, locale=${LOCALE}).`);
   log("Nastepny krok: electron-builder --win --x64 (skrypt build w desktop/package.json).");
 }
 
