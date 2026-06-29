@@ -200,6 +200,68 @@ export async function setConnectorEnabled(
     );
 }
 
+// ---------------------------------------------------------------------------
+// Karty zatwierdzenia mutacji (ADR-0137) - human-in-the-loop write staging
+// ---------------------------------------------------------------------------
+
+export type ApprovalStatus = "pending" | "approved" | "rejected";
+
+export interface ApprovalCard {
+    id: string;
+    user_id: string;
+    chat_id: string | null;
+    document_id: string | null;
+    tool_name: string;
+    tool_payload: Record<string, unknown>;
+    status: ApprovalStatus;
+    staged_at: string;
+    staged_by: string;
+    approved_at: string | null;
+    approved_by: string | null;
+    rejection_reason: string | null;
+    executed_at: string | null;
+    execution_error: string | null;
+    created_at: string;
+    updated_at: string;
+}
+
+export async function listApprovalCards(): Promise<ApprovalCard[]> {
+    const res = await apiRequest<{ approvals: ApprovalCard[] }>(
+        "/mutation-approvals",
+    );
+    return res.approvals;
+}
+
+export async function approveCard(id: string): Promise<{
+    approval: ApprovalCard;
+    executed: boolean;
+    execution_error: string | null;
+    result: unknown;
+}> {
+    return apiRequest(
+        `/mutation-approvals/${encodeURIComponent(id)}/approve`,
+        {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: "{}",
+        },
+    );
+}
+
+export async function rejectCard(
+    id: string,
+    reason?: string,
+): Promise<{ approval: ApprovalCard }> {
+    return apiRequest(
+        `/mutation-approvals/${encodeURIComponent(id)}/reject`,
+        {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ reason }),
+        },
+    );
+}
+
 export interface UserProfile {
     displayName: string | null;
     organisation: string | null;

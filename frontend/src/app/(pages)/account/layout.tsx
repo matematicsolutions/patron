@@ -20,6 +20,11 @@ const TABS: TabDef[] = [
         label: t("account.connectors"),
         href: "/account/connectors",
     },
+    {
+        id: "approval-cards",
+        label: t("account.approvals"),
+        href: "/account/approval-cards",
+    },
     { id: "usage", label: t("account.usage"), href: "/account/usage" },
 ];
 

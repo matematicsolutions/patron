@@ -294,6 +294,7 @@ export const pl = {
         models: "Modele i klucze API",
         usage: "Zużycie",
         connectors: "Konektory",
+        approvals: "Karty zatwierdzeń",
         provider: "Dostawca",
         apiKey: "Klucz API",
         apiKeyMissing: "Brakuje klucza API dla tego modelu.",
@@ -861,6 +862,28 @@ export const pl = {
         jurisdictionFR: "Francja",
         jurisdictionLU: "Luksemburg",
         jurisdictionOTHER: "Inne",
+    },
+    approvals: {
+        title: "Karty zatwierdzeń",
+        subtitle:
+            "Akcje agenta o skutkach ubocznych (edycja, generowanie dokumentu) czekają tu na Twoje zatwierdzenie, zanim się wykonają. Nadzór człowieka nad zapisem (AI Act art. 14).",
+        empty: "Brak kart oczekujących na zatwierdzenie.",
+        loadError: "Nie udało się wczytać kart.",
+        actionError: "Nie udało się przetworzyć decyzji.",
+        approve: "Zatwierdź",
+        reject: "Odrzuć",
+        approving: "Zatwierdzam…",
+        rejecting: "Odrzucam…",
+        stagedAt: "Przygotowano",
+        actionLabel: "Akcja",
+        detailsLabel: "Szczegóły",
+        documentLabel: "Dokument",
+        rejectReasonPlaceholder: "Powód odrzucenia (opcjonalnie)",
+        executedNote: "Zatwierdzono i wykonano.",
+        executionErrorNote:
+            "Zatwierdzono, ale wykonanie się nie powiodło:",
+        toolEditDocument: "Edycja dokumentu",
+        toolGenerateDocx: "Wygenerowanie dokumentu .docx",
     },
 } as const;
 
