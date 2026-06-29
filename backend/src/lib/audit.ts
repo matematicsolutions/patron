@@ -112,6 +112,12 @@ export const EVENT_TYPES = [
     // (ALTER CHECK). Lustro: schema.sqlite.ts, schema.sql, migrate.sqlite.ts,
     // migrations/015. Patrz lib/routing/budget.ts + auditCostCap.ts.
     "cost_cap",
+    // ADR-0137: decyzja czlowieka (approve/reject) o karcie zatwierdzenia mutacji
+    // (human-in-the-loop write staging) - akt nadzoru nad zapisem agenta -> AI Act
+    // art. 14 + 12. Loguje kto/kiedy/typ narzedzia/decyzja/id karty, bez pelnego
+    // payloadu mutacji. Wymaga migracji: SQLite v5 (rebuild) + Postgres 017 (ALTER
+    // CHECK). Lustro: schema.sqlite.ts, schema.sql, migrate.sqlite.ts, migrations/017.
+    "mutation.approval.decision",
 ] as const;
 
 /** Union literal lustrzany dla CHECK constraint w audit_log. */
