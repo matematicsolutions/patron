@@ -28,7 +28,7 @@
     "@google/genai": "^1.50.1",
     "@huggingface/transformers": "^4.2.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
-    "@supabase/supabase-js": "^2.106.1",
+    "@supabase/supabase-js": "^2.108.2",
     "@types/better-sqlite3": "^7.6.13",
     "better-sqlite3": "npm:better-sqlite3-multiple-ciphers@^12.10.0",
     "cors": "^2.8.5",
