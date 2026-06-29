@@ -78,7 +78,7 @@ Testy: 1308/1313 pass (5 todo, 0 fail) na 2026-06-29 (backend vitest). TSC clean
 ## Zrodla prawdy (kolejnosc czytania)
 
 1. [README.md](./README.md) - opis dla ludzi
-2. [governance/CONSTITUTION.md](./governance/CONSTITUTION.md) - 9 zasad, role, audyt (v1.6.1, podpisywana przez kancelarie)
+2. [governance/CONSTITUTION.md](./governance/CONSTITUTION.md) - 9 zasad, role, audyt (v1.7.0, podpisywana przez kancelarie)
 3. [governance/IMPLEMENTATION_PLAYBOOK.md](./governance/IMPLEMENTATION_PLAYBOOK.md) - 6-8 tyg wdrozenia, RACI
 4. [governance/adr/](./governance/adr/) - Architecture Decision Records (0001-0130)
 5. [THIRD_PARTY_INSPIRATIONS.md](./THIRD_PARTY_INSPIRATIONS.md) - co cherry-pickowalismy i skad (Mike, Lavern, gbrain, isaacus/tabular-review, PII-Shield, earendil/pi, awesome-llm-apps)
