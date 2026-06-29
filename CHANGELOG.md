@@ -8,6 +8,20 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 ## [Unreleased]
 
 ### Added
+- **Karty zatwierdzenia mutacji - human-in-the-loop write staging (ADR-0137)** - akcje
+  agenta o skutkach ubocznych (`edit_document`, `generate_docx`) moga byc stage'owane
+  jako karty `pending`; wykonuja sie dopiero po zatwierdzeniu przez czlowieka (`requireAuth`,
+  fail-closed) - nadzor czlowieka nad zapisem wg **AI Act art. 14**. Nowa tabela
+  `mutation_approvals` (dual SQLite+Postgres, scoping `user_id`), nowy `event_type`
+  `mutation.approval.decision` w audit hash-chain (art. 12, payload bez tresci dokumentu).
+  Bramka w `tool-dispatch.ts` nad sciezka narzedzi; inbox UI `account/approval-cards`
+  (PL/EN). RODO art. 17/20: `mutation_approvals` objete `rodo-delete`/`rodo-export`.
+  **Domyslnie OFF** (`PATRON_MUTATION_APPROVAL` = `off`|`all`|`high-stakes`; `true`=alias `all`)
+  - flip na ON po review round 2 + eval. US3 (P3): bramka objela tez `add_comments` (komplet
+  narzedzi agenta mutujacych tresc: edit/generate/comments) + polityka `shouldStageMutation`
+  (off/all/high-stakes; high-stakes wpiety w `classifyHighStakes`/ADR-0092 FAIL-CLOSED - stage
+  dopoki nie pewne, ze low-stakes). `resolve_tracked_change`/`export_document` to akcje czlowieka
+  (trasy), nie narzedzia agenta - poza zakresem (resolve audytowane `document.edit_resolved`).
 - **Jezyk agenta wg locale (US2, ADR-0135)** - `SYSTEM_PROMPT` skladany przez
   `buildSystemPrompt(locale)`; `PATRON_LOCALE=en` przelacza jezyk odpowiedzi, opis
   struktury sadow i przewodnik mozliwosci na EN (przez reviewer-en + humanizer-en).

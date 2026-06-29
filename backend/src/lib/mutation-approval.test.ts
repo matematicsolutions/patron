@@ -72,6 +72,51 @@ describe("isMutationApprovalEnabled (env opt-in)", () => {
     });
 });
 
+describe("mutationStagingMode + shouldStageMutation (US3 polityka, ADR-0092)", () => {
+    const setEnv = (v?: string) => {
+        if (v === undefined) delete process.env.PATRON_MUTATION_APPROVAL;
+        else process.env.PATRON_MUTATION_APPROVAL = v;
+    };
+
+    it("mode: brak/inne=off, true|all=all, high-stakes=high-stakes", () => {
+        const prev = process.env.PATRON_MUTATION_APPROVAL;
+        setEnv(undefined);
+        expect(mod.mutationStagingMode()).toBe("off");
+        setEnv("1");
+        expect(mod.mutationStagingMode()).toBe("off");
+        setEnv("true");
+        expect(mod.mutationStagingMode()).toBe("all");
+        setEnv("all");
+        expect(mod.mutationStagingMode()).toBe("all");
+        setEnv("high-stakes");
+        expect(mod.mutationStagingMode()).toBe("high-stakes");
+        setEnv(prev);
+    });
+
+    it("off -> nie stage; all -> stage zawsze", () => {
+        const prev = process.env.PATRON_MUTATION_APPROVAL;
+        setEnv(undefined);
+        expect(mod.shouldStageMutation().stage).toBe(false);
+        setEnv("all");
+        expect(mod.shouldStageMutation().stage).toBe(true);
+        setEnv(prev);
+    });
+
+    it("high-stakes: FAIL-CLOSED gdy brak danych; auto-execute tylko gdy pewne low-stakes", () => {
+        const prev = process.env.PATRON_MUTATION_APPROVAL;
+        setEnv("high-stakes");
+        // brak kontekstu -> isInputSufficient=false -> stage (fail-closed)
+        expect(mod.shouldStageMutation({}).stage).toBe(true);
+        // pewne low-stakes (notatka) -> auto-execute (nie stage)
+        expect(mod.shouldStageMutation({ documentType: "notatka" }).stage).toBe(false);
+        // high-stakes z definicji (opinia) -> stage
+        expect(mod.shouldStageMutation({ documentType: "opinia" }).stage).toBe(true);
+        // explicit override -> stage
+        expect(mod.shouldStageMutation({ explicitFlag: true }).stage).toBe(true);
+        setEnv(prev);
+    });
+});
+
 describe("stageMutationApproval + scoping", () => {
     it("tworzy karte pending z round-trip tool_payload i scoping user_id", async () => {
         const card = await mod.stageMutationApproval(db, {
