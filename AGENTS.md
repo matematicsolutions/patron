@@ -78,7 +78,7 @@ Tests: 1341/1346 pass (5 todo, 0 fail) as of 2026-07-30 (backend vitest). TSC cl
 ## Sources of truth (reading order)
 
 1. [README.md](./README.md) - description for humans
-2. [governance/CONSTITUTION.md](./governance/CONSTITUTION.md) - 9 principles, roles, audit (v1.6.1, signed by the firm)
+2. [governance/CONSTITUTION.md](./governance/CONSTITUTION.md) - 9 principles, roles, audit (v1.7.0, signed by the firm)
 3. [governance/IMPLEMENTATION_PLAYBOOK.md](./governance/IMPLEMENTATION_PLAYBOOK.md) - 6-8 week rollout, RACI
 4. [governance/adr/](./governance/adr/) - Architecture Decision Records (0001-0130)
 5. [THIRD_PARTY_INSPIRATIONS.md](./THIRD_PARTY_INSPIRATIONS.md) - what we cherry-picked and from where (Mike, Lavern, gbrain, isaacus/tabular-review, PII-Shield, earendil/pi, awesome-llm-apps)
