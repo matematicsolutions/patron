@@ -110,6 +110,83 @@ describe("bramka stagingu w runToolCalls (ADR-0137)", () => {
         expect(data[0].tool_name).toBe("edit_document");
     });
 
+    it("staging ON: add_comments stage'uje karte pending i NIE wykonuje (US3)", async () => {
+        process.env.PATRON_MUTATION_APPROVAL = "true";
+        const { docStore, docIndex } = docxFixture();
+        const toolCalls: ToolCall[] = [
+            {
+                id: "tc",
+                function: {
+                    name: "add_comments",
+                    arguments: JSON.stringify({
+                        doc_id: "doc-0",
+                        comments: [{ find: "art. 415 KC", text: "sprawdz podstawe" }],
+                    }),
+                },
+            },
+        ];
+        const out = await runToolCalls(
+            toolCalls,
+            docStore,
+            "u_gate_c",
+            db,
+            () => {},
+            undefined,
+            undefined,
+            docIndex,
+            new Map(),
+            null,
+        );
+        expect(out.docsCommented).toHaveLength(0);
+        const parsed = JSON.parse(
+            (out.toolResults[0] as { content: string }).content,
+        );
+        expect(parsed.staged).toBe(true);
+        const { data } = await db
+            .from("mutation_approvals")
+            .select("*")
+            .eq("user_id", "u_gate_c")
+            .eq("status", "pending");
+        expect((data ?? []).length).toBe(1);
+        expect(data[0].tool_name).toBe("add_comments");
+    });
+
+    it("staging high-stakes: edit_document stage'uje (fail-closed bez metadanych)", async () => {
+        process.env.PATRON_MUTATION_APPROVAL = "high-stakes";
+        const { docStore, docIndex } = docxFixture();
+        const toolCalls: ToolCall[] = [
+            {
+                id: "th",
+                function: {
+                    name: "edit_document",
+                    arguments: JSON.stringify({
+                        doc_id: "doc-0",
+                        edits: [{ find: "X", replace: "Y" }],
+                    }),
+                },
+            },
+        ];
+        const out = await runToolCalls(
+            toolCalls,
+            docStore,
+            "u_gate_hs",
+            db,
+            () => {},
+            undefined,
+            undefined,
+            docIndex,
+            new Map(),
+            null,
+        );
+        expect(out.docsEdited).toHaveLength(0);
+        const { data } = await db
+            .from("mutation_approvals")
+            .select("id")
+            .eq("user_id", "u_gate_hs")
+            .eq("status", "pending");
+        expect((data ?? []).length).toBe(1);
+    });
+
     it("sciezka narzedzi nie zepsuta: list_documents dziala (staging OFF)", async () => {
         const { docStore } = docxFixture();
         const toolCalls: ToolCall[] = [

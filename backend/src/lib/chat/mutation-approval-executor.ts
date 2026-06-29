@@ -6,10 +6,11 @@
 // Wykonanie jest TYM SAMYM, co inline w tool-dispatch.ts - tylko odroczonym do
 // momentu decyzji czlowieka. Bez reuseVersion (karta = osobny, swiadomy zapis).
 
-import { runEditDocument } from "./docx-edit";
+import { runEditDocument, runAddComments } from "./docx-edit";
 import { generateDocx } from "./docx-generate";
 import { createServerSupabase } from "../supabase";
 import type { EditInput } from "../docxTrackedChanges";
+import type { CommentInput } from "../docxComments";
 import type { ExecutorResult, MutationApproval } from "../mutation-approval";
 
 type Db = ReturnType<typeof createServerSupabase>;
@@ -33,6 +34,28 @@ export async function executeStagedTool(
             return { ok: false, error: "Karta bez document_id lub edits." };
         }
         const r = await runEditDocument({ documentId, userId, edits, db });
+        if (!r.ok) return { ok: false, error: r.error };
+        return {
+            ok: true,
+            result: {
+                document_id: documentId,
+                version_id: r.version_id,
+                version_number: r.version_number,
+                download_url: r.download_url,
+                applied: r.annotations.length,
+                errors: r.errors,
+            },
+        };
+    }
+
+    if (card.tool_name === "add_comments") {
+        const documentId =
+            card.document_id ?? (p.document_id as string | undefined);
+        const comments = (p.comments as CommentInput[] | undefined) ?? [];
+        if (!documentId || comments.length === 0) {
+            return { ok: false, error: "Karta bez document_id lub comments." };
+        }
+        const r = await runAddComments({ documentId, userId, comments, db });
         if (!r.ok) return { ok: false, error: r.error };
         return {
             ok: true,

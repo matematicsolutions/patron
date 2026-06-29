@@ -18,6 +18,11 @@
 
 import { appendAuditEvent } from "./audit";
 import { createServerSupabase } from "./supabase";
+import {
+    classifyHighStakes,
+    isInputSufficient,
+    type ClassificationInput,
+} from "./highstakes";
 
 type Db = ReturnType<typeof createServerSupabase>;
 
@@ -25,8 +30,15 @@ export const MUTATION_APPROVAL_EVENT_TYPE = "mutation.approval.decision" as cons
 
 export type MutationApprovalStatus = "pending" | "approved" | "rejected";
 
-/** Narzedzia objete stagingiem w MVP (US1). US3 rozszerza o comments/export. */
-export type StagedToolName = "edit_document" | "generate_docx";
+/**
+ * Narzedzia objete stagingiem (akcje agenta o skutkach ubocznych na tresci
+ * dokumentu). US1: edit/generate. US3 (ADR-0137): + add_comments. `resolve_*` /
+ * `export_*` to akcje CZLOWIEKA (trasy), nie narzedzia agenta - poza zakresem.
+ */
+export type StagedToolName =
+    | "edit_document"
+    | "generate_docx"
+    | "add_comments";
 
 export interface MutationApproval {
     id: string;
@@ -57,12 +69,67 @@ export interface StageMutationInput {
 }
 
 /**
- * Czy staging mutacji jest wlaczony. MVP: opt-in przez env (domyslnie OFF), by
- * nie zmieniac sciezki krytycznej czatu zanim wjedzie inbox UI (Phase 4 US2).
- * Po wdrozeniu UI domyslna wartosc przejdzie na ON dla outbound (spec Q1).
+ * Tryb stagingu mutacji (US3, polityka low-risk/high-stakes). Env
+ * `PATRON_MUTATION_APPROVAL`:
+ *   - "off" / brak / inne  -> off  (zero stagingu; domyslnie, zero zmiany zachowania)
+ *   - "true" / "all"       -> all  (stage KAZDA akcje wyjsciowa)
+ *   - "high-stakes"        -> high-stakes (stage tylko sprawy high-stakes; fail-closed)
+ * "true" zachowane jako alias "all" (back-compat z US1/US2).
  */
+export type MutationStagingMode = "off" | "all" | "high-stakes";
+
+export function mutationStagingMode(): MutationStagingMode {
+    const v = (process.env.PATRON_MUTATION_APPROVAL ?? "").trim().toLowerCase();
+    if (v === "true" || v === "all") return "all";
+    if (v === "high-stakes" || v === "high_stakes") return "high-stakes";
+    return "off";
+}
+
+/** Czy staging w ogole aktywny (back-compat; = tryb != off). */
 export function isMutationApprovalEnabled(): boolean {
-    return process.env.PATRON_MUTATION_APPROVAL === "true";
+    return mutationStagingMode() !== "off";
+}
+
+export interface StagingDecision {
+    stage: boolean;
+    mode: MutationStagingMode;
+    reason: string;
+}
+
+/**
+ * Decyzja, czy dana akcja idzie do stagingu (ADR-0137 + ADR-0092). Polityka:
+ *   - off  -> nie stage (wykonaj inline),
+ *   - all  -> stage zawsze,
+ *   - high-stakes -> FAIL-CLOSED: stage chyba ze pewne, ze low-stakes. Bramka
+ *     zapisu MUSI fail-closed: gdy klasyfikatorowi brak danych
+ *     (`isInputSufficient=false`) - stage'ujemy (bezpieczniej). Auto-execute
+ *     tylko gdy mamy dosc kontekstu i `classifyHighStakes` mowi low-stakes.
+ *     UWAGA: PATRON nie ma jeszcze metadanych deliverable (documentType /
+ *     wartosc) na poziomie tool-dispatch -> dzis high-stakes zachowuje sie jak
+ *     `all` (fail-closed), a selektywnosc wlaczy sie gdy projekt zacznie nosic
+ *     te metadane (rezerwacja).
+ */
+export function shouldStageMutation(
+    input: ClassificationInput = {},
+): StagingDecision {
+    const mode = mutationStagingMode();
+    if (mode === "off") return { stage: false, mode, reason: "staging-off" };
+    if (mode === "all") return { stage: true, mode, reason: "all-outbound" };
+    if (!isInputSufficient(input)) {
+        return {
+            stage: true,
+            mode,
+            reason: "high-stakes: insufficient-input -> fail-closed (stage)",
+        };
+    }
+    const cls = classifyHighStakes(input);
+    return {
+        stage: cls.isHighStakes,
+        mode,
+        reason: cls.isHighStakes
+            ? `high-stakes: ${cls.reasons.join("; ")}`
+            : "low-stakes: auto-execute",
+    };
 }
 
 /** Bramka human-in-the-loop: actorId musi byc obecny (nie pusty/system). */

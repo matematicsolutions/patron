@@ -34,8 +34,8 @@ Format: `[ID] [P?] [Story] Opis`. `[P]` = parallel-safe (rozne pliki, bez zalezn
 - [x] T033 [US2] zakladka `account.approvals` w nawigacji konta. WERYFIKACJA: frontend tsc=0, eslint 0 errors, `next build` OK (route /account/approval-cards w manifescie)
 
 ## Phase 5 - US3 (P3) pelne pokrycie + polityka
-- [ ] T040 [US3] objac `add_comments`, `resolve_tracked_change`, `export_document`
-- [ ] T041 [US3] polityka low-risk/high-stakes (spiec z `classifyHighStakes` ADR-0092)
+- [x] T040 [US3] objac `add_comments` (bramka + executor + test). UCZCIWY ZAKRES: `resolve_tracked_change` i `export_document` to AKCJE CZLOWIEKA (trasy), nie narzedzia agenta - resolve juz audytowane (`document.edit_resolved`, ADR-0070), export = pobranie (nie mutacja tresci); `replicate_document` celowo niegated (duplikacja, nizsza stawka, rezerwacja). Pokryte narzedzia agenta mutujace tresc: edit_document + generate_docx + add_comments = komplet.
+- [x] T041 [US3] polityka `shouldStageMutation` + `mutationStagingMode` (off|all|high-stakes). high-stakes wpiety w `classifyHighStakes` (ADR-0092) FAIL-CLOSED: stage gdy `isInputSufficient=false` (PATRON nie ma jeszcze metadanych deliverable na tym poziomie -> high-stakes = jak `all`, selektywnosc po dodaniu metadanych). 5 testow (mode + decision fail-closed). backend 1313 pass/0 fail, tsc 0.
 
 ## Phase N - Polish
 - [ ] T050 [P] marko/reviewer dla copy UI (PL+EN)

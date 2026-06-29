@@ -27,7 +27,7 @@ import { type CommentInput } from "../docxComments";
 import { retrieve } from "../retrieval/retrieval";
 import { saveMemory, listMemories, readMemory } from "../brain/store";
 import {
-    isMutationApprovalEnabled,
+    shouldStageMutation,
     stageMutationApproval,
     type StagedToolName,
 } from "../mutation-approval";
@@ -549,7 +549,10 @@ async function maybeStageMutation(params: {
     documentId: string | null;
     toolPayload: Record<string, unknown>;
 }): Promise<StageOutcome> {
-    if (!isMutationApprovalEnabled()) return { mode: "proceed" };
+    // Polityka US3 (ADR-0137 + ADR-0092): off/all/high-stakes (fail-closed).
+    // Kontekst klasyfikatora pusty - metadane deliverable (typ/wartosc) nie sa
+    // dzis dostepne na tym poziomie; high-stakes zachowuje sie jak all (rezerwacja).
+    if (!shouldStageMutation().stage) return { mode: "proceed" };
     const card = await stageMutationApproval(params.db, {
         userId: params.userId,
         chatId: params.chatId,
@@ -1273,12 +1276,7 @@ export async function runToolCalls(
                     content: JSON.stringify({ error: err }),
                 });
             } else {
-                write(
-                    `data: ${JSON.stringify({
-                        type: "doc_commented_start",
-                        filename: docInfo.filename,
-                    })}\n\n`,
-                );
+                // Normalizacja PRZED bramka - parytet staged/inline (jak edit).
                 const comments: CommentInput[] = (
                     commentsRaw as Record<string, unknown>[]
                 ).map((c) => ({
@@ -1287,6 +1285,62 @@ export async function runToolCalls(
                     context_after: String(c.context_after ?? ""),
                     text: String(c.text ?? ""),
                 }));
+                // ADR-0137 (US3): bramka human-in-the-loop przed dodaniem komentarzy.
+                const stageOutcome = await maybeStageMutation({
+                    toolName: "add_comments",
+                    userId,
+                    db,
+                    chatId: null,
+                    documentId: indexed.document_id,
+                    toolPayload: {
+                        doc_id: docId,
+                        document_id: indexed.document_id,
+                        filename: docInfo.filename,
+                        comments,
+                    },
+                });
+                if (stageOutcome.mode !== "proceed") {
+                    if (stageOutcome.mode === "staged") {
+                        write(
+                            `data: ${JSON.stringify({
+                                type: "doc_commented",
+                                filename: docInfo.filename,
+                                document_id: indexed.document_id,
+                                version_id: "",
+                                download_url: "",
+                                annotations: [],
+                                staged: true,
+                                approval_id: stageOutcome.approvalId,
+                            })}\n\n`,
+                        );
+                        toolResults.push({
+                            role: "tool",
+                            tool_call_id: tc.id,
+                            content: stagedToolResultContent(
+                                "add_comments",
+                                stageOutcome.approvalId,
+                            ),
+                        });
+                    } else {
+                        emitCommentError(
+                            docInfo.filename,
+                            indexed.document_id,
+                            stageOutcome.error,
+                        );
+                        toolResults.push({
+                            role: "tool",
+                            tool_call_id: tc.id,
+                            content: JSON.stringify({ error: stageOutcome.error }),
+                        });
+                    }
+                    continue;
+                }
+                write(
+                    `data: ${JSON.stringify({
+                        type: "doc_commented_start",
+                        filename: docInfo.filename,
+                    })}\n\n`,
+                );
                 const reuseVersion = turnEditState?.get(indexed.document_id);
                 const result = await runAddComments({
                     documentId: indexed.document_id,
