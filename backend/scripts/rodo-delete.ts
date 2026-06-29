@@ -110,12 +110,16 @@ async function main() {
         if (err4) console.error(`[rodo:delete] documents soft-delete err:`, err4.message);
     }
 
-    // 4. projects, workflows, user_profiles, user_api_keys
+    // 4. projects, workflows, user_profiles, user_api_keys, mutation_approvals
+    //    (ADR-0137: karty zatwierdzenia mutacji niosa tool_payload z tekstem
+    //    edycji dokumentu klienta -> musza zniknac przy art. 17; FK do chats/
+    //    documents ma ON DELETE SET NULL, wiec kolejnosc usuniecia jest dowolna).
     for (const table of [
         "projects",
         "workflows",
         "user_profiles",
         "user_api_keys",
+        "mutation_approvals",
     ]) {
         const { error } = await db.from(table).delete().eq("user_id", userId!);
         if (error) {

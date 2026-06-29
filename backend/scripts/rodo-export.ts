@@ -55,6 +55,7 @@ interface RodoExport {
     document_versions: unknown[];
     projects: unknown[];
     workflows: unknown[];
+    mutation_approvals: unknown[];
     audit_log_entries: unknown[];
     note: string;
 }
@@ -96,6 +97,7 @@ async function main() {
         documentVersions,
         projects,
         workflows,
+        mutationApprovals,
         auditEntries,
     ] = await Promise.all([
         db
@@ -135,6 +137,7 @@ async function main() {
         })(),
         fetchAll("projects", "user_id", userId!),
         fetchAll("workflows", "user_id", userId!),
+        fetchAll("mutation_approvals", "user_id", userId!),
         fetchAll("audit_log", "actor_user_id", userId!),
     ]);
 
@@ -149,6 +152,7 @@ async function main() {
         document_versions: documentVersions,
         projects,
         workflows,
+        mutation_approvals: mutationApprovals,
         audit_log_entries: auditEntries,
         note: "Pliki binarne (.docx/.pdf) sa w MinIO bucket - dostarcz osobno z odpowiednia kopia ze storage_path kazdego document_versions.",
     };

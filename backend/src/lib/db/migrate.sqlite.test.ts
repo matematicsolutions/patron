@@ -5,6 +5,7 @@ import {
     SQLITE_MIGRATIONS,
     type SqliteMigration,
 } from "./migrate.sqlite";
+import { SQLITE_SCHEMA } from "./schema.sqlite";
 
 // CHECK ze STAREGO schematu (przed audytem P1 #3) - bez 'openrouter'.
 const LEGACY_USER_API_KEYS = `
@@ -210,6 +211,152 @@ describe("migracja v2: project.cloud_consent w CHECK audit_log (P2 #6)", () => {
                 )
                 .run(4, "t3", "totally.bogus", "{}", "h3", "h4"),
         ).toThrow();
+        db.close();
+    });
+});
+
+// Czy w sqlite_master istnieje tabela `mutation_approvals`.
+function hasMutationApprovals(db: Database.Database): boolean {
+    return Boolean(
+        db
+            .prepare(
+                "select 1 from sqlite_master where type='table' and name='mutation_approvals'",
+            )
+            .get(),
+    );
+}
+
+describe("migracja v4: mutation.approval.decision + tabela mutation_approvals (ADR-0137)", () => {
+    it("(1) rebuilduje audit_log ZACHOWUJAC wiersze i hash-chain, dodaje mutation.approval.decision", () => {
+        const db = new Database(":memory:");
+        db.exec(LEGACY_AUDIT_LOG);
+        db.prepare(
+            "insert into audit_log (id,ts,actor_user_id,event_type,payload,prev_hash,hash) values (?,?,?,?,?,?,?)",
+        ).run(1, "t0", "u1", "chat.message.user", "{}", "GENESIS", "h1");
+        db.prepare(
+            "insert into audit_log (id,ts,actor_user_id,event_type,payload,prev_hash,hash) values (?,?,?,?,?,?,?)",
+        ).run(2, "t1", "u1", "llm_route", '{"model":"x"}', "h1", "h2");
+
+        // Przed: nowy event_type lamie CHECK.
+        expect(() =>
+            db
+                .prepare(
+                    "insert into audit_log (id,ts,event_type,payload,prev_hash,hash) values (?,?,?,?,?,?)",
+                )
+                .run(3, "t2", "mutation.approval.decision", "{}", "h2", "h3"),
+        ).toThrow();
+
+        runSqliteMigrations(db, SQLITE_MIGRATIONS);
+
+        // Po: CHECK ma nowy typ, wiersze + hash-chain zachowane (id/prev_hash/hash).
+        expect(auditCheckSql(db)).toContain("mutation.approval.decision");
+        const rows = db
+            .prepare("select id, prev_hash, hash, event_type from audit_log order by id")
+            .all() as { id: number; prev_hash: string; hash: string; event_type: string }[];
+        expect(rows).toEqual([
+            { id: 1, prev_hash: "GENESIS", hash: "h1", event_type: "chat.message.user" },
+            { id: 2, prev_hash: "h1", hash: "h2", event_type: "llm_route" },
+        ]);
+        db.close();
+    });
+
+    it("(2) po migracji nowy event_type przechodzi CHECK, nieznany nadal odrzucany", () => {
+        const db = new Database(":memory:");
+        db.exec(LEGACY_AUDIT_LOG);
+        runSqliteMigrations(db, SQLITE_MIGRATIONS);
+
+        expect(() =>
+            db
+                .prepare(
+                    "insert into audit_log (id,ts,event_type,payload,prev_hash,hash) values (?,?,?,?,?,?)",
+                )
+                .run(1, "t0", "mutation.approval.decision", "{}", "GENESIS", "h1"),
+        ).not.toThrow();
+        expect(() =>
+            db
+                .prepare(
+                    "insert into audit_log (id,ts,event_type,payload,prev_hash,hash) values (?,?,?,?,?,?)",
+                )
+                .run(2, "t1", "totally.bogus", "{}", "h1", "h2"),
+        ).toThrow();
+        db.close();
+    });
+
+    it("(3) tworzy tabele mutation_approvals dla istniejacej bazy (fallback) z indeksami", () => {
+        const db = new Database(":memory:");
+        db.exec(LEGACY_AUDIT_LOG);
+        expect(hasMutationApprovals(db)).toBe(false);
+
+        runSqliteMigrations(db, SQLITE_MIGRATIONS);
+
+        expect(hasMutationApprovals(db)).toBe(true);
+        const idx = db
+            .prepare(
+                "select count(*) c from sqlite_master where type='index' and name in ('idx_mutation_approvals_user_status','idx_mutation_approvals_chat','idx_mutation_approvals_document')",
+            )
+            .get() as { c: number };
+        expect(idx.c).toBe(3);
+        db.close();
+    });
+
+    it("(4) mutation_approvals: insert pending OK, status spoza enum odrzucony", () => {
+        const db = new Database(":memory:");
+        db.exec(LEGACY_AUDIT_LOG);
+        runSqliteMigrations(db, SQLITE_MIGRATIONS);
+
+        expect(() =>
+            db
+                .prepare(
+                    "insert into mutation_approvals (id,user_id,tool_name,staged_at,staged_by,created_at,updated_at) values (?,?,?,?,?,?,?)",
+                )
+                .run("m1", "u1", "edit_document", "t0", "u1", "t0", "t0"),
+        ).not.toThrow();
+        const row = db
+            .prepare("select status, tool_payload from mutation_approvals where id='m1'")
+            .get() as { status: string; tool_payload: string };
+        expect(row.status).toBe("pending");
+        expect(row.tool_payload).toBe("{}");
+        expect(() =>
+            db
+                .prepare(
+                    "insert into mutation_approvals (id,user_id,tool_name,status,staged_at,staged_by,created_at,updated_at) values (?,?,?,?,?,?,?,?)",
+                )
+                .run("m2", "u1", "edit_document", "bogus", "t0", "u1", "t0", "t0"),
+        ).toThrow();
+        db.close();
+    });
+
+    it("(5) swieza baza z SQLITE_SCHEMA: nowy event_type przechodzi CHECK, tabela istnieje", () => {
+        const db = new Database(":memory:");
+        db.exec(SQLITE_SCHEMA);
+        // Bootstrap zaklada audit_log z pelna whitelist + mutation_approvals.
+        expect(auditCheckSql(db)).toContain("mutation.approval.decision");
+        expect(hasMutationApprovals(db)).toBe(true);
+        expect(() =>
+            db
+                .prepare(
+                    "insert into audit_log (ts,event_type,payload,prev_hash,hash) values (?,?,?,?,?)",
+                )
+                .run("t0", "mutation.approval.decision", "{}", "GENESIS", "h1"),
+        ).not.toThrow();
+        db.close();
+    });
+
+    it("(6) samo-pomijalny gdy CHECK juz zawiera mutation.approval.decision (swieza baza, migracje no-op)", () => {
+        const db = new Database(":memory:");
+        db.exec(SQLITE_SCHEMA);
+        db.prepare(
+            "insert into audit_log (ts,event_type,payload,prev_hash,hash) values (?,?,?,?,?)",
+        ).run("t0", "mutation.approval.decision", "{}", "GENESIS", "h1");
+
+        // Re-run migracji nie rebuilduje (CHECK juz aktualny) - wiersz przezywa.
+        runSqliteMigrations(db, SQLITE_MIGRATIONS);
+
+        expect(auditCheckSql(db)).toContain("mutation.approval.decision");
+        const c = db
+            .prepare("select count(*) c from audit_log")
+            .get() as { c: number };
+        expect(c.c).toBe(1);
         db.close();
     });
 });

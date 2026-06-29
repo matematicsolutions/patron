@@ -26,6 +26,11 @@ import {
 import { type CommentInput } from "../docxComments";
 import { retrieve } from "../retrieval/retrieval";
 import { saveMemory, listMemories, readMemory } from "../brain/store";
+import {
+    isMutationApprovalEnabled,
+    stageMutationApproval,
+    type StagedToolName,
+} from "../mutation-approval";
 import type {
     CommentAnnotation,
     DocIndex,
@@ -519,6 +524,62 @@ export async function resolveSearchScope(
     };
 }
 
+/**
+ * Wynik bramki stagingu (ADR-0137) dla pojedynczej akcji o skutkach ubocznych:
+ *   - proceed -> staging wylaczony, wykonaj inline jak dotad,
+ *   - staged  -> utworzono karte `pending`, akcja NIE wykonuje sie,
+ *   - error   -> staging wlaczony, ale zapis karty zawiodl -> fail-closed (nie wykonuj).
+ */
+type StageOutcome =
+    | { mode: "proceed" }
+    | { mode: "staged"; approvalId: string }
+    | { mode: "error"; error: string };
+
+/**
+ * Bramka human-in-the-loop przed wykonaniem narzedzia mutujacego (ADR-0137).
+ * Gdy staging wlaczony - stage'uje akcje jako karte `pending` i sygnalizuje, ze
+ * NIE nalezy jej wykonywac inline (czeka na zatwierdzenie czlowieka, AI Act
+ * art. 14). Domyslnie wylaczona (env) - zero zmiany sciezki czatu do czasu UI inbox.
+ */
+async function maybeStageMutation(params: {
+    toolName: StagedToolName;
+    userId: string;
+    db: ReturnType<typeof createServerSupabase>;
+    chatId: string | null;
+    documentId: string | null;
+    toolPayload: Record<string, unknown>;
+}): Promise<StageOutcome> {
+    if (!isMutationApprovalEnabled()) return { mode: "proceed" };
+    const card = await stageMutationApproval(params.db, {
+        userId: params.userId,
+        chatId: params.chatId,
+        documentId: params.documentId,
+        toolName: params.toolName,
+        toolPayload: params.toolPayload,
+    });
+    if (!card) {
+        return {
+            mode: "error",
+            error: "Nie udalo sie utworzyc karty zatwierdzenia - akcja NIE zostala wykonana. Sprobuj ponownie.",
+        };
+    }
+    return { mode: "staged", approvalId: card.id };
+}
+
+/** Tool-result dla akcji stage'owanej (model informuje usera o oczekiwaniu). */
+function stagedToolResultContent(
+    toolName: StagedToolName,
+    approvalId: string,
+): string {
+    return JSON.stringify({
+        ok: true,
+        staged: true,
+        status: "pending",
+        approval_id: approvalId,
+        note: `Akcja "${toolName}" zostala przygotowana i czeka na zatwierdzenie przez czlowieka (karta ${approvalId}). NIE zostala jeszcze wykonana. Poinformuj uzytkownika, ze musi zatwierdzic karte, aby zapis nastapil.`,
+    });
+}
+
 export async function runToolCalls(
     toolCalls: ToolCall[],
     docStore: DocStore,
@@ -1006,12 +1067,8 @@ export async function runToolCalls(
                     content: JSON.stringify({ error: err }),
                 });
             } else {
-                write(
-                    `data: ${JSON.stringify({
-                        type: "doc_edited_start",
-                        filename: docInfo.filename,
-                    })}\n\n`,
-                );
+                // Normalizacja edits PRZED bramka, by sciezka staged i inline
+                // wykonywaly DOKLADNIE te same (skoercowane) edits - parytet.
                 const edits: EditInput[] = (
                     editsRaw as Record<string, unknown>[]
                 ).map((e) => ({
@@ -1021,6 +1078,62 @@ export async function runToolCalls(
                     context_after: String(e.context_after ?? ""),
                     reason: e.reason ? String(e.reason) : undefined,
                 }));
+                // ADR-0137: bramka human-in-the-loop przed zapisem dokumentu.
+                const stageOutcome = await maybeStageMutation({
+                    toolName: "edit_document",
+                    userId,
+                    db,
+                    chatId: null,
+                    documentId: indexed.document_id,
+                    toolPayload: {
+                        doc_id: docId,
+                        document_id: indexed.document_id,
+                        filename: docInfo.filename,
+                        edits,
+                    },
+                });
+                if (stageOutcome.mode !== "proceed") {
+                    if (stageOutcome.mode === "staged") {
+                        write(
+                            `data: ${JSON.stringify({
+                                type: "doc_edited",
+                                filename: docInfo.filename,
+                                document_id: indexed.document_id,
+                                version_id: "",
+                                download_url: "",
+                                annotations: [],
+                                staged: true,
+                                approval_id: stageOutcome.approvalId,
+                            })}\n\n`,
+                        );
+                        toolResults.push({
+                            role: "tool",
+                            tool_call_id: tc.id,
+                            content: stagedToolResultContent(
+                                "edit_document",
+                                stageOutcome.approvalId,
+                            ),
+                        });
+                    } else {
+                        emitEditError(
+                            docInfo.filename,
+                            indexed.document_id,
+                            stageOutcome.error,
+                        );
+                        toolResults.push({
+                            role: "tool",
+                            tool_call_id: tc.id,
+                            content: JSON.stringify({ error: stageOutcome.error }),
+                        });
+                    }
+                    continue;
+                }
+                write(
+                    `data: ${JSON.stringify({
+                        type: "doc_edited_start",
+                        filename: docInfo.filename,
+                    })}\n\n`,
+                );
                 const reuseVersion = turnEditState?.get(indexed.document_id);
                 const result = await runEditDocument({
                     documentId: indexed.document_id,
@@ -1567,6 +1680,58 @@ export async function runToolCalls(
                     .trim()
                     .slice(0, 64) || "document"
             }.docx`;
+            // ADR-0137: bramka human-in-the-loop przed wygenerowaniem dokumentu.
+            const genStage = await maybeStageMutation({
+                toolName: "generate_docx",
+                userId,
+                db,
+                chatId: null,
+                documentId: null,
+                toolPayload: {
+                    title,
+                    sections: args.sections,
+                    landscape,
+                    kancelaria,
+                    projectId: projectId ?? null,
+                    filename: previewFilename,
+                },
+            });
+            if (genStage.mode !== "proceed") {
+                if (genStage.mode === "staged") {
+                    write(
+                        `data: ${JSON.stringify({
+                            type: "doc_created",
+                            filename: previewFilename,
+                            download_url: "",
+                            staged: true,
+                            approval_id: genStage.approvalId,
+                        })}\n\n`,
+                    );
+                    toolResults.push({
+                        role: "tool",
+                        tool_call_id: tc.id,
+                        content: stagedToolResultContent(
+                            "generate_docx",
+                            genStage.approvalId,
+                        ),
+                    });
+                } else {
+                    write(
+                        `data: ${JSON.stringify({
+                            type: "doc_created",
+                            filename: previewFilename,
+                            download_url: "",
+                            error: genStage.error,
+                        })}\n\n`,
+                    );
+                    toolResults.push({
+                        role: "tool",
+                        tool_call_id: tc.id,
+                        content: JSON.stringify({ error: genStage.error }),
+                    });
+                }
+                continue;
+            }
             write(
                 `data: ${JSON.stringify({ type: "doc_created_start", filename: previewFilename })}\n\n`,
             );

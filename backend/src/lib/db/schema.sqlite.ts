@@ -167,6 +167,35 @@ create index if not exists document_edits_document_id_idx on document_edits(docu
 create index if not exists document_edits_message_id_idx on document_edits(chat_message_id);
 create index if not exists document_edits_version_id_idx on document_edits(version_id);
 
+-- Karty zatwierdzenia mutacji (ADR-0137). Kolejka akcji agenta o skutkach
+-- ubocznych (edit/generate/comments/export) stage'owanych za bramka czlowieka
+-- (AI Act art. 14). Stany pending -> approved | rejected; po approved wykonanie
+-- i znacznik executed_at / execution_error. tool_payload trzyma argumenty
+-- narzedzia do wykonania PO zatwierdzeniu - bez pelnych tresci dokumentu (RODO
+-- minimalizacja). Scoping user_id (jak projects/documents). Lustro: schema.sql.
+create table if not exists mutation_approvals (
+  id text primary key,
+  user_id text not null,
+  chat_id text references chats(id) on delete set null,
+  document_id text references documents(id) on delete set null,
+  tool_name text not null,
+  tool_payload text not null default '{}',
+  status text not null default 'pending'
+    check (status in ('pending', 'approved', 'rejected')),
+  staged_at text not null,
+  staged_by text not null,
+  approved_at text,
+  approved_by text,
+  rejection_reason text,
+  executed_at text,
+  execution_error text,
+  created_at text not null,
+  updated_at text not null
+);
+create index if not exists idx_mutation_approvals_user_status on mutation_approvals(user_id, status);
+create index if not exists idx_mutation_approvals_chat on mutation_approvals(chat_id);
+create index if not exists idx_mutation_approvals_document on mutation_approvals(document_id);
+
 create table if not exists workflows (
   id text primary key,
   user_id text,
@@ -276,7 +305,8 @@ create table if not exists audit_log (
     'document.edit_resolved',
     'tabular.grounding',
     'project.cloud_consent',
-    'connector.toggle'
+    'connector.toggle',
+    'mutation.approval.decision'
   )),
   chat_id text,
   document_id text,

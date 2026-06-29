@@ -50,6 +50,7 @@ const JSON_COLUMNS: Record<string, Set<string>> = {
   tabular_review_chat_messages: new Set(["content", "annotations"]),
   audit_log: new Set(["payload"]),
   installed_skills: new Set(["manifest"]),
+  mutation_approvals: new Set(["tool_payload"]),
 };
 
 const IDENT_RE = /^[a-z_][a-z0-9_]*$/i;

@@ -192,6 +192,112 @@ function rebuildAuditLogAddConnectorToggle(db: Database.Database): void {
     `);
 }
 
+/**
+ * Tworzy tabele `mutation_approvals` dla istniejacych baz (ADR-0137) - kolejka
+ * kart zatwierdzenia mutacji. Idempotentny fallback: kanoniczna definicja (z FK
+ * chat_id/document_id) zyje w SQLITE_SCHEMA i bootstrap zaklada ja przez
+ * `db.exec(SQLITE_SCHEMA)` create-if-not-exists JESZCZE PRZED runSqliteMigrations,
+ * wiec w produkcji tabela juz istnieje gdy tu wchodzimy. Wersja ponizej (bez
+ * klauzul FK) sluzy tylko gdy migracja biegnie standalone (np. testy) - bez FK,
+ * by nie wymagac tabel chats/documents w izolowanej bazie.
+ */
+function ensureMutationApprovalsTable(db: Database.Database): void {
+    db.exec(`
+      create table if not exists mutation_approvals (
+        id text primary key,
+        user_id text not null,
+        chat_id text,
+        document_id text,
+        tool_name text not null,
+        tool_payload text not null default '{}',
+        status text not null default 'pending'
+          check (status in ('pending', 'approved', 'rejected')),
+        staged_at text not null,
+        staged_by text not null,
+        approved_at text,
+        approved_by text,
+        rejection_reason text,
+        executed_at text,
+        execution_error text,
+        created_at text not null,
+        updated_at text not null
+      );
+      create index if not exists idx_mutation_approvals_user_status on mutation_approvals(user_id, status);
+      create index if not exists idx_mutation_approvals_chat on mutation_approvals(chat_id);
+      create index if not exists idx_mutation_approvals_document on mutation_approvals(document_id);
+    `);
+}
+
+/**
+ * Rebuild CHECK whitelist `audit_log.event_type` o `mutation.approval.decision`
+ * (ADR-0137). Decyzja czlowieka o karcie zatwierdzenia mutacji (AI Act art. 14)
+ * idzie w hash-chain (art. 12). Jak v2/v3: rebuild z ZACHOWANIEM wierszy
+ * (id/hash/prev_hash kopiowane verbatim, wiec hash-chain i proof-y Merkle
+ * pozostaja wazne) + odtworzenie 3 indeksow. Samo-pomijalny: jezeli CHECK juz
+ * zawiera 'mutation.approval.decision', wychodzi.
+ */
+function rebuildAuditLogAddMutationApproval(db: Database.Database): void {
+    const row = db
+        .prepare(
+            "select sql from sqlite_master where type = 'table' and name = 'audit_log'",
+        )
+        .get() as { sql?: string } | undefined;
+    if (!row?.sql || row.sql.includes("mutation.approval.decision")) return;
+
+    db.exec(`
+      create table audit_log_new (
+        id integer primary key autoincrement,
+        ts text not null,
+        actor_user_id text,
+        event_type text not null check (event_type in (
+          'chat.message.user',
+          'chat.message.assistant',
+          'input_security_scan',
+          'mcp_security.gateway',
+          'ring_policy.decision',
+          'rodo.delete',
+          'rodo.export',
+          'admin.access.audit_viewer',
+          'admin.access.audit_export',
+          'admin.access.merkle_compute_now',
+          'admin.access.security_banner',
+          'admin.access.metrics',
+          'migrate.rollback',
+          'llm_route',
+          'defense.pipeline.run',
+          'document.edit_resolved',
+          'tabular.grounding',
+          'project.cloud_consent',
+          'connector.toggle',
+          'mutation.approval.decision'
+        )),
+        chat_id text,
+        document_id text,
+        payload text not null,
+        prev_hash text not null,
+        hash text not null unique
+      );
+      insert into audit_log_new
+        (id, ts, actor_user_id, event_type, chat_id, document_id, payload, prev_hash, hash)
+        select id, ts, actor_user_id, event_type, chat_id, document_id, payload, prev_hash, hash
+        from audit_log;
+      drop table audit_log;
+      alter table audit_log_new rename to audit_log;
+      create index if not exists idx_audit_log_chat on audit_log(chat_id, ts);
+      create index if not exists idx_audit_log_actor on audit_log(actor_user_id, ts);
+      create index if not exists idx_audit_log_event_type on audit_log(event_type, ts);
+    `);
+}
+
+/**
+ * Krok v4 (ADR-0137): tabela mutation_approvals (fallback dla istniejacych baz)
+ * + nowy event_type w CHECK audit_log. Oba w jednej transakcji (runner).
+ */
+function migrateV4MutationApprovals(db: Database.Database): void {
+    ensureMutationApprovalsTable(db);
+    rebuildAuditLogAddMutationApproval(db);
+}
+
 /** Lista migracji SQLite (kolejnosc = version rosnaco). */
 export const SQLITE_MIGRATIONS: ReadonlyArray<SqliteMigration> = [
     {
@@ -208,6 +314,11 @@ export const SQLITE_MIGRATIONS: ReadonlyArray<SqliteMigration> = [
         version: 3,
         name: "audit_log_add_connector_toggle_event_type",
         up: rebuildAuditLogAddConnectorToggle,
+    },
+    {
+        version: 4,
+        name: "mutation_approvals_table_and_event_type",
+        up: migrateV4MutationApprovals,
     },
 ];
 
