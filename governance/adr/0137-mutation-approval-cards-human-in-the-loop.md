@@ -1,6 +1,6 @@
 # ADR-0137: Karty zatwierdzenia mutacji (mutation approval cards) - zapis agenta za bramka czlowieka
 
-**Status**: Proponowany (2026-06-29) - wymaga 2x wewnetrznego review + akceptacji WM. Dotyka sciezki wykonania narzedzi (tool-dispatch) i audit_log. Inspiracja architektoniczna: open-mercato (MIT, `prepareMutation` + `confirm-required` + pending approval + approval-card), zaadaptowana do prymitywow PATRONa - NIE port kodu.
+**Status**: Proponowany (2026-06-29) - **review round 1 PRZESZEDL** (matematic-patron-pr-review-pl na pelnym diffie Phase 2-4: 0 blockerow; 3 should-fix naprawione - parytet edits staged/inline, RODO art. 17/20 dla `mutation_approvals` w rodo-delete/rodo-export; mikro-race approve w trybie serwerowym udokumentowany, desktop single-user niewrazliwy). **POZOSTAJE: review round 2 + akceptacja WM** zanim status -> Przyjety i bump SEMVER Konstytucji. Implementacja US1+US2 gotowa za flaga `PATRON_MUTATION_APPROVAL` (domyslnie OFF). Dotyka sciezki wykonania narzedzi (tool-dispatch) i audit_log. Inspiracja architektoniczna: open-mercato (MIT, `prepareMutation` + `confirm-required` + pending approval + approval-card), zaadaptowana do prymitywow PATRONa - NIE port kodu.
 
 ## Kontekst
 
