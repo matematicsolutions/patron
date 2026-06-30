@@ -27,9 +27,21 @@ export function isFieldEncryptionEnabled(): boolean {
     return (process.env.PATRON_FIELD_ENCRYPTION ?? "").trim().toLowerCase() === "on";
 }
 
+// Domain separation dla derywacji KEK (HKDF). Salt staly (KEK jest deterministyczny
+// dla danego sekretu - inaczej nie odwinelibysmy DEK), `info` izoluje ten klucz od
+// innych uzyc tego samego sekretu (np. gdyby kiedys wspoldzielono material).
+const KEK_HKDF_SALT = Buffer.from("patron/field-encryption/kek/v1", "utf8");
+const KEK_HKDF_INFO = "patron-field-kek-v1";
+
 /**
- * Laduje KEK (32B) = sha256(`PATRON_FIELD_ENCRYPTION_KEK`). Fail-loud gdy brak -
- * nie pozwalamy szyfrowac/odszyfrowywac bez klucza glownego.
+ * Laduje KEK (32B) z `PATRON_FIELD_ENCRYPTION_KEK` przez HKDF-SHA256 (salt + info
+ * = domain separation; mocniejsze niz surowy sha256 - audyt bezpieczenstwa 005).
+ * Fail-loud gdy brak - nie pozwalamy szyfrowac/odszyfrowywac bez klucza glownego.
+ *
+ * WYMOG: `PATRON_FIELD_ENCRYPTION_KEK` MUSI byc materialem WYSOKOENTROPIJNYM
+ * (>=32 losowych bajtow, np. z OS keychain/DPAPI albo `openssl rand -base64 32`),
+ * NIE haslem czlowieka. HKDF nie dodaje entropii - chroni tylko przed slabosciami
+ * konstrukcji, nie przed slabym sekretem.
  */
 export function loadKek(): Buffer {
     const secret = process.env.PATRON_FIELD_ENCRYPTION_KEK;
@@ -39,7 +51,14 @@ export function loadKek(): Buffer {
                 "Odmawiam pracy bez klucza glownego (fail-loud, jak atrest/ADR-0072).",
         );
     }
-    return crypto.createHash("sha256").update(secret, "utf8").digest();
+    const ab = crypto.hkdfSync(
+        "sha256",
+        Buffer.from(secret, "utf8"),
+        KEK_HKDF_SALT,
+        KEK_HKDF_INFO,
+        32,
+    );
+    return Buffer.from(ab);
 }
 
 // Cache odwinietych DEK w pamieci procesu (NIGDY na dysku). Klucz = tenantId.

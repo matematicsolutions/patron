@@ -57,8 +57,17 @@ describe("loadKek: fail-loud", () => {
         expect(() => mod.loadKek()).toThrow();
     });
 
-    it("KEK ma 32B (sha256)", () => {
+    it("KEK ma 32B (HKDF-SHA256)", () => {
         expect(mod.loadKek().length).toBe(32);
+    });
+
+    it("KEK deterministyczny dla tego samego sekretu (warunek odwijania DEK)", () => {
+        process.env.PATRON_FIELD_ENCRYPTION_KEK = "secret-A-aaaaaaaaaaaaaaaaaaaa";
+        const k1 = mod.loadKek();
+        const k2 = mod.loadKek();
+        expect(k1.equals(k2)).toBe(true);
+        process.env.PATRON_FIELD_ENCRYPTION_KEK = "secret-B-bbbbbbbbbbbbbbbbbbbb";
+        expect(mod.loadKek().equals(k1)).toBe(false);
     });
 });
 

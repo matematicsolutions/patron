@@ -43,7 +43,7 @@ Format: `[ID] [P?] [Story] Opis`. `[P]` = parallel-safe (rozne pliki, bez zalezn
 - [ ] T042 [US3] Rotacja KEK = re-wrap wszystkich DEK (bez re-encrypt pol); skrypt + test.
 
 ## Phase N - Polish / bramki
-- [ ] T050 [P] `security-review` skill na pelnym diffie krypto (obowiazkowy - bramka jakosci konstytucji).
+- [~] T050 [P] `security-review` krypto. FUNDAMENT zaudytowany 2026-06-30 (manualnie - skill wymaga repo-CWD): 1 MEDIUM naprawiony (KEK sha256 -> HKDF-SHA256 salt+info domain separation + wymog wysokoentropijnego sekretu); LOW udokumentowane (nonce 2^32 -> rotacja DEK US3; cache DEK bez eviction = ok desktop). Reszta czysta (tamper/fail-loud/DEK-wrapped/no-leak/race). PELNY skill-run PRZED wpieciem kolumn (US1).
 - [ ] T051 [P] `matematic-patron-pr-review-pl` na pelnym diffie.
 - [ ] T052 CHANGELOG + AGENTS.md (regula kodu field-encryption) + ADR-0138 -> Przyjety (po 2x review + WM) + bump Konstytucji (nowa zasada bezpieczenstwa = MINOR, lub event_type US3).
 - [ ] T053 Doc: procedura backupu/utraty KEK dla Operatora (Q6) w IMPLEMENTATION_PLAYBOOK.

@@ -15,7 +15,7 @@ Luka: w trybie SERWEROWYM (Postgres, multi-tenant) at-rest ADR-0072 NIE dziala (
 ## Decyzja
 
 1. **Field-level encryption warstwy APLIKACJI** (driver-agnostic, dziala w SQLite I Postgres) wybranych wrazliwych kolumn tekstowych. Envelope encryption:
-   - **KEK** (key-encryption-key): desktop = OS keychain/DPAPI (jak `PATRON_DB_ENCRYPTION_KEY`); serwer = KMS albo env secret (jak `USER_API_KEYS_ENCRYPTION_SECRET`). KEK NIGDY plaintext na dysku.
+   - **KEK** (key-encryption-key): desktop = OS keychain/DPAPI (jak `PATRON_DB_ENCRYPTION_KEY`); serwer = KMS albo env secret (jak `USER_API_KEYS_ENCRYPTION_SECRET`). KEK NIGDY plaintext na dysku. Derywacja: **HKDF-SHA256** z salt + info (domain separation) na bazie `PATRON_FIELD_ENCRYPTION_KEK` - mocniejsza niz surowy sha256 (audyt bezpieczenstwa 005, 2026-06-30). WYMOG: sekret KEK wysokoentropijny (>=32 losowych bajtow), NIE haslo.
    - **DEK** (data-encryption-key): losowy 256-bit, szyfruje wartosci pol. Per-tenant: desktop = 1 DEK (`LOCAL_USER_ID`), serwer = DEK per `organization`/user. DEK przechowywany OWINIETY przez KEK w tabeli `encryption_keys` (`wrapped_dek`, `iv`, `auth_tag`).
    - Algorytm: AES-256-GCM (jak `userApiKeys`), per-wartosc `iv`+`auth_tag`.
 2. **Rozgraniczenie vs ADR-0072 (NIE duplikacja):** rozne warstwy, rozne modele zagrozen. ADR-0072 = at-rest caly plik (skradziony dysk, SQLite). 0138 = field-level warstwa app (dostep do bazy bez KEK, dual SQLite+Postgres). Na desktopie 0138 = defense-in-depth NAD at-rest; na serwerze 0138 = PODSTAWOWA ochrona (at-rest nie dziala).
