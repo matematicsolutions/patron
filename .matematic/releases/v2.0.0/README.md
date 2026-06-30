@@ -1,0 +1,70 @@
+# PATRON 2.0 - tracker wydania
+
+**Branch:** `release/v2.0.0-prep` (off `release/v1.0.0-prep`)
+**Status:** Integracja w toku (NIE wydane). Flagi nowych ficzerow OFF do flipu po eval.
+**Temat:** "governance by default" / trust & control hardening.
+**Data otwarcia:** 2026-06-30
+
+> To NIE jest osobny folder/repo - PATRON 2.0 to WERSJA istniejacego repo. "Folder 2.0"
+> = ta galaz release + ten tracker. Wydanie = flip flag -> merge do `main` -> tag v2.0.0
+> -> push publiczny `mat`. Anti-sprawl: jeden kod, jedna historia.
+
+## Decyzja wersji (1.1 vs 2.0)
+
+Wersja idzie za DECYZJA O DEFAULTACH (Konstytucja Sec 6.1), nie za kodem:
+- **1.1 (MINOR)** = nowe zdolnosci jako OPT-IN (flagi OFF jak dzis). Zero zmiany zachowania.
+- **2.0 (MAJOR-positioning)** = flip defaultow na ON (human-in-the-loop + szyfrowanie = domyslna
+  postawa). Zmiana zachowania instalacji = ciezar 2.0 mimo braku breaking API.
+
+Rekomendacja: celowac w **2.0 "governance by default"** (najmocniejsza historia sprzedazowa),
+decyzje wersji podjac przy flipie, po eval. Owner: WM.
+
+## Skala niepublicznego korpusu
+
+`release/v2.0.0-prep` jest **~285 commitow przed publicznym `mat/main` (v1.0.0)**. To caly
+dorobek post-1.0.0 dotad trzymany na dev (origin). 2.0 = jego publikacja jako spojne wydanie.
+
+## Zakres (co wchodzi w 2.0)
+
+### A. Juz zintegrowane w release-prep (niepubliczne, gotowe)
+- **i18n dwujezyczny PL/EN** (spec 001, ADR-0132) - UI EN + agent locale (ADR-0135).
+- **Picker konektorow MCP + 9 konektorow UE** (spec 002, ADR-0133/0134) - wybor jurysdykcji.
+- **EN release + freeze konektorow UE + bundle desktop** (spec 003, ADR-0136).
+- **At-rest native cipher** (ADR-0072, feat/at-rest-native-cipher - tresc wtopiona) - szyfrowanie
+  calego pliku SQLite. KOMPLEMENTARNE do 005 (field-level) -> spojna historia "encryption" w 2.0.
+- **Desktop packaging**, **KG fazy a/b/c** (CN patterns / dual-similarity / event-KG),
+  **grounding provenance tabular** (ADR-0102), **kancelaria proposals**, **OC locator**,
+  **tier governance envelope**, **pilotaz readiness** - tresc w wiekszosci wtopiona w release-prep
+  (triage `--cherry-pick`: 0 pending dla wiekszosci; faza-a/grounding/tier=1, pilotaz=3 -> glownie
+  szum privacy-scrub, do opcjonalnego doczyszczenia).
+
+### B. Nowe ficzery za flaga (zmergowane na 2.0 w tej sesji)
+- **Karty zatwierdzenia mutacji** (spec 004, ADR-0137) - human-in-the-loop write staging.
+  Flaga `PATRON_MUTATION_APPROVAL` (off|all|high-stakes). US1+US2+US3 gotowe. ADR Przyjety, Konst. 1.7.0.
+- **Field-level encryption** (spec 005, ADR-0138) - per-tenant DEK envelope. Flaga
+  `PATRON_FIELD_ENCRYPTION`. Phase 2 fundament gotowy; US1+ bramkowane sign-offem WM (Q1-Q6).
+
+### C. Kandydat (jeszcze nie zaczety) - decyzja WM
+- **#4 Asystenci: scope per modul/rola + tool-allowlist + tuning promptow w UI** (agent-native,
+  z reconu open-mercato). Trzecia glowa wydania - opcjonalnie.
+
+## Stan integracji
+- 004 + 005 zmergowane na `release/v2.0.0-prep` (czysto, zero konfliktow).
+- Suite RAZEM: **1328 pass / 5 todo / 0 fail**, tsc 0. Migracje spojne (004=015/016, 005=017).
+
+## Bramki wydania (checklist do tagu v2.0.0)
+- [ ] Decyzja #4 (trzecia glowa) - WM.
+- [ ] Sign-off WM dla 005: Q1-Q6 (zrodlo KEK serwer, lista pol, migracja, format, audit_log NIE, backup KEK).
+- [ ] `security-review` na krypto 005 (OBOWIAZKOWY przed wpieciem kolumn).
+- [ ] Wpiecie kolumn 005 (US1 pilot -> US2) jezeli wchodzi w 2.0; albo 005 zostaje fundamentem.
+- [ ] Eval (korpus PL) - warunek flipu flag wg konwencji (ADR-0101/0102).
+- [ ] Decyzja flipu defaultow per flaga (PATRON_MUTATION_APPROVAL / PATRON_FIELD_ENCRYPTION) -> wersja 1.1 vs 2.0.
+- [ ] 2x review WM + matematic-patron-pr-review-pl na pelnym diffie 2.0.
+- [ ] ADR-0137/0138 status koncowy + bump Konstytucji + CHANGELOG (sekcja 2.0).
+- [ ] Merge `release/v2.0.0-prep` -> `main`, tag `v2.0.0`.
+- [ ] Push publiczny `mat` + ogloszenie (LinkedIn EN-first, draft gotowy w skill linkedin-voice).
+
+## Notatka recon (2026-06-30)
+Triage `git log --cherry-pick --right-only`: wiekszosc loose feat-branchy ma 0 pending patchy
+(tresc w release-prep). Tipy galezi rozjechane przez `chore(privacy): scrub` - is-ancestor klamie,
+dlatego patch-id (--cherry-pick) jest wlasciwym miernikiem. Pelny per-branch audit = opcjonalny.
