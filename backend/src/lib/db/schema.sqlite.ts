@@ -468,4 +468,18 @@ create table if not exists installed_skills (
   updated_at   text not null
 );
 create index if not exists idx_installed_skills_enabled on installed_skills(enabled);
+
+-- Klucze szyfrowania pol (ADR-0138). Envelope: DEK (data-encryption-key) owiniety
+-- przez KEK (key-encryption-key) i przechowywany TYLKO jako wrapped_dek
+-- (fc1:iv:ct:tag) - sam material DEK nigdy nie lezy tu plaintext. Per-tenant
+-- (desktop = 1 wiersz dla LOCAL_USER_ID; serwer = per organization/user).
+-- kek_version do re-wrap przy rotacji KEK (US3). Migracja Postgres: 017.
+create table if not exists encryption_keys (
+  id text primary key,
+  tenant_id text not null unique,
+  wrapped_dek text not null,
+  kek_version integer not null default 1,
+  created_at text not null
+);
+create index if not exists idx_encryption_keys_tenant on encryption_keys(tenant_id);
 `;
