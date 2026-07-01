@@ -14,7 +14,7 @@ jobs:
       run:
         working-directory: backend
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Use Node 20
         uses: actions/setup-node@v6
@@ -44,7 +44,7 @@ jobs:
       NEXT_PUBLIC_API_BASE_URL: http://localhost:3001
       SUPABASE_SECRET_KEY: dummy
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Use Node 20
         uses: actions/setup-node@v6
@@ -68,7 +68,7 @@ jobs:
       run:
         working-directory: backend
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v6
         with:
           node-version: 20.x
