@@ -1,8 +1,10 @@
 # ADR-0139: Profile jurysdykcji dla wersji jezykowych rynkow UE (IT/DE/ES/FR)
 
-**Status**: Proponowany (2026-07-03) — wymaga 2x wewnetrznego review + akceptacji WM.
-Kierunek zatwierdzony przez WM ustnie ("6 wersji jezykowych z lokalnym kolektorem,
-zaczynamy od rynku wloskiego"); zakres techniczny do potwierdzenia na tym ADR.
+**Status**: Przyjety (2026-07-03) — WM zatwierdzil i polecil publikacje od razu na
+otwartej linii 1.x ("zrobmy to teraz"); PATRON 2.0 = osobny tor enterprise (mozliwe,
+ze platny). Bramka recenzji prawnika-native dla rynku IT przesunieta decyzja WM
+z pre-release na post-release (wydanie otwarte, feedback rynku zamiast blokady);
+dla DE/ES/FR bramka pozostaje przed ogloszeniem rynku.
 
 Aneks do [ADR-0132](./0132-locale-selection-jeden-jezyk-per-instalacja.md) i
 [ADR-0135](./0135-jezyk-agenta-locale-metoda-substancja.md) — rozszerza locale
@@ -53,12 +55,22 @@ odpowiadal po polsku (default), mimo UI EN i samouczka EN.
    - **Pelne struktury pism procesowych (odpowiednik DRAFTING_PL) = na pull,
      po recenzji prawnika-native danego rynku.** Bloki v1 celowo lekkie:
      konwencje cytowania + granice + zasada draftu.
-4. **Konektory per rynek** (prepare-resources): macierzysty konektor pierwszy
-   i **ON**, `eu-sparql`/`eu-compliance` ON, pozostale krajowe obecne ale OFF,
-   PL na koncu OFF; `fr-eli` zawsze OFF do podania klucza PISTE (NEEDS_KEY).
-   `it-eli` dolaczony do bundla (3-sync + mirror: pipeline.ts APPROVED,
-   prepare-resources MCP_SERVERS_PYTHON, mcp-servers.example.json,
-   connectors.ts JURISDICTION_BY_CONNECTOR).
+4. **Lean market edition (decyzja WM 2026-07-03).** Krajowa wersja rynkowa
+   (it/de/es/fr) BUNDLUJE **wylacznie konektor macierzysty** (IT = it-eli:
+   Normattiva + Corte Costituzionale). Prawo UE (EUR-Lex, EU-Compliance) oraz
+   konektory innych jurysdykcji NIE sa w instalatorze - uzytkownik dobiera je
+   z **Boutique** i podlacza (Ring-1 allowlist juz zawiera te nazwy, wiec
+   gateway je przepusci). Instalator chudy, sklep = zrodlo reszty. Filtr w
+   `prepare-resources.cjs` (`stagedNodeConnectors`/`stagedPythonConnectors`):
+   rynek -> Node `[]`, Python `[home]`. `it-eli` dolaczony do zestawu zaufanego
+   (4-sync: pipeline.ts APPROVED, prepare-resources MCP_SERVERS_PYTHON,
+   mcp-servers.example.json, connectors.ts JURISDICTION_BY_CONNECTOR).
+   **PL i EN (wydane 1.0.0) BEZ zmian**: PL = flagowy "komplet 6" (4 wlasne +
+   UE), EN = edycja miedzynarodowa (pelny zestaw wielorynkowy). Prompty rynkow
+   (CONNECTORS_LINE_*, drafting) nie zakladaja obecnosci konektora UE - mowia
+   wprost, ze EU-law jest do dobrania z Boutique, a przy braku odsylaja do
+   eur-lex.europa.eu (spojne z citation-grounding: nie obiecuj zrodla, ktorego
+   nie masz).
 5. **Most locale desktop->backend (naprawa bledu EN):** prepare-resources
    zapisuje `backend/patron-locale.json`; `main.js` czyta go i ustawia
    `PATRON_LOCALE` dla backendu (jawny env Operatora ma pierwszenstwo).

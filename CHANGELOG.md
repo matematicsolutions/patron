@@ -17,10 +17,15 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
   zmian. Konektor `it-eli` (Normattiva + Corte Costituzionale) dolaczony do zestawu
   zaufanego (4-sync: pipeline.ts, prepare-resources.cjs, mcp-servers.example.json,
   connectors.ts); build IT bundluje indeks orzecznictwa Corte Cost (best-effort,
-  `IT_ELI_CASELAW_DB`). Build per rynek jedna komenda: `npm run build:it` itd.
-  (`desktop/scripts/build-locale.cjs` - locale + jezyk NSIS + kanoniczna nazwa
-  artefaktu + SHA256 do `dist/CHECKSUMS.txt`). Slowniki i bloki substancji DE/ES/FR/IT
-  wymagaja recenzji prawnika-native przed wydaniem rynku (bramka z ADR-0139).
+  `IT_ELI_CASELAW_DB`). **Lean market edition** (decyzja WM): krajowa wersja
+  bundluje TYLKO konektor macierzysty (`stagedNodeConnectors`/`stagedPythonConnectors`
+  w prepare-resources) - prawo UE (EUR-Lex, EU-Compliance) i inne jurysdykcje
+  uzytkownik dobiera z Boutique, instalator zostaje chudy; prompty rynkow mowia to
+  wprost i nie obiecuja konektora UE. PL/EN (wydane 1.0.0) bez zmian. Build per
+  rynek jedna komenda: `npm run build:it` itd. (`desktop/scripts/build-locale.cjs` -
+  locale + jezyk NSIS + kanoniczna nazwa artefaktu + SHA256 do `dist/CHECKSUMS.txt`).
+  Slowniki i bloki substancji DE/ES/FR wymagaja recenzji prawnika-native przed
+  wydaniem rynku (bramka z ADR-0139).
 - **Fix: jezyk agenta w instalatorze nie-PL** - `prepare-resources.cjs` zapisuje
   `backend/patron-locale.json`, a `desktop/main.js` czyta go i ustawia `PATRON_LOCALE`
   dla backendu. Dotad zaden kod nie przekazywal locale backendowi w trybie desktop,

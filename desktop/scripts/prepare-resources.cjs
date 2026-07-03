@@ -142,7 +142,9 @@ function defaultEnabled(name) {
   const jur = JURISDICTION[name] || "OTHER";
   if (LOCALE === "en") return jur !== "PL";
   if (HOME_CONNECTOR[LOCALE]) {
-    return name === HOME_CONNECTOR[LOCALE] || jur === "EU";
+    // Lean market edition (ADR-0139): bundlujemy TYLKO konektor macierzysty,
+    // wiec tylko on moze byc ON. Prawo UE i inne kraje -> Boutique.
+    return name === HOME_CONNECTOR[LOCALE];
   }
   return jur === "PL" || jur === "EU";
 }
@@ -276,6 +278,26 @@ function stageBackend() {
 // ── 3b. Staging konektorow MCP (orzecznictwo + legislacja PL/UE) ─────────────
 // Bez tego instalator nie ma dostepu do SAOS/NSA/ISAP/KRS/EUR-Lex/EU-Compliance
 // i mecenas nie ma w czacie zadnego zrodla orzeczen ani aktow prawnych.
+// ADR-0139 (uzupelnienie 2026-07-03, decyzja WM "lean market edition"): wersje
+// rynkowe (it/de/es/fr) BUNDLUJA WYLACZNIE konektor macierzysty. Prawo UE i
+// konektory innych jurysdykcji uzytkownik dobiera z Boutique - nie wozimy ich w
+// kazdym instalatorze. PL i EN (wydane 1.0.0) bez zmian: PL = 4 wlasne Node + UE
+// (flagowy "komplet 6"), EN = edycja miedzynarodowa (pelny zestaw krajowy).
+function isMarketLocale() {
+  return Boolean(HOME_CONNECTOR[LOCALE]);
+}
+function stagedNodeConnectors() {
+  // Rynek krajowy: zero Node (macierzysty jest w Pythonie, UE -> Boutique).
+  if (isMarketLocale()) return [];
+  return MCP_SERVERS; // pl + en bez zmian
+}
+function stagedPythonConnectors() {
+  if (isMarketLocale()) {
+    return MCP_SERVERS_PYTHON.filter((s) => s.name === HOME_CONNECTOR[LOCALE]);
+  }
+  return MCP_SERVERS_PYTHON; // pl + en bez zmian
+}
+
 function stageMcpConnectors() {
   log("Staging konektorow MCP...");
   const bundleRoot = path.join(OUT_BACKEND, "mcp-bundled");
@@ -283,7 +305,7 @@ function stageMcpConnectors() {
   fs.mkdirSync(bundleRoot, { recursive: true });
 
   const manifest = [];
-  for (const s of MCP_SERVERS) {
+  for (const s of stagedNodeConnectors()) {
     const repo = path.resolve(MCP_REPOS_DIR, s.repoDir);
     const distIndex = path.join(repo, "dist", "index.js");
     const nm = path.join(repo, "node_modules");
@@ -322,10 +344,17 @@ function stageMcpConnectors() {
 // nie pobiera u klienta. Zwraca wpisy manifestu (lub [] gdy SKIP/niezbudowane).
 function stageBundledPython() {
   if (SKIP_PYTHON_CONNECTORS) {
-    log("SKIP_PYTHON_CONNECTORS=1 - pomijam bundlowany Python (9 konektorow UE).");
+    log("SKIP_PYTHON_CONNECTORS=1 - pomijam bundlowany Python.");
     return [];
   }
-  log("Bundlowanie standalone Pythona + 9 konektorow UE (Opcja C)...");
+  // ADR-0139 lean market edition: it/de/es/fr instaluja TYLKO konektor
+  // macierzysty; pl/en pelny zestaw (bez zmian). Reszta -> Boutique.
+  const pyList = stagedPythonConnectors();
+  if (pyList.length === 0) {
+    log("Brak konektorow Python dla tego locale - pomijam py-runtime.");
+    return [];
+  }
+  log(`Bundlowanie standalone Pythona + ${pyList.length} konektor(ow) (Opcja C)...`);
   const uv = "uv";
 
   // 1. upewnij sie, ze managed standalone cpython-3.13 jest pobrany.
@@ -362,26 +391,26 @@ function stageBundledPython() {
 
   // 5. install 9 konektorow z lokalnych repo do site-packages runtime (jedno
   //    polecenie - wspolne deps rozwiazane raz; zrodlo = repo eli = to co na PyPI).
-  const repoArgs = MCP_SERVERS_PYTHON.map((s) => {
+  const repoArgs = pyList.map((s) => {
     const repo = path.resolve(MCP_PY_REPOS_DIR, s.repoDir);
     mustExist(path.join(repo, "pyproject.toml"), `${s.name}: repo Python w ${repo}`);
     return repo;
   });
-  log(`  uv pip install ${MCP_SERVERS_PYTHON.length} konektorow do py-runtime...`);
+  log(`  uv pip install ${pyList.length} konektor(ow) do py-runtime...`);
   run(uv, ["pip", "install", "--python", pyExe, ...repoArgs], DESKTOP_DIR);
 
   // 6. weryfikacja importu kazdego z -s -E (izolacja od user-site).
   //    BEZ shell - pyExe to absolutny .exe; shell:true na Windows rozbija
   //    `-c "import X"` (cmd gubi cudzyslow -> python dostaje samo "import").
-  for (const s of MCP_SERVERS_PYTHON) {
+  for (const s of pyList) {
     execFileSync(pyExe, ["-s", "-E", "-c", `import ${s.module}.server`], {
       stdio: "inherit",
     });
     log(`  + ${s.name} (import ${s.module}.server OK)`);
   }
 
-  log(`Standalone Python + ${MCP_SERVERS_PYTHON.length} konektorow UE gotowe.`);
-  return MCP_SERVERS_PYTHON.map((s) => ({
+  log(`Standalone Python + ${pyList.length} konektor(ow) gotowe.`);
+  return pyList.map((s) => ({
     name: s.name,
     transport: "stdio",
     runtime: "python",
@@ -484,14 +513,26 @@ function stageItCaselawIndex() {
   const dbDir = path.join(OUT_BACKEND, "data", "it-eli-caselaw");
   fs.mkdirSync(dbDir, { recursive: true });
   const dbPath = path.join(dbDir, "cost.sqlite");
+  // Skrypt zapisujemy do PLIKU (nie -c) - wieloargumentowe -c psuje sie pod
+  // shell:true na Windows, dokladnie jak wieloliniowe -e przy embedderze wyzej.
+  const ingestScript = path.join(OUT_BACKEND, ".it-caselaw-ingest.py");
+  fs.writeFileSync(
+    ingestScript,
+    [
+      "import sys",
+      "from it_eli_mcp.caselaw.ingest import main",
+      'sys.argv = ["ingest", "--db", sys.argv[1]]',
+      "main()",
+      "",
+    ].join("\n"),
+    "utf8",
+  );
   try {
-    run(pyExe, [
-      "-s", "-E", "-c",
-      "from it_eli_mcp.caselaw.ingest import main; main()",
-      "--db", dbPath,
-    ], OUT_BACKEND);
+    run(pyExe, ["-s", "-E", ".it-caselaw-ingest.py", dbPath], OUT_BACKEND);
+    fs.rmSync(ingestScript, { force: true });
     log(`  + indeks Corte Costituzionale gotowy (${dbPath}).`);
   } catch {
+    fs.rmSync(ingestScript, { force: true });
     log("  UWAGA: ingest Corte Costituzionale nie powiodl sie - instalator zbuduje sie BEZ indeksu (it_case_* zglosi brak; legislacja Normattiva dziala). Powtorz z dostepem do sieci.");
   }
 }
