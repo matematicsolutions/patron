@@ -135,17 +135,19 @@ function marketOrder(locale) {
 }
 
 // Domyslny stan enabled wg locale. EN: wszystko poza PL wlaczone (FR off - klucz).
-// Rynek (it/de/es/fr): macierzysty + UE-zbiorcze ON, reszta obecna ale OFF.
+// Rynek (it/de/es/fr): konektor macierzysty ON (bundlujemy tylko jego).
 // PL: PL + UE-zbiorcze wlaczone, krajowe UE off (obecne, przelaczalne pickerem).
 function defaultEnabled(name) {
+  // Lean market edition: macierzysty konektor jest ON, nawet gdy wymaga klucza
+  // (definiuje edycje; klucz np. PISTE wpisuje sie przy pierwszym zapytaniu,
+  // listTools dziala bez niego). Sprawdzane PRZED regula NEEDS_KEY, ktora
+  // dotyczy konektorow drugoplanowych w buildach PL/EN.
+  if (HOME_CONNECTOR[LOCALE]) {
+    return name === HOME_CONNECTOR[LOCALE];
+  }
   if (NEEDS_KEY.has(name)) return false;
   const jur = JURISDICTION[name] || "OTHER";
   if (LOCALE === "en") return jur !== "PL";
-  if (HOME_CONNECTOR[LOCALE]) {
-    // Lean market edition (ADR-0139): bundlujemy TYLKO konektor macierzysty,
-    // wiec tylko on moze byc ON. Prawo UE i inne kraje -> Boutique.
-    return name === HOME_CONNECTOR[LOCALE];
-  }
   return jur === "PL" || jur === "EU";
 }
 
