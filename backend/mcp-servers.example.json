@@ -119,5 +119,14 @@
     "command": "uv",
     "args": ["run", "--directory", "/path/to/lu-eli-mcp", "lu-eli-mcp"],
     "enabled": false
+  },
+  {
+    "_comment": "it-eli (ADR-0139, rynek wloski): Normattiva legislacja (URN:NIR/ELI, multivigenza) + orzecznictwo Corte Costituzionale (ECLI). Repo it-eli-mcp, paczka PyPI italy-eli-mcp - stad nazwa skryptu w args.",
+    "name": "it-eli",
+    "transport": "stdio",
+    "runtime": "python",
+    "command": "uv",
+    "args": ["run", "--directory", "/path/to/it-eli-mcp", "italy-eli-mcp"],
+    "enabled": false
   }
 ]

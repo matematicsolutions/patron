@@ -58,6 +58,11 @@ export const APPROVED_PATRON_CONNECTORS: ReadonlyArray<string> = [
     "se-eli",
     "fr-eli",
     "lu-eli",
+    // ADR-0139: rynek wloski (wersje jezykowe PATRONa). it-eli = Normattiva
+    // (legislacja, URN:NIR/ELI, multivigenza) + Corte Costituzionale (ECLI).
+    // Gateway-scan przechodzi przy starcie jak dla pozostalych 9 (typosquat/
+    // drift/tool-poisoning, fail-closed).
+    "it-eli",
 ];
 
 /** Skanuje pojedynczy konektor MCP. */

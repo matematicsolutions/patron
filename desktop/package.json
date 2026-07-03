@@ -9,7 +9,14 @@
     "prepare:resources": "node scripts/prepare-resources.cjs",
     "build": "node scripts/prepare-resources.cjs && electron-builder --win --x64",
     "build:dir": "node scripts/prepare-resources.cjs && electron-builder --win --x64 --dir",
-    "build:only": "electron-builder --win --x64"
+    "build:only": "electron-builder --win --x64",
+    "build:locale": "node scripts/build-locale.cjs",
+    "build:pl": "node scripts/build-locale.cjs pl",
+    "build:en": "node scripts/build-locale.cjs en",
+    "build:it": "node scripts/build-locale.cjs it",
+    "build:de": "node scripts/build-locale.cjs de",
+    "build:es": "node scripts/build-locale.cjs es",
+    "build:fr": "node scripts/build-locale.cjs fr"
   },
   "build": {
     "appId": "co.matematicsolutions.patron",

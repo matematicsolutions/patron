@@ -72,6 +72,25 @@ function getOrCreateDbKey() {
   return key;
 }
 
+// Locale instalacji (ADR-0132/0135/0139): zapisany przez prepare-resources.cjs
+// do backend/patron-locale.json przy buildzie. main.js przekazuje go backendowi
+// jako PATRON_LOCALE - bez tego backend spada na default "pl" i agent odpowiada
+// po polsku takze w instalatorze EN/IT/DE/ES/FR. Jawny process.env.PATRON_LOCALE
+// Operatora ma pierwszenstwo (dev override).
+function installLocale() {
+  if (process.env.PATRON_LOCALE && process.env.PATRON_LOCALE.trim()) {
+    return process.env.PATRON_LOCALE.trim();
+  }
+  try {
+    const raw = fs.readFileSync(path.join(RES(), 'backend', 'patron-locale.json'), 'utf8');
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed.locale === 'string') return parsed.locale;
+  } catch {
+    /* brak pliku (stary build / dev) - default pl w backendzie */
+  }
+  return null;
+}
+
 // Env wstrzykiwany do backendu: SQLite + storage FS + dane w userData + sekrety.
 function backendLocalEnv() {
   const ud = app.getPath('userData');
@@ -95,6 +114,10 @@ function backendLocalEnv() {
   const dbKey = getOrCreateDbKey();
   if (dbKey) env.PATRON_DB_ENCRYPTION_KEY = dbKey;
 
+  // Jezyk agenta = locale instalacji (mirror frontendu, ADR-0135/0139).
+  const loc = installLocale();
+  if (loc) env.PATRON_LOCALE = loc;
+
   // Embedder RAG: wskaz lokalnie zbundlowane wagi (dist-resources/backend/models),
   // jesli sa. Bez tego transformers.js probowalby pobrac z sieci (zablokowane
   // fail-closed) i retrieval degradowalby do BM25+graf. Ustawiamy tylko gdy
@@ -102,6 +125,14 @@ function backendLocalEnv() {
   const modelsDir = path.join(RES(), 'backend', 'models');
   if (fs.existsSync(modelsDir)) {
     env.PATRON_EMBED_MODELS_PATH = modelsDir;
+  }
+
+  // Indeks orzecznictwa Corte Costituzionale (build IT, ADR-0139): wskaz
+  // zbundlowany plik, jesli jest. Bez pliku narzedzia it_case_* zglaszaja brak
+  // indeksu wprost (fail-loud) - legislacja Normattiva dziala niezaleznie.
+  const itCaselawDb = path.join(RES(), 'backend', 'data', 'it-eli-caselaw', 'cost.sqlite');
+  if (!process.env.IT_ELI_CASELAW_DB && fs.existsSync(itCaselawDb)) {
+    env.IT_ELI_CASELAW_DB = itCaselawDb;
   }
 
   // OCR skanow/zdjec (ADR-0074/0075): silnik LOKALNY zero-cloud. Bez tego

@@ -8,6 +8,23 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 ## [Unreleased]
 
 ### Added
+- **Wersje jezykowe rynkow UE: IT/DE/ES/FR (ADR-0139)** - locale rozszerzone z pary
+  PL/EN do 6 rynkow. Slowniki UI `it/de/es/fr.ts` (po 614 kluczy, pelne pokrycie
+  pl.ts; fallback lancuchowy locale -> EN -> PL w `i18n/index.ts`). Rejestr profili
+  jurysdykcji w `prompts.ts` (`PROFILES`): dla rynkow substancja KRAJOWA w jezyku
+  rynku (ustroj sadow, dyscyplina lokalnego konektora z jawnymi granicami pokrycia,
+  konwencje cytowania, zasada draftu); PL/EN odtwarzaja dotychczasowy prompt bez
+  zmian. Konektor `it-eli` (Normattiva + Corte Costituzionale) dolaczony do zestawu
+  zaufanego (4-sync: pipeline.ts, prepare-resources.cjs, mcp-servers.example.json,
+  connectors.ts); build IT bundluje indeks orzecznictwa Corte Cost (best-effort,
+  `IT_ELI_CASELAW_DB`). Build per rynek jedna komenda: `npm run build:it` itd.
+  (`desktop/scripts/build-locale.cjs` - locale + jezyk NSIS + kanoniczna nazwa
+  artefaktu + SHA256 do `dist/CHECKSUMS.txt`). Slowniki i bloki substancji DE/ES/FR/IT
+  wymagaja recenzji prawnika-native przed wydaniem rynku (bramka z ADR-0139).
+- **Fix: jezyk agenta w instalatorze nie-PL** - `prepare-resources.cjs` zapisuje
+  `backend/patron-locale.json`, a `desktop/main.js` czyta go i ustawia `PATRON_LOCALE`
+  dla backendu. Dotad zaden kod nie przekazywal locale backendowi w trybie desktop,
+  wiec agent w instalatorze EN odpowiadal po polsku (default), mimo UI i samouczka EN.
 - **Karty zatwierdzenia mutacji - human-in-the-loop write staging (ADR-0137)** - akcje
   agenta o skutkach ubocznych (`edit_document`, `generate_docx`) moga byc stage'owane
   jako karty `pending`; wykonuja sie dopiero po zatwierdzeniu przez czlowieka (`requireAuth`,

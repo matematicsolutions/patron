@@ -16,8 +16,25 @@
 
 import { pl } from "./pl";
 import { en } from "./en";
+import { it } from "./it";
+import { de } from "./de";
+import { es } from "./es";
+import { fr } from "./fr";
 
-export type Locale = "pl" | "en";
+// 6 rynkow docelowych (ADR-0139): PL (macierzysty), EN (miedzynarodowy),
+// IT / DE / ES / FR (najwieksze rynki LegalTech UE, kolejnosc wdrozenia
+// wg wielkosci rynku). Slownik moze byc uzupelniany przyrostowo - brak
+// klucza w slowniku rynkowym pokrywa fallback EN -> PL.
+export type Locale = "pl" | "en" | "it" | "de" | "es" | "fr";
+
+const SUPPORTED_LOCALES: ReadonlyArray<Locale> = [
+    "pl",
+    "en",
+    "it",
+    "de",
+    "es",
+    "fr",
+];
 
 // Aktywne locale - jeden jezyk per instalacja (ADR-0132). Domyslnie PL.
 // Zrodlo: zmienna build-time NEXT_PUBLIC_PATRON_LOCALE, czytana raz przy
@@ -25,14 +42,24 @@ export type Locale = "pl" | "en";
 // klient czytaja te sama wartosc -> brak flashu PL->EN i mismatchu przy
 // hydratacji. `setLocale` pozostaje dla testow / ewentualnego override.
 function initialLocale(): Locale {
-    return process.env.NEXT_PUBLIC_PATRON_LOCALE === "en" ? "en" : "pl";
+    const raw = process.env.NEXT_PUBLIC_PATRON_LOCALE;
+    return (SUPPORTED_LOCALES as ReadonlyArray<string>).includes(raw ?? "")
+        ? (raw as Locale)
+        : "pl";
 }
 
 let activeLocale: Locale = initialLocale();
 
 // Slowniki indeksowane po locale. Walked strukturalnie w `lookup`
 // (klucze pochodza z `pl` przez TranslationKey).
-const DICTS: Record<Locale, Record<string, unknown>> = { pl, en };
+const DICTS: Record<Locale, Record<string, unknown>> = {
+    pl,
+    en,
+    it,
+    de,
+    es,
+    fr,
+};
 
 /** Ustaw aktywny jezyk UI. Wolaj raz przy bootstrapie aplikacji. */
 export function setLocale(locale: Locale): void {
@@ -76,7 +103,13 @@ function lookup(key: string): string | undefined {
     const parts = key.split(".");
     const primary = lookupIn(DICTS[activeLocale], parts);
     if (primary !== undefined) return primary;
-    // Fallback do PL (zrodlo kluczy), gdy brak tlumaczenia w aktywnym locale.
+    // Fallback lancuchowy: aktywne -> EN -> PL (zrodlo kluczy). Dla locale
+    // nie-PL brak tlumaczenia lepiej pokryc angielskim niz polskim (rynki UE),
+    // PL zostaje ostatnia deska ratunku jako slownik kompletny z definicji.
+    if (activeLocale !== "en" && activeLocale !== "pl") {
+        const enHit = lookupIn(en as Record<string, unknown>, parts);
+        if (enHit !== undefined) return enHit;
+    }
     if (activeLocale !== "pl") return lookupIn(pl, parts);
     return undefined;
 }
@@ -99,7 +132,14 @@ export function t(key: TranslationKey): string {
 // EN: en-GB (DD/MM/YYYY, kropka dziesietna).
 // ---------------------------------------------------------------------------
 
-const LOCALE_TAGS: Record<Locale, string> = { pl: "pl-PL", en: "en-GB" };
+const LOCALE_TAGS: Record<Locale, string> = {
+    pl: "pl-PL",
+    en: "en-GB",
+    it: "it-IT",
+    de: "de-DE",
+    es: "es-ES",
+    fr: "fr-FR",
+};
 
 function localeTag(): string {
     return LOCALE_TAGS[activeLocale];
@@ -129,6 +169,34 @@ const RELATIVE: Record<
         hoursAgo: (n) => `${n} h ago`,
         yesterday: "yesterday",
         daysAgo: (n) => `${n} days ago`,
+    },
+    it: {
+        now: "adesso",
+        minAgo: (n) => `${n} min fa`,
+        hoursAgo: (n) => `${n} h fa`,
+        yesterday: "ieri",
+        daysAgo: (n) => `${n} giorni fa`,
+    },
+    de: {
+        now: "jetzt",
+        minAgo: (n) => `vor ${n} Min.`,
+        hoursAgo: (n) => `vor ${n} Std.`,
+        yesterday: "gestern",
+        daysAgo: (n) => `vor ${n} Tagen`,
+    },
+    es: {
+        now: "ahora",
+        minAgo: (n) => `hace ${n} min`,
+        hoursAgo: (n) => `hace ${n} h`,
+        yesterday: "ayer",
+        daysAgo: (n) => `hace ${n} días`,
+    },
+    fr: {
+        now: "maintenant",
+        minAgo: (n) => `il y a ${n} min`,
+        hoursAgo: (n) => `il y a ${n} h`,
+        yesterday: "hier",
+        daysAgo: (n) => `il y a ${n} jours`,
     },
 };
 
@@ -193,6 +261,9 @@ export function formatNumber(n: number, fractionDigits = 0): string {
 
 /**
  * Format kwoty (PL: "12 345,67 zl"; domyslna waluta PLN).
+ * UWAGA: waluta opisuje DENOMINACJE kwoty, nie preferencje locale - kwota
+ * policzona w PLN ma byc podpisana PLN takze w UI EN/IT. Zmiana waluty to
+ * decyzja miejsca wywolania (przekaz jawnie "EUR"), nie slownika.
  */
 export function formatCurrency(amount: number, currency = "PLN"): string {
     return new Intl.NumberFormat(localeTag(), {
@@ -202,4 +273,4 @@ export function formatCurrency(amount: number, currency = "PLN"): string {
 }
 
 // Re-export slownikow dla testow / debug.
-export { pl, en };
+export { pl, en, it, de, es, fr };

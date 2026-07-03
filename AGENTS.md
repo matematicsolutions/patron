@@ -43,7 +43,11 @@ node scripts/bundle-mcp.cjs
 # (MCP_PY_REPOS_DIR, nie obok patron). 3-sync nazw: pipeline.ts APPROVED +
 # prepare-resources.cjs MCP_SERVERS_PYTHON + mcp-servers.example.json. Spawn:
 # py-runtime/python.exe -s -E -c "from <modul>.server import main; main()".
-# Build locale: NEXT_PUBLIC_PATRON_LOCALE=en daje zestaw UE-first + samouczek EN.
+# Build locale (ADR-0132/0139): NEXT_PUBLIC_PATRON_LOCALE in {pl,en,it,de,es,fr}.
+# en = zestaw UE-first + samouczek EN; it/de/es/fr = konektor macierzysty ON +
+# substancja krajowa w promptach (PROFILES w backend/src/lib/chat/prompts.ts).
+# Preferuj `npm run build:<locale>` (desktop/scripts/build-locale.cjs) - ustawia
+# locale, jezyk NSIS i kanoniczna nazwe artefaktu PATRON-Setup-Windows[-XX].exe.
 cd desktop && npm run build
 
 # Pelny stack (Docker, wymaga Supabase + MinIO osobno)

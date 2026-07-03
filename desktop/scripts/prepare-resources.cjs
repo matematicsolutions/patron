@@ -42,10 +42,15 @@ const OUT_FRONTEND = path.join(OUT_DIR, "frontend");
 const SKIP_BUILD = process.env.SKIP_BUILD === "1";
 const IS_WIN = process.platform === "win32";
 
-// Locale buildu (ADR-0132): "en" => zestaw konektorow UE-first + samouczek EN,
-// "pl" => zachowanie dotychczasowe (PL-first). Czytane z tego samego env co
-// frontend (NEXT_PUBLIC_PATRON_LOCALE), wiec jeden build = jeden locale.
-const LOCALE = process.env.NEXT_PUBLIC_PATRON_LOCALE === "en" ? "en" : "pl";
+// Locale buildu (ADR-0132 + ADR-0139): "en" => zestaw konektorow UE-first +
+// samouczek EN; rynki "it"/"de"/"es"/"fr" => konektor macierzysty pierwszy i ON,
+// substancja krajowa w promptach (backend); "pl" => zachowanie dotychczasowe
+// (PL-first). Czytane z tego samego env co frontend (NEXT_PUBLIC_PATRON_LOCALE),
+// wiec jeden build = jeden locale.
+const SUPPORTED_LOCALES = ["pl", "en", "it", "de", "es", "fr"];
+const LOCALE = SUPPORTED_LOCALES.includes(process.env.NEXT_PUBLIC_PATRON_LOCALE)
+  ? process.env.NEXT_PUBLIC_PATRON_LOCALE
+  : "pl";
 
 // ── Konektory MCP do zbundlowania w instalatorze (ADR-0091) ──────────────────
 // Kazdy konektor zyje w osobnym repo (domyslnie obok patron/). Do instalatora
@@ -85,6 +90,7 @@ const MCP_PY_REPOS_DIR = process.env.MCP_PY_REPOS_DIR
 const MCP_SERVERS_PYTHON = [
   { name: "de-eli", repoDir: "de-eli-mcp", module: "de_eli_mcp" },
   { name: "fr-eli", repoDir: "fr-eli-mcp", module: "fr_eli_mcp", needsKey: true },
+  { name: "it-eli", repoDir: "it-eli-mcp", module: "it_eli_mcp" },
   { name: "es-eli", repoDir: "es-eli-mcp", module: "es_eli_mcp" },
   { name: "nl-eli", repoDir: "nl-eli-mcp", module: "nl_eli_mcp" },
   { name: "se-eli", repoDir: "se-eli-mcp", module: "se_eli_mcp" },
@@ -101,25 +107,43 @@ const JURISDICTION = {
   saos: "PL", nsa: "PL", isap: "PL", krs: "PL",
   "eu-sparql": "EU", "eu-compliance": "EU",
   "de-eli": "DE", "at-eli": "AT", "es-eli": "ES", "fi-eli": "FI", "ie-eli": "IE",
-  "nl-eli": "NL", "se-eli": "SE", "fr-eli": "FR", "lu-eli": "LU",
+  "nl-eli": "NL", "se-eli": "SE", "fr-eli": "FR", "lu-eli": "LU", "it-eli": "IT",
 };
 const NEEDS_KEY = new Set(["fr-eli"]); // Legifrance/PISTE OAuth - off do podania klucza
+// Kolejnosc krajowych UE largest-first (wielkosc rynku LegalTech).
+const EU_LARGEST_FIRST = [
+  "de-eli", "fr-eli", "it-eli", "es-eli", "nl-eli", "se-eli", "at-eli",
+  "fi-eli", "ie-eli", "lu-eli",
+];
 // EN: UE-first (largest-first), PL na koncu. PL: dotychczasowe PL-first.
 const ORDER_EN = [
-  "de-eli", "fr-eli", "es-eli", "nl-eli", "se-eli", "at-eli", "fi-eli", "ie-eli",
-  "lu-eli", "eu-sparql", "eu-compliance", "saos", "nsa", "isap", "krs",
+  ...EU_LARGEST_FIRST, "eu-sparql", "eu-compliance", "saos", "nsa", "isap", "krs",
 ];
 const ORDER_PL = [
-  "saos", "nsa", "isap", "krs", "eu-sparql", "eu-compliance", "de-eli", "fr-eli",
-  "es-eli", "nl-eli", "se-eli", "at-eli", "fi-eli", "ie-eli", "lu-eli",
+  "saos", "nsa", "isap", "krs", "eu-sparql", "eu-compliance", ...EU_LARGEST_FIRST,
 ];
+// Rynki (ADR-0139): konektor macierzysty pierwszy, potem UE-zbiorcze, reszta
+// krajowych largest-first, PL na koncu (obecne, przelaczalne pickerem).
+const HOME_CONNECTOR = { it: "it-eli", de: "de-eli", es: "es-eli", fr: "fr-eli" };
+function marketOrder(locale) {
+  const home = HOME_CONNECTOR[locale];
+  return [
+    home, "eu-sparql", "eu-compliance",
+    ...EU_LARGEST_FIRST.filter((n) => n !== home),
+    "saos", "nsa", "isap", "krs",
+  ];
+}
 
 // Domyslny stan enabled wg locale. EN: wszystko poza PL wlaczone (FR off - klucz).
+// Rynek (it/de/es/fr): macierzysty + UE-zbiorcze ON, reszta obecna ale OFF.
 // PL: PL + UE-zbiorcze wlaczone, krajowe UE off (obecne, przelaczalne pickerem).
 function defaultEnabled(name) {
   if (NEEDS_KEY.has(name)) return false;
   const jur = JURISDICTION[name] || "OTHER";
   if (LOCALE === "en") return jur !== "PL";
+  if (HOME_CONNECTOR[LOCALE]) {
+    return name === HOME_CONNECTOR[LOCALE] || jur === "EU";
+  }
   return jur === "PL" || jur === "EU";
 }
 
@@ -369,7 +393,11 @@ function stageBundledPython() {
 // Zapis mcp-servers.json: laczy konektory Node + Python, ustala enabled+kolejnosc
 // wg LOCALE (UE-first dla EN, PL-first dla PL). enabled!==false => aktywny.
 function writeMcpManifest(entries) {
-  const order = LOCALE === "en" ? ORDER_EN : ORDER_PL;
+  const order = LOCALE === "en"
+    ? ORDER_EN
+    : HOME_CONNECTOR[LOCALE]
+      ? marketOrder(LOCALE)
+      : ORDER_PL;
   const rank = (n) => {
     const i = order.indexOf(n);
     return i === -1 ? 999 : i;
@@ -380,6 +408,15 @@ function writeMcpManifest(entries) {
   fs.writeFileSync(
     path.join(OUT_BACKEND, "mcp-servers.json"),
     JSON.stringify(out, null, 2) + "\n",
+    "utf8",
+  );
+  // Znacznik locale instalacji dla runtime desktop: main.js czyta ten plik i
+  // ustawia PATRON_LOCALE dla backendu (ADR-0135/0139). Bez niego backend
+  // spada na default "pl" takze w buildach EN/IT/DE/ES/FR - agent odpowiadalby
+  // po polsku mimo obcego UI.
+  fs.writeFileSync(
+    path.join(OUT_BACKEND, "patron-locale.json"),
+    JSON.stringify({ locale: LOCALE }, null, 2) + "\n",
     "utf8",
   );
   const on = out.filter((e) => e.enabled !== false).map((e) => e.name);
@@ -422,6 +459,43 @@ function stageEmbedModel() {
   }
 }
 
+// ── 3c-it. Staging indeksu orzecznictwa Corte Costituzionale (build IT) ──────
+// it-eli warstwa orzecznicza czyta lokalny indeks SQLite FTS5 (fail-loud gdy
+// brak). Dla buildu IT budujemy indeks RAZ przy prepare (open data Corte Cost,
+// 1956 -> dzis) i wozimy w instalatorze; main.js celuje w niego przez
+// IT_ELI_CASELAW_DB. Best-effort jak embedder: brak sieci = build BEZ indeksu
+// (narzedzia it_case_* zglosza brak wprost, legislacja Normattiva dziala).
+const SKIP_IT_CASELAW = process.env.SKIP_IT_CASELAW === "1";
+function stageItCaselawIndex() {
+  if (LOCALE !== "it" || SKIP_PYTHON_CONNECTORS) return;
+  if (SKIP_IT_CASELAW) {
+    log("SKIP_IT_CASELAW=1 - pomijam indeks Corte Costituzionale.");
+    return;
+  }
+  log("Budowanie indeksu orzecznictwa Corte Costituzionale (it-eli)...");
+  const pyExe = path.join(
+    OUT_BACKEND,
+    ...(IS_WIN ? ["py-runtime", "python.exe"] : ["py-runtime", "bin", "python3"]),
+  );
+  if (!fs.existsSync(pyExe)) {
+    log("  UWAGA: brak py-runtime - pomijam indeks (uruchom stageBundledPython najpierw).");
+    return;
+  }
+  const dbDir = path.join(OUT_BACKEND, "data", "it-eli-caselaw");
+  fs.mkdirSync(dbDir, { recursive: true });
+  const dbPath = path.join(dbDir, "cost.sqlite");
+  try {
+    run(pyExe, [
+      "-s", "-E", "-c",
+      "from it_eli_mcp.caselaw.ingest import main; main()",
+      "--db", dbPath,
+    ], OUT_BACKEND);
+    log(`  + indeks Corte Costituzionale gotowy (${dbPath}).`);
+  } catch {
+    log("  UWAGA: ingest Corte Costituzionale nie powiodl sie - instalator zbuduje sie BEZ indeksu (it_case_* zglosi brak; legislacja Normattiva dziala). Powtorz z dostepem do sieci.");
+  }
+}
+
 // ── 3d. Staging dokumentacji uzytkownika (baza wiedzy + samouczek) ───────────
 // Dwa dokumenty jada z instalatorem: mecenas ma je na dysku, a asystent moze
 // do nich odsylac (prompt systemowy o nich wie). Trafiaja do backend/docs/.
@@ -439,24 +513,38 @@ function stageDocs() {
     log("  UWAGA: brak BAZA_WIEDZY.md - pomijam.");
   }
 
-  // SAMOUCZEK locale-aware: EN bierze SAMOUCZEK_EN.md, pakowany pod kanoniczna
-  // nazwa SAMOUCZEK.md (prompt systemowy odwoluje sie do niej niezaleznie od jezyka).
-  const samSrcName = LOCALE === "en" ? "SAMOUCZEK_EN.md" : "SAMOUCZEK.md";
-  const samSrc = path.join(REPO_ROOT, "docs", samSrcName);
+  // SAMOUCZEK locale-aware: kazdy rynek bierze SAMOUCZEK_<LOCALE>.md, pakowany
+  // pod kanoniczna nazwa SAMOUCZEK.md (prompt systemowy odwoluje sie do niej
+  // niezaleznie od jezyka). Fallback: locale -> EN -> PL, z glosnym ostrzezeniem.
+  const SAM_BY_LOCALE = {
+    pl: "SAMOUCZEK.md",
+    en: "SAMOUCZEK_EN.md",
+    it: "SAMOUCZEK_IT.md",
+    de: "SAMOUCZEK_DE.md",
+    es: "SAMOUCZEK_ES.md",
+    fr: "SAMOUCZEK_FR.md",
+  };
   const samDst = path.join(outDocs, "SAMOUCZEK.md");
-  if (fs.existsSync(samSrc)) {
-    fs.copyFileSync(samSrc, samDst);
-    log(`  + SAMOUCZEK.md (z ${samSrcName})`);
-  } else if (LOCALE === "en") {
-    const samPl = path.join(REPO_ROOT, "docs", "SAMOUCZEK.md");
-    if (fs.existsSync(samPl)) {
-      fs.copyFileSync(samPl, samDst);
-      log("  UWAGA: brak SAMOUCZEK_EN.md - pakuje polski fallback (uzupelnij tlumaczenie).");
+  const samCandidates = [
+    SAM_BY_LOCALE[LOCALE] || "SAMOUCZEK.md",
+    "SAMOUCZEK_EN.md",
+    "SAMOUCZEK.md",
+  ];
+  let samCopied = false;
+  for (const cand of samCandidates) {
+    const src = path.join(REPO_ROOT, "docs", cand);
+    if (!fs.existsSync(src)) continue;
+    fs.copyFileSync(src, samDst);
+    if (cand === samCandidates[0]) {
+      log(`  + SAMOUCZEK.md (z ${cand})`);
     } else {
-      log("  UWAGA: brak SAMOUCZEK_EN.md i SAMOUCZEK.md - pomijam.");
+      log(`  UWAGA: brak ${samCandidates[0]} - pakuje fallback ${cand} (uzupelnij tlumaczenie).`);
     }
-  } else {
-    log("  UWAGA: brak SAMOUCZEK.md - pomijam.");
+    samCopied = true;
+    break;
+  }
+  if (!samCopied) {
+    log("  UWAGA: brak jakiegokolwiek SAMOUCZEK*.md - pomijam.");
   }
 }
 
@@ -550,6 +638,7 @@ function main() {
   const nodeManifest = stageMcpConnectors();
   const pyManifest = stageBundledPython();
   writeMcpManifest([...nodeManifest, ...pyManifest]);
+  stageItCaselawIndex();
   stageEmbedModel();
   stageOcrEngine();
   stageDocs();
