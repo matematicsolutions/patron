@@ -40,7 +40,7 @@ Patron non prende decisioni legali e non sostituisce il Suo giudizio. È uno str
 
 1. Avvii **PATRON** (l'icona sul desktop o il menu Start). Vedrà una schermata di caricamento e, dopo una decina di secondi, la finestra principale. Non serve alcun account né login. Patron è single-user e locale, quindi gli atti del fascicolo, le banche dati e la cronologia delle chat restano sul Suo computer.
 2. **Aggiunga la chiave di un modello AI.** È l'unico passo senza il quale l'assistente non risponde. Apra **Account → Modelli e chiavi API** e incolli la chiave del Suo provider (per esempio Libra/Anthropic, oppure Gemini/OpenAI). Salvi. Da quel momento la chat, la modifica dei documenti e le tabelle funzionano. Dettagli: [Passo 7](#10-passo-7-scegliere-il-modello).
-3. **Internet e conversione dei file.** Un modello cloud e la ricerca dal vivo di giurisprudenza e legislazione (per esempio Normattiva, Corte Costituzionale, EUR-Lex) richiedono una connessione internet. La banca dati del diritto UE e la ricerca nei Suoi documenti funzionano anche offline. Se al caricamento di vecchi file `.doc` compare un errore di conversione, chieda al Suo amministratore di installare LibreOffice (è gratuito).
+3. **Internet e conversione dei file.** Un modello cloud e la ricerca dal vivo di giurisprudenza e legislazione (Normattiva, Corte Costituzionale) richiedono una connessione internet. La ricerca nei Suoi documenti funziona anche offline. Se al caricamento di vecchi file `.doc` compare un errore di conversione, chieda al Suo amministratore di installare LibreOffice (è gratuito).
 
 > **Suggerimento:** Patron si rivolge a Lei con "Avvocato". Le parla in italiano e redige gli atti in italiano, perché sono destinati ai tribunali italiani. Non sa da dove cominciare? Glielo chieda direttamente in chat: **"Cosa sai fare?"** oppure **"Da dove comincio?"**, e Le presenterà le sue funzioni passo dopo passo. Se non vede qualcosa, espanda il pannello di sinistra (**Esploratore**).
 
@@ -103,23 +103,21 @@ Ogni citazione tratta dai Suoi documenti riceve un indicatore di affidabilità:
 
 ## 6. Passo 3: giurisprudenza e legislazione
 
-Patron arriva con **un set completo di banche dati giuridiche integrate** (funzionano subito dopo l'installazione, senza configurazione). Nell'edizione italiana i connettori attivi per impostazione predefinita sono:
+L'edizione italiana di Patron arriva con **il connettore del diritto italiano integrato** (funziona subito dopo l'installazione, senza configurazione):
 
 | Banca dati | Cosa vi trova |
 |---|---|
 | **Normattiva** | la legislazione italiana: Gazzetta Ufficiale, testi normativi nella versione vigente |
 | **Corte Costituzionale** | la giurisprudenza della Corte Costituzionale |
-| **EUR-Lex** | il diritto UE e la giurisprudenza della CGUE |
-| **EU-Compliance** | GDPR, AI Act, DORA, NIS2, eIDAS 2.0, CRA (offline) |
 
-I connettori polacchi (SAOS - giurisprudenza dei tribunali ordinari, della Corte Suprema, del Tribunale Costituzionale e della KIO; NSA - giustizia amministrativa; ISAP - legislazione polacca; KRS - registro nazionale giudiziario delle imprese) possono essere attivati nelle impostazioni: **Account → Connettori** ("Connettori del diritto").
+Gli altri connettori NON sono inclusi nell'installatore - l'edizione resta leggera. Il diritto UE (**EUR-Lex**, il corpus di conformità **EU-Compliance** offline: GDPR, AI Act, DORA, NIS2, eIDAS 2.0, CRA) e i connettori di altre giurisdizioni (compresi quelli polacchi: SAOS, NSA, ISAP, KRS) si scaricano separatamente dalla **MateMatic Boutique** (matematicsolutions.com/boutique) e si collegano all'applicazione. Una volta installati, li attiva nelle impostazioni: **Account → Connettori** ("Connettori del diritto").
 
 Chieda in linguaggio naturale e Patron sceglierà da solo la banca dati giusta:
 
 - "Trova le sentenze della Corte Costituzionale in materia di risarcimento del danno non patrimoniale. Indica gli estremi delle pronunce."
 - "Mostrami l'articolo 2043 del codice civile."
-- "Qual è la definizione di sistema di AI ad alto rischio nell'AI Act?"
-- Con i connettori polacchi attivati: "Verifica il consiglio di amministrazione di Nowak-Bud sp. z o.o. nel KRS." Le ricerche di giurisprudenza polacca restituiscono sentenze reali dalla banca dati SAOS, per esempio **I CSK 90/15**, **III CSK 217/15**, **IV CSK 270/15**, con date e link.
+- Con il connettore EU-Compliance installato dalla Boutique: "Qual è la definizione di sistema di AI ad alto rischio nell'AI Act?"
+- Con i connettori polacchi installati dalla Boutique: "Verifica il consiglio di amministrazione di Nowak-Bud sp. z o.o. nel KRS." Le ricerche di giurisprudenza polacca restituiscono sentenze reali dalla banca dati SAOS, per esempio **I CSK 90/15**, **III CSK 217/15**, **IV CSK 270/15**, con date e link.
 
 > **Ricordi:** le banche dati sono un accesso rapido e uno spunto. Prima di citare una disposizione in un atto, ne verifichi il testo vigente nella fonte ufficiale, perché la legislazione cambia.
 
