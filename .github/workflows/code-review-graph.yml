@@ -1,0 +1,28 @@
+# Risk-scored, graph-aware PR review. Local-first: the Tree-sitter knowledge
+# graph is built and queried entirely on the runner — no source code leaves
+# GitHub's infrastructure (RODO/tajemnica adwokacka safe).
+# Posts a single sticky comment with risk-scored functions, affected flows and
+# test gaps, updated in place on every push to the PR.
+name: code-review-graph PR review
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Full history so the diff base (origin/<base_ref>) resolves cleanly.
+          fetch-depth: 0
+      - uses: tirth8205/code-review-graph@v2.3.6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          # none = report only. Switch to "high" (risk >= 0.70) or "critical"
+          # (>= 0.85) to turn the review into a merge gate once we trust it.
+          fail-on-risk: none

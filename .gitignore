@@ -34,3 +34,5 @@ backend/bun.lockb
 # Pakowanie desktop (ADR-0091): staging zasobow + output electron-builder.
 desktop/dist-resources/
 desktop/dist/
+# Added by code-review-graph
+.code-review-graph/
