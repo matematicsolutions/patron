@@ -8,6 +8,7 @@
     "dev": "electron . --dev",
     "prepare:resources": "node scripts/prepare-resources.cjs",
     "e2e:smoke": "node scripts/e2e-smoke.cjs",
+    "release:all": "node scripts/release-all.cjs",
     "build": "node scripts/prepare-resources.cjs && electron-builder --win --x64 --publish=never",
     "build:dir": "node scripts/prepare-resources.cjs && electron-builder --win --x64 --dir --publish=never",
     "build:only": "electron-builder --win --x64 --publish=never",
