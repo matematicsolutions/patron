@@ -35,6 +35,19 @@ desktop-packaging - tresc juz wtopiona, tipy do skasowania przy sprzataniu po ta
 | A2-4 | **Eval jedna komenda** (spiac legal-eval-harness, raport = artefakt CI) | eval jest bramka flipu flag - dzis to "wydarzenie", ma byc narzedzie | ZROBIONE 2026-07-04 (spec 010; scripts/run-eval.cjs 3 etapy + eval.yml; smoke A 27/27, B LEDGAR 99.4%) |
 | A2-5 | **Konfiguracja code signing** (build-locale + runbook signtool; cert kupuje WM) | przygotowanie pod B5 - po zakupie certu flip samymi env | ZROBIONE 2026-07-04 (spec 011; signtool post-build + regeneracja sha512/blockmap, runbook code-signing.md) |
 
+## Etap A3 - fabryka do 10/10 (zielone WM 2026-07-05; sesja Fabryka, spec-driven)
+
+| # | Krok | Wartosc | Stan |
+|---|------|---------|------|
+| A3-1 | Siatka testow frontendu (vitest + testing-library + parytet i18n) | pierwszy raz frontend ma testy (bylo 0 vs 1365 backend); kontrolki governance pod siatka | ZROBIONE 2026-07-05 (spec 012; 12 testow, w CI) |
+| A3-2 | E2E smoke spakowanej aplikacji (`npm run e2e:smoke`) | boot win-unpacked na czystym temp profilu, health backend+frontend; koniec z recznym "czy wstaje" x6 edycji | ZROBIONE 2026-07-05 (spec 013; PASS na realnym buildzie) |
+| A3-3 | Wydanie jedna komenda (`npm run release:all`) | 6 edycji sekwencyjnie + weryfikacja artefaktow + manifest SHA256 + smoke + opcjonalny DRAFT releasu gh (publikacja = WM) | ZROBIONE 2026-07-05 (spec 014) |
+| A3-4 | CI na wszystkich galeziach + vitest frontendu w CI | czerwona suita widoczna na galezi roboczej, nie przy merge do release | ZROBIONE 2026-07-05 (spec 015) |
+
+Backlog A4 (swiadomie NIE teraz): supply-chain gate w CI (npm audit/Dependabot -
+wymaga najpierw triage zastanych advisories), kanal zwrotny "Zgloś problem"
+(lokalna paczka diagnostyczna, zero-cloud), proba generalna auto-update rc->rc2.
+
 ## Etap B - bramki wymagajace Wieslawa (przygotowane, nie wykonywane autonomicznie)
 
 | # | Bramka | Co przygotowuje agent | Co decyduje WM |

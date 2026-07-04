@@ -1,10 +1,11 @@
 name: CI
 
-# Siatka bezpieczenstwa takze dla linii wydaniowych (release/*): testy biegaly
-# dotad tylko lokalnie i tylko gdy ktos pamietal - push na release byl bez CI.
+# Siatka bezpieczenstwa dla WSZYSTKICH galezi (spec 015): galaz robocza ma
+# dowiedziec sie o czerwonej suicie od razu, nie dopiero przy merge do release.
+# (publication-gate zostaje na main+release/** - pilnuje linii publikacyjnych.)
 on:
   push:
-    branches: [main, "release/**"]
+    branches: ["**"]
   pull_request:
     branches: [main, "release/**"]
 
@@ -59,6 +60,9 @@ jobs:
 
       - name: TypeScript check
         run: npx tsc --noEmit
+
+      - name: Vitest (spec 012)
+        run: npm test
 
       - name: Next build
         run: npm run build

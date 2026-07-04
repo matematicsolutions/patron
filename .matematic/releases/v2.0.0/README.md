@@ -91,6 +91,8 @@ bierze sie STAD i od razu podbija licznik w tym samym commicie co plik.
 - [ ] Decyzja #4 (trzecia glowa) - WM.
 - [ ] Sign-off WM dla 005: Q1-Q6 (zrodlo KEK serwer, lista pol, migracja, format, audit_log NIE, backup KEK).
 - [x] Runbook backup/odzyskania KEK + `npm run kek:verify` (A2-3, spec 009; warunek wydania - governance/runbooks/kek-backup-recovery.md). Q6 ma tresc-rekomendacje do sign-off.
+- [x] Narzedzia wydania (A3, specy 012-015): testy frontendu w CI, `npm run e2e:smoke` (spakowany stack), `npm run release:all` (6 edycji + manifest + draft gh; publikacja = WM), CI na wszystkich galeziach.
+- [ ] Przy wydaniu: `npm version X.Y.Z --no-git-tag-version` w desktop/ -> `npm run release:all -- --draft` -> przeglad draftu -> Publish (WM).
 - [ ] `security-review` na krypto 005 (OBOWIAZKOWY przed wpieciem kolumn).
 - [ ] Wpiecie kolumn 005 (US1 pilot -> US2) jezeli wchodzi w 2.0; albo 005 zostaje fundamentem.
 - [ ] Eval (korpus PL) - warunek flipu flag wg konwencji (ADR-0101/0102).
