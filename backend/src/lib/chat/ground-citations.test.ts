@@ -207,6 +207,63 @@ describe("groundCitationsByRef - etap semantyczny (judge wstrzykniety)", () => {
     });
 });
 
+describe("groundCitationsByRef - WYMAGA OSADU (judgeUnavailable, fail-closed)", () => {
+    type WithJudg = { requiresJudgment?: boolean; stage?: number };
+
+    it("judgeUnavailable + verified + teza ([ref] w prozie) -> requiresJudgment=true (sciezka deterministyczna)", async () => {
+        getText.mockResolvedValue("Sąd oddalił powództwo w całości.");
+        const out = await groundCitationsByRef(
+            [{ ref: 1, doc_id: "doc-0", quote: "oddalił powództwo" }],
+            docStore,
+            undefined,
+            undefined,
+            { answerText: "Sąd oddalił powództwo [1].", judgeUnavailable: true },
+        );
+        expect(out[1].decision).toBe("verified");
+        expect((out[1] as WithJudg).requiresJudgment).toBe(true);
+        // bez sedziego (fail-closed) -> sciezka deterministyczna, brak etapu 3
+        expect((out[1] as WithJudg).stage).toBeUndefined();
+    });
+
+    it("judgeUnavailable ale cytat BEZ tezy ([ref] poza proza) -> brak requiresJudgment", async () => {
+        getText.mockResolvedValue("Sąd oddalił powództwo w całości.");
+        const out = await groundCitationsByRef(
+            [{ ref: 1, doc_id: "doc-0", quote: "oddalił powództwo" }],
+            docStore,
+            undefined,
+            undefined,
+            { answerText: "Proza bez markera.", judgeUnavailable: true },
+        );
+        expect(out[1].decision).toBe("verified");
+        expect((out[1] as WithJudg).requiresJudgment).toBeUndefined();
+    });
+
+    it("judge=off swiadomie (brak judgeUnavailable) -> brak requiresJudgment", async () => {
+        getText.mockResolvedValue("Sąd oddalił powództwo w całości.");
+        const out = await groundCitationsByRef(
+            [{ ref: 1, doc_id: "doc-0", quote: "oddalił powództwo" }],
+            docStore,
+            undefined,
+            undefined,
+            { answerText: "Sąd oddalił powództwo [1]." },
+        );
+        expect((out[1] as WithJudg).requiresJudgment).toBeUndefined();
+    });
+
+    it("judgeUnavailable ale cytat blocked (BRAK_ZRODLA) -> brak requiresJudgment (nie verified)", async () => {
+        getText.mockResolvedValue(null);
+        const out = await groundCitationsByRef(
+            [{ ref: 1, doc_id: "doc-x", quote: "cokolwiek" }],
+            docStore,
+            undefined,
+            undefined,
+            { answerText: "Teza [1].", judgeUnavailable: true },
+        );
+        expect(out[1].decision).toBe("blocked");
+        expect((out[1] as WithJudg).requiresJudgment).toBeUndefined();
+    });
+});
+
 describe("groundingSummary - statystyka sedziego (AI Act art. 12)", () => {
     it("bez sedziego: brak pola judge (tylko liczby decyzji)", () => {
         const s = groundingSummary({
@@ -254,5 +311,42 @@ describe("groundingSummary - statystyka sedziego (AI Act art. 12)", () => {
         expect(s.judge!.red).toBe(1);
         expect(s.judge!.green).toBe(1);
         expect(s.judge!.downgraded).toBe(1); // kluczowa metryka moatu
+    });
+
+    it("liczy requiresJudgment (WYMAGA OSADU) jako osobna metryke", () => {
+        const s = groundingSummary({
+            1: {
+                ref: 1,
+                doc_id: "d",
+                status: "ZWERYFIKOWANY",
+                decision: "verified",
+                worstRatio: 0,
+                offset: 0,
+                requiresJudgment: true,
+            } as never,
+            2: {
+                ref: 2,
+                doc_id: "d",
+                status: "ZWERYFIKOWANY",
+                decision: "verified",
+                worstRatio: 0,
+                offset: 0,
+            } as never,
+        });
+        expect(s.requiresJudgment).toBe(1);
+    });
+
+    it("brak requiresJudgment -> pole nieobecne", () => {
+        const s = groundingSummary({
+            1: {
+                ref: 1,
+                doc_id: "d",
+                status: "ZWERYFIKOWANY",
+                decision: "verified",
+                worstRatio: 0,
+                offset: 0,
+            },
+        });
+        expect(s.requiresJudgment).toBeUndefined();
     });
 });

@@ -40,6 +40,14 @@ export interface GroundOptions {
      * ortogonalna do verdict (ADR-0097). Brak = zero zmiany zachowania.
      */
     provenanceTags?: boolean;
+    /**
+     * Sedzia byl ZADANY (PATRON_CITATION_JUDGE on), ale NIEdostepny (makeJudge=null,
+     * fail-closed: tajemnica + model chmurowy / brak modelu lokalnego). Wtedy nawet
+     * w sciezce deterministycznej oznaczamy cytaty "verified" podpierajace teze jako
+     * requiresJudgment (WYMAGA OSADU) - substancja nieoceniona, czlowiek musi sprawdzic.
+     * Brak/false = zachowanie bez zmian (judge=off to swiadomy tryb, nie flagujemy).
+     */
+    judgeUnavailable?: boolean;
 }
 
 /**
@@ -49,10 +57,13 @@ export interface GroundOptions {
  * re-kotwiczalna pozycje pod highlight i audit bundle (AI Act art. 12); null gdy
  * nie da sie verbatim (fail-closed). UWAGA: lokator (zawiera rawText=cytat) leci
  * do SSE/persistence, NIE do audit_log - audyt dostaje groundingSummary (liczby).
+ * `requiresJudgment` = flaga WYMAGA OSADU (ADR-0097): cytat tekstowo ugruntowany,
+ * ale substancja tezy nieoceniona semantycznie (sedzia niedostepny).
  */
 export type GroundedCitation = GroundingResult & {
     provenance?: Provenance;
     locator: CitationLocator | null;
+    requiresJudgment?: boolean;
 };
 
 /** Okno kontekstu (znaki) po obu stronach znacznika [ref]. */
@@ -183,6 +194,10 @@ export async function groundCitationsByRef(
     }
 
     // Sciezka deterministyczna (domyslna): synchroniczny resolver na mapie.
+    // WYMAGA OSADU: gdy sedzia byl zadany lecz niedostepny (fail-closed), cytat
+    // "verified" podpierajacy teze jest tekstowo ugruntowany, ale substancja tezy
+    // NIEoceniona (cichy przypadek Stanford). Oznacz go do weryfikacji przez czlowieka.
+    const flagJudgment = opts?.judgeUnavailable === true;
     const report = verifyCitations(parsed, (id) => textByDocId.get(id) ?? null);
     for (const r of report.results) {
         // ADR-0116: trwaly lokator z surowego, juz prefetchowanego zrodla.
@@ -195,13 +210,21 @@ export async function groundCitationsByRef(
                 ? (locatorFromQuote(cit.quote, src) ??
                   locatorFromCollapsedQuote(cit.quote, src))
                 : null;
+        // ADR-0097: WYMAGA OSADU gdy sedzia zadany-a-niedostepny, cytat "verified"
+        // i podpiera teze - substancja tezy pozostala nieoceniona semantycznie.
+        const needsJudgment =
+            flagJudgment &&
+            r.decision === "verified" &&
+            extractClaim(opts?.answerText, r.ref) !== "";
+        const base: GroundedCitation = needsJudgment
+            ? { ...r, locator, requiresJudgment: true }
+            : { ...r, locator };
         byRef[r.ref] = withProvenance
             ? {
-                  ...r,
-                  locator,
+                  ...base,
                   provenance: deriveProvenance("client-doc", quoteByRef.get(r.ref)),
               }
-            : { ...r, locator };
+            : base;
     }
     return byRef;
 }
@@ -246,15 +269,24 @@ export function groundingSummary(
     verified: number;
     unverified: number;
     blocked: number;
+    /**
+     * WYMAGA OSADU (ADR-0097 + gradient citation-grounding-pl): ile cytatow jest
+     * tekstowo-ugruntowanych i podpiera teze, ale substancja NIE zostala oceniona
+     * semantycznie (sedzia sie nie odpalil - np. tajemnica + model chmurowy =
+     * fail-closed). Record-keeping AI Act art. 12: ile tez przeszlo bez kontroli
+     * sensu - czlowiek musi je zweryfikowac. Zero PII (sama liczba).
+     */
+    requiresJudgment?: number;
     judge?: JudgeAuditSummary;
     provenance?: ProvenanceAuditSummary;
 } {
     const vals = Object.values(grounding);
-    // CascadeResult (ADR-0097) dokleja verdict/stage; ADR-0102 dokleja provenance.
-    // GroundingResult ich nie ma - czytamy przez optional cast (nie modyfikujemy rdzenia).
+    // CascadeResult (ADR-0097) dokleja verdict/stage/requiresJudgment; ADR-0102 dokleja
+    // provenance. GroundingResult ich nie ma - czytamy przez optional cast (nie modyfikujemy rdzenia).
     type Maybe = GroundingResult & {
         verdict?: "green" | "yellow" | "red";
         stage?: number;
+        requiresJudgment?: boolean;
         provenance?: Provenance;
     };
     const out: {
@@ -262,6 +294,7 @@ export function groundingSummary(
         verified: number;
         unverified: number;
         blocked: number;
+        requiresJudgment?: number;
         judge?: JudgeAuditSummary;
         provenance?: ProvenanceAuditSummary;
     } = {
@@ -270,6 +303,9 @@ export function groundingSummary(
         unverified: vals.filter((r) => r.decision === "unverified").length,
         blocked: vals.filter((r) => r.decision === "blocked").length,
     };
+
+    const needJudgment = vals.filter((r) => (r as Maybe).requiresJudgment === true).length;
+    if (needJudgment > 0) out.requiresJudgment = needJudgment;
 
     const judged = vals.filter((r) => (r as Maybe).stage === 3);
     if (judged.length > 0) {

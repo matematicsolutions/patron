@@ -1126,7 +1126,21 @@ function MarkdownContent({
                                         (provenance.pinpoint
                                             ? ` ${t("citations.provenancePinpoint")}`
                                             : "");
-                                const tooltipText = `${formatCitationPage(annotation)}: "${displayCitationQuote(annotation)}"${groundingLabel ? ` (${groundingLabel})` : ""}${provenanceLabel ? ` [${provenanceLabel}]` : ""}`;
+                                // ADR-0097 (WYMAGA OSADU): cytat tekstowo ugruntowany i
+                                // podpiera teze, ale substancja NIE zostala oceniona
+                                // semantycznie (sedzia sie nie odpalil - np. tajemnica +
+                                // model chmurowy). Pierscien amber odroznia "zielony, lecz
+                                // nieoceniony" od "zielony, oceniony" - cichy przypadek
+                                // Stanford. Nie zmienia koloru bazowego (ten oddaje grounding tekstowy).
+                                const needsJudgment =
+                                    annotation.requiresJudgment === true;
+                                const judgmentRing = needsJudgment
+                                    ? " ring-1 ring-amber-400"
+                                    : "";
+                                const judgmentNote = needsJudgment
+                                    ? ` [${t("citations.requiresJudgment")}]`
+                                    : "";
+                                const tooltipText = `${formatCitationPage(annotation)}: "${displayCitationQuote(annotation)}"${groundingLabel ? ` (${groundingLabel})` : ""}${provenanceLabel ? ` [${provenanceLabel}]` : ""}${judgmentNote}`;
                                 return (
                                     <button
                                         onClick={() => {
@@ -1136,7 +1150,7 @@ function MarkdownContent({
                                             );
                                             onCitationClick?.(annotation);
                                         }}
-                                        className={`mx-0.5 inline-flex items-center justify-center rounded-full w-4 h-4 text-[10px] font-medium transition-colors align-super ${groundingClass}`}
+                                        className={`mx-0.5 inline-flex items-center justify-center rounded-full w-4 h-4 text-[10px] font-medium transition-colors align-super ${groundingClass}${judgmentRing}`}
                                         title={tooltipText}
                                     >
                                         {idx + 1}

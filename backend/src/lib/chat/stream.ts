@@ -569,13 +569,18 @@ export async function runLLMStream(params: {
     // routuje przez guardEgress (tajemnica -> tylko model lokalny; brak = null =
     // grounding pozostaje deterministyczny, fail-closed). Lapie cytat doslowny pod
     // falszywa teza (Stanford). decision (blokada) zostaje deterministyczna.
-    const judge =
-        process.env.PATRON_CITATION_JUDGE === "true"
-            ? await makeJudge({ db, model: selectedModel, apiKeys, projectId })
-            : null;
+    const judgeRequested = process.env.PATRON_CITATION_JUDGE === "true";
+    const judge = judgeRequested
+        ? await makeJudge({ db, model: selectedModel, apiKeys, projectId })
+        : null;
+    // Sedzia ZADANY, ale niedostepny (makeJudge=null: fail-closed - tajemnica + model
+    // chmurowy / brak modelu lokalnego). Wtedy tekstowo-ugruntowane tezy sa nieocenione
+    // semantycznie -> oznacz je WYMAGA OSADU (ADR-0097). judge=off (swiadomy tryb) NIE flagujemy.
+    const judgeUnavailable = judgeRequested && judge === null;
     const grounding = await groundCitationsByRef(citations, docStore, docIndex, db, {
         answerText: fullText,
         judge,
+        judgeUnavailable,
         // ADR-0102 (A): tag proweniencji per cytat (default OFF). Deterministyczny,
         // enum bezpieczny do UI/audytu (jak verdict), zero egressu/PII.
         provenanceTags: process.env.PATRON_PROVENANCE_TAGS === "true",
@@ -588,12 +593,15 @@ export async function runLLMStream(params: {
         decision: string;
         verdict?: "green" | "yellow" | "red";
         provenance?: { tag: string; pinpoint: boolean };
+        /** WYMAGA OSADU (ADR-0097): teza nieoceniona semantycznie. Boolean, zero PII. */
+        requiresJudgment?: boolean;
     };
     const groundingForClient: Record<number, GroundingClientEntry> = {};
     for (const [ref, r] of Object.entries(grounding)) {
         const c = r as GroundingClientEntry;
         const entry: GroundingClientEntry = { decision: c.decision };
         if (c.verdict) entry.verdict = c.verdict;
+        if (c.requiresJudgment) entry.requiresJudgment = true;
         if (c.provenance) {
             entry.provenance = {
                 tag: c.provenance.tag,

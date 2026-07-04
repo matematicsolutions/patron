@@ -294,6 +294,26 @@ Poza zakresem (osobne ADR): P1 #1 at-rest native swap (better-sqlite3-multiple-
 ciphers + safeStorage), P1 #4 maskowanie nazwisk w egress (domkniecie ADR-0067).
 tsc 0, vitest 1123 pass / 0 fail / 5 todo (+5 testow). Branch
 `fix/audyt-patron-p1-p3`; przed merge do `main`: 2x review WM + decyzja Operatora.
+### Grounding: sygnal WYMAGA OSADU - teza nieoceniona semantycznie (ADR-0103)
+
+**Added**
+- `requiresJudgment` (CascadeResult, `backend/src/lib/citation/cascade.ts`) - sygnal
+  doradczy: cytat tekstowo ugruntowany i podpiera teze, ale substancja NIE zostala
+  oceniona przez sedziego (etap 3 sie nie odpalil). Domyka cicha luke Stanford GDY
+  judge jest fail-closed (tajemnica + model chmurowy -> `makeJudge`=null).
+- `judgeUnavailable` (GroundOptions, `chat/ground-citations.ts`) - gdy sedzia byl
+  ZADANY (`PATRON_CITATION_JUDGE` ON) lecz niedostepny, sciezka deterministyczna
+  oznacza cytaty `verified` podpierajace teze jako `requiresJudgment`. `judge=off`
+  swiadomie NIE jest flagowany.
+- Licznik `requiresJudgment` w `groundingSummary` (AI Act art. 12) - ile tez przeszlo
+  bez kontroli sensu. Zero PII (sama liczba).
+- Frontend: pierscien amber + tooltip "tekstowo zgodny, ale tezy nie oceniono - sprawdz
+  zrodlo" (`AssistantMessage.tsx`, i18n `citations.requiresJudgment`); pole w
+  `PATRONCitationAnnotation` + mapowanie SSE (`useAssistantChat.ts`).
+
+**Verified**: tsc 0 (backend + frontend), vitest 1125 pass / 0 fail (+12 testow),
+zero regresji. Default-safe (pole tylko gdy judge ON + niedostepny). decision (blokada)
+nietknieta. Inspiracja: gradient WYMAGA_OSADU ze skilla `citation-grounding-pl` (MateMatic).
 
 ### Grounding: tagi proweniencji + stan needs_review (ADR-0102)
 

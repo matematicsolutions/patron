@@ -292,6 +292,13 @@ export interface PATRONCitationAnnotation {
    * highlightem. Brak = highlight pierwszego dopasowania (zachowanie sprzed
    * ADR-0122). */
   locator?: PATRONCitationLocator;
+  /**
+   * ADR-0097 (WYMAGA OSADU): cytat jest tekstowo ugruntowany i podpiera teze, ale
+   * substancja NIE zostala oceniona semantycznie (sedzia sie nie odpalil - np.
+   * tajemnica + model chmurowy = fail-closed). Czlowiek musi sprawdzic, czy zrodlo
+   * faktycznie WSPIERA teze (cichy przypadek Stanford). Boolean, zero PII.
+   */
+  requiresJudgment?: boolean;
 }
 
 /**
