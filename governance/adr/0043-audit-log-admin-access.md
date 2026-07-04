@@ -1,6 +1,6 @@
 # ADR-0043: audit_log dla wejsc admin (admin.access.*) - meta-audit dla AI Act art. 12
 
-**Status**: PROPONOWANY (2026-05-27). Realizacja rezerwacji z ADR-0034 (RBAC admin), ADR-0040 (UI viewer audytora), ADR-0042 (UI banner mcp-security), ADR-0037 (metrics endpoint), ADR-0038 (migrate rollback). Wszystkie powyzsze rezerwowaly "audit_log eventu admin.access" jako osobny ADR z migracja ALTER CHECK.
+**Status**: Wdrozony (2026-05-27; status potwierdzony odczytem kodu 2026-06-01 - `backend/src/lib/audit-admin-access.ts` wpiety w routes/audit, routes/metrics, routes/security i middleware/auth, migracja 002). Realizacja rezerwacji z ADR-0034 (RBAC admin), ADR-0040 (UI viewer audytora), ADR-0042 (UI banner mcp-security), ADR-0037 (metrics endpoint), ADR-0038 (migrate rollback). Wszystkie powyzsze rezerwowaly "audit_log eventu admin.access" jako osobny ADR z migracja ALTER CHECK.
 
 **Data**: 2026-05-27
 

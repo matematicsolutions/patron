@@ -1,6 +1,6 @@
 # ADR-0079: Komentarz i redline na tym samym spanie (zniesienie bramki nakladania)
 
-**Status**: PROPONOWANY 2026-05-30. Konstytucja v1.4.6.
+**Status**: Wdrozony 2026-05-30 (status potwierdzony odczytem kodu 2026-06-01 - insertCommentRanges dual-path LIVE). Konstytucja v1.4.6.
 
 **Data**: 2026-05-30
 

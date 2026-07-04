@@ -461,7 +461,8 @@ create table if not exists public.audit_log (
   -- + 005_audit_log_event_type_llm_route.sql (ADR-0067, +1 wartosc)
   -- + 007_audit_log_event_type_defense_pipeline.sql (ADR-0068, +1 wartosc)
   -- + 008_audit_log_event_type_document_edit.sql (ADR-0070, +1 wartosc)
-  -- + 009_audit_log_event_type_tabular_grounding.sql (ADR-0082, +1 wartosc).
+  -- + 009_audit_log_event_type_tabular_grounding.sql (ADR-0082, +1 wartosc)
+  -- + 010_audit_log_event_type_cost_cap.sql (ADR-0093, +1 wartosc).
   constraint audit_log_event_type_whitelist check (event_type in (
     'chat.message.user',
     'chat.message.assistant',
@@ -482,7 +483,8 @@ create table if not exists public.audit_log (
     'tabular.grounding',
     'project.cloud_consent',
     'connector.toggle',
-    'mutation.approval.decision'
+    'mutation.approval.decision',
+    'cost_cap'
   ))
 );
 

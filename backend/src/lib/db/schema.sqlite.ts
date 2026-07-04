@@ -306,7 +306,8 @@ create table if not exists audit_log (
     'tabular.grounding',
     'project.cloud_consent',
     'connector.toggle',
-    'mutation.approval.decision'
+    'mutation.approval.decision',
+    'cost_cap'
   )),
   chat_id text,
   document_id text,

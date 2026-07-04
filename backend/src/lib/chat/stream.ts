@@ -10,7 +10,14 @@ import {
     type OpenAIToolSchema,
 } from "../llm";
 import { getMcpTools, isMcpTool, runMcpTool, type McpCitation } from "../mcp";
-import { enforceEgressGuard, appendLlmRouteEvent } from "../routing";
+import {
+    enforceEgressGuard,
+    appendLlmRouteEvent,
+    caseCostCapUsd,
+    getCaseSpentUsd,
+    evaluateBudget,
+    appendCostCapEvent,
+} from "../routing";
 import {
     wrapConversation,
     PseudonimStreamUnwrapper,
@@ -104,6 +111,11 @@ export async function runLLMStream(params: {
      * generated docs still get persisted, but as standalone documents.
      */
     projectId?: string | null;
+    /**
+     * US5 / ADR-0093: gdy true, operator swiadomie nadpisuje twardy cost-cap
+     * sprawy (decyzja logowana do audit jako cost_cap action=override).
+     */
+    allowBudgetOverride?: boolean;
 }): Promise<{
     fullText: string;
     events: AssistantEvent[];
@@ -126,6 +138,7 @@ export async function runLLMStream(params: {
         model,
         apiKeys,
         projectId,
+        allowBudgetOverride,
     } = params;
     const mcpTools = await getMcpTools();
     const activeTools = extraTools?.length
@@ -241,6 +254,42 @@ export async function runLLMStream(params: {
     };
 
     const selectedModel = resolveModel(model, DEFAULT_MAIN_MODEL);
+
+    // US5 / ADR-0093: twardy cost-cap per sprawa PRZED guardEgress. Prog z env
+    // PATRON_CASE_COST_CAP_USD (domyslnie off = brak zmiany). Po przekroczeniu
+    // blok, chyba ze operator swiadomie nadpisze (allowBudgetOverride). Kazda
+    // decyzja (block/override) -> audit_log cost_cap (hash-chain, AI Act art. 12).
+    const capUsd = caseCostCapUsd();
+    if (capUsd !== null && projectId) {
+        let spentUsd = 0;
+        try {
+            spentUsd = await getCaseSpentUsd(db, projectId);
+        } catch {
+            spentUsd = 0; // brak odczytu kosztu nie moze twardo blokowac pracy
+        }
+        const budget = evaluateBudget({
+            capUsd,
+            spentUsd,
+            override: allowBudgetOverride === true,
+        });
+        if (budget.exceeded) {
+            await appendCostCapEvent(db, {
+                actorUserId: userId,
+                caseId: projectId,
+                model: selectedModel,
+                spentUsd,
+                capUsd,
+                action: budget.action === "override" ? "override" : "block",
+            });
+            if (budget.action === "block") {
+                write(
+                    `data: ${JSON.stringify({ type: "error", message: `Przekroczono limit kosztu sprawy (${spentUsd.toFixed(2)} / ${capUsd.toFixed(2)} USD). Operator moze kontynuowac swiadomie.`, code: "budget_exceeded" })}\n\n`,
+                );
+                write("data: [DONE]\n\n");
+                return { fullText: "", events: [], mcpCitations: [], grounding: {} };
+            }
+        }
+    }
 
     // ADR-0067: straznik data-residency PRZED wyjsciem do providera. Blokuje
     // wyslanie tresci sprawy do strefy egress niedozwolonej dla jej klasyfikacji

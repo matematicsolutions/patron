@@ -1,6 +1,6 @@
 # ADR-0078: Narzedzie add_comments - warstwa serwisu i czatu nad silnikiem komentarzy
 
-**Status**: PROPONOWANY 2026-05-30. Konstytucja v1.4.6.
+**Status**: Wdrozony 2026-05-30 (status potwierdzony odczytem kodu 2026-06-01 - tool add_comments + dispatch + DocCommentedBlock LIVE). Konstytucja v1.4.6.
 
 **Data**: 2026-05-30
 
