@@ -1087,6 +1087,37 @@ export async function regenerateTabularCell(
     });
 }
 
+// ADR-0126 12c: human-review komorki - prawnik zatwierdza/odrzuca/poprawia wynik
+// ekstrakcji (akt ludzki, art. 12). Identyfikacja komorki jak regenerate-cell.
+export async function reviewTabularCell(
+    reviewId: string,
+    documentId: string,
+    columnIndex: number,
+    action: "approved" | "rejected" | "corrected",
+    correctedContent?: string,
+): Promise<{
+    ok: boolean;
+    review: {
+        action: "approved" | "rejected" | "corrected";
+        reviewedBy: string;
+        reviewedAt: string;
+        correctedContent?: string;
+    };
+}> {
+    return apiRequest(`/tabular-review/${reviewId}/cells/review`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            document_id: documentId,
+            column_index: columnIndex,
+            action,
+            ...(correctedContent !== undefined
+                ? { corrected_content: correctedContent }
+                : {}),
+        }),
+    });
+}
+
 export async function clearTabularCells(
     reviewId: string,
     documentIds: string[],

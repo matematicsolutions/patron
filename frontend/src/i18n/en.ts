@@ -553,6 +553,17 @@ export const en: DictShape<typeof pl> = {
         emptyCta: "+ Create new",
         noResults: "No reviews found",
         untitledReview: "Untitled",
+        reviewHeading: "Lawyer review",
+        reviewApprove: "Approve",
+        reviewReject: "Reject",
+        reviewCorrect: "Correct",
+        reviewCorrectPlaceholder: "Corrected cell content…",
+        reviewSaveCorrection: "Save correction",
+        reviewCancel: "Cancel",
+        reviewStatusApproved: "Approved by lawyer",
+        reviewStatusRejected: "Rejected by lawyer",
+        reviewStatusCorrected: "Corrected by lawyer",
+        reviewError: "Could not save the decision.",
     },
 
     projectChat: {
