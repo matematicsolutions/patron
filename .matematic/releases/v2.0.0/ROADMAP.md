@@ -25,6 +25,16 @@ Po kazdej partii: `npm run test:backend` + `tsc` zielone; migracje spojne (`migr
 Galezie czysto-szumowe (tylko `chore(privacy): scrub`): faza-a/b/c, tier-governance-envelope,
 desktop-packaging - tresc juz wtopiona, tipy do skasowania przy sprzataniu po tagu.
 
+## Etap A2 - luki produktowe (opinia CTO 2026-07-04; NOWA SESJA = Fabryka, spec-driven)
+
+| # | Krok | Uzasadnienie | Rozmiar |
+|---|------|--------------|---------|
+| A2-1 | **UI human-review komorek** (kontrolka approve/reject/correct w TRTable/TRSidePanel + badge) | backend gotowy (ADR-0126 12b/12c); ficzer governance niewidoczny dla prawnika nie istnieje - to brakujaca polowa tematu 2.0 | M (frontend + i18n 6 locale) |
+| A2-2 | **Auto-update** (electron-updater z GitHub Releases) | 6 edycji x kazde wydanie = 6 recznych reinstalacji u klientow; najwyzszy ROI z rzeczy nieobecnych | M (desktop + kanaly per locale) |
+| A2-3 | **Runbook backup/odzyskanie KEK** (procedura "kancelaria zgubila klucz") | szyfrowanie bez procedury odzyskania = ryzyko nieodwracalnej utraty akt - odwrotnosc obietnicy produktu; podniesc z Q6 do warunku wydania | S (dokument + skrypt weryfikacji) |
+| A2-4 | **Eval jedna komenda** (spiac legal-eval-harness, raport = artefakt CI) | eval jest bramka flipu flag - dzis to "wydarzenie", ma byc narzedzie | M |
+| A2-5 | **Konfiguracja code signing** (electron-builder + runbook signtool; cert kupuje WM) | przygotowanie pod B5 - po zakupie certu flip jednym commitem | S |
+
 ## Etap B - bramki wymagajace Wieslawa (przygotowane, nie wykonywane autonomicznie)
 
 | # | Bramka | Co przygotowuje agent | Co decyduje WM |

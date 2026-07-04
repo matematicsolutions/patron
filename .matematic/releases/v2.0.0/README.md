@@ -65,6 +65,28 @@ dorobek post-1.0.0 dotad trzymany na dev (origin). 2.0 = jego publikacja jako sp
   frontend `next build` zielony.
   Migracje spojne (004=015/016, 005=017, cost-cap=010, cell-review=018).
 
+## Rejestr wolnych numerow (anty-kolizja, aktualizuj przy KAZDEJ rezerwacji)
+
+Numery migracji Postgres i ADR byly rezerwowane rownolegle na galeziach -> kolizje
+(migracja 014 zajeta 2x; ADR 0108-0126 zyly poza linia release). Od teraz numer
+bierze sie STAD i od razu podbija licznik w tym samym commicie co plik.
+
+- **Nastepna migracja Postgres:** `019` (ostatnia zajeta: 018_tabular_cell_review)
+- **Nastepny ADR:** `0140` (ostatni zajety: 0139-profile-jurysdykcji)
+
+## Higiena galezi (lekcja z 2026-07-04)
+
+1. WIP ZAWSZE zacommitowany (choćby `wip:`) - niezacommitowana praca na dysku
+   worktree przelezala tygodnie i prawie zginela (ADR-0126 12b/12c).
+2. Galaz po wtopieniu tresci do release-prep KASOWAC od razu (tipy-zombie
+   z privacy-scrubem klamia o stanie repo; prawde daje tylko
+   `git log --cherry-pick --right-only`).
+3. Worktree po skonczonej fazie usuwac (`git worktree remove`).
+4. Dane testowe = syntetyczna obsada (Rumpole) OD PIERWSZEGO commita galezi -
+   scrub po fakcie zasmieca historie wszystkich galezi i generuje falszywe konflikty.
+5. Galezie czysto-szumowe do skasowania po tagu v2.0.0: faza-a/b/c,
+   tier-governance-envelope, desktop-packaging, backup/picker-pre-rebase.
+
 ## Bramki wydania (checklist do tagu v2.0.0)
 - [ ] Decyzja #4 (trzecia glowa) - WM.
 - [ ] Sign-off WM dla 005: Q1-Q6 (zrodlo KEK serwer, lista pol, migracja, format, audit_log NIE, backup KEK).

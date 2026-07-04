@@ -1,10 +1,12 @@
 name: CI
 
+# Siatka bezpieczenstwa takze dla linii wydaniowych (release/*): testy biegaly
+# dotad tylko lokalnie i tylko gdy ktos pamietal - push na release byl bez CI.
 on:
   push:
-    branches: [main]
+    branches: [main, "release/**"]
   pull_request:
-    branches: [main]
+    branches: [main, "release/**"]
 
 jobs:
   backend:

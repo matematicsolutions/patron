@@ -5,6 +5,8 @@ name: publication-gate
 
 on:
   pull_request:
+  push:
+    branches: [main, "release/**"]   # solo-flow pushuje bez PR - gate lapie tez push
   schedule:
     - cron: "0 6 * * 1"   # cotygodniowy skan calej historii git (pon 06:00 UTC)
 
@@ -21,8 +23,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Skan trackowanych plikow (kazdy PR)
-        if: github.event_name == 'pull_request'
+      - name: Skan trackowanych plikow (PR i push)
+        if: github.event_name == 'pull_request' || github.event_name == 'push'
         run: python scripts/publication_gate.py .
       - name: Skan calej historii git (cotygodniowo)
         if: github.event_name == 'schedule'
