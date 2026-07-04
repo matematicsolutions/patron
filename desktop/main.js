@@ -91,6 +91,67 @@ function installLocale() {
   return null;
 }
 
+// ── Auto-update (spec 008, A2-2) ────────────────────────────────────────────
+// electron-updater z GitHub Releases (repo publiczne matematicsolutions/patron,
+// bez tokena). Kanal per edycja jezykowa: pl=latest, en=latest-en, it=latest-it,
+// de=latest-de, es=latest-es, fr=latest-fr - edycja IT nigdy nie dostanie
+// instalatora PL. Pliki latest[-xx].yml produkuje build-locale.cjs.
+// Instalacja TYLKO po decyzji czlowieka (dialog) - zadnego restartu w trakcie
+// pracy nad sprawa. Kill-switch: PATRON_AUTO_UPDATE=off.
+const UPDATE_CHANNEL_SUFFIX = { pl: '', en: '-en', it: '-it', de: '-de', es: '-es', fr: '-fr' };
+const UPDATE_DIALOG_TEXT = {
+  pl: { title: 'Aktualizacja PATRON', msg: (v) => `Pobrano wersję ${v}. Zainstalować teraz (restart aplikacji)?`, now: 'Zainstaluj teraz', later: 'Przy zamknięciu' },
+  en: { title: 'PATRON update', msg: (v) => `Version ${v} downloaded. Install now (restarts the app)?`, now: 'Install now', later: 'On quit' },
+  it: { title: 'Aggiornamento PATRON', msg: (v) => `Versione ${v} scaricata. Installare ora (riavvio dell'app)?`, now: 'Installa ora', later: 'Alla chiusura' },
+  de: { title: 'PATRON-Update', msg: (v) => `Version ${v} heruntergeladen. Jetzt installieren (App-Neustart)?`, now: 'Jetzt installieren', later: 'Beim Beenden' },
+  es: { title: 'Actualización de PATRON', msg: (v) => `Versión ${v} descargada. ¿Instalar ahora (reinicia la aplicación)?`, now: 'Instalar ahora', later: 'Al cerrar' },
+  fr: { title: 'Mise à jour PATRON', msg: (v) => `Version ${v} téléchargée. Installer maintenant (redémarre l'application) ?`, now: 'Installer maintenant', later: 'À la fermeture' },
+};
+
+function setupAutoUpdate() {
+  if (!app.isPackaged) return; // dev: brak app-update.yml, nie ma czego sprawdzac
+  if ((process.env.PATRON_AUTO_UPDATE || '').toLowerCase() === 'off') {
+    console.log('[PATRON] auto-update wylaczony (PATRON_AUTO_UPDATE=off)');
+    return;
+  }
+  let autoUpdater;
+  try {
+    ({ autoUpdater } = require('electron-updater'));
+  } catch (err) {
+    console.error('[PATRON] electron-updater niedostepny:', err.message);
+    return;
+  }
+  const locale = installLocale() || 'pl';
+  const suffix = UPDATE_CHANNEL_SUFFIX[locale] ?? '';
+  autoUpdater.channel = `latest${suffix}`;
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.on('update-downloaded', (info) => {
+    const txt = UPDATE_DIALOG_TEXT[locale] ?? UPDATE_DIALOG_TEXT.pl;
+    dialog
+      .showMessageBox({
+        type: 'info',
+        title: txt.title,
+        message: txt.msg(info.version),
+        buttons: [txt.now, txt.later],
+        defaultId: 1,
+        cancelId: 1,
+      })
+      .then(({ response }) => {
+        if (response === 0) autoUpdater.quitAndInstall();
+        // 1: autoInstallOnAppQuit zainstaluje przy zamknieciu
+      })
+      .catch(() => {});
+  });
+  autoUpdater.on('error', (err) => {
+    // Fail-open: offline / brak assets = log, aplikacja pracuje dalej.
+    console.error('[PATRON] auto-update:', err?.message ?? err);
+  });
+  autoUpdater.checkForUpdates().catch((err) => {
+    console.error('[PATRON] auto-update check:', err?.message ?? err);
+  });
+}
+
 // Env wstrzykiwany do backendu: SQLite + storage FS + dane w userData + sekrety.
 function backendLocalEnv() {
   const ud = app.getPath('userData');
@@ -517,6 +578,7 @@ app.whenReady().then(async () => {
 
     createWindow();
     splash.close();
+    setupAutoUpdate();
   } catch (err) {
     console.error('[PATRON] Boot error:', err.message);
     splash.close();

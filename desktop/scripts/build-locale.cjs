@@ -52,12 +52,14 @@ function run(cmd, args) {
   }
 }
 
-// 1+2. Zasoby + build z jezykiem NSIS per rynek.
+// 1+2. Zasoby + build z jezykiem NSIS per rynek. --publish=never na sztywno:
+// upload assets do GitHub Releases to akt ludzki WM (bramka "push publiczny").
 run("node", ["scripts/prepare-resources.cjs"]);
 run("npx", [
   "electron-builder",
   "--win",
   "--x64",
+  "--publish=never",
   `--config.nsis.installerLanguages=${cfg.nsisLang}`,
   `--config.nsis.language=${cfg.lcid}`,
 ]);
@@ -86,3 +88,38 @@ fs.appendFileSync(
 );
 console.log(`\nOK: ${dst}`);
 console.log(`SHA256: ${sha256} (dopisane do dist/CHECKSUMS.txt - opublikuj razem z releasem)`);
+
+// 4. Metadane auto-update per edycja (spec 008): electron-builder generuje
+// latest.yml z ORYGINALNA nazwa artefaktu - patchujemy URL na kanoniczna nazwe
+// releasowa i zapisujemy pod nazwa kanalu edycji (latest[-xx].yml). Kopiujemy
+// tez .blockmap (differential update). sha512 w yml pozostaje poprawny -
+// exe kopiowany bajt-w-bajt.
+const canonicalExe = `PATRON-Setup-Windows${cfg.suffix}.exe`;
+const channelFile = `latest${cfg.suffix.toLowerCase()}.yml`;
+const latestYml = path.join(DIST_DIR, "latest.yml");
+if (fs.existsSync(latestYml)) {
+  const originalName = exes[0].f;
+  const patched = fs
+    .readFileSync(latestYml, "utf8")
+    .split(originalName)
+    .join(canonicalExe)
+    // electron-builder koduje spacje w url jako %20 - podmien tez wariant encoded
+    .split(encodeURIComponent(originalName).replace(/%2E/gi, "."))
+    .join(canonicalExe);
+  fs.writeFileSync(path.join(DIST_DIR, channelFile), patched, "utf8");
+  console.log(`OK: ${channelFile} (kanal auto-update edycji ${locale})`);
+} else {
+  console.warn(
+    "UWAGA: brak dist/latest.yml - electron-builder nie wygenerowal metadanych " +
+      "auto-update (sprawdz sekcje build.publish w package.json). Edycja bez yml " +
+      "nie dostanie auto-update.",
+  );
+}
+const srcBlockmap = `${src}.blockmap`;
+if (fs.existsSync(srcBlockmap)) {
+  fs.copyFileSync(srcBlockmap, path.join(DIST_DIR, `${canonicalExe}.blockmap`));
+  console.log(`OK: ${canonicalExe}.blockmap`);
+}
+console.log(
+  `Do releasu wgraj: ${canonicalExe}, ${canonicalExe}.blockmap, ${channelFile}`,
+);
