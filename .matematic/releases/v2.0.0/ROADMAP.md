@@ -25,15 +25,15 @@ Po kazdej partii: `npm run test:backend` + `tsc` zielone; migracje spojne (`migr
 Galezie czysto-szumowe (tylko `chore(privacy): scrub`): faza-a/b/c, tier-governance-envelope,
 desktop-packaging - tresc juz wtopiona, tipy do skasowania przy sprzataniu po tagu.
 
-## Etap A2 - luki produktowe (opinia CTO 2026-07-04; NOWA SESJA = Fabryka, spec-driven)
+## Etap A2 - luki produktowe (opinia CTO 2026-07-04; sesja Fabryka 2026-07-04, spec-driven)
 
-| # | Krok | Uzasadnienie | Rozmiar |
-|---|------|--------------|---------|
-| A2-1 | **UI human-review komorek** (kontrolka approve/reject/correct w TRTable/TRSidePanel + badge) | backend gotowy (ADR-0126 12b/12c); ficzer governance niewidoczny dla prawnika nie istnieje - to brakujaca polowa tematu 2.0 | M (frontend + i18n 6 locale) |
-| A2-2 | **Auto-update** (electron-updater z GitHub Releases) | 6 edycji x kazde wydanie = 6 recznych reinstalacji u klientow; najwyzszy ROI z rzeczy nieobecnych | M (desktop + kanaly per locale) |
-| A2-3 | **Runbook backup/odzyskanie KEK** (procedura "kancelaria zgubila klucz") | szyfrowanie bez procedury odzyskania = ryzyko nieodwracalnej utraty akt - odwrotnosc obietnicy produktu; podniesc z Q6 do warunku wydania | S (dokument + skrypt weryfikacji) |
-| A2-4 | **Eval jedna komenda** (spiac legal-eval-harness, raport = artefakt CI) | eval jest bramka flipu flag - dzis to "wydarzenie", ma byc narzedzie | M |
-| A2-5 | **Konfiguracja code signing** (electron-builder + runbook signtool; cert kupuje WM) | przygotowanie pod B5 - po zakupie certu flip jednym commitem | S |
+| # | Krok | Uzasadnienie | Stan |
+|---|------|--------------|------|
+| A2-1 | **UI human-review komorek** (kontrolka approve/reject/correct w TRTable/TRSidePanel + badge) | backend gotowy (ADR-0126 12b/12c); ficzer governance niewidoczny dla prawnika nie istnieje - to brakujaca polowa tematu 2.0 | ZROBIONE 2026-07-04 (spec 007; i18n 6 locale, effective content corrected/rejected) |
+| A2-2 | **Auto-update** (electron-updater z GitHub Releases) | 6 edycji x kazde wydanie = 6 recznych reinstalacji u klientow; najwyzszy ROI z rzeczy nieobecnych | ZROBIONE 2026-07-04 (spec 008; kanaly latest[-xx], instalacja po decyzji czlowieka, kill-switch, --publish=never) |
+| A2-3 | **Runbook backup/odzyskanie KEK** (procedura "kancelaria zgubila klucz") | szyfrowanie bez procedury odzyskania = ryzyko nieodwracalnej utraty akt - odwrotnosc obietnicy produktu; podniesc z Q6 do warunku wydania | ZROBIONE 2026-07-04 (spec 009; governance/runbooks/kek-backup-recovery.md + npm run kek:verify, smoke 0/1/2; wpisane do bramek wydania) |
+| A2-4 | **Eval jedna komenda** (spiac legal-eval-harness, raport = artefakt CI) | eval jest bramka flipu flag - dzis to "wydarzenie", ma byc narzedzie | ZROBIONE 2026-07-04 (spec 010; scripts/run-eval.cjs 3 etapy + eval.yml; smoke A 27/27, B LEDGAR 99.4%) |
+| A2-5 | **Konfiguracja code signing** (build-locale + runbook signtool; cert kupuje WM) | przygotowanie pod B5 - po zakupie certu flip samymi env | ZROBIONE 2026-07-04 (spec 011; signtool post-build + regeneracja sha512/blockmap, runbook code-signing.md) |
 
 ## Etap B - bramki wymagajace Wieslawa (przygotowane, nie wykonywane autonomicznie)
 
@@ -43,7 +43,7 @@ desktop-packaging - tresc juz wtopiona, tipy do skasowania przy sprzataniu po ta
 | B2 | Eval (korpus PL) | uruchomienie evalu i raport | akceptacja wyniku = warunek flipu flag |
 | B3 | Flip defaultow (`PATRON_MUTATION_APPROVAL`, `PATRON_FIELD_ENCRYPTION`) | rekomendacja per flaga | decyzja 1.1 (opt-in) vs 2.0 (governance by default) |
 | B4 | Decyzja #4 - asystenci: scope per modul/rola + tool-allowlist | recon gotowy (open-mercato) | wchodzi w 2.0 czy 2.1 |
-| B5 | Code signing instalatora (Authenticode) | konfiguracja electron-builder + runbook signtool | zakup certyfikatu (EV/OV) - akt zakupowy = czlowiek |
+| B5 | Code signing instalatora (Authenticode) | GOTOWE (A2-5, spec 011): krok signtool w build-locale.cjs, flip samymi env; runbook governance/runbooks/code-signing.md | zakup certyfikatu (EV/OV) - akt zakupowy = czlowiek |
 | B6 | Wydanie: 2x review WM + `matematic-patron-pr-review-pl` na pelnym diffie -> merge do `main` -> tag `v2.0.0` -> push publiczny `mat` + ogloszenie EN-first | pelny diff + raport review skillem | oba review + zgoda na push publiczny |
 
 ## Etap C - backlog 2.1+ (zapisana wiedza, jeszcze nie praca)
@@ -58,6 +58,29 @@ desktop-packaging - tresc juz wtopiona, tipy do skasowania przy sprzataniu po ta
 - **Scouting OSS**: 59 kandydatow w `reference_legaltech_oss_scouting_2026-06-25.md`
   (12 juz opublikowanych/adaptowanych) + nowe repa zgromadzone przez WM - osobna sesja triage
   przez skill `legaltech-scout` (4 bramki) PO wydaniu 2.0.
+
+## Audyt adopcji rekonesansu patentowego CN/EU/USA (2026-07-04)
+
+Porownanie 7 wzorcow z reconu 2026-05-31 (reference_china_patent_recon) + roadmapy
+retrievalu (archiwum, kandydaci ADR 0083-0088) z faktycznym stanem repo. Werdykt:
+**roadmapa retrievalu zrealizowana w calosci** - fazy A/B/C wdrozone i wpiete w
+request-path, faza D oceniona i swiadomie odrzucona (ADR-0088).
+
+| Wzorzec (zrodlo) | ADR | Slad w kodzie | Decyzja |
+|---|---|---|---|
+| Clause-boundary chunking + parser sekcji wyroku (CN111783399B / LegRAG) | 0083 (Wdrozony) | `retrieval/legalChunker.ts` + testy | w 2.0 |
+| Copy-mechanism generative NER (PMC11622873) | 0084 (Wdrozony) | `pl-entities/copySpan.ts` | w 2.0 |
+| WuManber weak-supervision bootstrap PL NER (CN115221265A) | 0085 (Wdrozony) | `pl-entities/wuManber.ts` + `bootstrapAnnotate.ts` | w 2.0 |
+| Dual-similarity case ranking (Ping An US12001466B2) | 0086 biblioteka + 0087 wpiecie w retrieve() | `retrieval/dualSimilarity.ts`; re-ranking post-RRF, nDCG@5 0.661->0.735 (+11.1%) | w 2.0 (flaga opt-out, alpha z env) |
+| Event-centric legal KG + subgraph matching (Tianjin CN112632223B/225B) | 0089 rdzen + 0090 wpiecie | `retrieval/events.ts`; nDCG@5 0.764->0.847 (+10.8%); US2 (model uczony) i US3 (multi-hop) = rezerwacje | w 2.0; US2/US3 backlog 2.1 |
+| Hash-chain audit log (prior-art CN101039186B wygasly + EP2897051A2) | 0001 (sprzed reconu) | `lib/audit/` | w 2.0 od zawsze; recon potwierdzil zero FTO / niepatentowalnosc |
+| Huawei SINQ (kwantyzacja) | 0088 (ocena fazy D) | brak (celowo) | PORZUCONE: embedder PATRONA to e5-small ONNX (nie PyTorch), chat = BYOK/GGUF juz skwantyzowany - nie ma czego kwantyzowac. Wraca tylko przy bundlowaniu wlasnego modelu PyTorch |
+| Alibaba Proxima/Zvec (on-device vector store) | 0088 (ocena fazy D) | `scripts/vec-bench.cjs` (pomiar, bez zmian kodu) | BACKLOG 2.1+ warunkowy (bookmark): flip dopiero gdy LACZNIE (a) korpus >~100k chunkow (dzis p95 10-50ms przy <50k = OK), (b) Zvec szyfrowalny at-rest (Art. 2 - dzis luka vs ADR-0072), (c) bench recall@k parytet z exact KNN na korpusie PL |
+| CLAKG (LLM-driven konstrukcja KG) | brak | zero sladu | PORZUCONE z powodem: potrzebe konstrukcji KG pokryl wlasny deterministyczny event-KG (ADR-0089/0090); CLAKG wnosi LLM w petli budowy grafu = koszt + niedeterminizm bez przewagi dla PATRON |
+
+ADR-0087 = wpiecie dual-similarity w retrieve() (domkniecie rezerwacji 0086).
+ADR-0088 = ocena fazy D z decyzja "utrzymac sqlite-vec" + progi flipu Zvec.
+Atrybucje wszystkich wzorcow sa w THIRD_PARTY_INSPIRATIONS.md (clean-room: wzorzec, nie kod).
 
 ## Stan wiedzy (uporzadkowany)
 

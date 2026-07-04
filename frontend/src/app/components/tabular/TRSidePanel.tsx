@@ -13,6 +13,8 @@ import {
     X,
 } from "lucide-react";
 import type { ColumnConfig, PATRONDocument, TabularCell } from "../shared/types";
+import { t } from "@/i18n";
+import { ReviewBadge } from "./TabularCell";
 import { preprocessCitations, type ParsedCitation } from "./citation-utils";
 import { getPillClass } from "./pillUtils";
 import { DocView } from "../shared/DocView";
@@ -36,6 +38,11 @@ interface Props {
     onClose: () => void;
     onNavigate: (columnIndex: number) => void;
     onRegenerate?: () => Promise<void>;
+    /** ADR-0126: decyzja prawnika o komorce (approve/reject/correct). */
+    onReview?: (
+        action: "approved" | "rejected" | "corrected",
+        correctedContent?: string,
+    ) => Promise<void>;
     /** If true, open the document panel immediately */
     displayDocument?: boolean;
     /** Quote to highlight when opening document panel */
@@ -63,6 +70,7 @@ export function TRSidePanel({
     onClose,
     onNavigate,
     onRegenerate,
+    onReview,
     displayDocument = false,
     citationQuote,
     citationPage,
@@ -75,6 +83,11 @@ export function TRSidePanel({
             ? sortedColumns[currentPos + 1]
             : null;
     const [regenerating, setRegenerating] = useState(false);
+    // ADR-0126: stan kontrolki human-review
+    const [correcting, setCorrecting] = useState(false);
+    const [correctionText, setCorrectionText] = useState("");
+    const [savingReview, setSavingReview] = useState(false);
+    const [reviewError, setReviewError] = useState(false);
     const [quoteExpanded, setQuoteExpanded] = useState(false);
     const [isTruncated, setIsTruncated] = useState(false);
     const quoteParagraphRef = useRef<HTMLParagraphElement>(null);
@@ -97,6 +110,31 @@ export function TRSidePanel({
         );
         setQuoteExpanded(false);
     }, [cell.id, displayDocument, citationQuote, citationPage]);
+
+    // Re-sync stanu review przy zmianie komorki
+    useEffect(() => {
+        setCorrecting(false);
+        setCorrectionText("");
+        setReviewError(false);
+    }, [cell.id]);
+
+    async function submitReview(
+        action: "approved" | "rejected" | "corrected",
+        correctedContent?: string,
+    ) {
+        if (!onReview) return;
+        setSavingReview(true);
+        setReviewError(false);
+        try {
+            await onReview(action, correctedContent);
+            setCorrecting(false);
+        } catch (err) {
+            console.error("Cell review failed", err);
+            setReviewError(true);
+        } finally {
+            setSavingReview(false);
+        }
+    }
 
     useEffect(() => {
         const el = quoteParagraphRef.current;
@@ -256,6 +294,128 @@ export function TRSidePanel({
                         </div>
                         {/* Document name */}
                         <p className="text-xs mb-4">{doc.filename}</p>
+
+                        {/* Human-review section (ADR-0126): prawnik decyduje */}
+                        {onReview && (
+                            <div className="mb-5">
+                                <h4 className="mb-2 text-sm font-semibold tracking-wider font-sans">
+                                    {t("tabular.reviewHeading")}
+                                </h4>
+                                {cell.review_action && !correcting && (
+                                    <div className="mb-2 flex items-center gap-1.5 text-xs text-slate-600">
+                                        <ReviewBadge
+                                            action={cell.review_action}
+                                        />
+                                        <span>
+                                            {cell.review_action === "approved"
+                                                ? t(
+                                                      "tabular.reviewStatusApproved",
+                                                  )
+                                                : cell.review_action ===
+                                                    "rejected"
+                                                  ? t(
+                                                        "tabular.reviewStatusRejected",
+                                                    )
+                                                  : t(
+                                                        "tabular.reviewStatusCorrected",
+                                                    )}
+                                            {cell.reviewed_at
+                                                ? ` · ${new Date(cell.reviewed_at).toLocaleDateString()}`
+                                                : ""}
+                                        </span>
+                                    </div>
+                                )}
+                                {correcting ? (
+                                    <div>
+                                        <textarea
+                                            value={correctionText}
+                                            onChange={(e) =>
+                                                setCorrectionText(
+                                                    e.target.value,
+                                                )
+                                            }
+                                            placeholder={t(
+                                                "tabular.reviewCorrectPlaceholder",
+                                            )}
+                                            rows={4}
+                                            className="w-full rounded-md border border-gray-200 bg-white/70 p-2 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-slate-400"
+                                        />
+                                        <div className="mt-2 flex items-center gap-2">
+                                            <button
+                                                onClick={() =>
+                                                    submitReview(
+                                                        "corrected",
+                                                        correctionText,
+                                                    )
+                                                }
+                                                disabled={
+                                                    savingReview ||
+                                                    !correctionText.trim()
+                                                }
+                                                className="rounded-full bg-gray-900 px-3 py-1 text-xs font-medium text-white transition-colors hover:bg-gray-700 disabled:opacity-40"
+                                            >
+                                                {savingReview ? (
+                                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                ) : (
+                                                    t(
+                                                        "tabular.reviewSaveCorrection",
+                                                    )
+                                                )}
+                                            </button>
+                                            <button
+                                                onClick={() =>
+                                                    setCorrecting(false)
+                                                }
+                                                disabled={savingReview}
+                                                className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50"
+                                            >
+                                                {t("tabular.reviewCancel")}
+                                            </button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={() =>
+                                                submitReview("approved")
+                                            }
+                                            disabled={savingReview}
+                                            className="rounded-full bg-emerald-600 px-3 py-1 text-xs font-medium text-white transition-colors hover:bg-emerald-700 disabled:opacity-40"
+                                        >
+                                            {t("tabular.reviewApprove")}
+                                        </button>
+                                        <button
+                                            onClick={() =>
+                                                submitReview("rejected")
+                                            }
+                                            disabled={savingReview}
+                                            className="rounded-full border border-red-200 bg-white px-3 py-1 text-xs font-medium text-red-600 transition-colors hover:bg-red-50 disabled:opacity-40"
+                                        >
+                                            {t("tabular.reviewReject")}
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                setCorrectionText(
+                                                    cell.corrected_content ??
+                                                        cell.content?.summary ??
+                                                        "",
+                                                );
+                                                setCorrecting(true);
+                                            }}
+                                            disabled={savingReview}
+                                            className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-50 disabled:opacity-40"
+                                        >
+                                            {t("tabular.reviewCorrect")}
+                                        </button>
+                                    </div>
+                                )}
+                                {reviewError && (
+                                    <p className="mt-1.5 text-xs text-red-600">
+                                        {t("tabular.reviewError")}
+                                    </p>
+                                )}
+                            </div>
+                        )}
 
                         {/* Flag section */}
                         {cell.content?.flag && (

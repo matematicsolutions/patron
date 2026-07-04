@@ -12,6 +12,7 @@ import {
     getProject,
     getTabularReviewPeople,
     regenerateTabularCell,
+    reviewTabularCell,
     streamTabularGeneration,
     updateTabularReview,
     uploadReviewDocument,
@@ -270,6 +271,44 @@ export function TRView({ reviewId, projectId }: Props) {
                 prev ? { ...prev, status: "error" as const } : null,
             );
         }
+    }
+
+    // ADR-0126: decyzja prawnika o komorce. Stan aktualizowany dopiero po
+    // sukcesie zapisu (brak optymizmu = brak rollbacku); blad propaguje do
+    // kontrolki w TRSidePanel.
+    async function handleReviewCell(
+        docId: string,
+        colIndex: number,
+        action: "approved" | "rejected" | "corrected",
+        correctedContent?: string,
+    ) {
+        const { review: record } = await reviewTabularCell(
+            reviewId,
+            docId,
+            colIndex,
+            action,
+            correctedContent,
+        );
+        const patch = {
+            review_action: record.action,
+            reviewed_by: record.reviewedBy,
+            reviewed_at: record.reviewedAt,
+            corrected_content: record.correctedContent ?? null,
+        };
+        setCells((prev) =>
+            prev.map((c) =>
+                c.document_id === docId && c.column_index === colIndex
+                    ? { ...c, ...patch }
+                    : c,
+            ),
+        );
+        setExpandedCell((prev) =>
+            prev &&
+            prev.document_id === docId &&
+            prev.column_index === colIndex
+                ? { ...prev, ...patch }
+                : prev,
+        );
     }
 
     async function handleGenerate() {
@@ -851,6 +890,14 @@ export function TRView({ reviewId, projectId }: Props) {
                                 handleRegenerateCell(
                                     expandedCell.document_id,
                                     expandedCell.column_index,
+                                )
+                            }
+                            onReview={(action, correctedContent) =>
+                                handleReviewCell(
+                                    expandedCell.document_id,
+                                    expandedCell.column_index,
+                                    action,
+                                    correctedContent,
                                 )
                             }
                             displayDocument={expandedCellCitation !== undefined}

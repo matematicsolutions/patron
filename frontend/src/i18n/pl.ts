@@ -633,6 +633,18 @@ export const pl = {
         emptyCta: "+ Utwórz nowy",
         noResults: "Nie znaleziono przeglądów",
         untitledReview: "Bez tytułu",
+        // Human-review komorki (ADR-0126): prawnik zatwierdza/odrzuca/poprawia
+        reviewHeading: "Weryfikacja prawnika",
+        reviewApprove: "Zatwierdź",
+        reviewReject: "Odrzuć",
+        reviewCorrect: "Popraw",
+        reviewCorrectPlaceholder: "Poprawiona treść komórki…",
+        reviewSaveCorrection: "Zapisz poprawkę",
+        reviewCancel: "Anuluj",
+        reviewStatusApproved: "Zatwierdzona przez prawnika",
+        reviewStatusRejected: "Odrzucona przez prawnika",
+        reviewStatusCorrected: "Poprawiona przez prawnika",
+        reviewError: "Nie udało się zapisać decyzji.",
     },
 
     // ---------------------------------------------------------------------

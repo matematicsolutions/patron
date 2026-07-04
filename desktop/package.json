@@ -7,9 +7,9 @@
     "start": "electron .",
     "dev": "electron . --dev",
     "prepare:resources": "node scripts/prepare-resources.cjs",
-    "build": "node scripts/prepare-resources.cjs && electron-builder --win --x64",
-    "build:dir": "node scripts/prepare-resources.cjs && electron-builder --win --x64 --dir",
-    "build:only": "electron-builder --win --x64",
+    "build": "node scripts/prepare-resources.cjs && electron-builder --win --x64 --publish=never",
+    "build:dir": "node scripts/prepare-resources.cjs && electron-builder --win --x64 --dir --publish=never",
+    "build:only": "electron-builder --win --x64 --publish=never",
     "build:locale": "node scripts/build-locale.cjs",
     "build:pl": "node scripts/build-locale.cjs pl",
     "build:en": "node scripts/build-locale.cjs en",
@@ -34,6 +34,13 @@
       "signingHashAlgorithms": [],
       "sign": null
     },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "matematicsolutions",
+        "repo": "patron"
+      }
+    ],
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
@@ -55,5 +62,8 @@
     "@electron/rebuild": "^3.7.0",
     "electron": "^35.0.0",
     "electron-builder": "^25.0.0"
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.9"
   }
 }

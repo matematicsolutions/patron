@@ -52,12 +52,14 @@ function run(cmd, args) {
   }
 }
 
-// 1+2. Zasoby + build z jezykiem NSIS per rynek.
+// 1+2. Zasoby + build z jezykiem NSIS per rynek. --publish=never na sztywno:
+// upload assets do GitHub Releases to akt ludzki WM (bramka "push publiczny").
 run("node", ["scripts/prepare-resources.cjs"]);
 run("npx", [
   "electron-builder",
   "--win",
   "--x64",
+  "--publish=never",
   `--config.nsis.installerLanguages=${cfg.nsisLang}`,
   `--config.nsis.language=${cfg.lcid}`,
 ]);
@@ -77,6 +79,40 @@ const dst = path.join(DIST_DIR, `PATRON-Setup-Windows${cfg.suffix}.exe`);
 if (path.resolve(src) !== path.resolve(dst)) {
   fs.copyFileSync(src, dst);
 }
+
+// 3b. Code signing (spec 011, bramka B5). Flip samymi env po zakupie certu:
+//   PATRON_CODE_SIGNING=on + PATRON_CERT_SHA1 (odcisk w store) albo
+//   PATRON_CERT_SUBJECT (/n). Opcjonalnie SIGNTOOL_PATH, PATRON_TIMESTAMP_URL.
+// Podpis PO rename (podpisujemy artefakt releasowy), PRZED checksumami i yml -
+// sha512/size/blockmap dla auto-update licza sie z PODPISANEGO pliku.
+function maybeSign(file) {
+  if ((process.env.PATRON_CODE_SIGNING || "").toLowerCase() !== "on") return false;
+  const signtool = process.env.SIGNTOOL_PATH || "signtool";
+  const args = [
+    "sign",
+    "/fd", "SHA256",
+    "/td", "SHA256",
+    "/tr", process.env.PATRON_TIMESTAMP_URL || "http://timestamp.digicert.com",
+  ];
+  if (process.env.PATRON_CERT_SHA1) {
+    args.push("/sha1", process.env.PATRON_CERT_SHA1);
+  } else if (process.env.PATRON_CERT_SUBJECT) {
+    args.push("/n", process.env.PATRON_CERT_SUBJECT);
+  } else {
+    // Fail-loud: wlaczony signing bez wskazania certu = przerwij, zadnego
+    // cichego builda niepodpisanego.
+    console.error(
+      "PATRON_CODE_SIGNING=on wymaga PATRON_CERT_SHA1 albo PATRON_CERT_SUBJECT.",
+    );
+    process.exit(1);
+  }
+  args.push(file);
+  run(signtool, args);
+  console.log(`OK: podpisano ${path.basename(file)} (signtool)`);
+  return true;
+}
+const signed = maybeSign(dst);
+
 const { createHash } = require("node:crypto");
 const sha256 = createHash("sha256").update(fs.readFileSync(dst)).digest("hex");
 fs.appendFileSync(
@@ -86,3 +122,70 @@ fs.appendFileSync(
 );
 console.log(`\nOK: ${dst}`);
 console.log(`SHA256: ${sha256} (dopisane do dist/CHECKSUMS.txt - opublikuj razem z releasem)`);
+
+// 4. Metadane auto-update per edycja (spec 008): electron-builder generuje
+// latest.yml z ORYGINALNA nazwa artefaktu - patchujemy URL na kanoniczna nazwe
+// releasowa i zapisujemy pod nazwa kanalu edycji (latest[-xx].yml). Kopiujemy
+// tez .blockmap (differential update). sha512 w yml pozostaje poprawny -
+// exe kopiowany bajt-w-bajt.
+const canonicalExe = `PATRON-Setup-Windows${cfg.suffix}.exe`;
+const channelFile = `latest${cfg.suffix.toLowerCase()}.yml`;
+const latestYml = path.join(DIST_DIR, "latest.yml");
+if (fs.existsSync(latestYml)) {
+  const originalName = exes[0].f;
+  let patched = fs
+    .readFileSync(latestYml, "utf8")
+    .split(originalName)
+    .join(canonicalExe)
+    // electron-builder koduje spacje w url jako %20 - podmien tez wariant encoded
+    .split(encodeURIComponent(originalName).replace(/%2E/gi, "."))
+    .join(canonicalExe);
+  if (signed) {
+    // Podpis zmienil bajty exe - sha512/size z electron-buildera sa juz
+    // nieaktualne. Przelicz z podpisanego pliku, inaczej auto-update odrzuci
+    // pobrany artefakt.
+    const buf = fs.readFileSync(dst);
+    const sha512 = createHash("sha512").update(buf).digest("base64");
+    patched = patched
+      .replace(/sha512: .*/g, `sha512: ${sha512}`)
+      .replace(/size: \d+/g, `size: ${buf.length}`);
+  }
+  fs.writeFileSync(path.join(DIST_DIR, channelFile), patched, "utf8");
+  console.log(`OK: ${channelFile} (kanal auto-update edycji ${locale})`);
+} else {
+  console.warn(
+    "UWAGA: brak dist/latest.yml - electron-builder nie wygenerowal metadanych " +
+      "auto-update (sprawdz sekcje build.publish w package.json). Edycja bez yml " +
+      "nie dostanie auto-update.",
+  );
+}
+const srcBlockmap = `${src}.blockmap`;
+if (signed) {
+  // Blockmap opisuje bloki exe - po podpisie regenerujemy z podpisanego pliku
+  // (app-builder z node_modules electron-buildera, to samo narzedzie ktore
+  // generuje blockmapy w buildzie).
+  try {
+    const appBuilder = require("app-builder-bin").appBuilderPath;
+    if (!appBuilder || !fs.existsSync(appBuilder)) {
+      throw new Error("app-builder-bin nie znaleziony w node_modules");
+    }
+    run(appBuilder, [
+      "blockmap",
+      "--input", dst,
+      "--output", path.join(DIST_DIR, `${canonicalExe}.blockmap`),
+    ]);
+    console.log(`OK: ${canonicalExe}.blockmap (zregenerowany po podpisie)`);
+  } catch (err) {
+    console.warn(
+      `UWAGA: nie zregenerowano blockmapy (${err.message}) - auto-update ` +
+        "zadziala pelnym pobraniem, bez delty.",
+    );
+    fs.rmSync(path.join(DIST_DIR, `${canonicalExe}.blockmap`), { force: true });
+  }
+} else if (fs.existsSync(srcBlockmap)) {
+  fs.copyFileSync(srcBlockmap, path.join(DIST_DIR, `${canonicalExe}.blockmap`));
+  console.log(`OK: ${canonicalExe}.blockmap`);
+}
+console.log(
+  `Do releasu wgraj: ${canonicalExe}, ${canonicalExe}.blockmap, ${channelFile}`,
+);

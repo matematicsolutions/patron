@@ -18,6 +18,7 @@
     "migrate:status": "tsx scripts/run-migrations.ts status",
     "migrate:rollback": "tsx scripts/run-migrations.ts rollback",
     "migrate:rollback:mark": "tsx scripts/run-migrations.ts rollback:mark",
+    "kek:verify": "tsx scripts/verify-kek-backup.ts",
     "merkle:trigger": "tsx scripts/trigger-merkle.ts",
     "smoke:desktop": "tsx scripts/smoke-desktop.ts"
   },

@@ -434,6 +434,11 @@ export interface TabularCell {
   } | null;
   status: "pending" | "generating" | "done" | "error";
   created_at: string;
+  /** ADR-0126: human-review komorki - decyzja prawnika (null = nieprzejrzana). */
+  review_action?: "approved" | "rejected" | "corrected" | null;
+  reviewed_by?: string | null;
+  reviewed_at?: string | null;
+  corrected_content?: string | null;
 }
 
 // Workflows
