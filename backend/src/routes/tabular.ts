@@ -33,6 +33,7 @@ import {
     appendTabularGroundingEvent,
 } from "../lib/tabular/audit-grounding";
 import { enforceEgressGuard, appendLlmRouteEvent } from "../lib/routing";
+import { reviewCell } from "../lib/tabular/cell-review";
 
 function formatPromptSuffix(format?: string, tags?: string[]): string {
     switch (format) {
@@ -699,6 +700,73 @@ tabularRouter.post("/:reviewId/clear-cells", requireAuth, async (req, res) => {
         .in("document_id", document_ids);
     if (error) return void res.status(500).json({ detail: error.message });
     res.status(204).send();
+});
+
+// POST /tabular-review/:reviewId/cells/review - human-review komorki (ADR-0126,
+// T2.2): prawnik akceptuje / odrzuca / poprawia WYNIK ekstrakcji = akt ludzki
+// (governance #2, spine art.12). Komorka identyfikowana review_id+document_id+
+// column_index (jak regenerate-cell). actorId = uwierzytelniony prawnik; model
+// reviewCell waliduje (czlowiek, corrected wymaga tresci). Owner/shared scope
+// jak inne route'y tabular (ensureReviewAccess - bariera cross-tenant).
+tabularRouter.post("/:reviewId/cells/review", requireAuth, async (req, res) => {
+    const userId = res.locals.userId as string;
+    const userEmail = res.locals.userEmail as string | undefined;
+    const { reviewId } = req.params;
+    const { document_id, column_index, action, corrected_content } =
+        req.body as {
+            document_id?: string;
+            column_index?: number;
+            action?: string;
+            corrected_content?: string;
+        };
+
+    if (!document_id || column_index == null || !action)
+        return void res.status(400).json({
+            detail: "document_id, column_index and action are required",
+        });
+    if (
+        action !== "approved" &&
+        action !== "rejected" &&
+        action !== "corrected"
+    )
+        return void res.status(400).json({ detail: "invalid action" });
+
+    const db = createServerSupabase();
+    const { data: review, error: reviewError } = await db
+        .from("tabular_reviews")
+        .select("id, user_id, project_id")
+        .eq("id", reviewId)
+        .single();
+    if (reviewError || !review)
+        return void res.status(404).json({ detail: "Review not found" });
+    const access = await ensureReviewAccess(review, userId, userEmail, db);
+    if (!access.ok)
+        return void res.status(404).json({ detail: "Review not found" });
+
+    const record = reviewCell(
+        action,
+        userId,
+        new Date().toISOString(),
+        corrected_content,
+    );
+    if (record === null)
+        return void res.status(400).json({
+            detail: "invalid review (corrected requires non-empty content)",
+        });
+
+    const { error } = await db
+        .from("tabular_cells")
+        .update({
+            review_action: record.action,
+            reviewed_by: record.reviewedBy,
+            reviewed_at: record.reviewedAt,
+            corrected_content: record.correctedContent ?? null,
+        })
+        .eq("review_id", reviewId)
+        .eq("document_id", document_id)
+        .eq("column_index", column_index);
+    if (error) return void res.status(500).json({ detail: error.message });
+    res.json({ ok: true, review: record });
 });
 
 // POST /tabular-review/:reviewId/regenerate-cell

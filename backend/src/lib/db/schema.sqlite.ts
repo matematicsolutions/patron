@@ -254,6 +254,14 @@ create table if not exists tabular_cells (
   content text,
   citations text,
   status text not null default 'pending',
+  -- ADR-0126 (T2.2): human-review komorki (akt prawnika, spine art.12).
+  -- review_action null = nieweryfikowana; approved/rejected/corrected = akt
+  -- ludzki z reviewed_by (odpowiedzialny prawnik) + reviewed_at; corrected_content
+  -- tylko dla 'corrected'.
+  review_action text,
+  reviewed_by text,
+  reviewed_at text,
+  corrected_content text,
   created_at text not null
 );
 create index if not exists idx_tabular_cells_review on tabular_cells(review_id, document_id, column_index);

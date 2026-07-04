@@ -366,6 +366,11 @@ create table if not exists public.tabular_cells (
   content text,
   citations jsonb,
   status text not null default 'pending',
+  -- ADR-0126 (T2.2): human-review komorki (akt prawnika, spine art.12).
+  review_action text,
+  reviewed_by text,
+  reviewed_at timestamptz,
+  corrected_content text,
   created_at timestamptz not null default now()
 );
 

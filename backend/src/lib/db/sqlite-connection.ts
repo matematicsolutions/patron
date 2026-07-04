@@ -172,6 +172,21 @@ function ensureSchemaUpgrades(conn: Database.Database): void {
   if (!hasColumn("citation_graph", "ratified_at")) {
     conn.exec("alter table citation_graph add column ratified_at text");
   }
+
+  // ADR-0126 (T2.2): human-review komorki tabular (akt prawnika, art.12).
+  // Wszystkie nullable - brak review = nieweryfikowana (bez regresji).
+  if (!hasColumn("tabular_cells", "review_action")) {
+    conn.exec("alter table tabular_cells add column review_action text");
+  }
+  if (!hasColumn("tabular_cells", "reviewed_by")) {
+    conn.exec("alter table tabular_cells add column reviewed_by text");
+  }
+  if (!hasColumn("tabular_cells", "reviewed_at")) {
+    conn.exec("alter table tabular_cells add column reviewed_at text");
+  }
+  if (!hasColumn("tabular_cells", "corrected_content")) {
+    conn.exec("alter table tabular_cells add column corrected_content text");
+  }
 }
 
 /** Model embeddera z env (lustro embeddings.ts; tu bez importu - unik cyklu). */
