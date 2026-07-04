@@ -44,7 +44,6 @@
     "mammoth": "^1.9.0",
     "multer": "^1.4.5-lts.2",
     "pdfjs-dist": "^4.10.38",
-    "resend": "^4.5.1",
     "sqlite-vec": "^0.1.9",
     "zod": "^4.4.3"
   },

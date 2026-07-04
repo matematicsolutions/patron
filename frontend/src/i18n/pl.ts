@@ -769,6 +769,20 @@ export const pl = {
     },
 
     // ---------------------------------------------------------------------
+    // Banner posture egress / data-residency (Faza 2 audytu Fable5)
+    // ---------------------------------------------------------------------
+    egressConfig: {
+        privilegedCloudMessage:
+            "Sprawy objęte tajemnicą zawodową: model chmurowy DOZWOLONY (zgoda Operatora). Egress jest audytowany.",
+        privilegedCloudAriaLabel:
+            "Sprawy objete tajemnica zawodowa moga korzystac z modelu chmurowego za zgoda Operatora",
+        usProvidersMessage:
+            "Dostawcy spoza UE (USA): DOZWOLENI (zgoda Administratora, DPA). Transfer poza EOG jest audytowany.",
+        usProvidersAriaLabel:
+            "Dostawcy spoza UE dozwoleni za zgoda Administratora",
+    },
+
+    // ---------------------------------------------------------------------
     // Folder Sprawy - import lokalnego katalogu (ADR-0056/0064)
     // ---------------------------------------------------------------------
     folderIngest: {

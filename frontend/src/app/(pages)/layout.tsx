@@ -8,6 +8,7 @@ import { ChatHistoryProvider } from "@/app/contexts/ChatHistoryContext";
 import { SidebarContext } from "@/app/contexts/SidebarContext";
 import { AppSidebar } from "@/app/components/shared/AppSidebar";
 import { McpSecurityBanner } from "@/components/mcp-security-banner";
+import { EgressConfigBanner } from "@/components/egress-config-banner";
 import { t } from "@/i18n";
 
 export default function PATRONLayout({
@@ -105,6 +106,7 @@ export default function PATRONLayout({
                                 </button>
                             </div>
                             <McpSecurityBanner />
+                            <EgressConfigBanner />
                             <main className="flex-1 overflow-y-auto md:overflow-hidden w-full h-full">
                                 {children}
                             </main>
