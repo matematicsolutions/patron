@@ -12,14 +12,14 @@ tam, gdzie zmienia zachowanie.
 
 | # | Krok | Zrodlo | Wartosc | Stan |
 |---|------|--------|---------|------|
-| A1 | Merge `006-locale-it-market` (4 commity, fast-forward) | ADR-0139 | 6 edycji jezykowych w linii 2.0 (lean market edition); domyka najwiekszy ficzer sprzedazowy | do zrobienia |
-| A2 | Merge `feat/pilotaz-readiness` (3 commity) | ADR-0092/0093 | twarde cost-caps per sprawa + OpenRouter w selektorze = gotowosc pilotazowa (przychod) | do zrobienia |
-| A3 | Merge `fix/faza1-audit-prep` (5 commitow) | ADR-0109/0110 | rodo.delete audit event, widocznosc posture egress w UI, ekstraktor niezacytowanych odwolan, linkage cytat-edycja + SECURITY.md - rdzen tematu "governance by default" | do zrobienia |
-| A4 | Merge `chore/publication-gate` (1 commit) | CI | skaner wyciekow przed publikacja - obsluguje bramke "push publiczny mat" z checklisty wydania | do zrobienia |
-| A5 | Merge `claude/citation-requires-judgment` (2 commity) | ADR-0103 | sygnal WYMAGA OSADU (teza nieoceniona semantycznie); flaga `PATRON_CITATION_JUDGE` OFF | do zrobienia |
-| A6 | Dokonczyc WIP z worktree oc: human-review komorek tabular (96 linii, niezacommitowane; migracja wymaga renumeracji 014->018) | ADR-0126 | domyka human-in-the-loop dla tabular review | do zrobienia |
-| A7 | Merge `feat/watcher-d-lint` (2 commity) | ADR-0108 (Proponowany) | lint least-privilege zakresu narzedzi + ADR watchers; sama propozycja + lint, bez zmiany zachowania | do zrobienia |
-| A8 | (opcja) Merge `chore/code-review-graph-integration` | devtools | code-review-graph MCP + PR-review action; CI, nie shipping | opcjonalne |
+| A1 | Merge `006-locale-it-market` (4 commity, fast-forward) | ADR-0139 | 6 edycji jezykowych w linii 2.0 (lean market edition); domyka najwiekszy ficzer sprzedazowy | ZROBIONE 2026-07-04 (ff 37dc133) |
+| A2 | Merge `feat/pilotaz-readiness` (3 commity) | ADR-0092/0093 | twarde cost-caps per sprawa + OpenRouter w selektorze = gotowosc pilotazowa (przychod) | ZROBIONE 2026-07-04 (d027c86; selektor modeli: zostala nowsza wersja z HEAD) |
+| A3 | Merge `fix/faza1-audit-prep` (5 commitow) | ADR-0109/0110 | rodo.delete audit event, widocznosc posture egress w UI, ekstraktor niezacytowanych odwolan, linkage cytat-edycja + SECURITY.md - rdzen tematu "governance by default" | ZROBIONE 2026-07-04 (ee13716) |
+| A4 | Merge `chore/publication-gate` (1 commit) | CI | skaner wyciekow przed publikacja - obsluguje bramke "push publiczny mat" z checklisty wydania | ZROBIONE 2026-07-04 (b9b91f5; config = unia deny_paths + precyzyjne allow_paths) |
+| A5 | Merge `claude/citation-requires-judgment` (2 commity) | ADR-0103 | sygnal WYMAGA OSADU (teza nieoceniona semantycznie); flaga `PATRON_CITATION_JUDGE` OFF | ZROBIONE 2026-07-04 (f119567; wspolistnieje z lokatorem ADR-0116/0122) |
+| A6 | Dokonczyc WIP z worktree oc: human-review komorek tabular (96 linii, niezacommitowane; migracja wymaga renumeracji 014->018) | ADR-0126 | domyka human-in-the-loop dla tabular review | ZROBIONE 2026-07-04 (874a8b6; 12b+12c, kontrolka UI = rezerwacja) |
+| A7 | Merge `feat/watcher-d-lint` (2 commity) | ADR-0108 (Proponowany) | lint least-privilege zakresu narzedzi + ADR watchers; sama propozycja + lint, bez zmiany zachowania | ZROBIONE 2026-07-04 (e1bea44) |
+| A8 | (opcja) Merge `chore/code-review-graph-integration` | devtools | code-review-graph MCP + PR-review action; CI, nie shipping | ZROBIONE 2026-07-04 |
 
 Po kazdej partii: `npm run test:backend` + `tsc` zielone; migracje spojne (`migrate:status`).
 Galezie czysto-szumowe (tylko `chore(privacy): scrub`): faza-a/b/c, tier-governance-envelope,

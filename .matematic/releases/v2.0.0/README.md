@@ -48,9 +48,22 @@ dorobek post-1.0.0 dotad trzymany na dev (origin). 2.0 = jego publikacja jako sp
 - **#4 Asystenci: scope per modul/rola + tool-allowlist + tuning promptow w UI** (agent-native,
   z reconu open-mercato). Trzecia glowa wydania - opcjonalnie.
 
+### D. Wpiete w Etapie A roadmapy (2026-07-04, patrz ROADMAP.md)
+- **Wersje jezykowe rynkow UE** (ADR-0139, 006-locale-it-market) - lean market edition IT/DE/ES/FR.
+- **Cost-caps per sprawa + OpenRouter** (ADR-0092/0093, pilotaz-readiness) - migracja 010.
+- **Audyt Fable5 fazy 1-5** (ADR-0109/0110, faza1-audit-prep) - rodo.delete event, posture egress
+  w UI, ekstraktor niezacytowanych odwolan, linkage cytat-edycja, D4 SECURITY.md.
+- **Publication gate** (CI leak-scan) + **code-review-graph** (devtools).
+- **WYMAGA OSADU** (ADR-0103, flaga `PATRON_CITATION_JUDGE` OFF) - wspolistnieje z lokatorem.
+- **Human-review komorek tabular** (ADR-0126 12b+12c, migracja 018) - dokonczony WIP z worktree oc;
+  kontrolka UI = rezerwacja.
+- **Watchers ADR-0108 (Proponowany) + lint least-privilege** (watcher-d-lint).
+
 ## Stan integracji
 - 004 + 005 zmergowane na `release/v2.0.0-prep` (czysto, zero konfliktow).
-- Suite RAZEM: **1328 pass / 5 todo / 0 fail**, tsc 0. Migracje spojne (004=015/016, 005=017).
+- Suite po Etapie A roadmapy: **1365 pass / 5 todo / 0 fail** (backend), tsc 0 (backend),
+  frontend `next build` zielony.
+  Migracje spojne (004=015/016, 005=017, cost-cap=010, cell-review=018).
 
 ## Bramki wydania (checklist do tagu v2.0.0)
 - [ ] Decyzja #4 (trzecia glowa) - WM.
