@@ -63,6 +63,10 @@ export const APPROVED_PATRON_CONNECTORS: ReadonlyArray<string> = [
     // Gateway-scan przechodzi przy starcie jak dla pozostalych 9 (typosquat/
     // drift/tool-poisoning, fail-closed).
     "it-eli",
+    // ADR-0139: rynek brazylijski (pt-BR). br-eli = legis.senado.leg.br +
+    // normas.leg.br (legislacao federal, texto por artigo) + DataJud CNJ
+    // (metadados processuais). Gateway-scan przechodzi jak dla pozostalych.
+    "br-eli",
 ];
 
 /** Skanuje pojedynczy konektor MCP. */

@@ -20,8 +20,8 @@ const path = require("node:path");
 
 const DESKTOP = path.resolve(__dirname, "..");
 const DIST = path.join(DESKTOP, "dist");
-const ALL_LOCALES = ["pl", "en", "it", "de", "es", "fr"];
-const SUFFIX = { pl: "", en: "-EN", it: "-IT", de: "-DE", es: "-ES", fr: "-FR" };
+const ALL_LOCALES = ["pl", "en", "it", "de", "es", "fr", "pt"];
+const SUFFIX = { pl: "", en: "-EN", it: "-IT", de: "-DE", es: "-ES", fr: "-FR", pt: "-BR" };
 const REPO = "matematicsolutions/patron"; // publiczny mat - draft niewidoczny publicznie
 
 const argv = process.argv.slice(2);

@@ -169,6 +169,7 @@ export type ConnectorJurisdiction =
     | "SE"
     | "FR"
     | "LU"
+    | "BR"
     | "OTHER";
 
 export interface ConnectorInfo {

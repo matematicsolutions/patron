@@ -760,6 +760,7 @@ export const de: DictShape<typeof pl> = {
         jurisdictionSE: "Schweden",
         jurisdictionFR: "Frankreich",
         jurisdictionLU: "Luxemburg",
+        jurisdictionBR: "Brasilien",
         jurisdictionOTHER: "Andere",
     },
     approvals: {

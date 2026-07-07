@@ -890,6 +890,7 @@ export const pl = {
         jurisdictionSE: "Szwecja",
         jurisdictionFR: "Francja",
         jurisdictionLU: "Luksemburg",
+        jurisdictionBR: "Brazylia",
         jurisdictionOTHER: "Inne",
     },
     approvals: {
