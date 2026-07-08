@@ -83,7 +83,7 @@ Wymaga osobno postawionego Supabase + MinIO (osobne stack). Patrz runbook.
 Kancelaria przed wdrożeniem czyta i podpisuje **Konstytucję v1.6.1**
 (sekcja podpisów na końcu pliku).
 
-## Standard otwarty — MCS v0.1
+## Standard otwarty - MCS v0.1
 
 Patron jest **implementacją referencyjną** otwartego standardu cytowań
 [**MateMatic Connector Standard (MCS) v0.1**](./MCS-v0.1.md): kontrakt
