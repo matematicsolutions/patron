@@ -98,7 +98,11 @@ function installLocale() {
 // instalatora PL. Pliki latest[-xx].yml produkuje build-locale.cjs.
 // Instalacja TYLKO po decyzji czlowieka (dialog) - zadnego restartu w trakcie
 // pracy nad sprawa. Kill-switch: PATRON_AUTO_UPDATE=off.
-const UPDATE_CHANNEL_SUFFIX = { pl: '', en: '-en', it: '-it', de: '-de', es: '-es', fr: '-fr' };
+// NOTE: "pt" (BR) brakuje tu tak samo jak w release-all.cjs - istniejaca luka
+// z galezi feature/patron-br-edition, poza zakresem edycji US (brief: "nie
+// martw sie o pt/br"). "us" dodany: jurysdykcja USA, UI+dialog po angielsku
+// (identyczne z "en" - jedyna roznica to kanal auto-update, stad osobny suffix).
+const UPDATE_CHANNEL_SUFFIX = { pl: '', en: '-en', it: '-it', de: '-de', es: '-es', fr: '-fr', us: '-us' };
 const UPDATE_DIALOG_TEXT = {
   pl: { title: 'Aktualizacja PATRON', msg: (v) => `Pobrano wersję ${v}. Zainstalować teraz (restart aplikacji)?`, now: 'Zainstaluj teraz', later: 'Przy zamknięciu' },
   en: { title: 'PATRON update', msg: (v) => `Version ${v} downloaded. Install now (restarts the app)?`, now: 'Install now', later: 'On quit' },
@@ -106,6 +110,7 @@ const UPDATE_DIALOG_TEXT = {
   de: { title: 'PATRON-Update', msg: (v) => `Version ${v} heruntergeladen. Jetzt installieren (App-Neustart)?`, now: 'Jetzt installieren', later: 'Beim Beenden' },
   es: { title: 'Actualización de PATRON', msg: (v) => `Versión ${v} descargada. ¿Instalar ahora (reinicia la aplicación)?`, now: 'Instalar ahora', later: 'Al cerrar' },
   fr: { title: 'Mise à jour PATRON', msg: (v) => `Version ${v} téléchargée. Installer maintenant (redémarre l'application) ?`, now: 'Installer maintenant', later: 'À la fermeture' },
+  us: { title: 'PATRON update', msg: (v) => `Version ${v} downloaded. Install now (restarts the app)?`, now: 'Install now', later: 'On quit' },
 };
 
 function setupAutoUpdate() {

@@ -29,6 +29,7 @@ export type Jurisdiction =
     | "LU"
     | "IT"
     | "BR"
+    | "US"
     | "OTHER";
 
 // Mapowanie nazwa konektora -> jurysdykcja (do grupowania w pickerze).
@@ -51,6 +52,7 @@ const JURISDICTION_BY_CONNECTOR: Readonly<Record<string, Jurisdiction>> = {
     "lu-eli": "LU",
     "it-eli": "IT",
     "br-eli": "BR",
+    "us-eli": "US",
 };
 
 export interface ConnectorInfo {

@@ -67,6 +67,10 @@ export const APPROVED_PATRON_CONNECTORS: ReadonlyArray<string> = [
     // normas.leg.br (legislacao federal, texto por artigo) + DataJud CNJ
     // (metadados processuais). Gateway-scan przechodzi jak dla pozostalych.
     "br-eli",
+    // Jurysdykcja USA (locale "us", UI dalej EN). us-eli = Congress.gov +
+    // GovInfo + Federal Register + eCFR + CourtListener (search). Gateway-scan
+    // przechodzi jak dla pozostalych konektorow Python.
+    "us-eli",
 ];
 
 /** Skanuje pojedynczy konektor MCP. */

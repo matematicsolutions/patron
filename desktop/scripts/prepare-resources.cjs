@@ -47,7 +47,7 @@ const IS_WIN = process.platform === "win32";
 // substancja krajowa w promptach (backend); "pl" => zachowanie dotychczasowe
 // (PL-first). Czytane z tego samego env co frontend (NEXT_PUBLIC_PATRON_LOCALE),
 // wiec jeden build = jeden locale.
-const SUPPORTED_LOCALES = ["pl", "en", "it", "de", "es", "fr", "pt"];
+const SUPPORTED_LOCALES = ["pl", "en", "it", "de", "es", "fr", "pt", "us"];
 const LOCALE = SUPPORTED_LOCALES.includes(process.env.NEXT_PUBLIC_PATRON_LOCALE)
   ? process.env.NEXT_PUBLIC_PATRON_LOCALE
   : "pl";
@@ -99,6 +99,9 @@ const MCP_SERVERS_PYTHON = [
   { name: "ie-eli", repoDir: "ie-eli-mcp", module: "ie_eli_mcp" },
   { name: "lu-eli", repoDir: "lu-eli-mcp", module: "lu_eli_mcp" },
   { name: "br-eli", repoDir: "br-eli-mcp", module: "br_eli_mcp" },
+  // Jurysdykcja USA (nie UE) - repo us-eli-mcp zyje obok reszty w MCP_PY_REPOS_DIR
+  // (~/Projects), tak samo jak konektory krajowe UE.
+  { name: "us-eli", repoDir: "us-eli-mcp", module: "us_eli_mcp" },
 ];
 const SKIP_PYTHON_CONNECTORS = process.env.SKIP_PYTHON_CONNECTORS === "1";
 
@@ -109,7 +112,7 @@ const JURISDICTION = {
   "eu-sparql": "EU", "eu-compliance": "EU",
   "de-eli": "DE", "at-eli": "AT", "es-eli": "ES", "fi-eli": "FI", "ie-eli": "IE",
   "nl-eli": "NL", "se-eli": "SE", "fr-eli": "FR", "lu-eli": "LU", "it-eli": "IT",
-  "br-eli": "BR",
+  "br-eli": "BR", "us-eli": "US",
 };
 const NEEDS_KEY = new Set(["fr-eli"]); // Legifrance/PISTE OAuth - off do podania klucza
 // Kolejnosc krajowych UE largest-first (wielkosc rynku LegalTech).
@@ -126,7 +129,14 @@ const ORDER_PL = [
 ];
 // Rynki (ADR-0139): konektor macierzysty pierwszy, potem UE-zbiorcze, reszta
 // krajowych largest-first, PL na koncu (obecne, przelaczalne pickerem).
-const HOME_CONNECTOR = { it: "it-eli", de: "de-eli", es: "es-eli", fr: "fr-eli", pt: "br-eli" };
+const HOME_CONNECTOR = {
+  it: "it-eli", de: "de-eli", es: "es-eli", fr: "fr-eli", pt: "br-eli",
+  // Jurysdykcja USA (nie rynek UE) - marketOrder() nizej nadal dziala: us-eli
+  // nie jest w EU_LARGEST_FIRST wiec filter jest no-op, a stagedPythonConnectors
+  // i tak ogranicza bundel do WYLACZNIE us-eli (lean edition, ta sama logika
+  // co it/de/es/fr/pt).
+  us: "us-eli",
+};
 function marketOrder(locale) {
   const home = HOME_CONNECTOR[locale];
   return [
@@ -569,6 +579,7 @@ function stageDocs() {
     es: "SAMOUCZEK_ES.md",
     fr: "SAMOUCZEK_FR.md",
     pt: "SAMOUCZEK_BR.md",
+    us: "SAMOUCZEK_US.md",
   };
   const samDst = path.join(outDocs, "SAMOUCZEK.md");
   const samCandidates = [
