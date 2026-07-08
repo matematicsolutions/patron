@@ -28,6 +28,11 @@ const LOCALES = {
   es: { nsisLang: "es-ES", lcid: "3082", suffix: "-ES" },
   fr: { nsisLang: "fr-FR", lcid: "1036", suffix: "-FR" },
   pt: { nsisLang: "pt-BR", lcid: "1046", suffix: "-BR" },
+  // NSIS 3.0.4.1's bundled MUI language table for lcid 2057 (en-GB) is missing
+  // MUI_UNTEXT_WELCOME_INFO_TITLE, which electron-builder treats as a fatal
+  // warning. Reuse the complete en-US (1033) NSIS language pack instead - this
+  // only affects installer chrome text, not the app's own UI/substance.
+  gb: { nsisLang: "en-US", lcid: "1033", suffix: "-GB" },
 };
 
 const locale = (process.argv[2] || "").toLowerCase();
