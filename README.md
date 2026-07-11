@@ -8,7 +8,7 @@
 [![MCP](https://img.shields.io/badge/MCP-6_connectors-blue)](https://github.com/matematicsolutions)
 [![Node](https://img.shields.io/badge/Node-20%2B-brightgreen)](https://nodejs.org)
 
-> **A self-hosted AI agent for a law firm.** A zero-cloud, single-user desktop
+> **A local-first, self-hosted AI agent for a law firm.** A zero-cloud, single-user desktop
 > application (Electron): local SQLite by default ([ADR-0053](./governance/adr/0053-sqlite-single-user-zero-cloud.md)), 6 connectors to Polish and EU law
 > (SAOS / NSA / ISAP / KRS / EUR-Lex / EU-Compliance), a hash-chained audit trail (AI Act art. 12),
 > bring-your-own-model (Gemini / Claude / local Ollama / OpenRouter). A server mode (Postgres + MinIO) remains available as an alternative.
