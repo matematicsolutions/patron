@@ -1,4 +1,4 @@
-# ADR-0110 — Kontrakt linkage cytat↔edycja w redline (anchorId + span)
+# ADR-0142 — Kontrakt linkage cytat↔edycja w redline (anchorId + span)
 
 - **Status:** Proponowany (czeka na decyzje governance D1 + bramke WM)
 - **Data:** 2026-06-11
@@ -53,7 +53,7 @@ Zasada egzekwowania (za flaga, default OFF — wzorzec ADR-0097/0102):
   C#/.NET WASM (ryzyko Electron z oceny Docxodus omijiete).
 - (-) Wymaga, by warstwa generujaca edycje (LLM tool) produkowala `grounding_ref` — rozszerzenie
   kontraktu toola.
-- (-) Decyzja D1 (co przy braku VERIFIED: blok / needs_review / sygnal) wspolna z ADR-0109.
+- (-) Decyzja D1 (co przy braku VERIFIED: blok / needs_review / sygnal) wspolna z ADR-0141.
 
 ## Definition of done
 

@@ -14,7 +14,7 @@
 // WAZNE: caller podaje PROZE (tekst PRZED <CITATIONS>), tak jak ground-citations.ts
 // (slice do search(/<CITATIONS/i)). Samo WPIECIE w sciezke groundingu (stream.ts) to
 // zmiana zachowania moatu i zostaje ZA FLAGA + decyzja governance D1 (sygnal vs blok
-// vs tag) - patrz ADR-0109. Domyslnie nieaktywne.
+// vs tag) - patrz ADR-0141. Domyslnie nieaktywne.
 
 export interface HeuristicCitation {
   /** Znormalizowany dopasowany tekst (np. "art. 415", "sygn. akt III CZP 11/13"). */
