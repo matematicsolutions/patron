@@ -22,6 +22,7 @@ import { skillsRouter } from "./routes/skills";
 import { connectorsRouter } from "./routes/connectors";
 import { approvalsRouter } from "./routes/approvals";
 import { healthRouter } from "./routes/health";
+import { packsRouter } from "./routes/packs";
 import { citationsRouter } from "./routes/citations";
 import { configRouter } from "./routes/config";
 import { createServerSupabase, isSqliteBackend } from "./lib/supabase";
@@ -182,6 +183,8 @@ app.use("/mutation-approvals", approvalsRouter);
 app.use("/api/status", healthRouter);
 app.use("/api/citations", citationsRouter);
 app.use("/api/config", configRouter);
+// Paczki wiedzy - kanal dystrybucji chunkowej (ADR-0140).
+app.use("/api/packs", packsRouter);
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
 

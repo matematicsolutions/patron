@@ -798,6 +798,16 @@ export const pl = {
     },
 
     // ---------------------------------------------------------------------
+    // Paczki wiedzy - kanal dystrybucji chunkowej (ADR-0140)
+    // ---------------------------------------------------------------------
+    packUpdates: {
+        availableMessage:
+            "Paczka wiedzy {name}: dostępna aktualizacja {have} → {available}, do pobrania {download} MB z {total} MB.",
+        availableAriaLabel:
+            "Dostepna aktualizacja paczki wiedzy {name} z wersji {have} do wersji {available}, do pobrania {download} megabajtow z {total}",
+    },
+
+    // ---------------------------------------------------------------------
     // Folder Sprawy - import lokalnego katalogu (ADR-0056/0064)
     // ---------------------------------------------------------------------
     folderIngest: {

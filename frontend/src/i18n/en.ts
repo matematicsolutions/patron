@@ -673,6 +673,13 @@ export const en: DictShape<typeof pl> = {
         auditAriaLabel: "MCP Security Gateway in audit-only mode, tools are not blocked",
     },
 
+    packUpdates: {
+        availableMessage:
+            "Knowledge pack {name}: update available {have} → {available}, {download} MB to download out of {total} MB.",
+        availableAriaLabel:
+            "Knowledge pack {name} update available from version {have} to {available}, {download} megabytes to download out of {total}",
+    },
+
     folderIngest: {
         open: "Import case folder",
         title: "Import case folder",
