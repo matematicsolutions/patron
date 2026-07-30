@@ -41,6 +41,45 @@ requirements a law firm needs. The full rules live in
 | [`mcp-eu-sparql`](https://github.com/matematicsolutions/mcp-eu-sparql) | EU law (EUR-Lex + CJEU, live SPARQL) | search_by_celex / search_by_date_range / search_cjeu |
 | [`mcp-eu-compliance`](https://github.com/matematicsolutions/mcp-eu-compliance) | offline EU compliance (GDPR, AI Act, DORA, NIS2, eIDAS 2.0, CRA) | eu_search / eu_article / eu_compare / eu_check_applicability / eu_evidence |
 
+## The whole fleet: 44 open connectors
+
+The six connectors above ship inside the desktop installer. They are part of a larger fleet: 44 open MCP connectors under [github.com/matematicsolutions](https://github.com/matematicsolutions), one repo per source, each reading an official government API or gazette. Language editions of Patron pair the same AGPL shell with the connectors for that jurisdiction. The full catalog with install commands lives at [MateMatic Boutique](https://matematicsolutions.com/en/boutique/connectors).
+
+**Poland** (MIT / Apache-2.0):
+
+| Connector | Reads |
+|---|---|
+| [`mcp-saos`](https://github.com/matematicsolutions/mcp-saos) | common and Supreme Court case law via the SAOS API |
+| [`mcp-nsa`](https://github.com/matematicsolutions/mcp-nsa) | administrative court rulings (NSA + 16 WSA) via CBOSA |
+| [`mcp-isap`](https://github.com/matematicsolutions/mcp-isap) | legislation (Dziennik Ustaw + Monitor Polski) via the Sejm ELI API, 96k+ acts since 1918 |
+| [`mcp-krs`](https://github.com/matematicsolutions/mcp-krs) | the National Court Register (KRS) via the official Ministry of Justice API |
+| [`mcp-eureka`](https://github.com/matematicsolutions/mcp-eureka) | tax interpretations (KIS / Ministry of Finance) via EUREKA, 550k+ documents |
+| [`kio-orzeczenia-mcp`](https://github.com/matematicsolutions/kio-orzeczenia-mcp) | public-procurement case law (National Appeals Chamber, KIO) |
+
+**European Union** (TypeScript, MIT):
+
+| Connector | Reads |
+|---|---|
+| [`mcp-eu-sparql`](https://github.com/matematicsolutions/mcp-eu-sparql) | EU legislation and 57k+ CJEU rulings via the EUR-Lex SPARQL endpoint |
+| [`mcp-eu-compliance`](https://github.com/matematicsolutions/mcp-eu-compliance) | an offline corpus of EU compliance law (GDPR, AI Act, DORA, NIS2, eIDAS 2.0, CRA) |
+
+**France, offline** (JavaScript, MIT):
+
+| Connector | Reads |
+|---|---|
+| [`mcp-fr-legal`](https://github.com/matematicsolutions/mcp-fr-legal) | an offline full-text corpus of French codes and case law |
+
+**National legislation, 33 jurisdictions** (Python, Apache-2.0) - the `xx-eli-mcp` family, each reading the official national source with ELI-style citable references:
+
+[Austria](https://github.com/matematicsolutions/at-eli-mcp) · [Australia](https://github.com/matematicsolutions/au-eli-mcp) · [Belgium](https://github.com/matematicsolutions/be-eli-mcp) · [Brazil](https://github.com/matematicsolutions/br-eli-mcp) · [Canada](https://github.com/matematicsolutions/ca-eli-mcp) · [Chile](https://github.com/matematicsolutions/cl-eli-mcp) · [Colombia](https://github.com/matematicsolutions/co-eli-mcp) · [Croatia](https://github.com/matematicsolutions/hr-eli-mcp) · [Czechia](https://github.com/matematicsolutions/cz-eli-mcp) · [Denmark](https://github.com/matematicsolutions/dk-eli-mcp) · [Finland](https://github.com/matematicsolutions/fi-eli-mcp) · [France](https://github.com/matematicsolutions/fr-eli-mcp) · [Germany](https://github.com/matematicsolutions/de-eli-mcp) · [Hungary](https://github.com/matematicsolutions/hu-eli-mcp) · [Ireland](https://github.com/matematicsolutions/ie-eli-mcp) · [Israel](https://github.com/matematicsolutions/il-eli-mcp) · [Italy](https://github.com/matematicsolutions/it-eli-mcp) · [Japan](https://github.com/matematicsolutions/jp-eli-mcp) · [Lithuania](https://github.com/matematicsolutions/lt-eli-mcp) · [Luxembourg](https://github.com/matematicsolutions/lu-eli-mcp) · [Malaysia](https://github.com/matematicsolutions/my-eli-mcp) · [Malta](https://github.com/matematicsolutions/mt-eli-mcp) · [Netherlands](https://github.com/matematicsolutions/nl-eli-mcp) · [Pakistan](https://github.com/matematicsolutions/pk-eli-mcp) · [Romania](https://github.com/matematicsolutions/ro-eli-mcp) · [Singapore](https://github.com/matematicsolutions/sg-eli-mcp) · [Slovakia](https://github.com/matematicsolutions/sk-eli-mcp) · [Spain](https://github.com/matematicsolutions/es-eli-mcp) · [Sweden](https://github.com/matematicsolutions/se-eli-mcp) · [Switzerland](https://github.com/matematicsolutions/ch-eli-mcp) · [Turkey](https://github.com/matematicsolutions/tr-eli-mcp) · [United Kingdom](https://github.com/matematicsolutions/gb-eli-mcp) · [United States](https://github.com/matematicsolutions/us-eli-mcp)
+
+**Cross-jurisdiction** (Python, Apache-2.0):
+
+| Connector | Reads |
+|---|---|
+| [`legalize-mcp`](https://github.com/matematicsolutions/legalize-mcp) | the legalize-dev law-as-git corpus: 32 jurisdictions, Git-versioned, ELI citable |
+| [`boutique-mcp`](https://github.com/matematicsolutions/boutique-mcp) | the Boutique catalog itself, so the agent can find and install the right connector |
+
 ## Production deployment
 
 Full runbook: **[deploy/README.md](./deploy/README.md)**.
