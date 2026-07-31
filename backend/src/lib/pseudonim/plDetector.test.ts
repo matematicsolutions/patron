@@ -52,6 +52,21 @@ describe("plEntityDetector - ORG (reuse pl-entities, forma prawna)", () => {
         const h = await detect("Spotkanie odbylo sie w biurze.");
         expect(cats(h, "ORG")).toEqual([]);
     });
+
+    // ADR-0110 - to jest szew EGRESS do chmury. Zapis mala litera
+    // ("sp. z o.o.") jest dominujacy w KRS i pismach; dopoki regex go nie
+    // lapal, nazwa podmiotu klienta wychodzila do modelu otwartym tekstem.
+    it.each([
+        "Acme sp. z o.o.",
+        "Acme Sp. z o.o.",
+        "Acme s.a.",
+        "Acme S.A.",
+        "Acme sp.k.",
+        "Acme spolka cywilna",
+    ])("maskuje ORG niezaleznie od wielkosci liter formy: %s", async (nazwa) => {
+        const h = await detect(`Stroną umowy jest ${nazwa} z Poznania.`);
+        expect(cats(h, "ORG").some((s) => s.includes(nazwa))).toBe(true);
+    });
 });
 
 describe("plEntityDetector - ADDRESS", () => {

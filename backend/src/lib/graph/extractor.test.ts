@@ -115,13 +115,49 @@ describe("extractEntitiesAndEdges - akty prawne CELEX/ELI", () => {
 
 describe("extractEntitiesAndEdges - firmy", () => {
     it("firma z forma prawna generuje krawedz wspomina_firme", () => {
-        const text = "Acme Sp. z o.o. zlozyla pozew.";
+        const text = "Acme sp. z o.o. zlozyla pozew.";
         const r = extractEntitiesAndEdges("doc-firma", text);
         const e = r.entities.find((e) => e.type === "FIRMA");
         expect(e).toBeDefined();
         // base confidence dla firmy 0.75 - jest >= 0.6 default minEdgeConfidence
         const edge = r.edges.find((edge) => edge.relation === "wspomina_firme");
         expect(edge).toBeDefined();
+    });
+
+    // ADR-0110: wezel FIRMA w grafie NIE moze zalezec od tego, czy pismo
+    // zapisuje forme prawna z wielkiej czy z malej litery. Zapis mala litera
+    // jest w praktyce dominujacy (KRS, pisma procesowe).
+    describe.each([
+        ["mala litera", "sp. z o.o."],
+        ["wielka litera", "Sp. z o.o."],
+        ["wersaliki", "SP. Z O.O."],
+        ["forma slowna mala litera", "spolka cywilna"],
+        ["forma slowna wielka litera", "Spolka Cywilna"],
+        ["skrot mala litera", "s.a."],
+        ["skrot wielka litera", "S.A."],
+    ])("zapis formy prawnej: %s", (_opis, forma) => {
+        it(`"${forma}" daje wezel FIRMA i krawedz wspomina_firme`, () => {
+            const r = extractEntitiesAndEdges(
+                `doc-firma-${forma}`,
+                `Acme ${forma} zlozyla pozew.`,
+            );
+            const e = r.entities.find((x) => x.type === "FIRMA");
+            expect(e).toBeDefined();
+            expect(e!.value).toBe(`Acme ${forma}`);
+            expect(
+                r.edges.find((edge) => edge.relation === "wspomina_firme"),
+            ).toBeDefined();
+        });
+    });
+
+    it("ten sam podmiot zapisany raz mala raz wielka litera daje ten sam wezel", () => {
+        const mala = extractEntitiesAndEdges("d1", "Acme sp. z o.o. zlozyla pozew.");
+        const wielka = extractEntitiesAndEdges("d2", "Acme Sp. z o.o. zlozyla pozew.");
+        const eMala = mala.entities.find((e) => e.type === "FIRMA");
+        const eWielka = wielka.entities.find((e) => e.type === "FIRMA");
+        expect(eMala).toBeDefined();
+        expect(eWielka).toBeDefined();
+        expect(eMala!.confidence).toBe(eWielka!.confidence);
     });
 });
 
@@ -152,7 +188,7 @@ describe("extractEntitiesAndEdges - opcje", () => {
 
 describe("extractEntitiesAndEdges - integracja", () => {
     it("kompletny tekst z mixed encjami daje spojny ExtractionResult", () => {
-        const text = `Pozew Acme Sp. z o.o. (NIP 525-228-70-09, KRS: 0000028860)
+        const text = `Pozew Acme sp. z o.o. (NIP 525-228-70-09, KRS: 0000028860)
 przeciwko klientowi PESEL 44051401458. Powolujemy sie na wyrok SN
 sygn. akt III CZP 11/13 oraz na wyrok II SA/Wa 1234/24. Regulacja
 32024R1689 ma zastosowanie.`;
