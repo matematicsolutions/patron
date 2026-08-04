@@ -15,7 +15,11 @@ import {
   type AdwokatMode,
   type DefenseStage,
 } from "../lib/pipeline/defense";
-import { loadEnabledDraftStageSkills } from "../lib/skills/store";
+import {
+  loadEnabledDraftStageSkills,
+  toSkillAuditRecord,
+} from "../lib/skills/store";
+import { partitionSkillsByEgress } from "../lib/skills/integrity";
 import { appendAuditEvent } from "../lib/audit";
 import { enforceEgressGuard, appendLlmRouteEvent } from "../lib/routing";
 import {
@@ -132,7 +136,15 @@ draftRouter.post("/refine", requireAuth, async (req, res) => {
     }
 
     // Wlaczone skille z paczek (surface draft-stage) - po wbudowanych etapach.
-    const customStages = await loadEnabledDraftStageSkills(db);
+    //
+    // ADR-0143: manifest skilla deklaruje wlasna plaszczyzne egress (tresc
+    // promptu, know-how autora - rozlaczna od egressu danych klienta, ktory
+    // pokrywa maskowanie PII). Deklaracja byla dotad walidowana przy imporcie
+    // i porzucana przed uruchomieniem, wiec prompt skilla `no-egress` i tak
+    // jechal do modelu chmurowego. Tu jest miejsce, w ktorym zaczyna obowiazywac.
+    const loadedSkills = await loadEnabledDraftStageSkills(db);
+    const skillGate = partitionSkillsByEgress(loadedSkills, guard.decision.egress);
+    const customStages = skillGate.allowed;
     const result = await runDefensePipeline(text, {
       model: selectedModel,
       apiKeys,
@@ -151,7 +163,17 @@ draftRouter.post("/refine", requireAuth, async (req, res) => {
         classification: guard.decision.classification,
         egress: guard.decision.egress,
         stages: effectiveStages,
-        custom_skills: customStages.map((s) => s.id),
+        // ADR-0143: tozsamosc PLUS integralnosc. Sam identyfikator nie dowodzil,
+        // jaka tresc uksztaltowala pismo - `importSkill` robi upsert po `id`,
+        // wiec ten sam id i ta sama wersja moga po reimporcie niesc inny prompt.
+        custom_skills: customStages.map(toSkillAuditRecord),
+        // Skille pominiete przez bramke egress. Zapisujemy je JAWNIE - skill,
+        // ktory nie zadzialal, a wyglada jakby zadzialal, to awaria konczaca
+        // sie sukcesem.
+        skipped_skills: skillGate.skipped.map((s) => ({
+          ...toSkillAuditRecord(s.skill),
+          reason: s.reason,
+        })),
         adwokat_mode: mode ?? null,
         document_type: docType ?? null,
         high_stakes: highStakes.isHighStakes,

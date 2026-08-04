@@ -7,9 +7,11 @@ import type { CustomStageSpec } from "../pipeline/defense";
 import {
   BUILTIN_SKILLS,
   manifestToEntry,
+  type SkillEgress,
   type SkillEntry,
   type SkillManifest,
 } from "./manifest";
+import { skillPromptSha256, type SkillAuditRecord } from "./integrity";
 
 type Db = ReturnType<typeof createServerSupabase>;
 
@@ -98,13 +100,32 @@ export async function setSkillEnabled(
 }
 
 /**
+ * Etap z paczki skilla wraz z metadanymi potrzebnymi do bramki egress i do
+ * audytu (ADR-0143). Rozszerza kontrakt pipeline obrony o pola, ktorych sam
+ * pipeline nie uzywa - decyzje podejmuje caller (routes/draft.ts).
+ */
+export interface LoadedSkillStage extends CustomStageSpec {
+  version: string;
+  egress: SkillEgress;
+  source: string;
+  publisher: string | null;
+  signed: boolean;
+  /**
+   * Suma kontrolna TRESCI promptu, liczona przy odczycie - nie z kolumny.
+   * Dzieki temu odzwierciedla to, co faktycznie pojdzie do modelu, nawet gdy
+   * skill podmieniono po instalacji (`importSkill` robi upsert po `id`).
+   */
+  promptSha256: string;
+}
+
+/**
  * Wlaczone skille o powierzchni draft-stage jako spec custom etapow do
  * pipeline obrony (ADR-0096). Kolejnosc = instalacji. Wbudowane NIE sa tu
  * (maja wlasne buildery w defense.ts).
  */
 export async function loadEnabledDraftStageSkills(
   db: Db,
-): Promise<CustomStageSpec[]> {
+): Promise<LoadedSkillStage[]> {
   const { data, error } = await db
     .from("installed_skills")
     .select("*")
@@ -119,7 +140,26 @@ export async function loadEnabledDraftStageSkills(
       name: r.name,
       system: r.manifest.prompt.system,
       user: r.manifest.prompt.user,
+      version: r.manifest.version,
+      egress: r.manifest.egress,
+      source: r.manifest.source,
+      publisher: r.manifest.publisher,
+      signed: r.manifest.signature !== null,
+      promptSha256: skillPromptSha256(r.manifest.prompt),
     }));
+}
+
+/** Rzut skilla do postaci zapisywanej w lancuchu hashy (ADR-0143). */
+export function toSkillAuditRecord(s: LoadedSkillStage): SkillAuditRecord {
+  return {
+    id: s.id,
+    version: s.version,
+    prompt_sha256: s.promptSha256,
+    source: s.source,
+    egress: s.egress,
+    publisher: s.publisher,
+    signed: s.signed,
+  };
 }
 
 /** Usun zainstalowany skill. Zwraca false gdy nie istnial. */
