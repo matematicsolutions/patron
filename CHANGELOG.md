@@ -8,6 +8,33 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 ## [Unreleased]
 
 ### Added
+- **Weryfikator w paczce eksportu audytowego (ADR-0142)** - `GET /api/audit/export/:eventId`
+  zwraca archiwum ZIP zamiast samego JSON. Obok artefaktu jada dwa samodzielne weryfikatory:
+  `SPRAWDZ-TEN-PLIK.html` (przegladarka, zero instalacji, wlasna implementacja SHA-256 zamiast
+  `crypto.subtle`, ktorego dostepnosc przy `file://` zalezy od przegladarki) i `verify.py`
+  (biblioteka standardowa Pythona 3.8+, kody wyjscia 0/1/2 do kontroli automatycznej), plus
+  instrukcja `CZYTAJ-TO-NAJPIERW.txt`. Powod: dotad artefakt niosl instrukcje "uruchom
+  z katalogu backend/", czyli odsylal odbiorce do repozytorium, ktorego sad, UODO ani klient
+  nie posiadaja (pomiar: klon repo AGPL + 704 MB / 312 pakietow npm). Tresc weryfikatorow
+  OSADZONA w `backend/src/lib/audit-verifier-assets.ts`, nie czytana z dysku - plik pominiety
+  w pakowaniu Electron zniknalby po cichu, a eksport nadal konczylby sie sukcesem. Nowy modul
+  `backend/src/lib/audit-export-archive.ts` (jszip, archiwum deterministyczne). Audit bundle
+  (ADR-0066) dostal trzeci stopien weryfikacji - ciaglosc ogniw `prev_hash`->`hash` - wykrywajacy
+  wpis usuniety ze srodka i wpisy przestawione TAKZE po przeliczeniu manifestu przez
+  podmieniajacego. Zgodnosc trzech implementacji (TS/Python/JS) pilnowana wektorami z kodu
+  produkcyjnego. Zero nowych zaleznosci npm, zero migracji. backend 1429 pass / 0 fail (+21).
+- **Integralnosc skilla w audycie i egzekwowanie deklaracji egress (ADR-0143)** - dwie luki
+  wykryte pomiarem kodu. (1) `defense.pipeline.run` zapisywal `custom_skills` jako same
+  identyfikatory, a `importSkill` robi upsert po `id` przy niepodpisanym manifescie, wiec para
+  `(id, version)` NIE identyfikuje tresci - reimport podmienial prompt bez zmiany zapisu
+  w dzienniku. (2) Manifest deklaruje `egress` skilla (tresc promptu, rozlaczna od egressu danych
+  klienta pokrytego maskowaniem PII), ale `CustomStageSpec` tego pola nie mial - prompt skilla
+  `no-egress` jechal do modelu chmurowego. Nowy `backend/src/lib/skills/integrity.ts`:
+  `skillPromptSha256` (suma liczona PRZY ODCZYCIE, na `canonicalSha256` z ADR-0142) oraz
+  `partitionSkillsByEgress` (regula jednostronna: `no-egress` nie idzie do modelu opuszczajacego
+  maszyne). Audyt zapisuje `custom_skills` jako rekordy z wersja, suma kontrolna, zrodlem
+  i wydawca, oraz `skipped_skills` z powodem pominiecia. Zakres: `surface: draft-stage`.
+  Bez nowej kolumny, migracji i `event_type`. backend 1440 pass / 0 fail (+13).
 - **Wersje jezykowe rynkow UE: IT/DE/ES/FR (ADR-0139)** - locale rozszerzone z pary
   PL/EN do 6 rynkow. Slowniki UI `it/de/es/fr.ts` (po 614 kluczy, pelne pokrycie
   pl.ts; fallback lancuchowy locale -> EN -> PL w `i18n/index.ts`). Rejestr profili

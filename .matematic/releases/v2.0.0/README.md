@@ -72,7 +72,7 @@ Numery migracji Postgres i ADR byly rezerwowane rownolegle na galeziach -> koliz
 bierze sie STAD i od razu podbija licznik w tym samym commicie co plik.
 
 - **Nastepna migracja Postgres:** `019` (ostatnia zajeta: 018_tabular_cell_review)
-- **Nastepny ADR:** `0141` (ostatni zajety: 0140-klient-kanalu-dystrybucji-paczek-wiedzy)
+- **Nastepny ADR:** `0144` (ostatni zajety: 0143-integralnosc-skilla-i-bramka-egress)
 
 ## Higiena galezi (lekcja z 2026-07-04)
 
