@@ -121,7 +121,14 @@ describe("buildAuditPack", () => {
         expect(pack.event).toEqual(FIX_EVENT);
         expect(pack.merkle_proof_bundle).toEqual(FIX_BUNDLE);
         expect(pack.verifier_instructions).toBeDefined();
-        expect(pack.verifier_instructions.offline_cli).toContain("verify-audit-pack.ts");
+        // ADR-0142: instrukcja ma odsylac do narzedzi JADACYCH W ARCHIWUM, nie do
+        // katalogu repozytorium, ktorego odbiorca nie posiada. Poprzednia wersja
+        // kazala uruchomic skrypt "z katalogu backend/" - wykonalne wylacznie dla
+        // nas, wiec artefakt de facto nie byl weryfikowalny przez druga strone.
+        expect(pack.verifier_instructions.offline_cli).toContain("verify.py");
+        expect(pack.verifier_instructions.browser).toContain("SPRAWDZ-TEN-PLIK.html");
+        expect(pack.verifier_instructions.offline_cli).not.toContain("backend/");
+        expect(pack.verifier_instructions.browser).not.toContain("backend/");
         expect(pack.integrity.algorithm).toBe("SHA-256");
         expect(pack.integrity.canonical_sha256).toMatch(/^[0-9a-f]{64}$/);
     });

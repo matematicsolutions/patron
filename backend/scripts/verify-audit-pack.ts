@@ -1,12 +1,17 @@
 #!/usr/bin/env tsx
-// Offline weryfikator audit pack JSON dla audytora zewnetrznego (ADR-0047).
+// Weryfikator audit pack JSON - narzedzie WEWNETRZNE (ADR-0047).
 //
 // Uruchomienie:
 //   npx tsx scripts/verify-audit-pack.ts <plik.json>
 //
-// Skrypt jest samowystarczalny - dziala bez polaczenia z baza Patrona ani
-// internetem. Audytor moze odpalic na izolowanej maszynie z plikiem JSON
-// otrzymanym z UI (ADR-0046, button "Pobierz audit pack").
+// Skrypt nie laczy sie z baza Patrona ani z internetem, ale wymaga TEGO
+// repozytorium i zainstalowanych zaleznosci - jest wiec uzyteczny dla nas
+// i dla kancelarii, NIE dla odbiorcy artefaktu.
+//
+// Audytor zewnetrzny (sad, regulator, klient) uzywa weryfikatorow, ktore jada
+// razem z artefaktem w archiwum ZIP (ADR-0142): SPRAWDZ-TEN-PLIK.html albo
+// verify.py - bez instalacji, bez tego repozytorium. Zgodnosc werdyktow
+// wszystkich trzech pilnuje src/lib/audit-verifier-assets.test.ts.
 //
 // Weryfikuje dwustopniowo:
 //   1. integrity SHA-256 - wykrywa modyfikacje pliku po wyniesieniu

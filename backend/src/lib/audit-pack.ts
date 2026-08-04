@@ -36,6 +36,8 @@ export interface AuditPackEvent {
 }
 
 export interface AuditPackVerifierInstructions {
+    /** Weryfikacja bez instalacji czegokolwiek - plik HTML z archiwum. */
+    browser: string;
     offline_cli: string;
     library: string;
     description: string;
@@ -57,13 +59,19 @@ export interface AuditPack {
     integrity: AuditPackIntegrity;
 }
 
+// ADR-0142: instrukcja opisuje narzedzia, ktore JADA RAZEM Z ARTEFAKTEM w
+// archiwum ZIP. Wczesniejsza wersja odsylala odbiorce do katalogu `backend/`,
+// czyli do repozytorium, ktorego sad ani regulator nie posiada - instrukcja
+// byla wykonalna wylacznie dla kancelarii i dla nas.
 const VERIFIER_INSTRUCTIONS: AuditPackVerifierInstructions = {
+    browser:
+        "Otworz SPRAWDZ-TEN-PLIK.html z tego archiwum i wskaz mu ten plik JSON. Nie wymaga instalacji ani polaczenia z siecia.",
     offline_cli:
-        "Uruchom z katalogu backend/: npx tsx scripts/verify-audit-pack.ts <plik.json>",
+        "python verify.py <plik.json> - weryfikator z tego archiwum, wylacznie biblioteka standardowa Pythona 3.8+. Kod wyjscia: 0 nienaruszony, 1 naruszony, 2 blad odczytu.",
     library:
-        "backend/src/lib/audit-pack.ts -> verifyAuditPackIntegrity(pack) + backend/src/lib/audit-merkle-verifier.ts -> verifyProofBundle(pack.merkle_proof_bundle)",
+        "Wydawca: backend/src/lib/audit-pack.ts -> verifyAuditPackIntegrity(pack) + backend/src/lib/audit-merkle-verifier.ts -> verifyProofBundle(pack.merkle_proof_bundle). Odbiorca NIE potrzebuje tego kodu - wystarcza mu weryfikatory z archiwum.",
     description:
-        "Weryfikator dwustopniowy: (1) integrity SHA256 wykrywa modyfikacje pliku po wyniesieniu z kancelarii, (2) Merkle proof bundle weryfikuje ze event nie zostal zmieniony w audit_log. Audytor nie potrzebuje dostepu do bazy kancelarii ani innych eventow.",
+        "Weryfikator dwustopniowy: (1) integrity SHA256 wykrywa modyfikacje pliku po wyniesieniu z kancelarii, (2) Merkle proof bundle weryfikuje ze event nie zostal zmieniony w audit_log. Audytor nie potrzebuje dostepu do bazy kancelarii ani innych eventow. Sprawdzenie NIE dowodzi autorstwa - do tego sluzy podpis kwalifikowany (rezerwacja ADR-0049).",
 };
 
 /**

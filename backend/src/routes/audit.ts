@@ -31,6 +31,10 @@ import {
     type AuditPackEvent,
 } from "../lib/audit-pack";
 import {
+    buildAuditExportArchive,
+    toArchiveFilename,
+} from "../lib/audit-export-archive";
+import {
     buildComputeNowResponse,
     parseComputerByLabel,
 } from "../lib/audit-merkle-compute-now";
@@ -195,25 +199,28 @@ auditRouter.get(
 /**
  * GET /api/audit/export/:eventId
  *
- * Eksport samowystarczalnego audit pack JSON dla audytora zewnetrznego
- * (UODO, rewident kancelarii, biegly w postepowaniu). Pack zawiera:
- *   - event z audit_log (payload zamaskowany server-side per ADR-0040)
- *   - Merkle proof bundle (ADR-0026, ADR-0036) - audytor weryfikuje offline
- *   - SHA-256 integrity manifestu - wykrywa modyfikacje pliku po wyniesieniu
+ * Eksport samowystarczalnego archiwum audytowego dla audytora zewnetrznego
+ * (UODO, rewident kancelarii, biegly w postepowaniu). Archiwum ZIP zawiera:
+ *   - audit pack JSON: event z audit_log (payload zamaskowany per ADR-0040),
+ *     Merkle proof bundle (ADR-0026, ADR-0036), SHA-256 integrity
+ *   - SPRAWDZ-TEN-PLIK.html - weryfikator przegladarkowy, zero instalacji
+ *   - verify.py - weryfikator wiersza polecen, sama biblioteka standardowa
+ *   - CZYTAJ-TO-NAJPIERW.txt - instrukcja dla odbiorcy
  *
- * Patrz ADR-0047. CLI weryfikator: `npx tsx scripts/verify-audit-pack.ts`.
+ * Patrz ADR-0047 (pack) i ADR-0142 (weryfikator w paczce). Odbiorca NIE
+ * potrzebuje repozytorium Patrona - to byla dokladnie luka zamknieta w 0142.
  *
  * Loguje admin.access.audit_export do audit_log (ADR-0043 meta-audit).
  *
  * Status codes:
- *   200 - audit pack JSON, Content-Disposition: attachment z filename
+ *   200 - archiwum ZIP, Content-Disposition: attachment z filename
  *   400 - eventId nie jest liczba calkowita > 0
  *   401 - brak/niepoprawny JWT
  *   403 - non-admin
  *   404 - event nie istnieje LUB brak Merkle root pokrywajacego event
  *         (audytor musi poczekac na auto-trigger ADR-0036 lub manualny
  *         compute root przez admina kancelarii)
- *   500 - blad DB
+ *   500 - blad DB albo blad skladania archiwum (error: "archive_failed")
  */
 auditRouter.get(
     "/export/:eventId",
@@ -311,14 +318,30 @@ auditRouter.get(
             exportedAt,
         });
 
-        // 5. Zwroc jako downloadable JSON
-        const filename = buildAuditPackFilename(eventId, exportedAt);
-        res.setHeader("Content-Type", "application/json; charset=utf-8");
+        // 5. Zwroc archiwum ZIP: pack + weryfikatory + instrukcja (ADR-0142).
+        //    Sam JSON nie wystarcza - odbiorca nie ma czym go sprawdzic.
+        const jsonFilename = buildAuditPackFilename(eventId, exportedAt);
+        const archiveFilename = toArchiveFilename(jsonFilename);
+        let archive: Buffer;
+        try {
+            archive = await buildAuditExportArchive({
+                artifact: pack,
+                artifactFilename: jsonFilename,
+                timestamp: new Date(exportedAt),
+            });
+        } catch (e) {
+            const msg = e instanceof Error ? e.message : String(e);
+            res.status(500).json({ error: "archive_failed", detail: msg });
+            return;
+        }
+
+        res.setHeader("Content-Type", "application/zip");
         res.setHeader(
             "Content-Disposition",
-            `attachment; filename="${filename}"`,
+            `attachment; filename="${archiveFilename}"`,
         );
-        res.status(200).send(JSON.stringify(pack, null, 2));
+        res.setHeader("Content-Length", String(archive.length));
+        res.status(200).send(archive);
     },
 );
 

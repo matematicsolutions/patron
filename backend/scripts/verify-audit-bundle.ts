@@ -1,11 +1,13 @@
 #!/usr/bin/env tsx
-// Offline weryfikator audit bundle JSON dla audytora / regulatora / klienta (ADR-0066).
+// Weryfikator audit bundle JSON - narzedzie WEWNETRZNE (ADR-0066).
 //
 // Uruchomienie:
 //   npx tsx scripts/verify-audit-bundle.ts <plik.json>
 //   npm run audit:verify-bundle -- <plik.json>
 //
-// Samowystarczalny - bez polaczenia z baza Patrona ani internetem. Weryfikuje:
+// Nie laczy sie z baza Patrona ani z internetem, ale wymaga TEGO repozytorium
+// i zaleznosci npm. Odbiorca artefaktu (sad, regulator, klient) dostaje
+// weryfikatory w archiwum eksportu - patrz ADR-0142. Weryfikuje:
 //   1. manifest - SHA256 kazdej czesci (deliverable, citation_verification,
 //      audit_log_excerpt, model_versions, cost_log); wskazuje, KTORA zmieniono
 //   2. integrity.canonical_sha256 - hash calosci wykrywa dowolna modyfikacje

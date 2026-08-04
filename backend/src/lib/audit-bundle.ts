@@ -80,15 +80,19 @@ export interface DeliverableAuditBundle {
     model_versions: AuditBundleModelVersions;
     cost_log: AuditBundleCostLog;
     manifest: { parts: AuditBundleManifestPart[] };
-    verifier_instructions: { offline_cli: string; description: string };
+    verifier_instructions: { browser: string; offline_cli: string; description: string };
     integrity: AuditBundleIntegrity;
 }
 
+// ADR-0142: narzedzia jada razem z bundlem w archiwum ZIP - odbiorca nie
+// potrzebuje repozytorium Patrona ani zadnej instalacji.
 const VERIFIER_INSTRUCTIONS = {
+    browser:
+        "Otworz SPRAWDZ-TEN-PLIK.html z tego archiwum i wskaz mu ten plik JSON. Nie wymaga instalacji ani polaczenia z siecia.",
     offline_cli:
-        "Uruchom z katalogu backend/: npx tsx scripts/verify-audit-bundle.ts <plik.json>",
+        "python verify.py <plik.json> - weryfikator z tego archiwum, wylacznie biblioteka standardowa Pythona 3.8+. Kod wyjscia: 0 nienaruszony, 1 naruszony, 2 blad odczytu.",
     description:
-        "Weryfikator dwustopniowy offline: (1) manifest - SHA256 kazdej czesci (deliverable, citation_verification, audit_log_excerpt, model_versions, cost_log) wykrywa, KTORA czesc zmieniono; (2) integrity.canonical_sha256 - hash calosci wykrywa dowolna modyfikacje. Dla weryfikacji ze eventy audit nie zostaly zmienione w bazie uzyj osobno Merkle proof (audit-pack ADR-0047). Bundle nie wymaga dostepu do bazy kancelarii.",
+        "Weryfikator trzystopniowy offline: (1) manifest - SHA256 kazdej czesci (deliverable, citation_verification, audit_log_excerpt, model_versions, cost_log) wykrywa, KTORA czesc zmieniono; (2) ciaglosc ogniw prev_hash->hash w audit_log_excerpt wykrywa wpis usuniety ze srodka albo przestawiony, TEZ gdy podmieniajacy przeliczyl manifest; (3) integrity.canonical_sha256 - hash calosci wykrywa dowolna modyfikacje. Weryfikacja ze eventy nie zostaly zmienione w BAZIE wymaga osobno Merkle proof (audit-pack ADR-0047). Bundle nie wymaga dostepu do bazy kancelarii. Sprawdzenie NIE dowodzi autorstwa - do tego sluzy podpis kwalifikowany (rezerwacja ADR-0049).",
 };
 
 function sha256Raw(text: string): string {

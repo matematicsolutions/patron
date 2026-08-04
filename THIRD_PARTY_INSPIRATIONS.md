@@ -477,6 +477,36 @@ Korea opakowuje 41 panstwowych API KR; my mamy wlasny konektor ISAP na polskim E
 - **`citation-verification`** - juz pokryte mechanicznie ADR-0005.
 - **`action_plan`** (przewodnik obywatelski) - segment access-to-justice, nie kancelaryjny Patron.
 
+## b1rdmania/legalise (MIT)
+
+**Repo**: https://github.com/b1rdmania/legalise
+**Licencja**: `MIT` (zweryfikowane plikiem LICENSE). Bierzemy WZORZEC, nie kod.
+**Snapshot**: 2026-08-02 (6 gwiazdek, push 2026-07-31, Python/FastAPI)
+**Pattern wzorcowany**: `backend/app/core/export_chain_verifier.py` +
+`backend/tests/test_export_audit_chain.py` - eksport sprawy to archiwum, w ktorym
+obok lancucha zdarzen jedzie **samodzielny weryfikator na bibliotece standardowej**.
+Odbiorca nie instaluje niczego; kod wyjscia rozny od zera, gdy wpis zmieniono,
+usunieto albo przestawiono.
+**Wdrozenie**: ADR-0142 (weryfikator w paczce eksportu audytowego) - LIVE.
+
+**Co Patron bierze (wzor)**:
+- **Weryfikator W PACZCE, nie w repozytorium wydawcy.** To roznica miedzy
+  "prowadzimy dziennik zdarzen" a "druga strona moze go sama sprawdzic".
+- **Kontrakt kodow wyjscia** 0/1/2 - artefakt wpina sie w cudza kontrole automatyczna.
+- **Uczciwosc jako struktura repo** (TRUST.md / THREAT_MODEL.md / LIMITATIONS.md,
+  "tamper-evident, NOT tamper-proof") - u nas jako sekcja "Minusy i ograniczenia"
+  w ADR oraz jako akapit "czego to sprawdzenie NIE dowodzi" w instrukcji
+  doreczanej ODBIORCY, nie tylko w dokumentacji dla nas.
+
+**Czego Patron NIE bierze (i dlaczego)**:
+- **Kodu weryfikatora** - inny jezyk, inna struktura artefaktu (nasz niesie dowod
+  Merkle wg RFC 6962 i manifest per czesc). Implementacja od zera.
+- **Produktu** - legalise to wydanie ewaluacyjne na Postgres/MinIO/Redis/Gotenberg,
+  czyli bezposredni konkurent Patron-Desktop w narracji local-first. Forkujemy
+  wzorzec, nie narzedzie.
+- **Rzadzonego lancucha dostaw skilli** (import -> commit SHA -> admission flow ->
+  uprawnienie per sprawa) - osobna ocena dla Boutique, poza zakresem ADR-0142.
+
 ## Zasada cherry-pick MateMatic
 
 Patron stosuje wzorzec **cherry-pick wzoru zamiast adopcji narzedzia**
