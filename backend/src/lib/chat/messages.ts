@@ -3,7 +3,7 @@
 // Wyciagniete z chatTools.ts w ramach refactoru Faza 2.3.
 
 import { createServerSupabase } from "../supabase";
-import { SYSTEM_PROMPT } from "./prompts";
+import { buildSystemPrompt, getAgentLocale } from "./prompts";
 import type { ChatMessage, DocIndex } from "./types";
 
 /**
@@ -121,7 +121,9 @@ export function buildMessages(
     docIndex?: DocIndex,
 ) {
     const formatted: unknown[] = [];
-    let systemContent = SYSTEM_PROMPT;
+    // Jezyk agenta sledzi locale instalacji (PATRON_LOCALE), mirror frontendu.
+    // Substancja jurysdykcyjna (drafting pism PL, SAOS) zostaje PL niezaleznie. ADR-0135.
+    let systemContent = buildSystemPrompt(getAgentLocale());
 
     if (systemPromptExtra) {
         systemContent += `\n\n${systemPromptExtra.trim()}`;

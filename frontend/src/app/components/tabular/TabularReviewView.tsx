@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Plus, Loader2, Play, ChevronDown, MessageSquare, Download, Users, Upload } from "lucide-react";
 import { HeaderSearchBtn } from "../shared/HeaderSearchBtn";
+import { t } from "@/i18n";
 
 import {
     clearTabularCells,
@@ -11,6 +12,7 @@ import {
     getProject,
     getTabularReviewPeople,
     regenerateTabularCell,
+    reviewTabularCell,
     streamTabularGeneration,
     updateTabularReview,
     uploadReviewDocument,
@@ -269,6 +271,44 @@ export function TRView({ reviewId, projectId }: Props) {
                 prev ? { ...prev, status: "error" as const } : null,
             );
         }
+    }
+
+    // ADR-0126: decyzja prawnika o komorce. Stan aktualizowany dopiero po
+    // sukcesie zapisu (brak optymizmu = brak rollbacku); blad propaguje do
+    // kontrolki w TRSidePanel.
+    async function handleReviewCell(
+        docId: string,
+        colIndex: number,
+        action: "approved" | "rejected" | "corrected",
+        correctedContent?: string,
+    ) {
+        const { review: record } = await reviewTabularCell(
+            reviewId,
+            docId,
+            colIndex,
+            action,
+            correctedContent,
+        );
+        const patch = {
+            review_action: record.action,
+            reviewed_by: record.reviewedBy,
+            reviewed_at: record.reviewedAt,
+            corrected_content: record.correctedContent ?? null,
+        };
+        setCells((prev) =>
+            prev.map((c) =>
+                c.document_id === docId && c.column_index === colIndex
+                    ? { ...c, ...patch }
+                    : c,
+            ),
+        );
+        setExpandedCell((prev) =>
+            prev &&
+            prev.document_id === docId &&
+            prev.column_index === colIndex
+                ? { ...prev, ...patch }
+                : prev,
+        );
     }
 
     async function handleGenerate() {
@@ -691,7 +731,7 @@ export function TRView({ reviewId, projectId }: Props) {
                                     <ChevronDown className="h-3.5 w-3.5" />
                                 </button>
                                 {actionsOpen && (
-                                    <div className="absolute top-full right-0 mt-1 w-36 rounded-lg border border-gray-100 bg-white shadow-lg z-50 overflow-hidden">
+                                    <div className="absolute top-full right-0 mt-1 w-36 rounded-lg border border-gray-100 bg-white shadow-lg z-[70] overflow-hidden">
                                         <button
                                             onClick={handleClearResults}
                                             className="w-full px-3 py-1.5 text-left text-xs text-gray-700 hover:bg-gray-50 transition-colors"
@@ -852,6 +892,14 @@ export function TRView({ reviewId, projectId }: Props) {
                                     expandedCell.column_index,
                                 )
                             }
+                            onReview={(action, correctedContent) =>
+                                handleReviewCell(
+                                    expandedCell.document_id,
+                                    expandedCell.column_index,
+                                    action,
+                                    correctedContent,
+                                )
+                            }
                             displayDocument={expandedCellCitation !== undefined}
                             citationQuote={expandedCellCitation?.quote}
                             citationPage={expandedCellCitation?.page}
@@ -874,7 +922,7 @@ export function TRView({ reviewId, projectId }: Props) {
                         handleAddDocuments(docs)
                     }
                     breadcrumb={[
-                        "Projects",
+                        t("projects.breadcrumbProjects"),
                         project.name +
                             (project.cm_number
                                 ? ` (#${project.cm_number})`

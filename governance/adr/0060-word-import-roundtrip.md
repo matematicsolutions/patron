@@ -1,6 +1,6 @@
 # ADR-0060: Word import roundtrip - odczyt tracked changes + komentarzy-instrukcji
 
-**Status**: PROPONOWANY (2026-05-28). Dodaje strone odczytu edytowanego DOCX wracajacego z Worda. Backend dziala (parser + endpoint), niewpiety jeszcze w UI ani w Bibliotekarza.
+**Status**: Wdrozony (2026-05-28; status potwierdzony odczytem kodu 2026-06-01 - parseTrackedChanges + parseComments + endpoint POST /draft/roundtrip LIVE). Dodaje strone odczytu edytowanego DOCX wracajacego z Worda. Backend dziala (parser + endpoint); pelna integracja w UI/Bibliotekarzu sledzona osobno.
 
 **Data**: 2026-05-28
 

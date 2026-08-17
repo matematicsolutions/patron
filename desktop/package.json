@@ -1,15 +1,27 @@
 {
   "name": "patron-desktop",
-  "version": "0.1.0",
+  "version": "1.1.0",
   "description": "PATRON — Desktop dla Prawnika",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
     "dev": "electron . --dev",
     "prepare:resources": "node scripts/prepare-resources.cjs",
-    "build": "node scripts/prepare-resources.cjs && electron-builder --win --x64",
-    "build:dir": "node scripts/prepare-resources.cjs && electron-builder --win --x64 --dir",
-    "build:only": "electron-builder --win --x64"
+    "e2e:smoke": "node scripts/e2e-smoke.cjs",
+    "release:all": "node scripts/release-all.cjs",
+    "build": "node scripts/prepare-resources.cjs && electron-builder --win --x64 --publish=never",
+    "build:dir": "node scripts/prepare-resources.cjs && electron-builder --win --x64 --dir --publish=never",
+    "build:only": "electron-builder --win --x64 --publish=never",
+    "build:locale": "node scripts/build-locale.cjs",
+    "build:pl": "node scripts/build-locale.cjs pl",
+    "build:en": "node scripts/build-locale.cjs en",
+    "build:it": "node scripts/build-locale.cjs it",
+    "build:de": "node scripts/build-locale.cjs de",
+    "build:es": "node scripts/build-locale.cjs es",
+    "build:fr": "node scripts/build-locale.cjs fr",
+    "build:pt": "node scripts/build-locale.cjs pt",
+    "build:gb": "node scripts/build-locale.cjs gb",
+    "build:us": "node scripts/build-locale.cjs us"
   },
   "build": {
     "appId": "co.matematicsolutions.patron",
@@ -17,6 +29,7 @@
     "copyright": "© 2026 MateMatic",
     "files": [
       "main.js",
+      "preload.js",
       "package.json",
       "assets/**/*"
     ],
@@ -26,10 +39,19 @@
       "signingHashAlgorithms": [],
       "sign": null
     },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "matematicsolutions",
+        "repo": "patron"
+      }
+    ],
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "installerLanguages": ["pl-PL"],
+      "installerLanguages": [
+        "pl-PL"
+      ],
       "language": "1045"
     },
     "extraResources": [
@@ -47,5 +69,8 @@
     "@electron/rebuild": "^3.7.0",
     "electron": "^35.0.0",
     "electron-builder": "^25.0.0"
+  },
+  "dependencies": {
+    "electron-updater": "^6.3.9"
   }
 }

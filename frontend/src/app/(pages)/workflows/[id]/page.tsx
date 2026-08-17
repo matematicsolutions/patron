@@ -341,7 +341,7 @@ export default function WorkflowDetailPage({ params }: Props) {
                                             <ChevronDown className="h-3.5 w-3.5" />
                                         </button>
                                         {colActionsOpen && (
-                                            <div className="absolute top-full right-0 mt-1 w-36 rounded-lg border border-gray-100 bg-white shadow-lg z-50 overflow-hidden">
+                                            <div className="absolute top-full right-0 mt-1 w-36 rounded-lg border border-gray-100 bg-white shadow-lg z-[70] overflow-hidden">
                                                 <button
                                                     onClick={() => {
                                                         const next = columns

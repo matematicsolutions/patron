@@ -5,8 +5,9 @@
 //   2. (wywolujacy)  -> LLM(prompt)
 //   3. unwrap(answer, map) -> podmiana tokenow z powrotem na oryginaly
 //
-// Skeleton NIE wpina sie w `streamChatWithTools` - to osobny ADR i
-// osobna sesja, patrz ADR-0003 tydzien 3 planu migracji.
+// WPIETE: `wrapConversation` jest wolane w `streamChatWithTools` z
+// `{ llmDetector: plEntityDetector }` (ADR-0110), egress maskuje PERSON/ORG/
+// ADDRESS + identyfikatory regex przed wyslaniem do modelu chmurowego.
 
 import { detectRegex, noopLlmDetector } from "./detect";
 import { addPseudonim, createPseudonimMap } from "./map";

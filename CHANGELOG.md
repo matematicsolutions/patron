@@ -7,6 +7,485 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-08-17
+
+Wydanie zbiorcze linii release/v2.0.0-prep + trzy edycje jurysdykcyjne, ktore
+dotad zyly na osobnych galeziach. 9 edycji instalatora z jednej linii kodu:
+PL, EN, IT, DE, ES, FR, BR (pt), GB, US. Instalatory nadal NIEPODPISANE
+(SmartScreen) - code signing = osobna decyzja, nie zmiana wersji.
+
+### Added
+- **Edycje BR (pt-BR), GB i US w jednej linii kodu** - wmerge'owane galezie
+  `feature/patron-br-edition` / `-gb-edition` / `-us-edition` (ADR-0139): konektory
+  macierzyste `br-eli`, `gb-eli`, `us-eli` w `APPROVED_PATRON_CONNECTORS` (20 nazw),
+  profile jurysdykcyjne w `prompts.ts`, `release:all` buduje 9 edycji, kanaly
+  auto-update per edycja (`latest[-xx].yml`; dodany brakujacy kanal `pt` -> `latest-br.yml`
+  i dialog aktualizacji pt-BR - dotad edycja BR dostawalaby polskie okienko).
+- **Konektor `eureka` (siodmy konektor Node, Ring 1)** - EUREKA MF (`eureka.mf.gov.pl`):
+  interpretacje podatkowe KIS, WIS, WIA, objasnienia; `mcp-eureka` 0.2.0 (MIT, osobne repo).
+  Wpiety w czterech miejscach 3-sync (`APPROVED_PATRON_CONNECTORS`, `JURISDICTION_BY_CONNECTOR`
+  = PL, `prepare-resources.cjs` MCP_SERVERS, `mcp-servers.example.json`) + `bundle-mcp.cjs`.
+  Przebieg bojowy 2026-08-17: backend podlacza 7 konektorow, realne pytanie podatkowe (art. 10
+  ust. 1 pkt 8 PIT, nabycie w spadku) przechodzi `eureka__search` -> `eureka__get_interpretation`,
+  22 cytaty MCP z sygnatura/URL/data, teza poprawna. Zmierzona GRANICA (nie zalatana, wymaga
+  ADR): `mcp_citations` NIE przechodza przez kaskade groundingu (`groundCitationsByRef` liczy
+  tylko cytaty `<CITATIONS>` z dokumentow kancelarii) - blockquote podany przez model jako
+  doslowny cytat organu (sygn. 0114-KDIP3-1.4011.844.2024.2.MS2) nie wystepuje w zrodle
+  (0/4 zdan, string-match po normalizacji na pelnym dokumencie z API), a UI nie pokazuje
+  ostrzezenia. Praktyka organow, nie zrodlo prawa (art. 14a-14s o.p.). backend 1441 pass / 0 fail.
+- **`smoke:desktop`: bramka przestaje ukrywac przyczyne** - timeout bootu 20 s -> 120 s (zimny
+  `npx tsx` na maszynie bez GPU przekraczal 20 s i bramka failowala, choc ten sam boot recznie
+  odpowiadal `{"ok":true}`); wyjscie backendu buforowane i drukowane przy FAIL zamiast
+  `stdio:"ignore"`, ktore zostawialo sam `ECONNREFUSED` bez slowa DLACZEGO.
+- **Weryfikator w paczce eksportu audytowego (ADR-0142)** - `GET /api/audit/export/:eventId`
+  zwraca archiwum ZIP zamiast samego JSON. Obok artefaktu jada dwa samodzielne weryfikatory:
+  `SPRAWDZ-TEN-PLIK.html` (przegladarka, zero instalacji, wlasna implementacja SHA-256 zamiast
+  `crypto.subtle`, ktorego dostepnosc przy `file://` zalezy od przegladarki) i `verify.py`
+  (biblioteka standardowa Pythona 3.8+, kody wyjscia 0/1/2 do kontroli automatycznej), plus
+  instrukcja `CZYTAJ-TO-NAJPIERW.txt`. Powod: dotad artefakt niosl instrukcje "uruchom
+  z katalogu backend/", czyli odsylal odbiorce do repozytorium, ktorego sad, UODO ani klient
+  nie posiadaja (pomiar: klon repo AGPL + 704 MB / 312 pakietow npm). Tresc weryfikatorow
+  OSADZONA w `backend/src/lib/audit-verifier-assets.ts`, nie czytana z dysku - plik pominiety
+  w pakowaniu Electron zniknalby po cichu, a eksport nadal konczylby sie sukcesem. Nowy modul
+  `backend/src/lib/audit-export-archive.ts` (jszip, archiwum deterministyczne). Audit bundle
+  (ADR-0066) dostal trzeci stopien weryfikacji - ciaglosc ogniw `prev_hash`->`hash` - wykrywajacy
+  wpis usuniety ze srodka i wpisy przestawione TAKZE po przeliczeniu manifestu przez
+  podmieniajacego. Zgodnosc trzech implementacji (TS/Python/JS) pilnowana wektorami z kodu
+  produkcyjnego. Zero nowych zaleznosci npm, zero migracji. backend 1429 pass / 0 fail (+21).
+- **Integralnosc skilla w audycie i egzekwowanie deklaracji egress (ADR-0143)** - dwie luki
+  wykryte pomiarem kodu. (1) `defense.pipeline.run` zapisywal `custom_skills` jako same
+  identyfikatory, a `importSkill` robi upsert po `id` przy niepodpisanym manifescie, wiec para
+  `(id, version)` NIE identyfikuje tresci - reimport podmienial prompt bez zmiany zapisu
+  w dzienniku. (2) Manifest deklaruje `egress` skilla (tresc promptu, rozlaczna od egressu danych
+  klienta pokrytego maskowaniem PII), ale `CustomStageSpec` tego pola nie mial - prompt skilla
+  `no-egress` jechal do modelu chmurowego. Nowy `backend/src/lib/skills/integrity.ts`:
+  `skillPromptSha256` (suma liczona PRZY ODCZYCIE, na `canonicalSha256` z ADR-0142) oraz
+  `partitionSkillsByEgress` (regula jednostronna: `no-egress` nie idzie do modelu opuszczajacego
+  maszyne). Audyt zapisuje `custom_skills` jako rekordy z wersja, suma kontrolna, zrodlem
+  i wydawca, oraz `skipped_skills` z powodem pominiecia. Zakres: `surface: draft-stage`.
+  Bez nowej kolumny, migracji i `event_type`. backend 1440 pass / 0 fail (+13).
+- **Wersje jezykowe rynkow UE: IT/DE/ES/FR (ADR-0139)** - locale rozszerzone z pary
+  PL/EN do 6 rynkow. Slowniki UI `it/de/es/fr.ts` (po 614 kluczy, pelne pokrycie
+  pl.ts; fallback lancuchowy locale -> EN -> PL w `i18n/index.ts`). Rejestr profili
+  jurysdykcji w `prompts.ts` (`PROFILES`): dla rynkow substancja KRAJOWA w jezyku
+  rynku (ustroj sadow, dyscyplina lokalnego konektora z jawnymi granicami pokrycia,
+  konwencje cytowania, zasada draftu); PL/EN odtwarzaja dotychczasowy prompt bez
+  zmian. Konektor `it-eli` (Normattiva + Corte Costituzionale) dolaczony do zestawu
+  zaufanego (4-sync: pipeline.ts, prepare-resources.cjs, mcp-servers.example.json,
+  connectors.ts); build IT bundluje indeks orzecznictwa Corte Cost (best-effort,
+  `IT_ELI_CASELAW_DB`). **Lean market edition** (decyzja WM): krajowa wersja
+  bundluje TYLKO konektor macierzysty (`stagedNodeConnectors`/`stagedPythonConnectors`
+  w prepare-resources) - prawo UE (EUR-Lex, EU-Compliance) i inne jurysdykcje
+  uzytkownik dobiera z Boutique, instalator zostaje chudy; prompty rynkow mowia to
+  wprost i nie obiecuja konektora UE. PL/EN (wydane 1.0.0) bez zmian. Build per
+  rynek jedna komenda: `npm run build:it` itd. (`desktop/scripts/build-locale.cjs` -
+  locale + jezyk NSIS + kanoniczna nazwa artefaktu + SHA256 do `dist/CHECKSUMS.txt`).
+  Slowniki i bloki substancji DE/ES/FR wymagaja recenzji prawnika-native przed
+  wydaniem rynku (bramka z ADR-0139).
+- **Fix: jezyk agenta w instalatorze nie-PL** - `prepare-resources.cjs` zapisuje
+  `backend/patron-locale.json`, a `desktop/main.js` czyta go i ustawia `PATRON_LOCALE`
+  dla backendu. Dotad zaden kod nie przekazywal locale backendowi w trybie desktop,
+  wiec agent w instalatorze EN odpowiadal po polsku (default), mimo UI i samouczka EN.
+- **Karty zatwierdzenia mutacji - human-in-the-loop write staging (ADR-0137)** - akcje
+  agenta o skutkach ubocznych (`edit_document`, `generate_docx`) moga byc stage'owane
+  jako karty `pending`; wykonuja sie dopiero po zatwierdzeniu przez czlowieka (`requireAuth`,
+  fail-closed) - nadzor czlowieka nad zapisem wg **AI Act art. 14**. Nowa tabela
+  `mutation_approvals` (dual SQLite+Postgres, scoping `user_id`), nowy `event_type`
+  `mutation.approval.decision` w audit hash-chain (art. 12, payload bez tresci dokumentu).
+  Bramka w `tool-dispatch.ts` nad sciezka narzedzi; inbox UI `account/approval-cards`
+  (PL/EN). RODO art. 17/20: `mutation_approvals` objete `rodo-delete`/`rodo-export`.
+  **Domyslnie OFF** (`PATRON_MUTATION_APPROVAL` = `off`|`all`|`high-stakes`; `true`=alias `all`)
+  - flip na ON po review round 2 + eval. US3 (P3): bramka objela tez `add_comments` (komplet
+  narzedzi agenta mutujacych tresc: edit/generate/comments) + polityka `shouldStageMutation`
+  (off/all/high-stakes; high-stakes wpiety w `classifyHighStakes`/ADR-0092 FAIL-CLOSED - stage
+  dopoki nie pewne, ze low-stakes). `resolve_tracked_change`/`export_document` to akcje czlowieka
+  (trasy), nie narzedzia agenta - poza zakresem (resolve audytowane `document.edit_resolved`).
+- **Jezyk agenta wg locale (US2, ADR-0135)** - `SYSTEM_PROMPT` skladany przez
+  `buildSystemPrompt(locale)`; `PATRON_LOCALE=en` przelacza jezyk odpowiedzi, opis
+  struktury sadow i przewodnik mozliwosci na EN (przez reviewer-en + humanizer-en).
+  Substancja jurysdykcyjna - drafting pism PL, formuly grzecznosciowe, cytowanie prawa
+  PL, dyscyplina SAOS - **zostaje PL w obu locale** (pismo do polskiego sadu jest po
+  polsku). Default `pl` -> zero regresji. Konstrukcja promptu nadal w sciezce audit
+  hash-chain (AI Act art. 12).
+- **Picker konektorow MCP + 9 konektorow UE (US1/US2, ADR-0133/0134)** - mecenas wybiera
+  konektory wg jurysdykcji (toggle Ring1, Ring2 = Operator-gated), audyt `connector.toggle`
+  w hash-chain. Poliglotyczny runtime Node+Python (ADR-0134); 9 konektorow UE
+  (de/at/es/fi/ie/nl/se/fr/lu) zaufanych po gateway-scan, dolaczone do
+  `APPROVED_PATRON_CONNECTORS` (15). Bundle desktop (PyInstaller freeze) = TODO.
+- **Dwujezyczne UI (PL/EN)** - cala warstwa interfejsu i format dat/liczb
+  lokalizowane (ADR-0132). Jeden jezyk per instalacja, wybierany zmienna
+  build-time `NEXT_PUBLIC_PATRON_LOCALE` (`pl` domyslnie | `en`); bez next-intl,
+  bez locale w URL. `frontend/src/i18n/` (`pl.ts` zrodlo kluczy, `en.ts`
+  deep-partial + fallback PL, `index.ts` = `t()` + helpery formatu locale-aware).
+  Granica: UI/metoda -> EN; substancja prawna wg jurysdykcji, glebokie skille PL i
+  pl-entities zostaja PL. Terminologia legal-EN: pierwsza warstwa (przeglad
+  reviewer-en zalecany przed finalizacja).
+
+## [1.0.0] - 2026-06-14
+
+Pierwsze publiczne wydanie open source. Lokalny, zero-cloud agent AI dla polskiej
+kancelarii: powloka **AGPL-3.0** + 6 konektorow MCP (**MIT**) polskiego i unijnego
+prawa, mechaniczny grounding cytatow (istnienie/tresc/fragment), audit trail
+hash-chain + Merkle (AI Act art. 12), pseudonimizacja PL (PESEL/NIP/REGON/osoby)
+przed egressem, bring-your-own-model (Gemini / Claude / Ollama lokalny / OpenRouter).
+
+**Najwazniejsze w 1.0.0**
+- Audyt P1-P3: szczelne kasowanie spraw/dokumentow, runner migracji SQLite, zgoda
+  na model chmurowy per-sprawa (ADR-0128), maskowanie nazwisk w egressie (ADR-0110),
+  wezly PERSON w grafie cytowan (ADR-0127).
+- Propozycje pod kancelarie: wbudowane workflow, "Zweryfikuj cytaty", preset eksportu
+  .docx "styl kancelarii" (ADR-0130).
+- Adopcja OpenContracts: trwaly lokator cytatu + re-anchoring, bounded document read,
+  typed search feed, occurrence-aware highlight, Route B (surowe offsety chunkow),
+  model governance krawedzi grafu KGLF (ADR-0116..0126).
+- Fidelity na zadanie (ADR-0131): doskonalenie pisma (Recenzent / Adwokat diabla /
+  Pisz po ludzku) jest WYBIERALNE per etap, domyslnie 1 szybki przebieg - koniec
+  wymuszonego 3-etapowego pipeline'u (latencja). Pelne przyciski na odpowiedzi = v1.0.1.
+- Szyfrowanie at-rest: **dostepne jako scaffold, do aktywacji** (ADR-0129) - domyslnie
+  plaintext; aktywacja = natywny sterownik cipher + rebuild (runbook
+  `docs/at-rest-activation.md`). Decyzja CTO: poza krytyczna sciezka 1.0.0 (first-mover).
+
+> **Numeracja ADR:** przy scaleniu dwoch rownoleglych strumieni (adopcja OpenContracts
+> oraz audyt/kancelaria) numery ADR uzgodniono - OC zajmuje **0116-0126**, strumien
+> audyt/kancelaria **0127-0130**. Wczesniejsze szczegolowe wpisy ponizej moga wskazywac
+> stare numery sprzed uzgodnienia.
+
+Bramka jakosci 1.0.0: backend tsc 0, frontend tsc 0, **vitest 1265 pass / 0 fail / 5 todo**.
+
+---
+
+### Audyt PATRON P2 #6: zgoda na model chmurowy per-sprawa + audyt (ADR-0128)
+
+**Added**
+- Przelacznik "Model chmurowy" per-sprawa w UI (`ProjectPage`, owner-only) zamiast
+  globalnej zmiennej srodowiskowej. `PATCH /projects/:id/cloud-consent` +
+  `patronApi.setCloudConsent`.
+- `projects.cloud_consent` (sqlite + `ensureSchemaUpgrades`; Postgres + migracja 013).
+- Brama egress (`guard.ts` `resolveCloudConsent`) OR-uje zgode globalna (env) i
+  per-sprawa -> `decideRoute`. Fail-closed (default brak zgody; tajemnica nadal
+  wymaga swiadomej zgody).
+- Audit: nowy `event_type = 'project.cloud_consent'` (AI Act art. 12, bez tresci).
+  Whitelist: EVENT_TYPES + schema.sqlite.ts + schema.sql + **migracja sqlite v2**
+  (runner ADR-0109 rebuilduje CHECK `audit_log` z zachowaniem wierszy/hash-chain)
+  + Postgres migracja 012.
+
+Defense-in-depth nietkniete: PII maskowane przed chmura (ADR-0110), kazdy call
+egress audytowany (ADR-0067). backend tsc 0 + vitest 1180 pass / 0 fail / 5 todo
+(+11). Frontend tsc 0. Branch `fix/audyt-patron-p1-p3`.
+
+### Audyt PATRON UI: przycisk "przewin w dol" w czacie (frontend)
+
+**Fixed**
+- Przycisk scroll-to-bottom (ChatView) zawodzil "przy wyniku zadania" - uzywal
+  `scrollIntoView` na zero-wysokosciowym markerze koncowym (cel liczony w momencie
+  klikniecia, nie dobijal do dna gdy odpowiedz wciaz sie renderowala/rosla). Teraz
+  `messagesContainerRef.scrollTo({ top: scrollHeight, behavior: "smooth" })` -
+  deterministyczne dno niezaleznie od markera i strumieniowania. Frontend tsc 0.
+  Weryfikacja: DocView/DocxView i czat projektowy uzywaja natywnego scrolla (brak
+  wlasnego przycisku w dol - nic do naprawy). Manualna weryfikacja u pilota.
+
+### Audyt PATRON P2 #11 (cz. 2): wezly PERSON w grafie cytowan (ADR-0116)
+
+**Added**
+- Regula `osoba-z-markerem` w `pl-entities` (`PL_EXTRACTION_RULES`) -
+  `extractEntitiesAndEdges` tworzy z niej encje OSOBA + krawedzie `wspomina_osobe`
+  (typ i mapowanie juz istnialy, brakowalo reguly). Odpowiada na "pokaz dokumenty
+  wspominajace osobe X" (wspolny `value_normalized`).
+- Detekcja deterministyczna, zakotwiczona na markerze (honoryfikator/rola
+  procesowa) + nazwa z wielkiej; bez markera nie lapie (precyzja - nie maskuje
+  "Sad Najwyzszy"). Pierwsza litera markera case-insensitive (rola na poczatku
+  zdania). Lookbehind Unicode.
+
+RODO: OSOBA to PII w `extracted_entities` - objete istniejaca purga
+(`clearDocumentIndex` / `forgetCase`). Krawedz osoby celuje w encje, nie dokument
+(`resolveToDocLinks` jej nie dotyka). Detekcja lokalna (graf/sqlite), zero egress;
+osobno od maskowania PII przed chmura (ADR-0110) - konwergencja markerow = rezerwacja.
+tsc 0, vitest 1174 pass / 0 fail / 5 todo (+5 `person-nodes.test.ts`).
+Branch `fix/audyt-patron-p1-p3`.
+
+### Audyt PATRON P3 #17 + #18: panel "Stan systemu" + czyszczenie komentarzy (ADR-0115)
+
+**Added**
+- P3 #17: endpoint `/api/status` (admin, READ-ONLY) - migawka stanu: wektor on/off,
+  OCR on/off, model+wymiar embeddera, status kluczy API, zgody chmurowe,
+  **saldo kredytow OpenRouter** (`getOpenRouterCredits`, endpoint /credits,
+  best-effort) z flaga `depleted` (wczesny sygnal wyczerpania - realny incydent).
+  Osobno od publicznego liveness `/health`. Fundament pod frontendowy Panel stanu.
+
+**Fixed**
+- P3 #18: nieaktualne komentarze "Wpiecie w retrieve() jest rezerwacja" w
+  `dualSimilarity.ts`/`events.ts` - rerank JEST wpiety (ADR-0087/0089). Komentarze
+  poprawione na stan faktyczny.
+
+tsc 0, vitest 1168 pass / 0 fail / 5 todo (+9: health pure-fns + getOpenRouterCredits).
+Branch `fix/audyt-patron-p1-p3`.
+
+### Audyt PATRON hygiena retrievalu: embedder + overlap + prefix-PL (ADR-0114)
+
+**Fixed**
+- P2 #8: zmiana wymiaru/modelu embeddera psula po cichu warstwe wektorowa
+  (`create if not exists` nie zmienia wymiaru `vec_chunks`). Tabela
+  `retrieval_meta` + `reconcileEmbedderMeta`: mismatch wymiaru -> drop vec_chunks
+  + sygnal re-indeksu + glosny log; zmiana modelu -> ostrzezenie. Koniec cichej
+  korupcji.
+- P3 #14: chunker bez zakladki rozcinal fakt na granicy chunka. `chunkText`
+  dostal overlap (~120 znakow, ~13%) doklejany w ramach budzetu maxChars
+  (kontrakt `chunk <= maxChars` zachowany).
+- P3 #15: BM25 bez stemmingu gubil formy odmienione. `buildFtsMatch` daje
+  prefix-match rdzenia (`rdzen*`) dla tokenow literowych >=7 znakow; sygnatury/
+  liczby/krotkie zostaja exact.
+
+tsc 0, vitest 1159 pass / 0 fail / 5 todo (+10 `hygiene.test.ts`).
+Branch `fix/audyt-patron-p1-p3`.
+
+### Audyt PATRON P2 #10: proweniencja strony w chunkach RAG (ADR-0113)
+
+**Fixed**
+- P2 #10: `doc_chunks` nie mial numeru strony -> RAG nie wskazywal "str. N"
+  przy cytacie (styl "cytat + sygnatura + strona").
+- Latentny bug: markery `[Page N]` trafialy do tresci chunkow (embeddingi/FTS)
+  - teraz odrywane od tresci.
+
+**Added**
+- `doc_chunks.page_no` (schema + `ensureSchemaUpgrades` ADD COLUMN).
+- `splitByPageMarkers` + chunking per strona w `indexDocument` (markery `[Page N]`
+  z ekstrakcji PDF). Bez markerow (docx/plain) -> jeden segment, page_no null
+  (zero regresji).
+- `RetrievedChunk.pageNo` + `page` w wynikach `search_corpus` -> model cytuje "str. N".
+
+Render "str. N" w UI cytatu = frontend (poza tym repo); backend dostarcza dane.
+tsc 0, vitest 1149 pass / 0 fail / 5 todo (+5 `pageProvenance.test.ts`).
+Branch `fix/audyt-patron-p1-p3`.
+
+### Audyt PATRON P2 #11: graf - rozwiazanie krawedzi dokument->dokument (ADR-0112)
+
+**Fixed**
+- P2 #11: `citation_graph.to_doc_id` byl martwy (extractor zawsze `toDocId=null`)
+  -> brak trwalej krawedzi "dokument X cytuje wyrok bedacy dokumentem Y".
+
+**Added**
+- `lib/graph/crossDocLinks.ts` - `resolveToDocLinks(db)`: deterministyczny
+  post-pass liczacy `to_doc_id`. Krawedz cytowania sygnatury wskazuje dokument,
+  ktory NIA JEST (inny dokument z ta sama `value_normalized`), TYLKO gdy taki jest
+  dokladnie jeden (jednoznacznosc); inaczej null. Wpiety w `indexDocument`
+  (przelicza korpus idempotentnie). Query-time centralnosc nietknieta.
+
+**Changed**
+- `clearDocumentIndex`: krawedzie INNYCH dokumentow rozwiazane na usuwany
+  dokument sa null-owane (`to_doc_id = null`), nie kasowane - cytat zostaje, znika
+  tylko rozwiazany cel (korekta ADR-0109 P3 #13 pod ozywiona kolumne).
+
+Poza zakresem (follow-up): wezly PERSON w grafie (wymaga wpiecia detekcji osob
+z warstwy pseudonim w sciezke grafu). tsc 0, vitest 1144 pass / 0 fail / 5 todo
+(+4 `crossDocLinks.test.ts`). Branch `fix/audyt-patron-p1-p3`.
+
+### Audyt PATRON P2 #5: RAG scope - domyslna izolacja spraw (ADR-0111)
+
+**Fixed**
+- P2 #5: `search_corpus` w czacie ogolnym (bez `projectId`) przeszukiwal CALY
+  korpus usera -> fragmenty akt jednego klienta moglyby trafic do rozmowy o
+  innym (tajemnica miedzy klientami). Teraz czat ogolny skopuje sie DOMYSLNIE do
+  dokumentow bez przypisanej sprawy (standalone); akta sprawy sa osiagalne tylko
+  z czatu w jej kontekscie.
+
+**Added**
+- `resolveSearchScope(db, projectId)` (eksport z `tool-dispatch.ts`) - decyzja
+  scope RAG. Furtka `PATRON_RAG_CROSS_CASE=true` na swiadome wyszukiwanie
+  przekrojowe (z flaga `cross_case` + ostrzezeniem) do czasu przelacznika UI (P2 #6).
+- Proweniencja sprawy w kazdym trafieniu (`case` = nazwa sprawy / "bez sprawy")
+  + ostrzezenie gdy wyniki przekraczaja granice jednej sprawy.
+- Testy: `search-scope.test.ts` (+5). Fixture `retrieval.test.ts` uzupelniony o
+  wiersze `documents` standalone (w produkcji tworzy je ingest).
+
+tsc 0, vitest 1140 pass / 0 fail / 5 todo. Branch `fix/audyt-patron-p1-p3`.
+
+### Audyt PATRON P1 #4: maskowanie nazwisk/podmiotow/adresow przed chmura (ADR-0110)
+
+**Fixed**
+- P1 #4: `wrapConversation` w egress (`lib/chat/stream.ts`) byl wolany BEZ
+  detektora (`noopLlmDetector`) -> imiona, nazwiska, nazwy podmiotow i adresy
+  wychodzily do modelu chmurowego otwartym tekstem (maskowane byly tylko
+  identyfikatory regexowe). Domkniecie ADR-0067.
+
+**Added**
+- `lib/pseudonim/plDetector.ts` - deterministyczny, zero-cloud detektor
+  PERSON/ORG/ADDRESS (`plEntityDetector`) wpiety w `wrapConversation`:
+  - PERSON: zakotwiczone na honoryfikatorze/roli (Pan/Pani/adw./mec./swiadek/
+    oskarzony/...) + tokeny z wielkiej litery; maskowana sama nazwa, nie marker;
+    bez goych bigramow z wielkich liter (zeby nie maskowac "Sad Najwyzszy" itp.).
+  - ORG: reuzycie regexu form prawnych z `pl-entities` (FIRMA), bez forka.
+  - ADDRESS: kod pocztowy + ulica/aleja/plac z numerem.
+  Maskowanie odwracane przez unwrap (nad-maskowanie nie psuje outputu); recall >
+  precyzja. Aktywne wraz z `PATRON_PSEUDONIM_EGRESS` (bez nowej flagi).
+- Testy: `plDetector.test.ts` (+12, regresja PL: PERSON/ORG/ADDRESS, round-trip).
+  Bug zlapany: `\b` ASCII nie lapal markera od polskiej litery ("świadek") ->
+  lookbehind Unicode `(?<![\p{L}\p{N}_])`.
+
+tsc 0, vitest 1135 pass / 0 fail / 5 todo. Branch `fix/audyt-patron-p1-p3`;
+przed merge do `main`: 2x review WM + decyzja Operatora. Pozostaje P1 #1 (at-rest
+native swap) - osobny PR.
+
+### Audyt PATRON: domkniecie usterek P1-P3 + runner migracji SQLite (ADR-0109)
+
+**Fixed**
+- P1 #2: szczelne kasowanie. `DELETE /projects/:id` wola `forgetCase` (pliki +
+  RAG/wektory/FTS + graf + brain), `DELETE /single-documents/:id` wola
+  `clearDocumentIndex` - koniec osieroconych chunkow/embeddingow/encji PII i
+  plikow akt po "normalnym" usunieciu z UI (RODO art. 17 dla zwyklej sciezki).
+- P1 #3: `openrouter` dodany do CHECK `user_api_keys` - wlasny klucz OpenRouter
+  zapisuje sie z UI (migracja rebuildujaca + `schema.sqlite.ts`).
+- P3 #12: `PRAGMA busy_timeout=5000` + `synchronous=NORMAL` pod WAL (anty
+  `SQLITE_BUSY`).
+- P3 #13: `clearDocumentIndex` czysci graf w obie strony (`to_doc_id` +
+  krawedzie po encjach dokumentu), nie tylko `from_doc_id`.
+- P3 #16: `getExtractor` nie cache'uje odrzuconego promise - nieudany load
+  modelu nie zabija embeddera do restartu procesu.
+
+**Added**
+- P2 #7: wersjonowany runner migracji SQLite (`backend/src/lib/db/migrate.sqlite.ts`)
+  na `PRAGMA user_version` - sciezka zmian CHECK/FK (rebuild tabeli) dla trybu
+  desktop, obok `ensureSchemaUpgrades` (ADD COLUMN). Test: `migrate.sqlite.test.ts`.
+
+Poza zakresem (osobne ADR): P1 #1 at-rest native swap (better-sqlite3-multiple-
+ciphers + safeStorage), P1 #4 maskowanie nazwisk w egress (domkniecie ADR-0067).
+tsc 0, vitest 1123 pass / 0 fail / 5 todo (+5 testow). Branch
+`fix/audyt-patron-p1-p3`; przed merge do `main`: 2x review WM + decyzja Operatora.
+### Grounding: sygnal WYMAGA OSADU - teza nieoceniona semantycznie (ADR-0103)
+
+**Added**
+- `requiresJudgment` (CascadeResult, `backend/src/lib/citation/cascade.ts`) - sygnal
+  doradczy: cytat tekstowo ugruntowany i podpiera teze, ale substancja NIE zostala
+  oceniona przez sedziego (etap 3 sie nie odpalil). Domyka cicha luke Stanford GDY
+  judge jest fail-closed (tajemnica + model chmurowy -> `makeJudge`=null).
+- `judgeUnavailable` (GroundOptions, `chat/ground-citations.ts`) - gdy sedzia byl
+  ZADANY (`PATRON_CITATION_JUDGE` ON) lecz niedostepny, sciezka deterministyczna
+  oznacza cytaty `verified` podpierajace teze jako `requiresJudgment`. `judge=off`
+  swiadomie NIE jest flagowany.
+- Licznik `requiresJudgment` w `groundingSummary` (AI Act art. 12) - ile tez przeszlo
+  bez kontroli sensu. Zero PII (sama liczba).
+- Frontend: pierscien amber + tooltip "tekstowo zgodny, ale tezy nie oceniono - sprawdz
+  zrodlo" (`AssistantMessage.tsx`, i18n `citations.requiresJudgment`); pole w
+  `PATRONCitationAnnotation` + mapowanie SSE (`useAssistantChat.ts`).
+
+**Verified**: tsc 0 (backend + frontend), vitest 1125 pass / 0 fail (+12 testow),
+zero regresji. Default-safe (pole tylko gdy judge ON + niedostepny). decision (blokada)
+nietknieta. Inspiracja: gradient WYMAGA_OSADU ze skilla `citation-grounding-pl` (MateMatic).
+
+### Grounding: tagi proweniencji + stan needs_review (ADR-0102)
+
+**Added**
+- A: tagi proweniencji cytatu (`backend/src/lib/citation/provenance.ts`) -
+  deterministyczny tag POCHODZENIA (saos/isap/eurlex/uzytkownik/model), os
+  ortogonalna do verdict (ADR-0097); default = model, pinpoint zawsze do
+  weryfikacji. Za flaga `PATRON_PROVENANCE_TAGS` (default OFF).
+- B: stan `needs_review` komorki tabular (`backend/src/lib/tabular/grounding.ts`)
+  - cytat bez weryfikowalnego zrodla nie milczy (undefined), tylko oznacza do
+  przegladu prawnika ("pusta komorka ukrywa informacje"); rozszerza model komorki
+  ADR-0011 + reuzywa verifyOne (ADR-0005). Za flaga `PATRON_TABULAR_CELL_STATES`
+  (default OFF).
+- Liczniki proweniencji / needs_review w audit_log (`groundingSummary` +
+  `tabular.grounding` ADR-0082) - opcjonalne, tylko liczby/enumy (AI Act art. 12).
+- Frontend: tag proweniencji w tooltipie cytatu czatu + status `needs_review`
+  komorki tabular (tylko enumy do UI, zero PII).
+
+Konstytucja PATCH 1.6.1. decision (ADR-0005, blokada) nietknieta - warstwa
+doradcza. tsc 0 (backend + frontend), vitest 1114 pass / 0 fail (+20 testow).
+Wzorzec clean-room z anthropics/claude-for-legal (Apache-2.0). Branch
+`feat/grounding-provenance-tabular`; przed merge do `main`: 2x review WM + eval
+korpus PL przed flipem flag.
+
+### Podsumowanie sprintu 2026-05-29 - 2026-06-02 (ADR-0053 .. 0099)
+
+Zbiorczy wpis domykajacy luke rejestracji zmian (poszczegolne ADR maja pelny
+opis w `governance/adr/`). Pogrupowane wg Keep a Changelog.
+
+**Added**
+- Tryb desktop zero-cloud: SQLite single-user (ADR-0053), graf hybrydowy na
+  SQLite (ADR-0054), headless ingest folderu sprawy (ADR-0056), bibliotekarz/
+  brain-store (ADR-0057), tryb local single-user we froncie (ADR-0062).
+- Frontend: draft odpowiedzi przez pipeline obrony (ADR-0063), import folderu
+  sprawy (ADR-0064), persystencja groundingu cytatow + audit (ADR-0065).
+- Pipeline obrony (Recenzent/Adwokat/Humanizer "invisible AI", ADR-0058);
+  provider OpenRouter (ADR-0059); roundtrip importu Word (ADR-0060).
+- Sciezka retrievalu: clause-boundary chunking + parser wyroku (ADR-0083),
+  copy-mechanism NER (ADR-0084), WuManber bootstrap PL-NER (ADR-0085),
+  dual-similarity case ranking + wpiecie (ADR-0086/0087), ocena kwantyzacji
+  vector store (ADR-0088), event-centric KG + wpiecie (ADR-0089/0090).
+- Tabular review: grounding cytatow (ADR-0080), polskie presety kolumn
+  (ADR-0081), grounding w audit hash-chain (ADR-0082).
+- OCR wejscia (ADR-0074/0075); panel zuzycia kosztow AI (ADR-0076); emisja
+  komentarzy DOCX recenzenta + warstwa serwisu + redline (ADR-0077/0078/0079).
+- Pakowanie instalatora desktop - Electron bundled node + standalone front +
+  electron-rebuild better-sqlite3 (ADR-0091).
+- Biblioteka umiejetnosci: kontrakt paczki skilla (ADR-0094), wykonanie
+  importowanych skilli na etapie draft (ADR-0096).
+- Egzekucja modeli lokalnych Ollama w warstwie funkcyjnej LLM (ADR-0098).
+
+**Fixed**
+- `resolveModel` przepuszcza `ollama/*` - wybor modelu lokalnego nie spadal juz
+  po cichu na chmure (ADR-0098).
+- `GET /api/security/mcp-status` 500 "no such column: created_at" - audit_log
+  uzywa kolumny `ts` (ADR-0099).
+
+**Security**
+- Hardening `/draft/refine` pipeline obrony (ADR-0068); security headers / CSP
+  (ADR-0069); hardening dokumentow - skan wersji, audit edycji (ADR-0070);
+  egress hardening openExternal / embeddings (ADR-0071); szyfrowanie at-rest
+  SQLite via DPAPI (ADR-0072).
+- Governance routingu LLM / data-residency - wspolny chokepoint egress
+  (ADR-0067), tier-governance egress (ADR-0095).
+- Grounding cascade z paraphrase-judge - wykrywanie falszywych zielonych
+  werdyktow cytatu (ADR-0097).
+- Domkniecie luk egress wykrytych w audycie 2026-06-02: egress guard w tabular
+  review (generate/regenerate-cell/chat) i generate-title, walidacja SSRF
+  `OLLAMA_HOST` (ADR-0099).
+- RODO: pelna purga sprawy "zapomnij sprawe" (ADR-0061).
+
+---
+### Audyt PATRON P1 #1 (SCAFFOLD): aktywacja szyfrowania at-rest (ADR-0118)
+
+**Changed**
+- `backend/package.json`: alias sterownika ->
+  `"better-sqlite3": "npm:better-sqlite3-multiple-ciphers@^12.10.0"` (cipher-capable,
+  drop-in API). Zero zmian importow.
+
+**Docs**
+- `docs/at-rest-activation.md` - runbook aktywacji (npm install forka +
+  `@electron/rebuild` + odwrocenie 2 testow atrest + weryfikacja `cipher_version`
+  + migracja plaintext + rollback). ADR-0118.
+
+> SCAFFOLD: wymaga natywnej kompilacji + rebuild pod Electron (NIE wykonane w tym
+> srodowisku). Backend fail-loud (ADR-0072) i Electron safeStorage (desktop/main.js)
+> JUZ wpiete - brakowalo tylko sterownika. Aktywacje skoordynowac z pipeline desktop.
+> Branch `feat/at-rest-native-cipher`, NIESCALONY.
+### Audyt PATRON Propozycja #6: preset eksportu .docx "styl kancelarii" (ADR-0119)
+
+**Added**
+- Opcja `kancelaria` w `generateDocx` + param w narzedziu `generate_docx`: bez
+  tabel (wiersze -> wyliczenia), srodtytuly pogrubione w osobnym wersie
+  (HeadingLevel), numeracja stron w prawym-dolnym rogu (Footer + PageNumber).
+  Default OFF (zero zmian zachowania). "Konkluzje podkreslane" / pelny "Doszlifuj"
+  (justowanie/typografia) = rezerwacja. Przycisk UI = follow-up.
+
+### Audyt PATRON Propozycja #8: "Zweryfikuj cytaty" jako akcja (ADR-0119)
+
+**Added**
+- `POST /api/citations/verify` (`routes/citations.ts`) - mechaniczna weryfikacja
+  cytatow gotowego pisma wzgledem akt sprawy (ADR-0005, deterministyczna, zero LLM,
+  READ-ONLY). Reuzywa `groundCitationsByRef` + `buildProjectDocContext`; kontrola
+  dostepu do sprawy (`checkProjectAccess`, 404 dla cudzej). Werdykt per ref +
+  summary + `blokada`. Klient `patronApi.verifyCitations`. Przycisk UI = follow-up.
+
+### Audyt PATRON Propozycja #7: wbudowany workflow "Analiza akt" (ADR-0119)
+
+**Added**
+- `builtin-analiza-akt-karne` w `lib/builtinWorkflows.ts` - wbudowany obiektyw
+  analityczny pod karnistyke (6-punktowy: zarzut -> dowody -> wyrok I -> apelacja
+  -> wyrok II -> wskazania). Reuzywa silnik workflows (czyste dane, zero kodu).
+  Dyscyplina cytatu (cytat + dokument + "str. N", proweniencja ADR-0113), obiektywy
+  art. 201/7/410/424/5§2/438/249/258 k.p.k., anty-zmyslanie ("brak w aktach"),
+  dostarczenie inline. Test `builtinWorkflows.test.ts`. Branch `feat/kancelaria-proposals`.
+
 ### Added
 
 - **ADR-0048 - Endpoint "Wymus compute Merkle root" + UI fallback dla audytora**
@@ -444,7 +923,8 @@ First public release as **Patron** (re-branded fork of
 
 ### Changed
 
-- **License**: MIT (Mike upstream) → AGPL-3.0-only (Patron shell).
+- **License**: AGPL-3.0-only (Patron shell, dziedziczone z AGPL-3.0-only
+  Mike upstream jako dzieło zależne). Konektory MCP: MIT (osobne repo).
   See `NOTICE` for full attribution.
 - README rewritten with Polish-first framing, connector table,
   governance pointers.

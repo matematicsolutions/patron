@@ -44,6 +44,22 @@ describe("buildOcrArgv (pure)", () => {
         ]);
     });
 
+    it("sciezka silnika w cudzyslowie ze spacja -> JEDEN token (Tesseract na Windows)", () => {
+        const argv = buildOcrArgv(
+            '"C:\\Program Files\\Tesseract-OCR\\tesseract.exe" {input} stdout -l pol --psm 1',
+            "C:\\temp z spacja\\in.png",
+        );
+        expect(argv).toEqual([
+            "C:\\Program Files\\Tesseract-OCR\\tesseract.exe",
+            "C:\\temp z spacja\\in.png",
+            "stdout",
+            "-l",
+            "pol",
+            "--psm",
+            "1",
+        ]);
+    });
+
     it("usesDirMode: wykrywa {outdir} (Chandra) vs stdout (Tesseract)", () => {
         expect(usesDirMode("chandra {input} {outdir} --method hf")).toBe(true);
         expect(usesDirMode("tesseract {input} stdout -l pol")).toBe(false);

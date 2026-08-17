@@ -35,14 +35,45 @@ function detectPdfHidden(buffer: Uint8Array | undefined, declaredType?: string):
     const head = Buffer.from(buffer).toString("latin1");
     const findings: SecurityFinding[] = [];
 
-    if (head.includes("/Launch") || head.includes("/OpenAction") || head.includes("/AA")) {
+    // Rozroznienie KLUCZOWE (poprawka false-positive): auto-WYKONANIE kodu vs
+    // auto-NAWIGACJA. /Launch (uruchamia zewnetrzny program) i /JavaScript|/JS
+    // (wykonuje skrypt) sa jednoznacznie grozne -> critical. Natomiast samo
+    // /OpenAction lub /AA BEZ kodu to zwykle nieszkodliwa nawigacja
+    // (np. "/OpenAction [3 0 R /FitH null]" - otworz na stronie, dopasuj),
+    // obecna w wiekszosci legalnych PDF (generatory, edytory). Blokowanie jej
+    // odrzucalo realne akta prawne. Krytyczne tylko gdy auto-akcja URUCHAMIA kod.
+    const hasLaunch = head.includes("/Launch");
+    const hasJs = head.includes("/JavaScript") || head.includes("/JS ") || head.includes("/JS/") || head.includes("/JS(") || head.includes("/JS<");
+    const hasAutoAction = head.includes("/OpenAction") || head.includes("/AA");
+
+    if (hasLaunch) {
         findings.push({
             category: "steganography",
-            technique: "pdf-auto-action",
+            technique: "pdf-launch-action",
             severity: "critical",
-            confidence: 90,
-            evidence: "PDF zawiera /OpenAction|/Launch|/AA",
-            impact: "PDF z akcja automatyczna przy otwarciu - jednoznaczne ryzyko, blokada.",
+            confidence: 92,
+            evidence: "PDF zawiera /Launch",
+            impact: "Akcja /Launch uruchamia zewnetrzny program przy otwarciu - jednoznaczne ryzyko, blokada.",
+        });
+    }
+    if (hasJs) {
+        findings.push({
+            category: "steganography",
+            technique: "pdf-javascript",
+            severity: "critical",
+            confidence: 92,
+            evidence: "PDF zawiera /JavaScript|/JS",
+            impact: "PDF wykonuje JavaScript - jednoznaczne ryzyko, blokada.",
+        });
+    }
+    if (hasAutoAction && !hasLaunch && !hasJs) {
+        findings.push({
+            category: "steganography",
+            technique: "pdf-auto-navigation",
+            severity: "low",
+            confidence: 40,
+            evidence: "PDF zawiera /OpenAction|/AA bez /JavaScript|/Launch (auto-nawigacja)",
+            impact: "Akcja automatyczna przy otwarciu bez wykonania kodu (np. GoTo/FitH) - typowo nieszkodliwa nawigacja; odnotowana, nie blokuje.",
         });
     }
     if (head.includes("/EmbeddedFile")) {

@@ -10,14 +10,23 @@ import {
     type OpenAIToolSchema,
 } from "../llm";
 import { getMcpTools, isMcpTool, runMcpTool, type McpCitation } from "../mcp";
-import { guardEgress, appendLlmRouteEvent } from "../routing";
+import {
+    enforceEgressGuard,
+    appendLlmRouteEvent,
+    caseCostCapUsd,
+    getCaseSpentUsd,
+    evaluateBudget,
+    appendCostCapEvent,
+} from "../routing";
 import {
     wrapConversation,
     PseudonimStreamUnwrapper,
+    plEntityDetector,
 } from "../pseudonim";
 import { createServerSupabase } from "../supabase";
 import { CITATIONS_OPEN_TAG, parseCitations, resolveDoc } from "./citations";
 import { groundCitationsByRef } from "./ground-citations";
+import { makeJudge } from "../citation/judge";
 import type { GroundingResult } from "../citation/grounding";
 import { TOOLS, WORKFLOW_TOOLS } from "./tools";
 import { runToolCalls, type TurnEditState } from "./tool-dispatch";
@@ -102,6 +111,11 @@ export async function runLLMStream(params: {
      * generated docs still get persisted, but as standalone documents.
      */
     projectId?: string | null;
+    /**
+     * US5 / ADR-0093: gdy true, operator swiadomie nadpisuje twardy cost-cap
+     * sprawy (decyzja logowana do audit jako cost_cap action=override).
+     */
+    allowBudgetOverride?: boolean;
 }): Promise<{
     fullText: string;
     events: AssistantEvent[];
@@ -124,6 +138,7 @@ export async function runLLMStream(params: {
         model,
         apiKeys,
         projectId,
+        allowBudgetOverride,
     } = params;
     const mcpTools = await getMcpTools();
     const activeTools = extraTools?.length
@@ -240,21 +255,54 @@ export async function runLLMStream(params: {
 
     const selectedModel = resolveModel(model, DEFAULT_MAIN_MODEL);
 
+    // US5 / ADR-0093: twardy cost-cap per sprawa PRZED guardEgress. Prog z env
+    // PATRON_CASE_COST_CAP_USD (domyslnie off = brak zmiany). Po przekroczeniu
+    // blok, chyba ze operator swiadomie nadpisze (allowBudgetOverride). Kazda
+    // decyzja (block/override) -> audit_log cost_cap (hash-chain, AI Act art. 12).
+    const capUsd = caseCostCapUsd();
+    if (capUsd !== null && projectId) {
+        let spentUsd = 0;
+        try {
+            spentUsd = await getCaseSpentUsd(db, projectId);
+        } catch {
+            spentUsd = 0; // brak odczytu kosztu nie moze twardo blokowac pracy
+        }
+        const budget = evaluateBudget({
+            capUsd,
+            spentUsd,
+            override: allowBudgetOverride === true,
+        });
+        if (budget.exceeded) {
+            await appendCostCapEvent(db, {
+                actorUserId: userId,
+                caseId: projectId,
+                model: selectedModel,
+                spentUsd,
+                capUsd,
+                action: budget.action === "override" ? "override" : "block",
+            });
+            if (budget.action === "block") {
+                write(
+                    `data: ${JSON.stringify({ type: "error", message: `Przekroczono limit kosztu sprawy (${spentUsd.toFixed(2)} / ${capUsd.toFixed(2)} USD). Operator moze kontynuowac swiadomie.`, code: "budget_exceeded" })}\n\n`,
+                );
+                write("data: [DONE]\n\n");
+                return { fullText: "", events: [], mcpCitations: [], grounding: {} };
+            }
+        }
+    }
+
     // ADR-0067: straznik data-residency PRZED wyjsciem do providera. Blokuje
     // wyslanie tresci sprawy do strefy egress niedozwolonej dla jej klasyfikacji
     // (tajemnica zawodowa -> tylko model lokalny). Decyzja idzie do audit_log.
-    const guard = await guardEgress({ db, model: selectedModel, projectId });
+    // Wspolny chokepoint egress (enforceEgress.ts) - ta sama funkcja co
+    // /draft/refine. Przy blokadzie helper sam audytuje "llm_route" (block).
+    const guard = await enforceEgressGuard({
+        db,
+        model: selectedModel,
+        projectId,
+        actorUserId: userId,
+    });
     if (!guard.allowed) {
-        await appendLlmRouteEvent(db, {
-            actorUserId: userId,
-            caseId: projectId ?? null,
-            model: selectedModel,
-            provider: guard.provider,
-            egress: guard.decision.egress,
-            classification: guard.decision.classification,
-            action: "block",
-            reason: guard.decision.reason,
-        });
         const msg =
             guard.blockMessage ??
             "Routing zablokowany przez polityke data-residency.";
@@ -276,7 +324,12 @@ export async function runLLMStream(params: {
         guard.decision.egress !== "no-egress" &&
         guard.decision.classification !== "public"
     ) {
-        const wrapped = await wrapConversation(systemPrompt, chatMessages);
+        // Audyt P1 #4: realny detektor PERSON/ORG/ADDRESS (deterministyczny,
+        // zero-cloud) zamiast dotychczasowego no-op - nazwiska/nazwy podmiotow/
+        // adresy NIE wychodza juz do chmury otwartym tekstem (domkniecie ADR-0067).
+        const wrapped = await wrapConversation(systemPrompt, chatMessages, {
+            llmDetector: plEntityDetector,
+        });
         outboundSystemPrompt = wrapped.systemPrompt;
         outboundMessages = wrapped.messages;
         unwrapper = new PseudonimStreamUnwrapper(wrapped.map);
@@ -510,8 +563,56 @@ export async function runLLMStream(params: {
     // zwrotem - kazdy cytat z dokumentu klienta sprawdzany string-matchem
     // wzgledem tresci. Werdykt (verified/unverified/blocked) leci obok cytatow,
     // UI renderuje 3-stopniowy signal. Deterministyczne, offline, zero LLM.
-    const grounding = await groundCitationsByRef(citations, docStore, docIndex, db);
-    write(`data: ${JSON.stringify({ type: "citations", citations, grounding })}\n\n`);
+    //
+    // ADR-0097: opcjonalny etap semantyczny (paraphrase-judge) za flaga
+    // PATRON_CITATION_JUDGE (default OFF - zero zmiany zachowania). makeJudge
+    // routuje przez guardEgress (tajemnica -> tylko model lokalny; brak = null =
+    // grounding pozostaje deterministyczny, fail-closed). Lapie cytat doslowny pod
+    // falszywa teza (Stanford). decision (blokada) zostaje deterministyczna.
+    const judgeRequested = process.env.PATRON_CITATION_JUDGE === "true";
+    const judge = judgeRequested
+        ? await makeJudge({ db, model: selectedModel, apiKeys, projectId })
+        : null;
+    // Sedzia ZADANY, ale niedostepny (makeJudge=null: fail-closed - tajemnica + model
+    // chmurowy / brak modelu lokalnego). Wtedy tekstowo-ugruntowane tezy sa nieocenione
+    // semantycznie -> oznacz je WYMAGA OSADU (ADR-0097). judge=off (swiadomy tryb) NIE flagujemy.
+    const judgeUnavailable = judgeRequested && judge === null;
+    const grounding = await groundCitationsByRef(citations, docStore, docIndex, db, {
+        answerText: fullText,
+        judge,
+        judgeUnavailable,
+        // ADR-0102 (A): tag proweniencji per cytat (default OFF). Deterministyczny,
+        // enum bezpieczny do UI/audytu (jak verdict), zero egressu/PII.
+        provenanceTags: process.env.PATRON_PROVENANCE_TAGS === "true",
+    });
+    // Do klienta wysylamy WYLACZNIE whitelistowane pola (decision + verdict enum +
+    // provenance enum ADR-0102). judgeReason (ADR-0097, kandydat PII/tajemnica) zostaje
+    // server-side - nie idzie po drucie (istotne w trybie serwerowym). grounding (pelny)
+    // sluzy audytowi nizej.
+    type GroundingClientEntry = {
+        decision: string;
+        verdict?: "green" | "yellow" | "red";
+        provenance?: { tag: string; pinpoint: boolean };
+        /** WYMAGA OSADU (ADR-0097): teza nieoceniona semantycznie. Boolean, zero PII. */
+        requiresJudgment?: boolean;
+    };
+    const groundingForClient: Record<number, GroundingClientEntry> = {};
+    for (const [ref, r] of Object.entries(grounding)) {
+        const c = r as GroundingClientEntry;
+        const entry: GroundingClientEntry = { decision: c.decision };
+        if (c.verdict) entry.verdict = c.verdict;
+        if (c.requiresJudgment) entry.requiresJudgment = true;
+        if (c.provenance) {
+            entry.provenance = {
+                tag: c.provenance.tag,
+                pinpoint: c.provenance.pinpoint,
+            };
+        }
+        groundingForClient[Number(ref)] = entry;
+    }
+    write(
+        `data: ${JSON.stringify({ type: "citations", citations, grounding: groundingForClient })}\n\n`,
+    );
     // Cytaty z serwerow MCP (np. SAOS) - osobny event, zeby panel UI
     // mogl je renderowac jako "Powiazane zrodla" obok dokumentowych.
     if (mcpCitations.length > 0) {

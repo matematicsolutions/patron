@@ -129,6 +129,14 @@ export const pl = {
         // Greeting fallback (kiedy brak imienia w profilu)
         greetingFallback: "Pani / Panie Mecenasie",
         greetingPrefix: "Witaj",
+        // Starter-chipy na ekranie powitalnym - glos PATRONa (gospodarz).
+        // *Send = tresc realnie wysylana do asystenta (intencja mecenasa).
+        starterHelp: "W czym mogę Ci pomóc?",
+        starterHelpSend: "W czym możesz mi pomóc?",
+        starterAnalyze: "Jak przeanalizować umowę?",
+        starterImport: "Jak zaimportować akta sprawy?",
+        starterShowcase: "Pokażę Ci, co potrafię",
+        starterShowcaseSend: "Pokaż, co potrafisz",
         // Disclaimer pod polem wejscia (RODO + odpowiedzialnosc zawodowa)
         legalDisclaimer:
             "AI może się mylić. Odpowiedzi nie stanowią porady prawnej.",
@@ -172,6 +180,9 @@ export const pl = {
         collapseEdits: "Zwiń zmiany",
         expandEdits: "Rozwiń zmiany",
         // Bulk accept / reject po stronie wiadomosci asystenta
+        bulkAcceptAll: "Akceptuj wszystkie",
+        bulkRejectAll: "Odrzuć wszystkie",
+        bulkView: "Podgląd",
         bulkAcceptFailed: "Nie udało się zapisać jednej lub kilku akceptacji.",
         bulkRejectFailed: "Nie udało się zapisać jednego lub kilku odrzuceń.",
         // Sekcja "Powiazane orzeczenia" pod proza wiadomosci
@@ -235,6 +246,20 @@ export const pl = {
         groundingVerified: "zweryfikowany w źródle",
         groundingUnverified: "drobne różnice - sprawdź w źródle",
         groundingBlocked: "niezweryfikowany - źródło nie potwierdza cytatu",
+        // ADR-0097: werdykt semantyczny sędziego (gdy flaga PATRON_CITATION_JUDGE).
+        verdictGreen: "źródło potwierdza tezę",
+        verdictYellow: "źródło potwierdza częściowo - sprawdź",
+        verdictRed: "uwaga: źródło NIE potwierdza tezy",
+        // ADR-0097 (WYMAGA OSĄDU): cytat tekstowo ugruntowany, ale teza nieoceniona
+        // semantycznie (sędzia się nie odpalił, np. tajemnica + model chmurowy).
+        requiresJudgment: "tekstowo zgodny, ale tezy nie oceniono - sprawdź źródło",
+        // ADR-0102 (A): tagi proweniencji cytatu (gdy flaga PATRON_PROVENANCE_TAGS).
+        provenanceSaos: "źródło: SAOS",
+        provenanceIsap: "źródło: ISAP/ELI",
+        provenanceEurlex: "źródło: EUR-Lex",
+        provenanceUzytkownik: "źródło: dokument klienta",
+        provenanceModel: "wiedza modelu - zweryfikuj",
+        provenancePinpoint: "- zweryfikuj numer jednostki",
     },
 
     // ---------------------------------------------------------------------
@@ -271,6 +296,8 @@ export const pl = {
         email: "Email",
         models: "Modele i klucze API",
         usage: "Zużycie",
+        connectors: "Konektory",
+        approvals: "Karty zatwierdzeń",
         provider: "Dostawca",
         apiKey: "Klucz API",
         apiKeyMissing: "Brakuje klucza API dla tego modelu.",
@@ -330,6 +357,7 @@ export const pl = {
         anthropicKeyLabel: "Anthropic (Claude) - klucz API",
         googleKeyLabel: "Google (Gemini) - klucz API",
         openaiKeyLabel: "OpenAI - klucz API",
+        openrouterKeyLabel: "OpenRouter - klucz API (jeden klucz, wiele modeli)",
         serverKeyConfigured:
             "Administrator ustawił klucz w pliku .env serwera. Nie zmienisz go w przeglądarce.",
         serverKeyWillBeUsed: "Patron użyje klucza z serwera.",
@@ -412,6 +440,19 @@ export const pl = {
         cmShort: "Sygnatura",
         cmShortPlaceholder: "Sygn.",
         noProjects: "Brak projektów. Utwórz pierwszy.",
+        // Lista projektow - stany puste i naglowki
+        emptyTitle: "Projekty",
+        emptyBody: "Wczytaj dokumenty do projektów i rozpocznij czaty oraz przeglądy tabelaryczne.",
+        emptyCta: "+ Utwórz nowy",
+        // Zakladki filtrow listy projektow
+        tabAll: "Wszystkie",
+        tabMine: "Moje",
+        tabSharedWithMe: "Udostępnione mi",
+        // Akcje zbiorcze
+        actions: "Akcje",
+        deleteSelected: "Usuń",
+        // Stan bledu ladowania listy
+        loadErrorTitle: "Projekty",
         // Eksplorator dokumentow projektu (foldery + pliki)
         folderNamePlaceholder: "Nazwa folderu",
         renameDocument: "Zmień nazwę dokumentu",
@@ -592,6 +633,18 @@ export const pl = {
         emptyCta: "+ Utwórz nowy",
         noResults: "Nie znaleziono przeglądów",
         untitledReview: "Bez tytułu",
+        // Human-review komorki (ADR-0126): prawnik zatwierdza/odrzuca/poprawia
+        reviewHeading: "Weryfikacja prawnika",
+        reviewApprove: "Zatwierdź",
+        reviewReject: "Odrzuć",
+        reviewCorrect: "Popraw",
+        reviewCorrectPlaceholder: "Poprawiona treść komórki…",
+        reviewSaveCorrection: "Zapisz poprawkę",
+        reviewCancel: "Anuluj",
+        reviewStatusApproved: "Zatwierdzona przez prawnika",
+        reviewStatusRejected: "Odrzucona przez prawnika",
+        reviewStatusCorrected: "Poprawiona przez prawnika",
+        reviewError: "Nie udało się zapisać decyzji.",
     },
 
     // ---------------------------------------------------------------------
@@ -687,10 +740,12 @@ export const pl = {
         open: "Draft odpowiedzi",
         title: "Draft odpowiedzi",
         subtitle:
-            "Pismo przejdzie przez recenzję, adwokata diabła i redakcję pod kątem naturalnego języka.",
+            "Wybierz etapy doskonalenia. Domyślnie szybka redakcja językowa; recenzję i adwokata diabła włącz, gdy potrzebujesz głębszej pracy.",
         textLabel: "Tekst pisma",
         textPlaceholder: "Wklej lub wpisz treść pisma do doskonalenia…",
-        modeLabel: "Adwokat diabła — z czyjej perspektywy",
+        stagesSelectLabel:
+            "Etapy doskonalenia (każdy to osobny przebieg - więcej etapów, dłuższe oczekiwanie)",
+        modeLabel: "Adwokat diabła - z czyjej perspektywy",
         refine: "Doskonal pismo",
         refining: "Doskonalę pismo…",
         resultTitle: "Gotowy draft",
@@ -700,7 +755,7 @@ export const pl = {
         emptyText: "Wpisz lub wklej tekst pisma.",
         error: "Nie udało się doskonalić pisma. Spróbuj ponownie.",
         disclaimer:
-            "AI może się mylić. Sprawdź pismo przed wysłaniem — to nie jest porada prawna.",
+            "AI może się mylić. Sprawdź pismo przed wysłaniem - to nie jest porada prawna.",
         close: "Zamknij",
         stage: {
             recenzent: "Recenzent",
@@ -715,6 +770,44 @@ export const pl = {
     },
 
     // ---------------------------------------------------------------------
+    // MCP Security Banner (ADR-0042)
+    // ---------------------------------------------------------------------
+    mcpSecurity: {
+        disabledMessage: "MCP Security: Wyłączony. Zalecane włączenie w env MCP_SECURITY_GATEWAY_MODE.",
+        disabledAriaLabel: "MCP Security Gateway wyłączony",
+        blockedMessage: "MCP Security: ZABLOKOWANO {denied} narzędzi w ostatnich 24h. Sprawdź audit_log.",
+        blockedAriaLabel: "MCP Security Gateway zablokował {denied} narzędzi w 24h",
+        activeMessage: "MCP Security: aktywny (enforce). 24h: {audit} audit, {humanReview} human_review.",
+        activeAriaLabel: "MCP Security Gateway aktywny w trybie enforce, {audit} audit {humanReview} human review w 24h",
+        auditMessage: "MCP Security: audit-only. {total} zdarzeń w 24h. Narzędzia NIE są blokowane.",
+        auditAriaLabel: "MCP Security Gateway w trybie audit-only, narzędzia nie są blokowane",
+    },
+
+    // ---------------------------------------------------------------------
+    // Banner posture egress / data-residency (Faza 2 audytu Fable5)
+    // ---------------------------------------------------------------------
+    egressConfig: {
+        privilegedCloudMessage:
+            "Sprawy objęte tajemnicą zawodową: model chmurowy DOZWOLONY (zgoda Operatora). Egress jest audytowany.",
+        privilegedCloudAriaLabel:
+            "Sprawy objete tajemnica zawodowa moga korzystac z modelu chmurowego za zgoda Operatora",
+        usProvidersMessage:
+            "Dostawcy spoza UE (USA): DOZWOLENI (zgoda Administratora, DPA). Transfer poza EOG jest audytowany.",
+        usProvidersAriaLabel:
+            "Dostawcy spoza UE dozwoleni za zgoda Administratora",
+    },
+
+    // ---------------------------------------------------------------------
+    // Paczki wiedzy - kanal dystrybucji chunkowej (ADR-0140)
+    // ---------------------------------------------------------------------
+    packUpdates: {
+        availableMessage:
+            "Paczka wiedzy {name}: dostępna aktualizacja {have} → {available}, do pobrania {download} MB z {total} MB.",
+        availableAriaLabel:
+            "Dostepna aktualizacja paczki wiedzy {name} z wersji {have} do wersji {available}, do pobrania {download} megabajtow z {total}",
+    },
+
+    // ---------------------------------------------------------------------
     // Folder Sprawy - import lokalnego katalogu (ADR-0056/0064)
     // ---------------------------------------------------------------------
     folderIngest: {
@@ -724,7 +817,12 @@ export const pl = {
             "Wskaż katalog z aktami. Patron wciągnie pliki lokalnie, przeskanuje pod kątem bezpieczeństwa i zindeksuje do wyszukiwania.",
         pathLabel: "Ścieżka do folderu",
         pathPlaceholder: "np. C:\\Sprawy\\Kowalski-2026",
-        pathHint: "Obsługiwane pliki: PDF, DOCX, DOC. Podkatalogi są pomijane.",
+        pathHint:
+            "Obsługiwane pliki: PDF, DOCX, DOC oraz skany JPG/PNG/TIFF (OCR). Podkatalogi są przeszukiwane.",
+        browseBtn: "Wybierz folder…",
+        browseHero: "Wybierz folder z aktami",
+        browseHeroHint: "Otworzy się okno wyboru - wskaż folder, import ruszy od razu.",
+        manualLabel: "lub podaj ścieżkę ręcznie",
         importBtn: "Importuj",
         importing: "Importuję pliki…",
         resultTitle: "Wynik importu",
@@ -740,15 +838,94 @@ export const pl = {
             error: "Błąd",
         },
     },
+
+    // ---------------------------------------------------------------------
+    // Biblioteka umiejetnosci (ADR-0094)
+    // ---------------------------------------------------------------------
+    skillLibrary: {
+        open: "Biblioteka umiejętności",
+        title: "Biblioteka umiejętności",
+        subtitle:
+            "Umiejętności, które Patron może stosować. Wbudowane są zawsze aktywne; własne włączasz, wyłączasz i importujesz.",
+        builtinSection: "Wbudowane",
+        installedSection: "Zainstalowane",
+        builtinBadge: "wbudowana",
+        alwaysOn: "zawsze aktywna",
+        egressLocal: "lokalnie",
+        egressCloud: "chmura",
+        unsigned: "niepodpisana",
+        enabledLabel: "Włączona",
+        disabledLabel: "Wyłączona",
+        remove: "Usuń",
+        empty: "Brak zainstalowanych umiejętności. Zaimportuj paczkę, aby dodać własną.",
+        import: "Importuj paczkę",
+        importing: "Importuję…",
+        importHint: "Paczka to plik .json z manifestem umiejętności.",
+        egressConfirm:
+            "Ta umiejętność może wysyłać treść poza Twoją maszynę (do chmury). Obowiązuje tajemnica zawodowa. Włączyć mimo to?",
+        removeConfirm: "Usunąć tę umiejętność?",
+        loadError: "Nie udało się wczytać umiejętności.",
+        importError: "Nie udało się zaimportować paczki. Sprawdź plik manifestu.",
+        toggleError: "Nie udało się zmienić stanu umiejętności.",
+        removeError: "Nie udało się usunąć umiejętności.",
+        close: "Zamknij",
+    },
+
+    // ---------------------------------------------------------------------
+    // Picker konektorow MCP (ADR-0133) - wybor jurysdykcji
+    // ---------------------------------------------------------------------
+    connectors: {
+        title: "Konektory prawa",
+        subtitle:
+            "Wybierz, z których źródeł prawa korzysta Patron. Wybór konektora to wybór jurysdykcji.",
+        enabled: "Włączony",
+        disabled: "Wyłączony",
+        trustedBadge: "zaufany",
+        operatorOnly: "Tylko Operator",
+        operatorOnlyHint:
+            "Konektor spoza zaufanego zestawu - włącza go Operator kancelarii.",
+        restartNote:
+            "Zmiana zacznie obowiązywać po ponownym uruchomieniu aplikacji.",
+        empty: "Brak skonfigurowanych konektorów.",
+        loadError: "Nie udało się wczytać konektorów.",
+        toggleError: "Nie udało się zmienić stanu konektora.",
+        jurisdictionPL: "Polska",
+        jurisdictionEU: "Unia Europejska",
+        jurisdictionDE: "Niemcy",
+        jurisdictionAT: "Austria",
+        jurisdictionES: "Hiszpania",
+        jurisdictionFI: "Finlandia",
+        jurisdictionIE: "Irlandia",
+        jurisdictionNL: "Holandia",
+        jurisdictionSE: "Szwecja",
+        jurisdictionFR: "Francja",
+        jurisdictionLU: "Luksemburg",
+        jurisdictionBR: "Brazylia",
+        jurisdictionOTHER: "Inne",
+    },
+    approvals: {
+        title: "Karty zatwierdzeń",
+        subtitle:
+            "Akcje agenta o skutkach ubocznych (edycja, generowanie dokumentu) czekają tu na Twoje zatwierdzenie, zanim się wykonają. Nadzór człowieka nad zapisem (AI Act art. 14).",
+        empty: "Brak kart oczekujących na zatwierdzenie.",
+        loadError: "Nie udało się wczytać kart.",
+        actionError: "Nie udało się przetworzyć decyzji.",
+        approve: "Zatwierdź",
+        reject: "Odrzuć",
+        approving: "Zatwierdzam…",
+        rejecting: "Odrzucam…",
+        stagedAt: "Przygotowano",
+        actionLabel: "Akcja",
+        detailsLabel: "Szczegóły",
+        documentLabel: "Dokument",
+        rejectReasonPlaceholder: "Powód odrzucenia (opcjonalnie)",
+        executedNote: "Zatwierdzono i wykonano.",
+        executionErrorNote:
+            "Zatwierdzono, ale wykonanie się nie powiodło:",
+        toolEditDocument: "Edycja dokumentu",
+        toolGenerateDocx: "Wygenerowanie dokumentu .docx",
+    },
 } as const;
 
-// English fallback - tylko klucze, ktore moga nie miec tlumaczenia PL.
-// Domyslnie wszystkie sa po polsku - en jest awaryjny.
-export const en = {
-    common: {
-        loading: "Loading…",
-        save: "Save",
-        cancel: "Cancel",
-    },
-    // ... (rozszerzymy gdy pojawi sie potrzeba EN-only flow)
-} as const;
+// EN -> osobny plik `en.ts` (ADR-0132). PL pozostaje zrodlem kluczy
+// (TranslationKey generowane z `pl`); brak klucza EN -> fallback do PL w `t()`.

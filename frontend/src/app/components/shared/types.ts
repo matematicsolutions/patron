@@ -24,6 +24,10 @@ export interface PATRONProject {
   document_count?: number;
   chat_count?: number;
   review_count?: number;
+  /** Klasyfikacja danych sprawy (data-residency, ADR-0067). */
+  classification?: string;
+  /** Zgoda na model chmurowy dla tej sprawy (ADR-0128, audyt P2 #6). */
+  cloud_consent?: boolean;
 }
 
 export interface PATRONDocument {
@@ -200,6 +204,10 @@ export interface PATRONMessage {
 export interface CitationQuote {
   page: number;
   quote: string;
+  /** ADR-0122: 0-based wystapienie frazy do podswietlenia (z
+   * `locator.occurrenceHint`). Brak / poza zakresem => pierwsze dopasowanie
+   * (bezpieczny fallback). */
+  occurrence?: number;
 }
 
 /**
@@ -217,6 +225,49 @@ export interface CitationQuote {
  */
 export type PATRONGroundingDecision = "verified" | "unverified" | "blocked";
 
+/**
+ * ADR-0097: werdykt 3-kolorowy semantycznego etapu (paraphrase-judge). Obecny
+ * TYLKO gdy sedzia byl wlaczony (flaga PATRON_CITATION_JUDGE) i zadzialal.
+ * `green` - zrodlo wspiera teze; `yellow` - czesciowo / parafraza; `red` - zrodlo
+ * NIE wspiera tezy (lapie cytat doslowny pod falszywa teza, Stanford). To enum,
+ * nie tresc - bezpieczny do renderu i ewentualnej persystencji (uzasadnienie
+ * sedziego, kandydat PII, NIE jest przesylane do frontu).
+ */
+export type PATRONGroundingVerdict = "green" | "yellow" | "red";
+
+/**
+ * ADR-0102 (A): tag proweniencji cytatu - POCHODZENIE (skad), nie pewnosc. Obecny
+ * TYLKO gdy flaga PATRON_PROVENANCE_TAGS byla wlaczona. Enum (zero PII). `model` =
+ * wiedza modelu (default, do weryfikacji); pozostale = pobrane zrodlo.
+ */
+export type PATRONProvenanceTag =
+  | "saos"
+  | "isap"
+  | "eurlex"
+  | "uzytkownik"
+  | "model";
+
+export interface PATRONCitationProvenance {
+  tag: PATRONProvenanceTag;
+  /** Numer jednostki redakcyjnej (art./ust./par./CELEX) - zawsze do weryfikacji. */
+  pinpoint: boolean;
+}
+
+/**
+ * ADR-0122: frontendowe lustro backendowego `CitationLocator` (ADR-0116) -
+ * trwaly lokator cytatu przewleczony z SSE (`citations.grounding[ref].locator`).
+ * Obecny tylko gdy cytat wystepuje DOSLOWNIE w surowym zrodle (typowe dla
+ * ZWERYFIKOWANY). `rawText` to zrodlo prawdy; `occurrenceHint` (0-based, w
+ * przestrzeni surowego zrodla backendu) steruje occurrence-aware highlightem -
+ * ktore wystapienie powtarzajacej sie frazy podswietlic. NIE niesie offsetow do
+ * DOM frontendu (inna ekstrakcja) - highlight pozostaje dopasowaniem tekstu.
+ */
+export interface PATRONCitationLocator {
+  rawText: string;
+  startHint?: number;
+  occurrenceHint?: number;
+}
+
 export interface PATRONCitationAnnotation {
   type: "citation_data";
   ref: number;
@@ -230,6 +281,24 @@ export interface PATRONCitationAnnotation {
   /** ADR-0005: werdykt groundingu (z eventu SSE `citations.grounding` lub z
    * zapisanej adnotacji po reload). Brak = weryfikacja niedostepna. */
   grounding?: PATRONGroundingDecision;
+  /** ADR-0097: werdykt semantyczny sedziego (gdy flaga wlaczona). Ma pierwszenstwo
+   * przed `grounding` przy kolorze badge - bo lapie falszywa teze przy poprawnym
+   * tekstowo cytacie. Brak = sedzia nieaktywny, kolor wg `grounding`. */
+  groundingVerdict?: PATRONGroundingVerdict;
+  /** ADR-0102 (A): tag proweniencji (gdy flaga PATRON_PROVENANCE_TAGS wlaczona). Enum, zero PII. */
+  provenance?: PATRONCitationProvenance;
+  /** ADR-0122: trwaly lokator (z eventu SSE `citations.grounding[ref].locator`).
+   * Obecny tylko dla cytatu zweryfikowanego verbatim. Steruje occurrence-aware
+   * highlightem. Brak = highlight pierwszego dopasowania (zachowanie sprzed
+   * ADR-0122). */
+  locator?: PATRONCitationLocator;
+  /**
+   * ADR-0097 (WYMAGA OSADU): cytat jest tekstowo ugruntowany i podpiera teze, ale
+   * substancja NIE zostala oceniona semantycznie (sedzia sie nie odpalil - np.
+   * tajemnica + model chmurowy = fail-closed). Czlowiek musi sprawdzic, czy zrodlo
+   * faktycznie WSPIERA teze (cichy przypadek Stanford). Boolean, zero PII.
+   */
+  requiresJudgment?: boolean;
 }
 
 /**
@@ -281,7 +350,12 @@ export function expandCitationToEntries(
   const pageNum =
     typeof a.page === "number" ? a.page : parseInt(String(a.page), 10);
   if (!Number.isFinite(pageNum)) return [];
-  return [{ page: pageNum, quote: a.quote }];
+  // ADR-0122: na sciezce jednosegmentowej (bez page-break) przekazujemy
+  // occurrenceHint z lokatora, by highlighter wybral wlasciwe wystapienie
+  // powtarzajacej sie frazy. occurrence === undefined (brak lokatora) jest
+  // rownowazne brakowi pola (highlighter spada do pierwszego dopasowania).
+  // Sciezka page-break (wyzej) ma niejednoznaczna semantyke per-segment.
+  return [{ page: pageNum, quote: a.quote, occurrence: a.locator?.occurrenceHint }];
 }
 
 /** Format the page(s) of a citation for display, e.g. "Page 3" or "Page 41-42". */
@@ -335,12 +409,16 @@ export interface TabularReview {
 }
 
 // ADR-0080: werdykt mechanicznej weryfikacji cytatow inline w komorce.
+// ADR-0102 (B): + stan needs_review (cytat bez weryfikowalnego zrodla), gdy flaga
+// PATRON_TABULAR_CELL_STATES wlaczona.
 export interface TabularCellGrounding {
   total: number;
   verified: number;
   modified: number;
   unverified: number;
-  status: "verified" | "modified" | "unverified";
+  /** ADR-0102 (B): cytaty bez mozliwosci weryfikacji verbatim (brak/nieczytelne zrodlo). */
+  needs_review?: number;
+  status: "verified" | "modified" | "unverified" | "needs_review";
 }
 
 export interface TabularCell {
@@ -356,6 +434,11 @@ export interface TabularCell {
   } | null;
   status: "pending" | "generating" | "done" | "error";
   created_at: string;
+  /** ADR-0126: human-review komorki - decyzja prawnika (null = nieprzejrzana). */
+  review_action?: "approved" | "rejected" | "corrected" | null;
+  reviewed_by?: string | null;
+  reviewed_at?: string | null;
+  corrected_content?: string | null;
 }
 
 // Workflows

@@ -17,8 +17,9 @@
 //
 // GRANICA: biblioteka. Funkcje czyste (buildEventFrames, frameSimilarity,
 // eventSetSimilarity, eventSimilarityRank) sa w pelni testowalne bez bazy;
-// loadEventFrames jest cienka warstwa DB. Wpiecie w retrieve() jest rezerwacja
-// US3 (jak ADR-0086/0087 - dostarczamy silnik, nie zmieniamy request-path).
+// loadEventFrames jest cienka warstwa DB. eventReRank jest WPIETY w retrieve()
+// (retrieval.ts, etap event-centric po dual-similarity, ADR-0089) - domyslnie ON
+// gdy >1 kandydat, wylaczany przez opts.event=false; waga przez PATRON_EVENT_ALPHA.
 //
 // DETERMINIZM (Konstytucja Art. 3): zero losowosci, zero zegara, regex+gazetteer,
 // stabilne sortowanie z jawnym tie-breakiem. Te same wejscie = te same ramki =

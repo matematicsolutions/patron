@@ -114,7 +114,7 @@ export default function LoginPage() {
                         <Button
                             type="submit"
                             disabled={loading}
-                            className="w-full mt-5 bg-black hover:bg-gray-900 text-white"
+                            className="w-full mt-5 bg-black hover:bg-gray-900 text-white focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-gray-400"
                         >
                             {loading
                                 ? `${t("auth.signInButton")}…`

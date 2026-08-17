@@ -100,6 +100,169 @@ export async function deleteAccount(): Promise<void> {
     return apiRequest<void>("/user/account", { method: "DELETE" });
 }
 
+// ---------------------------------------------------------------------------
+// Biblioteka umiejetnosci (ADR-0094)
+// ---------------------------------------------------------------------------
+
+export interface SkillEntry {
+    id: string;
+    name: string;
+    description: string;
+    version: string;
+    surface: string;
+    source: string;
+    egress: "no-egress" | "cloud-allowed";
+    publisher: string | null;
+    signed: boolean;
+    builtin: boolean;
+    enabled: boolean;
+}
+
+export interface SkillsList {
+    builtin: SkillEntry[];
+    installed: SkillEntry[];
+}
+
+export async function listSkills(): Promise<SkillsList> {
+    return apiRequest<SkillsList>("/skills");
+}
+
+export async function importSkill(manifest: unknown): Promise<SkillEntry> {
+    return apiRequest<SkillEntry>("/skills/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ manifest }),
+    });
+}
+
+export async function setSkillEnabled(
+    id: string,
+    enabled: boolean,
+    confirmEgress?: boolean,
+): Promise<SkillEntry> {
+    return apiRequest<SkillEntry>(`/skills/${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled, confirm_egress: confirmEgress }),
+    });
+}
+
+export async function removeSkill(id: string): Promise<void> {
+    return apiRequest<void>(`/skills/${encodeURIComponent(id)}`, {
+        method: "DELETE",
+    });
+}
+
+// ---------------------------------------------------------------------------
+// Picker konektorow MCP (ADR-0133) - wybor jurysdykcji
+// ---------------------------------------------------------------------------
+
+export type ConnectorJurisdiction =
+    | "PL"
+    | "EU"
+    | "DE"
+    | "AT"
+    | "ES"
+    | "FI"
+    | "IE"
+    | "NL"
+    | "SE"
+    | "FR"
+    | "LU"
+    | "BR"
+    | "OTHER";
+
+export interface ConnectorInfo {
+    name: string;
+    enabled: boolean;
+    ring: 1 | 2;
+    toggleable: boolean;
+    jurisdiction: ConnectorJurisdiction;
+    trustLevel?: "trusted" | "untrusted";
+    operatorApproved?: boolean;
+}
+
+export async function getConnectors(): Promise<ConnectorInfo[]> {
+    const res = await apiRequest<{ connectors: ConnectorInfo[] }>("/connectors");
+    return res.connectors;
+}
+
+export async function setConnectorEnabled(
+    name: string,
+    enabled: boolean,
+): Promise<{ connector: ConnectorInfo; restartRequired: boolean }> {
+    return apiRequest<{ connector: ConnectorInfo; restartRequired: boolean }>(
+        `/connectors/${encodeURIComponent(name)}`,
+        {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ enabled }),
+        },
+    );
+}
+
+// ---------------------------------------------------------------------------
+// Karty zatwierdzenia mutacji (ADR-0137) - human-in-the-loop write staging
+// ---------------------------------------------------------------------------
+
+export type ApprovalStatus = "pending" | "approved" | "rejected";
+
+export interface ApprovalCard {
+    id: string;
+    user_id: string;
+    chat_id: string | null;
+    document_id: string | null;
+    tool_name: string;
+    tool_payload: Record<string, unknown>;
+    status: ApprovalStatus;
+    staged_at: string;
+    staged_by: string;
+    approved_at: string | null;
+    approved_by: string | null;
+    rejection_reason: string | null;
+    executed_at: string | null;
+    execution_error: string | null;
+    created_at: string;
+    updated_at: string;
+}
+
+export async function listApprovalCards(): Promise<ApprovalCard[]> {
+    const res = await apiRequest<{ approvals: ApprovalCard[] }>(
+        "/mutation-approvals",
+    );
+    return res.approvals;
+}
+
+export async function approveCard(id: string): Promise<{
+    approval: ApprovalCard;
+    executed: boolean;
+    execution_error: string | null;
+    result: unknown;
+}> {
+    return apiRequest(
+        `/mutation-approvals/${encodeURIComponent(id)}/approve`,
+        {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: "{}",
+        },
+    );
+}
+
+export async function rejectCard(
+    id: string,
+    reason?: string,
+): Promise<{ approval: ApprovalCard }> {
+    return apiRequest(
+        `/mutation-approvals/${encodeURIComponent(id)}/reject`,
+        {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ reason }),
+        },
+    );
+}
+
 export interface UserProfile {
     displayName: string | null;
     organisation: string | null;
@@ -127,7 +290,7 @@ export async function updateUserProfile(payload: {
     });
 }
 
-export type ApiKeyProvider = "claude" | "gemini" | "openai";
+export type ApiKeyProvider = "claude" | "gemini" | "openai" | "openrouter";
 export type ApiKeySource = "user" | "env" | null;
 export type ApiKeyState = Record<
     ApiKeyProvider,
@@ -177,6 +340,59 @@ export async function updateProject(
 
 export async function deleteProject(projectId: string): Promise<void> {
     await apiRequest(`/projects/${projectId}`, { method: "DELETE" });
+}
+
+/**
+ * Swiadoma zgoda na model chmurowy DLA TEJ SPRAWY (audyt P2 #6, ADR-0128).
+ * Owner-only po stronie backendu; zapisywane do audit_log. Zwraca nowy stan.
+ */
+export async function setCloudConsent(
+    projectId: string,
+    enabled: boolean,
+): Promise<{ id: string; cloud_consent: boolean }> {
+    return apiRequest<{ id: string; cloud_consent: boolean }>(
+        `/projects/${projectId}/cloud-consent`,
+        {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ enabled }),
+        },
+    );
+}
+
+/**
+ * "Zweryfikuj cytaty" (audyt Propozycja #8, ADR-0130) - mechaniczna weryfikacja
+ * cytatow gotowego pisma wzgledem akt sprawy (ADR-0005, deterministyczna).
+ * Zwraca werdykt per ref (verified/unverified/blocked) + podsumowanie.
+ */
+export interface CitationVerifyResult {
+    ref: number;
+    doc_id: string;
+    status: string;
+    decision: "verified" | "unverified" | "blocked";
+    worstRatio: number;
+    offset: number;
+    note?: string;
+}
+export interface CitationVerifyReport {
+    results: Record<number, CitationVerifyResult>;
+    summary: {
+        total: number;
+        verified: number;
+        unverified: number;
+        blocked: number;
+    };
+    blokada: boolean;
+}
+export async function verifyCitations(
+    projectId: string,
+    citations: { ref: number; doc_id: string; quote: string }[],
+): Promise<CitationVerifyReport> {
+    return apiRequest<CitationVerifyReport>(`/api/citations/verify`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ project_id: projectId, citations }),
+    });
 }
 
 export interface ProjectPeople {
@@ -589,8 +805,11 @@ export type DefenseStage = "recenzent" | "adwokat" | "pisz-po-ludzku";
 export type AdwokatMode = "strona-przeciwna" | "sad" | "prokurator";
 
 export interface DraftStageResult {
-    stage: DefenseStage;
+    // Wbudowany etap (enum) albo id custom skilla z paczki (ADR-0096).
+    stage: DefenseStage | string;
     mode?: AdwokatMode;
+    // Etykieta wyswietlana dla custom skilla (nazwa z manifestu).
+    label?: string;
     output: string;
 }
 
@@ -865,6 +1084,37 @@ export async function regenerateTabularCell(
         body: JSON.stringify({
             document_id: documentId,
             column_index: columnIndex,
+        }),
+    });
+}
+
+// ADR-0126 12c: human-review komorki - prawnik zatwierdza/odrzuca/poprawia wynik
+// ekstrakcji (akt ludzki, art. 12). Identyfikacja komorki jak regenerate-cell.
+export async function reviewTabularCell(
+    reviewId: string,
+    documentId: string,
+    columnIndex: number,
+    action: "approved" | "rejected" | "corrected",
+    correctedContent?: string,
+): Promise<{
+    ok: boolean;
+    review: {
+        action: "approved" | "rejected" | "corrected";
+        reviewedBy: string;
+        reviewedAt: string;
+        correctedContent?: string;
+    };
+}> {
+    return apiRequest(`/tabular-review/${reviewId}/cells/review`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            document_id: documentId,
+            column_index: columnIndex,
+            action,
+            ...(correctedContent !== undefined
+                ? { corrected_content: correctedContent }
+                : {}),
         }),
     });
 }

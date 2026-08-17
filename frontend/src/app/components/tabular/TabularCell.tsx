@@ -3,7 +3,17 @@
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { AlertCircle, Expand, ShieldAlert, ShieldCheck } from "lucide-react";
+import {
+    AlertCircle,
+    CheckCircle2,
+    Expand,
+    PencilLine,
+    ShieldAlert,
+    ShieldCheck,
+    ShieldQuestion,
+    XCircle,
+} from "lucide-react";
+import { t } from "@/i18n";
 import type {
     ColumnConfig,
     TabularCell as TCell,
@@ -43,8 +53,17 @@ function GroundingBadge({
                   ),
                   title: `Uwaga: ${unverified} z ${total} cytatow nie znaleziono doslownie w dokumencie - mozliwa halucynacja, sprawdz zrodlo.`,
               }
-            : status === "modified"
+            : status === "needs_review"
               ? {
+                    // ADR-0102 (B): cytat bez weryfikowalnego zrodla - nie potwierdzony
+                    // ani nie zaprzeczony, do przegladu prawnika.
+                    icon: (
+                        <ShieldQuestion className="h-3 w-3 shrink-0 text-slate-500" />
+                    ),
+                    title: `${grounding.needs_review ?? total} z ${total} cytatow bez weryfikowalnego zrodla - do przegladu prawnika (zrodla nie dalo sie odczytac, nie potwierdzono ani nie zaprzeczono).`,
+                }
+              : status === "modified"
+                ? {
                     icon: (
                         <ShieldAlert className="h-3 w-3 shrink-0 text-amber-500" />
                     ),
@@ -55,6 +74,43 @@ function GroundingBadge({
                         <ShieldCheck className="h-3 w-3 shrink-0 text-green-600" />
                     ),
                     title: `Cytaty zweryfikowane w dokumencie (${verified} z ${total}).`,
+                };
+    return (
+        <span title={title} className="inline-flex items-center">
+            {icon}
+        </span>
+    );
+}
+
+// ADR-0126: widoczny stan human-review komorki (approved/rejected/corrected)
+// w macierzy - prawnik widzi, co jeszcze wymaga przegladu. Brak review = brak
+// badge (zero szumu dla nieprzejrzanych).
+export function ReviewBadge({
+    action,
+}: {
+    action?: TCell["review_action"];
+}) {
+    if (!action) return null;
+    const { icon, title } =
+        action === "approved"
+            ? {
+                  icon: (
+                      <CheckCircle2 className="h-3 w-3 shrink-0 text-green-600" />
+                  ),
+                  title: t("tabular.reviewStatusApproved"),
+              }
+            : action === "rejected"
+              ? {
+                    icon: (
+                        <XCircle className="h-3 w-3 shrink-0 text-red-500" />
+                    ),
+                    title: t("tabular.reviewStatusRejected"),
+                }
+              : {
+                    icon: (
+                        <PencilLine className="h-3 w-3 shrink-0 text-amber-500" />
+                    ),
+                    title: t("tabular.reviewStatusCorrected"),
                 };
     return (
         <span title={title} className="inline-flex items-center">
@@ -231,8 +287,17 @@ export function TabularCell({
         return <div className="h-10" />;
     }
 
+    // ADR-0126 effectiveCellContent: corrected -> tresc poprawiona przez
+    // prawnika; rejected -> tresc wygaszona (widoczna, ale oznaczona).
+    const effectiveSummary =
+        cell.review_action === "corrected" && cell.corrected_content
+            ? cell.corrected_content
+            : cell.content.summary;
+    const rejectedCls =
+        cell.review_action === "rejected" ? "opacity-40 line-through" : "";
+
     const { processed, citations, pills } = preprocessCellMarkdown(
-        cell.content.summary,
+        effectiveSummary,
     );
 
     const firstLine = processed.split("\n").find((l) => l.trim()) ?? processed;
@@ -262,7 +327,8 @@ export function TabularCell({
                     />
                 )}
                 <GroundingBadge grounding={cell.content.grounding} />
-                <div className="line-clamp-1 w-full min-w-0 ml-1">
+                <ReviewBadge action={cell.review_action} />
+                <div className={`line-clamp-1 w-full min-w-0 ml-1 ${rejectedCls}`}>
                     <CellMarkdown
                         text={collapsedDisplay}
                         citations={citations}
@@ -295,20 +361,37 @@ export function TabularCell({
                                     "unverified"
                                         ? "Cytat niezweryfikowany w dokumencie"
                                         : cell.content.grounding.status ===
-                                            "modified"
-                                          ? "Cytat z drobnymi roznicami"
-                                          : "Cytaty zweryfikowane"}
+                                            "needs_review"
+                                          ? "Cytat bez weryfikowalnego zrodla - do przegladu"
+                                          : cell.content.grounding.status ===
+                                              "modified"
+                                            ? "Cytat z drobnymi roznicami"
+                                            : "Cytaty zweryfikowane"}
                                 </span>
                             </div>
                         )}
-                        <CellMarkdown
-                            text={processed}
-                            citations={citations}
-                            pills={pills}
-                            column={column}
-                            onCitationClick={handleCitationClickInOverlay}
-                            onExpand={handleSeeDetails}
-                        />
+                        {cell.review_action && (
+                            <div className="mb-1 flex items-center gap-1 text-[10px] text-gray-500">
+                                <ReviewBadge action={cell.review_action} />
+                                <span>
+                                    {cell.review_action === "approved"
+                                        ? t("tabular.reviewStatusApproved")
+                                        : cell.review_action === "rejected"
+                                          ? t("tabular.reviewStatusRejected")
+                                          : t("tabular.reviewStatusCorrected")}
+                                </span>
+                            </div>
+                        )}
+                        <div className={rejectedCls}>
+                            <CellMarkdown
+                                text={processed}
+                                citations={citations}
+                                pills={pills}
+                                column={column}
+                                onCitationClick={handleCitationClickInOverlay}
+                                onExpand={handleSeeDetails}
+                            />
+                        </div>
                     </div>
                     <div className="px-2 py-1.5 flex items-center justify-end">
                         <button

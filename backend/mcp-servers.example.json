@@ -1,11 +1,40 @@
 [
   {
-    "_comment": "Copy this file to mcp-servers.json and adjust to your setup.",
-    "_comment2": "mcp-servers.json is gitignored (local config, may contain credentials).",
+    "_comment": "Skopiuj ten plik do mcp-servers.json i dostosuj sciezki. mcp-servers.json jest gitignored.",
+    "_comment2": "Nazwy MUSZA odpowiadac APPROVED_PATRON_CONNECTORS w backend/src/lib/mcp-security/pipeline.ts - inaczej bramka typosquat zablokuje wlasny konektor.",
+    "_comment3": "W instalatorze desktop ten plik jest generowany automatycznie (desktop/scripts/prepare-resources.cjs) ze sciezkami wzglednymi mcp-bundled/<name>/dist/index.js.",
     "name": "saos",
     "transport": "stdio",
     "command": "node",
-    "args": ["/path/to/saos-mcp-server/dist/index.js"],
+    "args": ["/path/to/mcp-saos/dist/index.js"],
+    "enabled": false
+  },
+  {
+    "name": "nsa",
+    "transport": "stdio",
+    "command": "node",
+    "args": ["/path/to/mcp-nsa/dist/index.js"],
+    "enabled": false
+  },
+  {
+    "name": "isap",
+    "transport": "stdio",
+    "command": "node",
+    "args": ["/path/to/mcp-isap/dist/index.js"],
+    "enabled": false
+  },
+  {
+    "name": "krs",
+    "transport": "stdio",
+    "command": "node",
+    "args": ["/path/to/mcp-krs/dist/index.js"],
+    "enabled": false
+  },
+  {
+    "name": "eu-sparql",
+    "transport": "stdio",
+    "command": "node",
+    "args": ["/path/to/mcp-eu-sparql/dist/index.js"],
     "enabled": false
   },
   {
@@ -17,9 +46,122 @@
     "enabled": false
   },
   {
-    "name": "example-http",
-    "transport": "http",
-    "url": "http://localhost:3100/mcp",
+    "_comment": "eureka = EUREKA MF (interpretacje podatkowe KIS, WIS, WIA). Zapytanie LIVE do eureka.mf.gov.pl - nie wozi lokalnego korpusu, wiec przy odcietej sieci degraduje sie do braku trafien, nie do bledu.",
+    "name": "eureka",
+    "transport": "stdio",
+    "command": "node",
+    "args": ["/path/to/mcp-eureka/dist/index.js"],
+    "enabled": false
+  },
+  {
+    "_comment": "Konektory krajowe UE (Python, ADR-0133/0134). Gateway-scan 2026-06-24: wszystkie 9 czyste (threat=low, zero hidden-instructions/tool-poisoning) -> w APPROVED_PATRON_CONNECTORS. runtime:python.",
+    "_comment_dev": "Dev/serwer: uruchamiane przez uv (command 'uv', args ['run','--directory','/path/to/<x>-eli-mcp','<x>-eli-mcp']). Bundle desktop: frozen-exe (PyInstaller) w mcp-bundled/<name>/, command 'mcp-bundled/<name>/<name>-mcp.exe' (sciezka wzgledna rozwiazywana wzgledem korzenia backendu).",
+    "_comment_fr": "fr-eli (Legifrance/PISTE) wymaga kluczy OAuth w env do wywolan; listTools dziala bez kluczy.",
+    "name": "de-eli",
+    "transport": "stdio",
+    "runtime": "python",
+    "command": "uv",
+    "args": ["run", "--directory", "/path/to/de-eli-mcp", "de-eli-mcp"],
+    "enabled": false
+  },
+  {
+    "name": "at-eli",
+    "transport": "stdio",
+    "runtime": "python",
+    "command": "uv",
+    "args": ["run", "--directory", "/path/to/at-eli-mcp", "at-eli-mcp"],
+    "enabled": false
+  },
+  {
+    "name": "es-eli",
+    "transport": "stdio",
+    "runtime": "python",
+    "command": "uv",
+    "args": ["run", "--directory", "/path/to/es-eli-mcp", "es-eli-mcp"],
+    "enabled": false
+  },
+  {
+    "name": "fi-eli",
+    "transport": "stdio",
+    "runtime": "python",
+    "command": "uv",
+    "args": ["run", "--directory", "/path/to/fi-eli-mcp", "fi-eli-mcp"],
+    "enabled": false
+  },
+  {
+    "name": "ie-eli",
+    "transport": "stdio",
+    "runtime": "python",
+    "command": "uv",
+    "args": ["run", "--directory", "/path/to/ie-eli-mcp", "ie-eli-mcp"],
+    "enabled": false
+  },
+  {
+    "name": "nl-eli",
+    "transport": "stdio",
+    "runtime": "python",
+    "command": "uv",
+    "args": ["run", "--directory", "/path/to/nl-eli-mcp", "nl-eli-mcp"],
+    "enabled": false
+  },
+  {
+    "name": "se-eli",
+    "transport": "stdio",
+    "runtime": "python",
+    "command": "uv",
+    "args": ["run", "--directory", "/path/to/se-eli-mcp", "se-eli-mcp"],
+    "enabled": false
+  },
+  {
+    "name": "fr-eli",
+    "transport": "stdio",
+    "runtime": "python",
+    "command": "uv",
+    "args": ["run", "--directory", "/path/to/fr-eli-mcp", "fr-eli-mcp"],
+    "enabled": false
+  },
+  {
+    "name": "lu-eli",
+    "transport": "stdio",
+    "runtime": "python",
+    "command": "uv",
+    "args": ["run", "--directory", "/path/to/lu-eli-mcp", "lu-eli-mcp"],
+    "enabled": false
+  },
+  {
+    "_comment": "it-eli (ADR-0139, rynek wloski): Normattiva legislacja (URN:NIR/ELI, multivigenza) + orzecznictwo Corte Costituzionale (ECLI). Repo it-eli-mcp, paczka PyPI italy-eli-mcp - stad nazwa skryptu w args.",
+    "name": "it-eli",
+    "transport": "stdio",
+    "runtime": "python",
+    "command": "uv",
+    "args": ["run", "--directory", "/path/to/it-eli-mcp", "italy-eli-mcp"],
+    "enabled": false
+  },
+  {
+    "_comment": "br-eli (ADR-0139, rynek brazylijski): legis.senado.leg.br + normas.leg.br legislacao federal (URN Lex, texto por artigo, historico de alteracoes, sinalizacoes STF) + DataJud CNJ (metadados processuais, br_search_processos/br_get_processo). Repo br-eli-mcp, paczka PyPI br-eli-mcp.",
+    "name": "br-eli",
+    "transport": "stdio",
+    "runtime": "python",
+    "command": "uv",
+    "args": ["run", "--directory", "/path/to/br-eli-mcp", "br-eli-mcp"],
+    "enabled": false
+  },
+  {
+    "_comment": "gb-eli (ADR-0139, rynek brytyjski, locale gb): legislation.gov.uk (Acts/UK SI, wlasny stabilny id URI, brak natywnego ELI) + Find Case Law (orzecznictwo, neutral citation) + GOV.UK Search/Content API (trybunaly, HMRC, CMA). Repo gb-eli-mcp, paczka PyPI gb-eli-mcp.",
+    "name": "gb-eli",
+    "transport": "stdio",
+    "runtime": "python",
+    "command": "uv",
+    "args": ["run", "--directory", "/path/to/gb-eli-mcp", "gb-eli-mcp"],
+    "enabled": false
+  },
+  {
+    "_comment": "us-eli (jurysdykcja USA, locale us): Congress.gov (proces legislacyjny) + GovInfo (US Code/Statutes at Large/CFR/Federal Register jako pakiety) + Federal Register full-text + eCFR (biezace przepisy) + CourtListener (orzecznictwo, glownie stanowe). Repo us-eli-mcp, paczka PyPI us-eli-mcp. Keyless poza Congress.gov/GovInfo (DEMO_KEY dziala, wlasny klucz zalecany produkcyjnie).",
+    "name": "us-eli",
+    "transport": "stdio",
+    "runtime": "python",
+    "command": "uv",
+    "args": ["run", "--directory", "/path/to/us-eli-mcp", "us-eli-mcp"],
     "enabled": false
   }
 ]

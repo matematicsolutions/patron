@@ -5,6 +5,7 @@ import { attachActiveVersionPaths } from "../documentVersions";
 import type { McpCitation } from "../mcp";
 import { createServerSupabase } from "../supabase";
 import type { GroundingResult } from "../citation/grounding";
+import type { CitationLocator } from "../citation/locator";
 import { parseCitations, resolveDoc } from "./citations";
 import type {
     ChatMessage,
@@ -26,7 +27,15 @@ export function extractAnnotations(
     // ADR-0005: werdykt mechanicznej weryfikacji cytatow per ref. Gdy podany,
     // dokleja `grounding` (verified/unverified/blocked) do citation_data - dzieki
     // temu badge przetrwa reload czatu (annotations zapisywane w DB).
-    grounding?: Record<number, GroundingResult>,
+    // ADR-0123: gdy werdykt niesie trwaly lokator (ADR-0116/0120, obecny dla
+    // cytatu zweryfikowanego verbatim), persystujemy go tez - dzieki temu
+    // occurrence-aware highlight (ADR-0122) dziala po reload czatu, nie tylko na
+    // zywym evencie SSE. rawText (= tresc cytatu) laduje obok `quote` (juz
+    // persystowanego) w annotations; NIE w audit_log (granica ADR-0120).
+    grounding?: Record<
+        number,
+        GroundingResult & { locator?: CitationLocator | null }
+    >,
 ): unknown[] {
     const out: unknown[] = parseCitations(fullText).map((c) => {
         const docInfo = resolveDoc(c.doc_id, docIndex);
@@ -42,7 +51,13 @@ export function extractAnnotations(
             page: c.page,
             quote: c.quote,
             ...(verdict
-                ? { grounding: verdict.decision, grounding_status: verdict.status }
+                ? {
+                      grounding: verdict.decision,
+                      grounding_status: verdict.status,
+                      ...(verdict.locator
+                          ? { locator: verdict.locator }
+                          : {}),
+                  }
                 : {}),
         };
     });

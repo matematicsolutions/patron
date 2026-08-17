@@ -24,7 +24,7 @@ interface Props {
     bordered?: boolean;
 }
 
-type QuoteEntry = { page?: number; quote: string };
+type QuoteEntry = { page?: number; quote: string; occurrence?: number };
 
 const SIDE_PADDING = 20;
 const ZOOM_MIN = 0.5;
@@ -59,14 +59,18 @@ export function DocView({
 
     const quoteList: QuoteEntry[] = useMemo(() => {
         if (quotes?.length)
-            return quotes.map((q) => ({ page: q.page, quote: q.quote }));
+            return quotes.map((q) => ({
+                page: q.page,
+                quote: q.quote,
+                occurrence: q.occurrence,
+            }));
         if (quote) return [{ page: fallbackPage, quote }];
         return [];
     }, [quotes, quote, fallbackPage]);
 
     // Stable string key so effects can depend on quote-list identity
     const quoteKey = quoteList
-        .map((q) => `${q.page ?? ""}:${q.quote}`)
+        .map((q) => `${q.page ?? ""}:${q.occurrence ?? ""}:${q.quote}`)
         .join("|");
 
     const [containerWidth, setContainerWidth] = useState(0);
@@ -141,6 +145,7 @@ export function DocView({
                         const found = await highlightQuote(
                             target.textDivs,
                             entry.quote,
+                            entry.occurrence,
                         );
                         if (found) hitPage = entry.page;
                     }
@@ -156,6 +161,7 @@ export function DocView({
                         const found = await highlightQuote(
                             p.textDivs,
                             entry.quote,
+                            entry.occurrence,
                         );
                         if (found) {
                             hitPage = i + 1;

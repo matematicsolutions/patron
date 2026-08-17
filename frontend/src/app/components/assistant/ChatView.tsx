@@ -10,6 +10,7 @@ import {
     type AssistantSidePanelTab,
 } from "./AssistantSidePanel";
 import { AssistantWorkflowModal } from "./AssistantWorkflowModal";
+import { t } from "@/i18n";
 import type {
     PATRONCitationAnnotation,
     PATRONEditAnnotation,
@@ -374,7 +375,14 @@ export function ChatView({
     }, [messages, updateScrollButton]);
 
     const scrollToBottom = () => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        // Audyt UI: przycisk "w dol" zawodzil "przy wyniku zadania". scrollIntoView
+        // na zero-wysokosciowym markerze koncowym liczy cel w momencie klikniecia -
+        // gdy odpowiedz wciaz sie renderuje/rosnie, smooth-scroll nie dobija do
+        // realnego dna. Scrollujemy bezposrednio kontener do jego scrollHeight
+        // (deterministyczne dno niezaleznie od markera i strumieniowania).
+        const c = messagesContainerRef.current;
+        if (!c) return;
+        c.scrollTo({ top: c.scrollHeight, behavior: "smooth" });
     };
 
     const scrollLatestUserToTop = useCallback(() => {
@@ -583,8 +591,7 @@ export function ChatView({
                             />
                             <div className="py-3 text-center">
                                 <p className="text-xs text-gray-500">
-                                    AI can make mistakes. Answers are not legal
-                                    advice.
+                                    {t("chat.legalDisclaimer")}
                                 </p>
                             </div>
                         </div>

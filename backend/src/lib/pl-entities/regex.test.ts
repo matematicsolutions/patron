@@ -191,19 +191,110 @@ describe("detectAll - sygnatury aktow prawnych", () => {
 });
 
 describe("detectAll - firmy z forma prawna", () => {
+    const firmy = (text: string) =>
+        detectAll(text)
+            .filter((m) => m.type === "FIRMA")
+            .map((m) => m.raw);
+
     it("wykrywa Sp. z o.o. i S.A.", () => {
         const text =
             "Acme sp. z o.o. zawarla umowe z PKN Orlen S.A. w marcu 2024.";
         const matches = detectAll(text);
-        const firmy = matches.filter((m) => m.type === "FIRMA");
-        expect(firmy.length).toBeGreaterThanOrEqual(2);
+        const found = matches.filter((m) => m.type === "FIRMA");
+        expect(found.length).toBeGreaterThanOrEqual(2);
     });
 
     it("nie wykrywa nazw bez formy prawnej (do LLM-fallback)", () => {
         const text = "Klient Acme zglosil reklamacje.";
         const matches = detectAll(text);
-        const firmy = matches.filter((m) => m.type === "FIRMA");
-        expect(firmy).toHaveLength(0);
+        const found = matches.filter((m) => m.type === "FIRMA");
+        expect(found).toHaveLength(0);
+    });
+
+    // ADR-0110: zapis MALA litera ("sp. z o.o.") jest dominujacy w KRS i w
+    // pismach procesowych. Wariant case-sensitive przepuszczal nazwe podmiotu
+    // klienta do LLM niezamaskowana - kazda forma prawna musi byc pokryta w
+    // OBU zapisach. Regresja bezpieczenstwa, nie kosmetyka.
+    describe("odpornosc na wielkosc liter (ADR-0110)", () => {
+        const PARY: ReadonlyArray<readonly [string, string, string]> = [
+            ["sp. z o.o.", "Acme sp. z o.o.", "Acme Sp. z o.o."],
+            [
+                "spolka z ograniczona odpowiedzialnoscia",
+                "Acme spolka z ograniczona odpowiedzialnoscia",
+                "Acme Spolka z Ograniczona Odpowiedzialnoscia",
+            ],
+            [
+                "spółka z ograniczoną odpowiedzialnością",
+                "Acme spółka z ograniczoną odpowiedzialnością",
+                "Acme Spółka z Ograniczoną Odpowiedzialnością",
+            ],
+            ["s.a.", "Bank Acme s.a.", "Bank Acme S.A."],
+            ["sp.k.", "Acme sp.k.", "Acme Sp.K."],
+            ["sp. k.", "Acme sp. k.", "Acme Sp. K."],
+            ["sp.j.", "Acme sp.j.", "Acme Sp.J."],
+            ["sp.p.", "Acme sp.p.", "Acme Sp.P."],
+            ["s.k.a.", "Acme s.k.a.", "Acme S.K.A."],
+            ["p.s.a.", "Acme p.s.a.", "Acme P.S.A."],
+            ["sp. komandytowa", "Acme sp. komandytowa", "Acme Sp. Komandytowa"],
+            ["spolka cywilna", "Acme spolka cywilna", "Acme Spolka Cywilna"],
+            ["spółka cywilna", "Acme spółka cywilna", "Acme Spółka Cywilna"],
+            ["s.c.", "Acme s.c.", "Acme S.C."],
+        ];
+
+        for (const [forma, mala, wielka] of PARY) {
+            it(`${forma} - wykrywa zapis mala i wielka litera`, () => {
+                expect(firmy(`${mala} zawarla umowe.`)).toContain(mala);
+                expect(firmy(`${wielka} zawarla umowe.`)).toContain(wielka);
+            });
+        }
+
+        it("wersalikami tez (SP. Z O.O.)", () => {
+            expect(firmy("Acme SP. Z O.O. zawarla umowe.")).toContain(
+                "Acme SP. Z O.O.",
+            );
+        });
+
+        it("tolerancyjny na spacje wokol kropki (sp.z o.o.)", () => {
+            expect(firmy("Acme sp.z o.o. zawarla umowe.")).toContain(
+                "Acme sp.z o.o.",
+            );
+        });
+
+        it("dwie rozne formy w jednym zdaniu, obie mala litera", () => {
+            const found = firmy("Acme sp.k. i Beta sp.j. zawarly umowe.");
+            expect(found).toContain("Acme sp.k.");
+            expect(found).toContain("Beta sp.j.");
+        });
+    });
+
+    // Granica slowa jest OBOWIAZKOWA - krotkie skroty (s.a., s.c.) bez niej
+    // generuja szum. Patrz reference_regex_skroty_prawne_granice_slowa.
+    describe("granice slowa dla krotkich skrotow", () => {
+        it("nie lapie S.A. wewnatrz U.S.A. (brak spacji przed forma)", () => {
+            expect(firmy("Wyjazd do U.S.A. w marcu.")).toHaveLength(0);
+        });
+
+        it("nie lapie inicjalow osoby jako s.c. (spacja w srodku skrotu)", () => {
+            expect(firmy("Powod S. C. wniosl pozew.")).toHaveLength(0);
+        });
+
+        it("forma slowna nie lapie przedrostka dluzszego wyrazu", () => {
+            expect(firmy("Acme spolka cywilnaxyz dziala.")).toHaveLength(0);
+        });
+    });
+
+    it("nazwa zaczynajaca sie polska litera nie jest obcinana", () => {
+        // `\b` jest ASCII - przy kotwicy `\b` regex startowal dopiero od
+        // "Zaklady" i pierwszy token nazwy zostawal niezamaskowany.
+        expect(firmy("Łódzkie Zaklady sp. z o.o. zlozyly pozew.")).toContain(
+            "Łódzkie Zaklady sp. z o.o.",
+        );
+    });
+
+    it("forma na koncu domkniecia nawiasu jest lapana", () => {
+        expect(firmy("(Acme sp. z o.o.) - strona umowy")).toContain(
+            "Acme sp. z o.o.",
+        );
     });
 });
 

@@ -14,6 +14,7 @@ import {
 } from "@/app/lib/patronApi";
 import type { TabularReview, PATRONProject } from "@/app/components/shared/types";
 import { ToolbarTabs } from "@/app/components/shared/ToolbarTabs";
+import { SortHeader, applySort, type SortDir } from "@/app/components/shared/SortHeader";
 import { AddNewTRModal } from "@/app/components/tabular/AddNewTRModal";
 import { OwnerOnlyModal } from "@/app/components/shared/OwnerOnlyModal";
 import { useAuth } from "@/contexts/AuthContext";
@@ -45,6 +46,15 @@ export default function TabularReviewsPage() {
     const [projectFilter, setProjectFilter] = useState<string | null>(null);
     const [filterOpen, setFilterOpen] = useState(false);
     const [search, setSearch] = useState("");
+    const [sortKey, setSortKey] = useState<string | null>(null);
+    const [sortDir, setSortDir] = useState<SortDir>("asc");
+
+    function onSort(key: string) {
+        setSortDir((prev) =>
+            sortKey === key ? (prev === "asc" ? "desc" : "asc") : "asc",
+        );
+        setSortKey(key);
+    }
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const [actionsOpen, setActionsOpen] = useState(false);
     const [ownerOnlyAction, setOwnerOnlyAction] = useState<string | null>(null);
@@ -99,6 +109,23 @@ export default function TabularReviewsPage() {
         })
         .filter((r) => !projectFilter || r.project_id === projectFilter)
         .filter((r) => !q || (r.title ?? "").toLowerCase().includes(q));
+
+    const sorted = applySort(filtered, sortKey, sortDir, (r) => {
+        switch (sortKey) {
+            case "name":
+                return r.title ?? "";
+            case "columns":
+                return r.columns_config?.length ?? 0;
+            case "documents":
+                return r.document_count ?? 0;
+            case "project":
+                return projects.find((p) => p.id === r.project_id)?.name ?? null;
+            case "created":
+                return r.created_at ? Date.parse(r.created_at) : null;
+            default:
+                return null;
+        }
+    });
 
     const allSelected =
         filtered.length > 0 &&
@@ -198,7 +225,7 @@ export default function TabularReviewsPage() {
                 <ChevronDown className="h-3 w-3" />
             </button>
             {filterOpen && (
-                <div className="absolute right-0 top-full mt-1.5 z-20 w-52 rounded-xl border border-gray-100 bg-white shadow-lg overflow-hidden">
+                <div className="absolute right-0 top-full mt-1.5 z-[70] w-52 rounded-xl border border-gray-100 bg-white shadow-lg overflow-hidden">
                     <button
                         onClick={() => {
                             setProjectFilter(null);
@@ -246,7 +273,7 @@ export default function TabularReviewsPage() {
                         <ChevronDown className="h-3.5 w-3.5" />
                     </button>
                     {actionsOpen && (
-                        <div className="absolute top-full right-0 mt-1 w-36 rounded-lg border border-gray-100 bg-white shadow-lg z-50 overflow-hidden">
+                        <div className="absolute top-full right-0 mt-1 w-36 rounded-lg border border-gray-100 bg-white shadow-lg z-[70] overflow-hidden">
                             <button
                                 onClick={handleDeleteSelected}
                                 className="w-full px-3 py-1.5 text-left text-xs text-red-600 hover:bg-red-50 transition-colors"
@@ -309,12 +336,50 @@ export default function TabularReviewsPage() {
                         )}
                     </div>
                     <div className={`sticky left-8 z-[60] ${NAME_COL_W} bg-white pl-2 text-left`}>
-                        {t("tabular.nameColumn")}
+                        <SortHeader
+                            label={t("tabular.nameColumn")}
+                            columnKey="name"
+                            activeKey={sortKey}
+                            dir={sortDir}
+                            onSort={onSort}
+                        />
                     </div>
-                    <div className="ml-auto w-24 shrink-0">{t("tabular.columnsColumn")}</div>
-                    <div className="w-24 shrink-0">{t("tabular.documentsColumn")}</div>
-                    <div className="w-40 shrink-0">{t("tabular.projectColumn")}</div>
-                    <div className="w-32 shrink-0">{t("tabular.createdColumn")}</div>
+                    <div className="ml-auto w-24 shrink-0">
+                        <SortHeader
+                            label={t("tabular.columnsColumn")}
+                            columnKey="columns"
+                            activeKey={sortKey}
+                            dir={sortDir}
+                            onSort={onSort}
+                        />
+                    </div>
+                    <div className="w-24 shrink-0">
+                        <SortHeader
+                            label={t("tabular.documentsColumn")}
+                            columnKey="documents"
+                            activeKey={sortKey}
+                            dir={sortDir}
+                            onSort={onSort}
+                        />
+                    </div>
+                    <div className="w-40 shrink-0">
+                        <SortHeader
+                            label={t("tabular.projectColumn")}
+                            columnKey="project"
+                            activeKey={sortKey}
+                            dir={sortDir}
+                            onSort={onSort}
+                        />
+                    </div>
+                    <div className="w-32 shrink-0">
+                        <SortHeader
+                            label={t("tabular.createdColumn")}
+                            columnKey="created"
+                            activeKey={sortKey}
+                            dir={sortDir}
+                            onSort={onSort}
+                        />
+                    </div>
                     <div className="w-8 shrink-0" />
                 </div>
 
@@ -372,7 +437,7 @@ export default function TabularReviewsPage() {
                     </div>
                 ) : (
                     <div>
-                        {filtered.map((review) => {
+                        {sorted.map((review) => {
                             const project = projects.find(
                                 (p) => p.id === review.project_id,
                             );

@@ -123,6 +123,42 @@ describe("extractEntitiesAndEdges - firmy", () => {
         const edge = r.edges.find((edge) => edge.relation === "wspomina_firme");
         expect(edge).toBeDefined();
     });
+
+    // ADR-0110: wezel FIRMA w grafie NIE moze zalezec od tego, czy pismo
+    // zapisuje forme prawna z wielkiej czy z malej litery. Zapis mala litera
+    // jest w praktyce dominujacy (KRS, pisma procesowe).
+    describe.each([
+        ["mala litera", "sp. z o.o."],
+        ["wielka litera", "Sp. z o.o."],
+        ["wersaliki", "SP. Z O.O."],
+        ["forma slowna mala litera", "spolka cywilna"],
+        ["forma slowna wielka litera", "Spolka Cywilna"],
+        ["skrot mala litera", "s.a."],
+        ["skrot wielka litera", "S.A."],
+    ])("zapis formy prawnej: %s", (_opis, forma) => {
+        it(`"${forma}" daje wezel FIRMA i krawedz wspomina_firme`, () => {
+            const r = extractEntitiesAndEdges(
+                `doc-firma-${forma}`,
+                `Acme ${forma} zlozyla pozew.`,
+            );
+            const e = r.entities.find((x) => x.type === "FIRMA");
+            expect(e).toBeDefined();
+            expect(e!.value).toBe(`Acme ${forma}`);
+            expect(
+                r.edges.find((edge) => edge.relation === "wspomina_firme"),
+            ).toBeDefined();
+        });
+    });
+
+    it("ten sam podmiot zapisany raz mala raz wielka litera daje ten sam wezel", () => {
+        const mala = extractEntitiesAndEdges("d1", "Acme sp. z o.o. zlozyla pozew.");
+        const wielka = extractEntitiesAndEdges("d2", "Acme Sp. z o.o. zlozyla pozew.");
+        const eMala = mala.entities.find((e) => e.type === "FIRMA");
+        const eWielka = wielka.entities.find((e) => e.type === "FIRMA");
+        expect(eMala).toBeDefined();
+        expect(eWielka).toBeDefined();
+        expect(eMala!.confidence).toBe(eWielka!.confidence);
+    });
 });
 
 describe("extractEntitiesAndEdges - opcje", () => {

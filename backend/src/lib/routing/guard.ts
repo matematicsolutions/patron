@@ -21,6 +21,17 @@ export function allowUsProviders(): boolean {
 }
 
 /**
+ * Czy Operator wyrazil swiadoma zgode na model chmurowy dla spraw objetych
+ * tajemnica zawodowa (PATRON_ALLOW_PRIVILEGED_CLOUD). Na desktopie single-user
+ * adwokat jest Operatorem na wlasnej maszynie - jego wybor modelu chmurowego
+ * (Libra/Anthropic) jest ta zgoda; instalator ustawia ja domyslnie. Egress i tak
+ * jest audytowany (dowod). Default false (fabryka serwerowa = rygor).
+ */
+export function allowPrivilegedCloud(): boolean {
+    return process.env.PATRON_ALLOW_PRIVILEGED_CLOUD === "true";
+}
+
+/**
  * Sugerowany model lokalny (no-egress) do zaproponowania przy blokadzie.
  * Env PATRON_LOCAL_MODEL (np. "ollama/llama3.3:70b"). null jesli nieustawiony.
  */
@@ -52,6 +63,31 @@ export async function resolveClassification(
         return "attorney_client_privileged";
     } catch {
         return "attorney_client_privileged";
+    }
+}
+
+/**
+ * Czy dla TEJ sprawy Operator wlaczyl swiadoma zgode na model chmurowy (ADR-0128,
+ * audyt P2 #6). Per-sprawa `projects.cloud_consent`, niezaleznie od globalnego
+ * `allowPrivilegedCloud()`. Defensywne: brak kolumny / brak sprawy / blad ->
+ * false (fail-closed). Czat ogolny (brak projectId) -> false.
+ */
+export async function resolveCloudConsent(
+    db: ReturnType<typeof createServerSupabase>,
+    projectId?: string | null,
+): Promise<boolean> {
+    if (!projectId) return false;
+    try {
+        const { data, error } = await db
+            .from("projects")
+            .select("cloud_consent")
+            .eq("id", projectId)
+            .limit(1);
+        if (error) return false;
+        const row = data?.[0] as { cloud_consent?: number | boolean } | undefined;
+        return row?.cloud_consent === 1 || row?.cloud_consent === true;
+    } catch {
+        return false;
     }
 }
 
@@ -105,10 +141,16 @@ export async function guardEgress(args: {
 }): Promise<EgressGuardResult> {
     const classification = await resolveClassification(args.db, args.projectId);
     const egress = egressForModel(args.model);
+    // Zgoda na chmure: globalna (env) LUB per-sprawa (ADR-0128). Per-sprawa zgoda
+    // jest swiadoma, audytowana decyzja Operatora dla konkretnej sprawy.
+    const privilegedCloud =
+        allowPrivilegedCloud() ||
+        (await resolveCloudConsent(args.db, args.projectId));
     const decision = decideRoute({
         classification,
         egress,
         allowUsProviders: allowUsProviders(),
+        allowPrivilegedCloud: privilegedCloud,
     });
     const provider = providerLabelForModel(args.model);
     if (decision.action === "allow") {

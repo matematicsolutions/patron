@@ -14,26 +14,81 @@ import { isModelAvailable } from "@/app/lib/modelAvailability";
 import type { ApiKeyState } from "@/app/lib/patronApi";
 import { t } from "@/i18n";
 
+export type ModelGroup =
+    | "Lokalny"
+    | "OpenRouter"
+    | "Anthropic"
+    | "Google"
+    | "OpenAI";
+
 export interface ModelOption {
     id: string;
     label: string;
-    group: "Anthropic" | "Google" | "OpenAI";
+    group: ModelGroup;
 }
 
+// Lokalny (Ollama) = zero egress, tajemnica zostaje na urzadzeniu.
+// OpenRouter = jeden klucz, wiele modeli (w tym chinskie) - "podepniemy wszystko".
+// Grupy natywne = wlasny klucz danego dostawcy.
 export const MODELS: ModelOption[] = [
-    { id: "claude-opus-4-7", label: "Claude Opus 4.7", group: "Anthropic" },
-    { id: "claude-sonnet-4-6", label: "Claude Sonnet 4.6", group: "Anthropic" },
-    { id: "gemini-3.1-pro-preview", label: "Gemini 3.1 Pro", group: "Google" },
-    { id: "gemini-3-flash-preview", label: "Gemini 3 Flash", group: "Google" },
-    { id: "gpt-5.5", label: "GPT-5.5", group: "OpenAI" },
-    { id: "gpt-5.4-mini", label: "GPT-5.4 Mini", group: "OpenAI" },
+    {
+        id: "ollama/SpeakLeash/bielik-11b-v2.3-instruct:Q4_K_M",
+        label: "Bielik 11B (lokalny)",
+        group: "Lokalny",
+    },
+    {
+        id: "openrouter/anthropic/claude-opus-4.8",
+        label: "Claude Opus 4.8",
+        group: "OpenRouter",
+    },
+    {
+        id: "openrouter/anthropic/claude-sonnet-4.6",
+        label: "Claude Sonnet 4.6",
+        group: "OpenRouter",
+    },
+    {
+        id: "openrouter/google/gemini-3-flash-preview",
+        label: "Gemini 3 Flash",
+        group: "OpenRouter",
+    },
+    {
+        id: "openrouter/qwen/qwen3.6-flash",
+        label: "Qwen 3.6 Flash",
+        group: "OpenRouter",
+    },
+    {
+        id: "openrouter/mistralai/mistral-medium-3-5",
+        label: "Mistral Medium 3.5",
+        group: "OpenRouter",
+    },
+    // Modele "direct" (wlasny klucz danego dostawcy). Suffix w etykiecie ROZROZNIA
+    // je od identycznie nazwanych modeli OpenRouter - inaczej w pickerze widac dwa
+    // razy "Claude Sonnet 4.6" i nie wiadomo, ktory wymaga wlasnego klucza (to byl
+    // realny blad pilotazu: wybor wersji bez klucza dawal gluchy "Stream error").
+    { id: "claude-opus-4-8", label: "Claude Opus 4.8 (wlasny klucz Anthropic)", group: "Anthropic" },
+    { id: "claude-sonnet-4-6", label: "Claude Sonnet 4.6 (wlasny klucz Anthropic)", group: "Anthropic" },
+    { id: "gemini-3.1-pro-preview", label: "Gemini 3.1 Pro (wlasny klucz Google)", group: "Google" },
+    { id: "gemini-3-flash-preview", label: "Gemini 3 Flash (wlasny klucz Google)", group: "Google" },
+    { id: "gpt-5.5", label: "GPT-5.5 (wlasny klucz OpenAI)", group: "OpenAI" },
+    { id: "gpt-5.4-mini", label: "GPT-5.4 Mini (wlasny klucz OpenAI)", group: "OpenAI" },
 ];
 
-export const DEFAULT_MODEL_ID = "gemini-3-flash-preview";
+// Domyslny model: OpenRouter Gemini 3 Flash - tani i szybki, jeden klucz Operatora
+// pokrywa wszystkie modele OpenRouter, wiec dziala "z pudelka". Wczesniej domyslny
+// byl Gemini-direct (gemini-3-flash-preview), ktory wymaga osobnego klucza Google
+// -> swiezy build padal na starcie. Mecenas zmienia model jednym klikiem (Sonnet,
+// Bielik lokalny itd.) jesli chce mocniejszy/zero-cloud.
+export const DEFAULT_MODEL_ID = "openrouter/google/gemini-3-flash-preview";
 
 export const ALLOWED_MODEL_IDS = new Set(MODELS.map((m) => m.id));
 
-const GROUP_ORDER: ModelOption["group"][] = ["Anthropic", "Google", "OpenAI"];
+const GROUP_ORDER: ModelGroup[] = [
+    "Lokalny",
+    "OpenRouter",
+    "Anthropic",
+    "Google",
+    "OpenAI",
+];
 
 interface Props {
     value: string;
@@ -54,7 +109,7 @@ export function ModelToggle({ value, onChange, apiKeys }: Props) {
             <DropdownMenuTrigger asChild>
                 <button
                     type="button"
-                    className={`flex items-center gap-1.5 rounded-lg px-2 h-8 text-sm transition-colors cursor-pointer text-gray-400 hover:bg-gray-100 hover:text-gray-700 ${isOpen ? "bg-gray-100 text-gray-700" : ""}`}
+                    className={`flex items-center gap-1 rounded-md px-1.5 h-6 text-[11px] transition-colors cursor-pointer text-muted-foreground/60 hover:bg-accent hover:text-foreground ${isOpen ? "bg-accent text-foreground" : ""}`}
                     title={
                         !selectedAvailable
                             ? t("account.apiKeyMissing")
@@ -64,9 +119,9 @@ export function ModelToggle({ value, onChange, apiKeys }: Props) {
                     {!selectedAvailable && (
                         <AlertCircle className="h-3 w-3 shrink-0 text-red-500" />
                     )}
-                    <span className="max-w-[140px] truncate">{selectedLabel}</span>
+                    <span className="max-w-[180px] truncate">{selectedLabel}</span>
                     <ChevronDown
-                        className={`h-3 w-3 shrink-0 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
+                        className={`h-2.5 w-2.5 shrink-0 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
                     />
                 </button>
             </DropdownMenuTrigger>

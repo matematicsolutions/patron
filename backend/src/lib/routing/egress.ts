@@ -15,11 +15,15 @@
 //   - eu-only jest ZAREZERWOWANE - dodamy konkretne modele dopiero gdy region UE
 //     jest kontraktowo potwierdzony (FAZA 1). Nie zgadujemy "EU" z nazwy modelu.
 
-import { OPENROUTER_PREFIX } from "../llm/models";
+import { OLLAMA_PREFIX, OPENROUTER_PREFIX } from "../llm/models";
 import type { EgressFlag } from "../llm/provider";
 
-/** Prefiks modeli Ollama (lokalny, no-egress). Patrz lib/llm/ollama-provider.ts. */
-export const OLLAMA_PREFIX = "ollama/";
+/**
+ * Prefiks modeli Ollama (lokalny, no-egress). Patrz lib/llm/ollama-provider.ts.
+ * Jedno zrodlo prawdy w lib/llm/models.ts (analogicznie do OPENROUTER_PREFIX) -
+ * tu re-eksport dla istniejacych importow z routing/.
+ */
+export { OLLAMA_PREFIX };
 
 /**
  * Zwraca flage egress dla danego id modelu. Czysta funkcja, bez IO.

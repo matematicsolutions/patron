@@ -157,10 +157,12 @@ wszystkich trzech ADR PO wpieciu Faza 6.
 features, czy ontologia legal w roadmap). Status 2026-08 do 2026-10 -
 ponowny check czy v0.5+ ma cokolwiek bezposrednio uzytecznego dla PL.
 
-## willchen96/mike (MIT - baza forka)
+## willchen96/mike (AGPL-3.0 - baza forka)
 
 **Repo**: https://github.com/willchen96/mike (original)
-**Licencja**: MIT
+**Licencja**: AGPL-3.0-only (forensic 2026-06-15: plik LICENSE = GNU AGPL v3
++ backend/package.json i frontend/package.json = "AGPL-3.0-only"; ZERO sladu
+MIT w drzewie - jedyne "MIT" to licencje zaleznosci npm w package-lock.json)
 **Pattern wzorcowany**: caly szkielet aplikacji asystenta dokumentowego
 (chat / projekty / tabular reviews / workflowy / lib/llm) jako baza
 Patrona.
@@ -475,6 +477,36 @@ Korea opakowuje 41 panstwowych API KR; my mamy wlasny konektor ISAP na polskim E
 - **`citation-verification`** - juz pokryte mechanicznie ADR-0005.
 - **`action_plan`** (przewodnik obywatelski) - segment access-to-justice, nie kancelaryjny Patron.
 
+## b1rdmania/legalise (MIT)
+
+**Repo**: https://github.com/b1rdmania/legalise
+**Licencja**: `MIT` (zweryfikowane plikiem LICENSE). Bierzemy WZORZEC, nie kod.
+**Snapshot**: 2026-08-02 (6 gwiazdek, push 2026-07-31, Python/FastAPI)
+**Pattern wzorcowany**: `backend/app/core/export_chain_verifier.py` +
+`backend/tests/test_export_audit_chain.py` - eksport sprawy to archiwum, w ktorym
+obok lancucha zdarzen jedzie **samodzielny weryfikator na bibliotece standardowej**.
+Odbiorca nie instaluje niczego; kod wyjscia rozny od zera, gdy wpis zmieniono,
+usunieto albo przestawiono.
+**Wdrozenie**: ADR-0142 (weryfikator w paczce eksportu audytowego) - LIVE.
+
+**Co Patron bierze (wzor)**:
+- **Weryfikator W PACZCE, nie w repozytorium wydawcy.** To roznica miedzy
+  "prowadzimy dziennik zdarzen" a "druga strona moze go sama sprawdzic".
+- **Kontrakt kodow wyjscia** 0/1/2 - artefakt wpina sie w cudza kontrole automatyczna.
+- **Uczciwosc jako struktura repo** (TRUST.md / THREAT_MODEL.md / LIMITATIONS.md,
+  "tamper-evident, NOT tamper-proof") - u nas jako sekcja "Minusy i ograniczenia"
+  w ADR oraz jako akapit "czego to sprawdzenie NIE dowodzi" w instrukcji
+  doreczanej ODBIORCY, nie tylko w dokumentacji dla nas.
+
+**Czego Patron NIE bierze (i dlaczego)**:
+- **Kodu weryfikatora** - inny jezyk, inna struktura artefaktu (nasz niesie dowod
+  Merkle wg RFC 6962 i manifest per czesc). Implementacja od zera.
+- **Produktu** - legalise to wydanie ewaluacyjne na Postgres/MinIO/Redis/Gotenberg,
+  czyli bezposredni konkurent Patron-Desktop w narracji local-first. Forkujemy
+  wzorzec, nie narzedzie.
+- **Rzadzonego lancucha dostaw skilli** (import -> commit SHA -> admission flow ->
+  uprawnienie per sprawa) - osobna ocena dla Boutique, poza zakresem ADR-0142.
+
 ## Zasada cherry-pick MateMatic
 
 Patron stosuje wzorzec **cherry-pick wzoru zamiast adopcji narzedzia**
@@ -713,3 +745,45 @@ prawa - to wartosc, nie wstyd.
 - Modelu uczonego joint extraction w tej iteracji - baseline US1 jest deterministyczny (regex + gazetteer); ekstraktor uczony wzorca Balanced-TPLinker = rezerwacja US2, wchodzi tylko jesli mierzalnie bije baseline.
 
 **Wdrozenie**: ADR-0089 (event-centric KG rdzen, US1 baseline deterministyczny - schema, biblioteka funkcji czystych, builder w indekserze) + ADR-0090 (wpiecie subgraph matching w retrieve() jako etap re-rankingu po ADR-0087, US3). Roznicowanie FTO (Baidu EP4086808A3 contract-KG consistency, TR WO2025085566A1 generatywny RAG) udokumentowane w ADR; recheck Espacenet przy wpieciu w request-path. Implementacja PL od zera, nie port.
+
+## LegalQuants/lq-ai (LQ.AI) - tier-governance egress
+
+**Repo / zrodlo**: https://github.com/LegalQuants/lq-ai
+**Licencja**: Apache-2.0 (patent grant). Konkurencyjna platforma open-source legal AI (serwer FastAPI+Svelte, fork OpenWebUI). NIE dziedziczymy kodu - inny stack (Python) i forma (serwer multi-tenant vs nasz desktop zero-egress). Adaptacja koncepcyjna clean-room.
+**Snapshot**: 2026-06-02 (ocena repo #2 w ramach "ocena i adaptacja nowych repo pod PATRON").
+**Pattern wzorcowany**: `envelope_tier` - operacja wielomodelowa (ensemble) nie moze po cichu eskalowac strefy egress ponad najsurowsza dopuszczalna dla klasyfikacji; `tier-floor` - sufit strefy per klasyfikacja jako jeden porzadek; `sole-egress` - jeden punkt wyjscia do LLM.
+
+**Co Patron bierze (wzor)**:
+- `envelope_tier`/`tier-floor` jako czyste funkcje nad istniejacym `EgressFlag` (ADR-0095, backend/src/lib/routing/tier.ts) - liczenie najgorszej strefy w zbiorze modeli i porownanie z sufitem klasyfikacji, fail-closed.
+- Idea jednego chokepointu egress: wspolny `enforceEgressGuard` reuzywany przez czat i pipeline obrony (ADR-0095, backend/src/lib/routing/enforceEgress.ts), domyka przeciek `/draft/refine`.
+- Kaskadowy grounding cytatow z paraphrase-judge (ADR-0097, backend/src/lib/citation/cascade.ts) - warstwa semantyczna nad deterministycznym verifyOne (ADR-0005), lapie cytat doslowny pod falszywa teza (Stanford/Magesh). Kalibracja "false-positive gorszy niz false-negative". Werdykt 3-kolorowy, judge wstrzykiwany (port), decision deterministyczna nietknieta.
+
+**Czego Patron NIE bierze**:
+- Kodu (Python/FastAPI), architektury serwerowej (Postgres/Redis/MinIO/multi-tenant), forka OpenWebUI - sprzeczne z desktop/zero-egress.
+- Modelu "no open-core" (Patron jest swiadomie open-core, ADR-0002).
+- Warstwy autonomicznych agentow (PHASE_GRANTS) - Patron jest request/response; szkielet faz pozostaje rezerwacja, nie kod.
+
+**Wdrozenie**: ADR-0095 (envelope_tier + tier-floor + wspolny chokepoint, domkniecie luki data-residency w /draft/refine) + ADR-0097 (kaskadowy grounding z paraphrase-judge, biblioteka; wpiecie/adapter judge = rezerwacja). Implementacja TS od zera, nie port. Pelna ocena: patron-desktop-drafts/AUDIT/repo-assessments/02-lq-ai-legalquants-2026-06-02.md.
+
+## anthropics/claude-for-legal (Apache-2.0)
+
+**Repo**: https://github.com/anthropics/claude-for-legal
+**Licencja**: Apache-2.0, Copyright 2026 Anthropic PBC (brak pliku NOTICE)
+**Snapshot**: 2026-06-04 (namierzone przez turecka lokalizacje beerbottle90/ArthurLegal)
+**Pattern wzorcowany**: oficjalny marketplace pluginow legal Claude Code - slownik tagow proweniencji cytatu, kontrakt komorki tabular "every-cell-cited" z normalizacja verbatim, trust-gate marketplace, watcher-agenty least-privilege, inwentarz AI Act per-system.
+
+**Co Patron bierze (wzor)**:
+- **Tagi proweniencji cytatu** - tag opisuje POCHODZENIE (skad), nie pewnosc; `[model - zweryfikuj]` jako default niezaleznie od pewnosci modelu; pinpoint zawsze verify; konflikt tool-vs-model -> pokaz oba. Deterministyczny (z metadanych zrodla), nie z LLM. ADR-0102 decyzja A, polonizacja na SAOS/ISAP/EUR-Lex.
+- **Kontrakt komorki tabular** `{value, state, quote, location}` + jawne stany braku (answered/not_present/unclear/needs_review, "pusta komorka ukrywa informacje") + pass normalizacji verbatim (re-read zrodla, porownanie znak-w-znak, mismatch -> degraduj + poszerz spot-check kolumny). ADR-0102 decyzja B, ROZSZERZA istniejacy model komorki ADR-0011 + verifyOne ADR-0005.
+- (rezerwacja) Trust-gate marketplace 13-param + tier REFUSE nieoverridowalny + skan przy UPDATE (GlassWorm) + read-only subagent do fetch + licencja-jako-dane - patron-desktop-drafts ADR-0103 (propozycja), wpiecie do skill-audit --marketplace + uzasadnienie Ed25519 per-wersja.
+- (rezerwacja) Orchestrator/leaf least-privilege + lint zakresu narzedzi + watcher-agenty "flaguj nie wykonuj" (termin-watcher PL: apelacja/kasacja/przedawnienie); inwentarz AI Act per-system BEZ auto-wywodu obowiazkow.
+
+**Czego Patron NIE bierze**:
+- Managed Agents API (deploy do chmury Anthropic) - sprzeczne z zero-cloud. Bierzemy architekture orchestrator/leaf, nie deploy.
+- Zaszyte chmurowe konektory MCP (Slack/Drive/Box/iManage) - kazdy to egress; nasze odpowiedniki lokalne za egress guardem.
+- Doktryne US (work-product FRCP 26(b)(3), SEC, FLSA, ABA 512) - podmiana na tajemnice adwokacka/radcowska, RODO, KPC/KPA.
+- Zaufanie do stringa wydawcy w instalatorze - zastapione weryfikacja Ed25519.
+- hooks.json (arbitralny shell) - trzymamy deny-first broker (ADR-0097 exec-security).
+- Kodu (markdown/JSON pluginy) i nazw "Claude"/"Anthropic" w brandingu (Apache 6 - brak praw do znakow towarowych).
+
+**Wdrozenie**: ADR-0102 (tagi proweniencji A + kontrakt komorki B, branch feat/grounding-provenance-tabular, default OFF za flaga). Reszta wzorcow (C trust-gate, D watcher/lint, E cold-start, F AI-inventory) = drafty w patron-desktop-drafts/spec/claude-for-legal-adoption/, rezerwacja. Clean-room: reimplementacja wzorca PL od zera, nie port. Atrybucja przy reuzyciu tresci: patron-desktop-drafts/spec/claude-for-legal-adoption/NOTICE-attribution.md.

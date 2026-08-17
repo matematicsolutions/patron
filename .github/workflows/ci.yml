@@ -1,10 +1,13 @@
 name: CI
 
+# Siatka bezpieczenstwa dla WSZYSTKICH galezi (spec 015): galaz robocza ma
+# dowiedziec sie o czerwonej suicie od razu, nie dopiero przy merge do release.
+# (publication-gate zostaje na main+release/** - pilnuje linii publikacyjnych.)
 on:
   push:
-    branches: [main]
+    branches: ["**"]
   pull_request:
-    branches: [main]
+    branches: [main, "release/**"]
 
 jobs:
   backend:
@@ -57,6 +60,9 @@ jobs:
 
       - name: TypeScript check
         run: npx tsc --noEmit
+
+      - name: Vitest (spec 012)
+        run: npm test
 
       - name: Next build
         run: npm run build

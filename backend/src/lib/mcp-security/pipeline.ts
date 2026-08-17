@@ -2,8 +2,8 @@
 // input-security/pipeline.ts (ADR-0019). Pattern (4 detektory, scan przed
 // zaladowaniem) cherry-picked z Microsoft AGT (ADR-0024/0025).
 //
-// SKELETON: czysta funkcja, zero-LLM, zero-cloud, bezstanowa. NIE wpieta
-// w startup backendu - wpiecie to osobna decyzja (przyszly ADR-0028).
+// Czysta funkcja, zero-LLM, zero-cloud, bezstanowa. WPIETA w startup backendu
+// przez `lib/mcp/index.ts` (scanMcpRegistry przed registracja toolow), ADR-0028.
 
 import type {
     McpDetector,
@@ -28,16 +28,60 @@ export const DEFAULT_DETECTORS: McpDetector[] = [
 ];
 
 /**
- * Lista zatwierdzonych nazw konektorow Patrona (canonical) na 2026-05-24.
- * Aktualizowana razem z `mcp-servers.example.json` przy dodaniu nowego konektora.
+ * Lista zatwierdzonych nazw konektorow Patrona (canonical) na 2026-06-03.
+ * MUSI odpowiadac realnym nazwom z mcp-servers.json / mcp-servers.example.json
+ * oraz bundlowanym w instalatorze (desktop/scripts/prepare-resources.cjs,
+ * scripts/bundle-mcp.cjs). Nazwa spoza tej listy w odleglosci Levenshteina <=2
+ * od ktorejkolwiek z nich = typosquat critical (denied). Stad rozjazd nazw
+ * blokuje WLASNY konektor: np. realny 'nsa' przy stalej 'nsa-orzeczenia' byl
+ * blokowany jako typosquat 'isap' (dist=2). Dodajac konektor - dopisz tu jego
+ * dokladna nazwe.
  */
 export const APPROVED_PATRON_CONNECTORS: ReadonlyArray<string> = [
     "saos",
-    "eu-compliance",
-    "krs",
+    "nsa",
     "isap",
-    "sn-orzeczenia",
-    "nsa-orzeczenia",
+    "krs",
+    "eu-sparql",
+    "eu-compliance",
+    // ADR-0133/0134: konektory krajowe UE (Python, runtime frozen-exe w bundlu
+    // desktop; w dev/serwer uruchamiane przez uv). Dodane po REALNYM gateway-scan
+    // 2026-06-24 - wszystkie 9: action=audit, threat=low, risk=2, ZERO
+    // hidden-instructions/tool-poisoning (jedyne findingi: not-approved +
+    // first-baseline, znikaja po dodaniu tutaj). Bundle PyInstaller = osobny krok.
+    "de-eli",
+    "at-eli",
+    "es-eli",
+    "fi-eli",
+    "ie-eli",
+    "nl-eli",
+    "se-eli",
+    "fr-eli",
+    "lu-eli",
+    // ADR-0139: rynek wloski (wersje jezykowe PATRONa). it-eli = Normattiva
+    // (legislacja, URN:NIR/ELI, multivigenza) + Corte Costituzionale (ECLI).
+    // Gateway-scan przechodzi przy starcie jak dla pozostalych 9 (typosquat/
+    // drift/tool-poisoning, fail-closed).
+    "it-eli",
+    // eureka = EUREKA MF (eureka.mf.gov.pl): interpretacje podatkowe KIS, WIS,
+    // WIA, objasnienia. Praktyka organow, NIE zrodlo prawa (art. 14a-14s o.p.) -
+    // ochrona prawna dziala dla wnioskodawcy danej interpretacji indywidualnej.
+    // Smoke live 2026-08-17: 520 406 interpretacji indywidualnych, cytat zwraca
+    // sygnature + URL + date wydania (kontrakt structuredContent.citations).
+    "eureka",
+    // ADR-0139: rynek brazylijski (pt-BR). br-eli = legis.senado.leg.br +
+    // normas.leg.br (legislacao federal, texto por artigo) + DataJud CNJ
+    // (metadados processuais). Gateway-scan przechodzi jak dla pozostalych.
+    "br-eli",
+    // ADR-0139: rynek brytyjski (locale gb, jezyk UI = en, reuzywa slownik en.ts).
+    // gb-eli = legislation.gov.uk (Acts/SI, wlasny stabilny id, brak natywnego ELI)
+    // + Find Case Law (orzecznictwo, neutral citation) + GOV.UK Search/Content API
+    // (trybunaly, HMRC, CMA). Gateway-scan przechodzi jak dla pozostalych.
+    "gb-eli",
+    // Jurysdykcja USA (locale "us", UI dalej EN). us-eli = Congress.gov +
+    // GovInfo + Federal Register + eCFR + CourtListener (search). Gateway-scan
+    // przechodzi jak dla pozostalych konektorow Python.
+    "us-eli",
 ];
 
 /** Skanuje pojedynczy konektor MCP. */

@@ -37,7 +37,15 @@ let extractorPromise: Promise<FeatureExtractionPipeline> | null = null;
 
 async function getExtractor(): Promise<FeatureExtractionPipeline> {
   if (!extractorPromise) {
-    extractorPromise = pipeline("feature-extraction", EMBED_MODEL);
+    // Audyt P3 #16: nie cache'uj ODRZUCONEGO promise. Jezeli pierwszy load
+    // modelu sie wywali (np. brak wag lokalnie, chwilowy blad), wyzeruj cache,
+    // zeby kolejne wywolanie moglo sprobowac ponownie bez restartu procesu.
+    extractorPromise = pipeline("feature-extraction", EMBED_MODEL).catch(
+      (err) => {
+        extractorPromise = null;
+        throw err;
+      },
+    );
   }
   return extractorPromise;
 }

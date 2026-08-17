@@ -9,6 +9,17 @@ import {
     type GroundingResult,
     verifyCitations,
 } from "../citation/grounding";
+import { groundCascade, type JudgeFn } from "../citation/cascade";
+import {
+    deriveProvenance,
+    type Provenance,
+    type ProvenanceTag,
+} from "../citation/provenance";
+import {
+    type CitationLocator,
+    locatorFromCollapsedQuote,
+    locatorFromQuote,
+} from "../citation/locator";
 import type { ParsedCitation } from "./types";
 import type { DocIndex, DocStore } from "./types";
 import { getDocumentTextForGrounding } from "./tool-dispatch";
@@ -16,6 +27,78 @@ import type { createServerSupabase } from "../supabase";
 
 /** Minimalny ksztalt cytatu potrzebny do groundingu (wspolny dla obu galezi stream). */
 type GroundableCitation = { ref: number; doc_id: string; quote: string };
+
+/** Opcje semantycznego etapu (ADR-0097). Bez nich grounding pozostaje deterministyczny. */
+export interface GroundOptions {
+    /** Tekst odpowiedzi - zrodlo tezy (claim) dla sedziego. */
+    answerText?: string;
+    /** Sedzia LLM (makeJudge). null/brak = etap 3 sie nie odpala (deterministyczny). */
+    judge?: JudgeFn | null;
+    /**
+     * ADR-0102 (A): dolacz tag proweniencji per cytat (flaga PATRON_PROVENANCE_TAGS,
+     * default OFF). Deterministyczne (z rodzaju zrodla), zero egressu/PII. Oś
+     * ortogonalna do verdict (ADR-0097). Brak = zero zmiany zachowania.
+     */
+    provenanceTags?: boolean;
+    /**
+     * Sedzia byl ZADANY (PATRON_CITATION_JUDGE on), ale NIEdostepny (makeJudge=null,
+     * fail-closed: tajemnica + model chmurowy / brak modelu lokalnego). Wtedy nawet
+     * w sciezce deterministycznej oznaczamy cytaty "verified" podpierajace teze jako
+     * requiresJudgment (WYMAGA OSADU) - substancja nieoceniona, czlowiek musi sprawdzic.
+     * Brak/false = zachowanie bez zmian (judge=off to swiadomy tryb, nie flagujemy).
+     */
+    judgeUnavailable?: boolean;
+}
+
+/**
+ * Wynik groundingu cytatu, opcjonalnie wzbogacony o proweniencje (ADR-0102 A)
+ * oraz o trwaly lokator cytatu (ADR-0116). `locator` powstaje gdy cytat wystepuje
+ * DOSLOWNIE w surowym zrodle (typowe dla ZWERYFIKOWANY) - daje persystowalna,
+ * re-kotwiczalna pozycje pod highlight i audit bundle (AI Act art. 12); null gdy
+ * nie da sie verbatim (fail-closed). UWAGA: lokator (zawiera rawText=cytat) leci
+ * do SSE/persistence, NIE do audit_log - audyt dostaje groundingSummary (liczby).
+ * `requiresJudgment` = flaga WYMAGA OSADU (ADR-0097): cytat tekstowo ugruntowany,
+ * ale substancja tezy nieoceniona semantycznie (sedzia niedostepny).
+ */
+export type GroundedCitation = GroundingResult & {
+    provenance?: Provenance;
+    locator: CitationLocator | null;
+    requiresJudgment?: boolean;
+};
+
+/** Okno kontekstu (znaki) po obu stronach znacznika [ref]. */
+const CLAIM_WINDOW = 250;
+
+/**
+ * Wyciaga "teze" dla cytatu [ref] - fragment odpowiedzi wokol znacznika [ref].
+ * To jest to, co odpowiedz TWIERDZI cytatem; sedzia ocenia, czy zrodlo to wspiera.
+ * Brak znacznika -> "" (sedzia sie nie odpala dla tego cytatu).
+ *
+ * Okno ZNAKOWE (nie zdaniowe): polski tekst prawniczy jest pelen skrotow
+ * ("art. ", "ust. ", "tj. ", "np. "), wiec dzielenie po kropce+spacji ucinaloby
+ * teze w polowie. Okno przycinamy do granicy AKAPITU (newline), by nie wciagnac
+ * sasiednich twierdzen. Blok <CITATIONS> (JSON na koncu odpowiedzi) odcinamy -
+ * inaczej [ref] moglby trafic w surowy JSON zamiast w proze.
+ */
+export function extractClaim(
+    answerText: string | undefined,
+    ref: number,
+): string {
+    if (!answerText) return "";
+    const tagPos = answerText.search(/<CITATIONS/i);
+    const prose = tagPos >= 0 ? answerText.slice(0, tagPos) : answerText;
+    const marker = `[${ref}]`;
+    const pos = prose.indexOf(marker);
+    if (pos === -1) return "";
+    let start = Math.max(0, pos - CLAIM_WINDOW);
+    let end = Math.min(prose.length, pos + marker.length + CLAIM_WINDOW);
+    // Nie przekraczaj granicy akapitu - teza zwykle mieszci sie w jednym akapicie.
+    const nlBefore = prose.lastIndexOf("\n", pos);
+    if (nlBefore >= 0 && nlBefore + 1 > start) start = nlBefore + 1;
+    const nlAfter = prose.indexOf("\n", pos);
+    if (nlAfter !== -1 && nlAfter < end) end = nlAfter;
+    return prose.slice(start, end).trim().slice(0, 600);
+}
 
 /**
  * Bezpieczna ekstrakcja {ref, doc_id, quote} z nieznanego rekordu cytatu.
@@ -49,7 +132,8 @@ export async function groundCitationsByRef(
     docStore: DocStore,
     docIndex?: DocIndex,
     db?: ReturnType<typeof createServerSupabase>,
-): Promise<Record<number, GroundingResult>> {
+    opts?: GroundOptions,
+): Promise<Record<number, GroundedCitation>> {
     const citations = rawCitations
         .map(toGroundable)
         .filter((c): c is GroundableCitation => c !== null);
@@ -71,32 +155,187 @@ export async function groundCitationsByRef(
         }),
     );
 
-    // 2) synchroniczny resolver na prefetchowanej mapie -> czysty weryfikator
     const parsed: ParsedCitation[] = citations.map((c) => ({
         ref: c.ref,
         doc_id: c.doc_id,
         page: 1,
         quote: c.quote,
     }));
-    const report = verifyCitations(parsed, (id) => textByDocId.get(id) ?? null);
 
-    const byRef: Record<number, GroundingResult> = {};
-    for (const r of report.results) byRef[r.ref] = r;
+    // ADR-0102 (A): mapa ref->quote do detekcji pinpoint (sciezka deterministyczna
+    // nie niesie cytatu w GroundingResult). sourceKind = client-doc (poziom 1
+    // ADR-0005; poziom 2/3 SAOS/ISAP/EUR-Lex poda wlasny sourceKind przy wpieciu
+    // resolverow). Tag wyprowadzany deterministycznie - zero egressu, zero PII.
+    const quoteByRef = new Map(parsed.map((p) => [p.ref, p.quote]));
+    // ADR-0116: mapa ref->cytat (raw {ref,doc_id,quote}) do wyliczenia trwalego
+    // lokatora z prefetchowanego surowego zrodla (bez dodatkowego I/O).
+    const citByRef = new Map(citations.map((c) => [c.ref, c]));
+    const withProvenance = opts?.provenanceTags === true;
+    const byRef: Record<number, GroundedCitation> = {};
+
+    // Etap 3 (ADR-0097) tylko gdy wstrzyknieto sedziego. Inaczej deterministyczny
+    // verifyCitations jak dotad (zero zmiany zachowania - flaga PATRON_CITATION_JUDGE).
+    if (opts?.judge) {
+        for (const c of parsed) {
+            const source = textByDocId.get(c.doc_id) ?? null;
+            const claim = extractClaim(opts.answerText, c.ref);
+            // groundCascade lapie bledy sedziego wewnetrznie (fail-closed -> deterministyczny).
+            const r = await groundCascade(c, source, {
+                judge: opts.judge,
+                claim: claim || undefined,
+            });
+            // ADR-0116: trwaly lokator z surowego zrodla (verbatim = exact-or-null).
+            const locator = source ? locatorFromQuote(c.quote, source) : null;
+            byRef[c.ref] = withProvenance
+                ? { ...r, locator, provenance: deriveProvenance("client-doc", c.quote) }
+                : { ...r, locator };
+        }
+        return byRef;
+    }
+
+    // Sciezka deterministyczna (domyslna): synchroniczny resolver na mapie.
+    // WYMAGA OSADU: gdy sedzia byl zadany lecz niedostepny (fail-closed), cytat
+    // "verified" podpierajacy teze jest tekstowo ugruntowany, ale substancja tezy
+    // NIEoceniona (cichy przypadek Stanford). Oznacz go do weryfikacji przez czlowieka.
+    const flagJudgment = opts?.judgeUnavailable === true;
+    const report = verifyCitations(parsed, (id) => textByDocId.get(id) ?? null);
+    for (const r of report.results) {
+        // ADR-0116: trwaly lokator z surowego, juz prefetchowanego zrodla.
+        const cit = citByRef.get(r.ref);
+        const src = cit ? (textByDocId.get(cit.doc_id) ?? null) : null;
+        // Najpierw exact (cytat verbatim), potem tolerancja bialych znakow
+        // (cytat LLM rozni sie od zrodla tylko zwijaniem spacji/nowych linii).
+        const locator =
+            cit && src
+                ? (locatorFromQuote(cit.quote, src) ??
+                  locatorFromCollapsedQuote(cit.quote, src))
+                : null;
+        // ADR-0097: WYMAGA OSADU gdy sedzia zadany-a-niedostepny, cytat "verified"
+        // i podpiera teze - substancja tezy pozostala nieoceniona semantycznie.
+        const needsJudgment =
+            flagJudgment &&
+            r.decision === "verified" &&
+            extractClaim(opts?.answerText, r.ref) !== "";
+        const base: GroundedCitation = needsJudgment
+            ? { ...r, locator, requiresJudgment: true }
+            : { ...r, locator };
+        byRef[r.ref] = withProvenance
+            ? {
+                  ...base,
+                  provenance: deriveProvenance("client-doc", quoteByRef.get(r.ref)),
+              }
+            : base;
+    }
     return byRef;
+}
+
+/** Statystyka semantycznego etapu (ADR-0097) - tylko liczby/enumy, zero PII. */
+export interface JudgeAuditSummary {
+    /** Ile cytatow przeszlo przez sedziego (stage 3). */
+    judged: number;
+    green: number;
+    yellow: number;
+    red: number;
+    /**
+     * KLUCZOWA metryka moatu: ile cytatow sedzia ZDEGRADOWAL do red mimo
+     * tekstowo poprawnego trafienia (decision=verified) - czyli zlapany przypadek
+     * "cytat doslowny pod falszywa teza" (Stanford/Magesh). Dowod wartosci judge
+     * dla audytu AI Act art. 12 i dla ewaluacji.
+     */
+    downgraded: number;
+}
+
+/** Statystyka proweniencji (ADR-0102 A) - liczby per tag, zero tresci/PII. */
+export interface ProvenanceAuditSummary {
+    saos: number;
+    isap: number;
+    eurlex: number;
+    uzytkownik: number;
+    model: number;
+    /** Ile cytatow to pinpoint (numer jednostki redakcyjnej) - zawsze do weryfikacji. */
+    pinpoint: number;
 }
 
 /**
  * Zwiezle podsumowanie werdyktow do payloadu audit_log (AI Act art. 12).
- * Bez tresci cytatow - tylko liczby decyzji (record-keeping, nie PII).
+ * Bez tresci cytatow - tylko liczby decyzji (record-keeping, nie PII). Gdy
+ * dzialal sedzia (ADR-0097), dolacza statystyke werdyktow semantycznych; gdy
+ * dolaczono tagi proweniencji (ADR-0102 A), dolacza ich rozklad.
  */
 export function groundingSummary(
     grounding: Record<number, GroundingResult>,
-): { total: number; verified: number; unverified: number; blocked: number } {
+): {
+    total: number;
+    verified: number;
+    unverified: number;
+    blocked: number;
+    /**
+     * WYMAGA OSADU (ADR-0097 + gradient citation-grounding-pl): ile cytatow jest
+     * tekstowo-ugruntowanych i podpiera teze, ale substancja NIE zostala oceniona
+     * semantycznie (sedzia sie nie odpalil - np. tajemnica + model chmurowy =
+     * fail-closed). Record-keeping AI Act art. 12: ile tez przeszlo bez kontroli
+     * sensu - czlowiek musi je zweryfikowac. Zero PII (sama liczba).
+     */
+    requiresJudgment?: number;
+    judge?: JudgeAuditSummary;
+    provenance?: ProvenanceAuditSummary;
+} {
     const vals = Object.values(grounding);
-    return {
+    // CascadeResult (ADR-0097) dokleja verdict/stage/requiresJudgment; ADR-0102 dokleja
+    // provenance. GroundingResult ich nie ma - czytamy przez optional cast (nie modyfikujemy rdzenia).
+    type Maybe = GroundingResult & {
+        verdict?: "green" | "yellow" | "red";
+        stage?: number;
+        requiresJudgment?: boolean;
+        provenance?: Provenance;
+    };
+    const out: {
+        total: number;
+        verified: number;
+        unverified: number;
+        blocked: number;
+        requiresJudgment?: number;
+        judge?: JudgeAuditSummary;
+        provenance?: ProvenanceAuditSummary;
+    } = {
         total: vals.length,
         verified: vals.filter((r) => r.decision === "verified").length,
         unverified: vals.filter((r) => r.decision === "unverified").length,
         blocked: vals.filter((r) => r.decision === "blocked").length,
     };
+
+    const needJudgment = vals.filter((r) => (r as Maybe).requiresJudgment === true).length;
+    if (needJudgment > 0) out.requiresJudgment = needJudgment;
+
+    const judged = vals.filter((r) => (r as Maybe).stage === 3);
+    if (judged.length > 0) {
+        const v = (r: GroundingResult) => (r as Maybe).verdict;
+        out.judge = {
+            judged: judged.length,
+            green: judged.filter((r) => v(r) === "green").length,
+            yellow: judged.filter((r) => v(r) === "yellow").length,
+            red: judged.filter((r) => v(r) === "red").length,
+            downgraded: judged.filter(
+                (r) => v(r) === "red" && r.decision === "verified",
+            ).length,
+        };
+    }
+
+    const provs = vals
+        .map((r) => (r as Maybe).provenance)
+        .filter((p): p is Provenance => p != null);
+    if (provs.length > 0) {
+        const count = (t: ProvenanceTag) =>
+            provs.filter((p) => p.tag === t).length;
+        out.provenance = {
+            saos: count("saos"),
+            isap: count("isap"),
+            eurlex: count("eurlex"),
+            uzytkownik: count("uzytkownik"),
+            model: count("model"),
+            pinpoint: provs.filter((p) => p.pinpoint).length,
+        };
+    }
+
+    return out;
 }

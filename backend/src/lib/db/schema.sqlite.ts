@@ -46,7 +46,7 @@ create index if not exists idx_user_profiles_user on user_profiles(user_id);
 create table if not exists user_api_keys (
   id text primary key,
   user_id text not null,
-  provider text not null check (provider in ('claude', 'gemini', 'openai')),
+  provider text not null check (provider in ('claude', 'gemini', 'openai', 'openrouter')),
   encrypted_key text not null,
   iv text not null,
   auth_tag text not null,
@@ -69,6 +69,11 @@ create table if not exists projects (
   -- Lustro enum: lib/llm/provider.ts DataClassification + provider.schema.ts.
   classification text not null default 'attorney_client_privileged'
     check (classification in ('public','internal','client_general','attorney_client_privileged')),
+  -- ADR-0128 (audyt P2 #6): swiadoma zgoda Operatora na model chmurowy DLA TEJ
+  -- SPRAWY (per-sprawa, audytowana), niezaleznie od globalnego
+  -- PATRON_ALLOW_PRIVILEGED_CLOUD. 0 = brak zgody (fail-closed). Brama egress
+  -- (lib/routing/guard.ts) OR-uje to z globalna zgoda.
+  cloud_consent integer not null default 0,
   created_at text not null,
   updated_at text not null
 );
@@ -162,6 +167,35 @@ create index if not exists document_edits_document_id_idx on document_edits(docu
 create index if not exists document_edits_message_id_idx on document_edits(chat_message_id);
 create index if not exists document_edits_version_id_idx on document_edits(version_id);
 
+-- Karty zatwierdzenia mutacji (ADR-0137). Kolejka akcji agenta o skutkach
+-- ubocznych (edit/generate/comments/export) stage'owanych za bramka czlowieka
+-- (AI Act art. 14). Stany pending -> approved | rejected; po approved wykonanie
+-- i znacznik executed_at / execution_error. tool_payload trzyma argumenty
+-- narzedzia do wykonania PO zatwierdzeniu - bez pelnych tresci dokumentu (RODO
+-- minimalizacja). Scoping user_id (jak projects/documents). Lustro: schema.sql.
+create table if not exists mutation_approvals (
+  id text primary key,
+  user_id text not null,
+  chat_id text references chats(id) on delete set null,
+  document_id text references documents(id) on delete set null,
+  tool_name text not null,
+  tool_payload text not null default '{}',
+  status text not null default 'pending'
+    check (status in ('pending', 'approved', 'rejected')),
+  staged_at text not null,
+  staged_by text not null,
+  approved_at text,
+  approved_by text,
+  rejection_reason text,
+  executed_at text,
+  execution_error text,
+  created_at text not null,
+  updated_at text not null
+);
+create index if not exists idx_mutation_approvals_user_status on mutation_approvals(user_id, status);
+create index if not exists idx_mutation_approvals_chat on mutation_approvals(chat_id);
+create index if not exists idx_mutation_approvals_document on mutation_approvals(document_id);
+
 create table if not exists workflows (
   id text primary key,
   user_id text,
@@ -220,6 +254,14 @@ create table if not exists tabular_cells (
   content text,
   citations text,
   status text not null default 'pending',
+  -- ADR-0126 (T2.2): human-review komorki (akt prawnika, spine art.12).
+  -- review_action null = nieweryfikowana; approved/rejected/corrected = akt
+  -- ludzki z reviewed_by (odpowiedzialny prawnik) + reviewed_at; corrected_content
+  -- tylko dla 'corrected'.
+  review_action text,
+  reviewed_by text,
+  reviewed_at text,
+  corrected_content text,
   created_at text not null
 );
 create index if not exists idx_tabular_cells_review on tabular_cells(review_id, document_id, column_index);
@@ -269,7 +311,11 @@ create table if not exists audit_log (
     'llm_route',
     'defense.pipeline.run',
     'document.edit_resolved',
-    'tabular.grounding'
+    'tabular.grounding',
+    'project.cloud_consent',
+    'connector.toggle',
+    'mutation.approval.decision',
+    'cost_cap'
   )),
   chat_id text,
   document_id text,
@@ -316,9 +362,26 @@ create table if not exists doc_chunks (
   chunk_index integer not null,
   content text not null,
   embedding_model text,
+  -- Proweniencja strony zrodla (audyt P2 #10). Wypelniane gdy tekst niesie
+  -- markery [Page N] (ekstrakcja PDF, lib/chat/pdf.ts); null dla zrodel bez
+  -- stron (docx/plain). Pozwala cytowac "str. N".
+  page_no integer,
+  -- ADR-0124 (Route B): surowy span chunka w tekscie zrodlowym (UTF-16, end
+  -- exclusive) do exact lokatora search-time. Nullable - stare chunki maja
+  -- NULL do re-indeksu (feed robi fallback best-effort).
+  source_offset_start integer,
+  source_offset_end integer,
   created_at text not null
 );
 create index if not exists idx_doc_chunks_document on doc_chunks(document_id);
+
+-- Metadane warstwy retrievalu (audyt P2 #8). Klucz->wartosc; trzymamy model i
+-- wymiar embeddera, ktorym zbudowano vec_chunks. Niezgodnosc przy starcie =
+-- wykrycie zamiast cichej korupcji wektorow (mismatch wymiaru / modelu).
+create table if not exists retrieval_meta (
+  key   text primary key,
+  value text not null
+);
 
 -- Encje wykryte deterministycznie (ADR-0008, extractEntitiesAndEdges).
 -- Osobny cykl retencji RODO art. 17 (PII typy: PESEL/NIP/REGON/KRS/EMAIL/PHONE).
@@ -350,6 +413,15 @@ create table if not exists citation_graph (
   relation text not null,
   confidence real not null,
   source_entity_id text,
+  -- ADR-0125 (T2.1 KGLF): governance krawedzi. Auto-ekstrakcja (ADR-0008) wpisuje
+  -- 'proposed'/'analysis'/run_id=null (propozycja globalna, widoczna, nieratyfikowana).
+  -- Ratyfikacja (akt ludzki) ustawia 'ratified' + ratified_by/at. DEFAULT 'proposed'
+  -- /'analysis' -> istniejace auto-krawedzie po migracji pozostaja widoczne (run_id null).
+  status text not null default 'proposed',
+  origin text not null default 'analysis',
+  run_id text,
+  ratified_by text,
+  ratified_at text,
   extracted_at text not null
 );
 create index if not exists idx_citation_graph_from on citation_graph(from_doc_id);
@@ -388,4 +460,35 @@ create table if not exists event_roles (
 );
 create index if not exists idx_event_roles_event on event_roles(event_id);
 create index if not exists idx_event_roles_value on event_roles(value_normalized);
+
+-- Biblioteka umiejetnosci (ADR-0094). Stan zainstalowanych skilli-paczek
+-- (manifest = JSON tekst). Skille WBUDOWANE (etapy obrony) NIE sa tu - loader
+-- trzyma je jako read-only deskryptory i scala z lista zainstalowanych.
+create table if not exists installed_skills (
+  id           text primary key,
+  name         text not null,
+  version      text not null,
+  surface      text not null,
+  source       text not null default 'local-file',
+  egress       text not null default 'no-egress',
+  manifest     text not null,
+  enabled      integer not null default 1,
+  installed_at text not null,
+  updated_at   text not null
+);
+create index if not exists idx_installed_skills_enabled on installed_skills(enabled);
+
+-- Klucze szyfrowania pol (ADR-0138). Envelope: DEK (data-encryption-key) owiniety
+-- przez KEK (key-encryption-key) i przechowywany TYLKO jako wrapped_dek
+-- (fc1:iv:ct:tag) - sam material DEK nigdy nie lezy tu plaintext. Per-tenant
+-- (desktop = 1 wiersz dla LOCAL_USER_ID; serwer = per organization/user).
+-- kek_version do re-wrap przy rotacji KEK (US3). Migracja Postgres: 017.
+create table if not exists encryption_keys (
+  id text primary key,
+  tenant_id text not null unique,
+  wrapped_dek text not null,
+  kek_version integer not null default 1,
+  created_at text not null
+);
+create index if not exists idx_encryption_keys_tenant on encryption_keys(tenant_id);
 `;

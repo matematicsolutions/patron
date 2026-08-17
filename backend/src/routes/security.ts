@@ -144,11 +144,15 @@ securityRouter.get(
 
         try {
             const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+            // Tabela audit_log uzywa kolumny "ts" (nie created_at) - patrz
+            // schema.sqlite.ts:253. Wczesniej zapytanie odwolywalo sie do
+            // created_at -> SQLite "no such column" -> 500 przy kazdym otwarciu
+            // banera MCP Security przez admina.
             const { data, error } = await supabase
                 .from("audit_log")
-                .select("payload, created_at")
+                .select("payload, ts")
                 .eq("event_type", "mcp_security.gateway")
-                .gte("created_at", since);
+                .gte("ts", since);
 
             if (error) {
                 res.status(500).json({

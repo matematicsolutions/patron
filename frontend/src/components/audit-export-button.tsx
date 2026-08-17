@@ -1,5 +1,9 @@
-// Button eksportu audit pack JSON dla audytora (ADR-0047) z fallback
+// Button eksportu audit pack dla audytora (ADR-0047) z fallback
 // "Wymus compute root" gdy brak pokrywajacego Merkle root (ADR-0048).
+//
+// Od ADR-0142 endpoint zwraca archiwum ZIP: pack JSON + dwa samodzielne
+// weryfikatory + instrukcja. Odbiorca (sad, regulator, klient) sprawdza zapis
+// bez repozytorium Patrona i bez zadnej instalacji.
 //
 // Wywoluje GET /api/audit/export/:eventId, pobiera Blob i wymusza download
 // przez native <a download>. Gdy backend zwroci 404 z detail zawierajacym
@@ -38,7 +42,10 @@ function parseFilenameFromContentDisposition(header: string | null): string | nu
 }
 
 function fallbackFilename(eventId: number): string {
-    return `audit-pack-event-${eventId}.json`;
+    // ADR-0142: eksport zwraca archiwum ZIP (pack + weryfikatory + instrukcja),
+    // nie sam JSON. Fallback musi miec zgodne rozszerzenie, inaczej odbiorca
+    // dostaje plik, ktorego system nie umie otworzyc.
+    return `audit-pack-event-${eventId}.zip`;
 }
 
 function downloadBlob(blob: Blob, filename: string): void {
@@ -188,7 +195,7 @@ export function AuditExportButton({ eventId }: AuditExportButtonProps) {
                 ) : (
                     <>
                         <Download className="h-4 w-4" />
-                        <span>Pobierz audit pack (JSON)</span>
+                        <span>Pobierz audit pack (ZIP z weryfikatorem)</span>
                     </>
                 )}
             </Button>

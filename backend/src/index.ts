@@ -18,6 +18,13 @@ import { foldersRouter } from "./routes/folders";
 import { draftRouter } from "./routes/draft";
 import { rodoRouter } from "./routes/rodo";
 import { usageRouter } from "./routes/usage";
+import { skillsRouter } from "./routes/skills";
+import { connectorsRouter } from "./routes/connectors";
+import { approvalsRouter } from "./routes/approvals";
+import { healthRouter } from "./routes/health";
+import { packsRouter } from "./routes/packs";
+import { citationsRouter } from "./routes/citations";
+import { configRouter } from "./routes/config";
 import { createServerSupabase, isSqliteBackend } from "./lib/supabase";
 import { runAutoCompute } from "./lib/audit-merkle-roots";
 import {
@@ -168,6 +175,16 @@ app.use("/folders", foldersRouter);
 app.use("/draft", draftRouter);
 app.use("/rodo", rodoRouter);
 app.use("/api/usage", usageRouter);
+app.use("/skills", skillsRouter);
+app.use("/connectors", connectorsRouter);
+app.use("/mutation-approvals", approvalsRouter);
+// Panel "Stan systemu" (audyt P3 #17) - bogata migawka stanu (admin). Osobno od
+// publicznego liveness /health ponizej (probe bez auth, zero detali).
+app.use("/api/status", healthRouter);
+app.use("/api/citations", citationsRouter);
+app.use("/api/config", configRouter);
+// Paczki wiedzy - kanal dystrybucji chunkowej (ADR-0140).
+app.use("/api/packs", packsRouter);
 
 app.get("/health", (_req, res) => res.json({ ok: true }));
 

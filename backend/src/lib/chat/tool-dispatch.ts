@@ -15,7 +15,8 @@ import { createServerSupabase } from "../supabase";
 import { citationReminder } from "./prompts";
 import { resolveDocLabel } from "./citations";
 import { extractPdfText } from "./pdf";
-import { analyzeInput, isHardThreat } from "../input-security";
+import { boundedDocumentText } from "./document-window";
+import { analyzeInput, isHardThreat, inputSecurityEnforce } from "../input-security";
 import { generateDocx } from "./docx-generate";
 import {
     loadCurrentVersionBytes,
@@ -25,6 +26,11 @@ import {
 import { type CommentInput } from "../docxComments";
 import { retrieve } from "../retrieval/retrieval";
 import { saveMemory, listMemories, readMemory } from "../brain/store";
+import {
+    shouldStageMutation,
+    stageMutationApproval,
+    type StagedToolName,
+} from "../mutation-approval";
 import type {
     CommentAnnotation,
     DocIndex,
@@ -179,7 +185,7 @@ async function readDocumentContent(
                 docInfo.file_type === "pdf" ? "application/pdf" : undefined,
             buffer: new Uint8Array(raw),
         });
-        if (isHardThreat(guard)) {
+        if (isHardThreat(guard, inputSecurityEnforce())) {
             console.log(
                 `[read_document] WSTRZYMANY przez input-security action=${guard.action} filename="${docInfo.filename}"`,
             );
@@ -455,6 +461,128 @@ export type DocReplicatedResult = {
     }[];
 };
 
+/**
+ * Decyzja scope dla RAG (search_corpus) - audyt P2 #5. Izolacja tajemnicy
+ * miedzy sprawami:
+ *   - projectId ustawiony -> tylko dokumenty tej sprawy.
+ *   - projectId null (czat ogolny) -> DOMYSLNIE tylko dokumenty bez sprawy
+ *     (standalone). Wczesniej brak scope => retrieve przeszukiwal CALY korpus
+ *     usera, mieszajac akta roznych klientow.
+ *   - PATRON_RAG_CROSS_CASE=true -> swiadome wyszukiwanie przekrojowe (caly
+ *     korpus), z ostrzezeniem; tymczasowa furtka env do czasu przelacznika UI.
+ *
+ * Zwraca `documentIds`: lista (scoped) albo undefined (caly korpus, tylko
+ * cross-case). `[]` => retrieve zwraca zero trafien (NIE caly korpus).
+ */
+export async function resolveSearchScope(
+    db: ReturnType<typeof createServerSupabase>,
+    projectId: string | null | undefined,
+    userId?: string,
+): Promise<{
+    documentIds: string[] | undefined;
+    scopeNote?: string;
+    crossCase: boolean;
+}> {
+    if (projectId) {
+        // Sprawa: scope po project_id (wspoldzielenie obsluguje warstwa dostepu
+        // do czatu/projektu - checkProjectAccess - wiec NIE zawezamy po user_id,
+        // by collaborator widzial akta wspolnej sprawy).
+        const { data: projDocs } = await db
+            .from("documents")
+            .select("id")
+            .eq("project_id", projectId)
+            .eq("status", "ready");
+        return {
+            documentIds: ((projDocs ?? []) as { id: string }[]).map((d) => d.id),
+            crossCase: false,
+        };
+    }
+    if (process.env.PATRON_RAG_CROSS_CASE === "true") {
+        return {
+            documentIds: undefined,
+            crossCase: true,
+            scopeNote:
+                "UWAGA: wyszukiwanie przekrojowe (PATRON_RAG_CROSS_CASE) - wyniki moga pochodzic z roznych spraw; zweryfikuj proweniencje przed uzyciem.",
+        };
+    }
+    // Czat ogolny: tylko dokumenty standalone WLASCICIELA. user_id zaweza
+    // cross-tenant (tryb serwerowy multi-tenant: dokumenty standalone sa osobiste,
+    // nigdy wspoldzielone - bez tego filtra czat ogolny moglby siegnac standalone
+    // innego usera). Desktop single-user: filtr nieszkodliwy.
+    let looseQuery = db
+        .from("documents")
+        .select("id")
+        .is("project_id", null)
+        .eq("status", "ready");
+    if (userId) looseQuery = looseQuery.eq("user_id", userId);
+    const { data: loose } = await looseQuery;
+    return {
+        documentIds: ((loose ?? []) as { id: string }[]).map((d) => d.id),
+        crossCase: false,
+        scopeNote:
+            "Czat ogolny: przeszukano tylko dokumenty bez przypisanej sprawy (izolacja tajemnicy). Aby pytac o akta konkretnej sprawy, otworz czat w jej kontekscie.",
+    };
+}
+
+/**
+ * Wynik bramki stagingu (ADR-0137) dla pojedynczej akcji o skutkach ubocznych:
+ *   - proceed -> staging wylaczony, wykonaj inline jak dotad,
+ *   - staged  -> utworzono karte `pending`, akcja NIE wykonuje sie,
+ *   - error   -> staging wlaczony, ale zapis karty zawiodl -> fail-closed (nie wykonuj).
+ */
+type StageOutcome =
+    | { mode: "proceed" }
+    | { mode: "staged"; approvalId: string }
+    | { mode: "error"; error: string };
+
+/**
+ * Bramka human-in-the-loop przed wykonaniem narzedzia mutujacego (ADR-0137).
+ * Gdy staging wlaczony - stage'uje akcje jako karte `pending` i sygnalizuje, ze
+ * NIE nalezy jej wykonywac inline (czeka na zatwierdzenie czlowieka, AI Act
+ * art. 14). Domyslnie wylaczona (env) - zero zmiany sciezki czatu do czasu UI inbox.
+ */
+async function maybeStageMutation(params: {
+    toolName: StagedToolName;
+    userId: string;
+    db: ReturnType<typeof createServerSupabase>;
+    chatId: string | null;
+    documentId: string | null;
+    toolPayload: Record<string, unknown>;
+}): Promise<StageOutcome> {
+    // Polityka US3 (ADR-0137 + ADR-0092): off/all/high-stakes (fail-closed).
+    // Kontekst klasyfikatora pusty - metadane deliverable (typ/wartosc) nie sa
+    // dzis dostepne na tym poziomie; high-stakes zachowuje sie jak all (rezerwacja).
+    if (!shouldStageMutation().stage) return { mode: "proceed" };
+    const card = await stageMutationApproval(params.db, {
+        userId: params.userId,
+        chatId: params.chatId,
+        documentId: params.documentId,
+        toolName: params.toolName,
+        toolPayload: params.toolPayload,
+    });
+    if (!card) {
+        return {
+            mode: "error",
+            error: "Nie udalo sie utworzyc karty zatwierdzenia - akcja NIE zostala wykonana. Sprobuj ponownie.",
+        };
+    }
+    return { mode: "staged", approvalId: card.id };
+}
+
+/** Tool-result dla akcji stage'owanej (model informuje usera o oczekiwaniu). */
+function stagedToolResultContent(
+    toolName: StagedToolName,
+    approvalId: string,
+): string {
+    return JSON.stringify({
+        ok: true,
+        staged: true,
+        status: "pending",
+        approval_id: approvalId,
+        note: `Akcja "${toolName}" zostala przygotowana i czeka na zatwierdzenie przez czlowieka (karta ${approvalId}). NIE zostala jeszcze wykonana. Poinformuj uzytkownika, ze musi zatwierdzic karte, aby zapis nastapil.`,
+    });
+}
+
 export async function runToolCalls(
     toolCalls: ToolCall[],
     docStore: DocStore,
@@ -550,50 +678,94 @@ export async function runToolCalls(
             const query = (args.query as string) ?? "";
             const maxResults =
                 typeof args.max_results === "number" ? args.max_results : 8;
-            // Scope: dokumenty projektu (jezeli projektowy czat), inaczej caly
-            // korpus usera. retrieve() sam degraduje do BM25+graf bez wektora.
-            let docFilter: string[] | undefined;
-            if (projectId) {
-                const { data: projDocs } = await db
-                    .from("documents")
-                    .select("id")
-                    .eq("project_id", projectId)
-                    .eq("status", "ready");
-                docFilter = ((projDocs ?? []) as { id: string }[]).map(
-                    (d) => d.id,
-                );
-            }
+            // Scope RAG (audyt P2 #5) - izolacja tajemnicy miedzy sprawami.
+            // retrieve() degraduje do BM25+graf bez wektora. documentIds=[] =>
+            // zero trafien (NIE caly korpus). Logika w resolveSearchScope.
+            const {
+                documentIds: docFilter,
+                scopeNote,
+                crossCase: crossCaseSearch,
+            } = await resolveSearchScope(db, projectId, userId);
             let content: string;
             try {
                 const hits = await retrieve(query, maxResults, {
                     documentIds: docFilter,
                 });
                 const ids = [...new Set(hits.map((h) => h.documentId))];
+                // Proweniencja: dokument -> (plik, sprawa). Pozwala pokazac, z
+                // ktorej sprawy pochodzi trafienie i ostrzec o przekroczeniu
+                // granicy sprawy (audyt P2 #5).
                 const fnMap = new Map<string, string>();
+                const projOfDoc = new Map<string, string | null>();
                 if (ids.length) {
                     const { data: docs } = await db
                         .from("documents")
-                        .select("id, filename")
+                        .select("id, filename, project_id")
                         .in("id", ids);
                     for (const d of (docs ?? []) as {
                         id: string;
                         filename: string;
+                        project_id: string | null;
                     }[]) {
                         fnMap.set(d.id, d.filename);
+                        projOfDoc.set(d.id, d.project_id ?? null);
                     }
                 }
+                const caseProjectIds = [
+                    ...new Set(
+                        [...projOfDoc.values()].filter(
+                            (p): p is string => !!p,
+                        ),
+                    ),
+                ];
+                const caseNameMap = new Map<string, string>();
+                if (caseProjectIds.length) {
+                    const { data: projs } = await db
+                        .from("projects")
+                        .select("id, name")
+                        .in("id", caseProjectIds);
+                    for (const p of (projs ?? []) as {
+                        id: string;
+                        name: string;
+                    }[]) {
+                        caseNameMap.set(p.id, p.name);
+                    }
+                }
+                const caseOf = (docId: string): string => {
+                    const pid = projOfDoc.get(docId) ?? null;
+                    return pid
+                        ? (caseNameMap.get(pid) ?? pid)
+                        : "bez sprawy";
+                };
+                // Ostrzezenie gdy trafienia przekraczaja granice jednej sprawy.
+                const distinctCases = new Set(ids.map((id) => caseOf(id)));
+                const crossNote =
+                    distinctCases.size > 1
+                        ? "UWAGA: wyniki pochodza z roznych spraw - sprawdz pole 'case' kazdego trafienia (granica tajemnicy)."
+                        : undefined;
                 content = JSON.stringify({
                     query,
+                    cross_case: crossCaseSearch,
                     results: hits.map((h) => ({
                         document_id: h.documentId,
                         filename: fnMap.get(h.documentId) ?? h.documentId,
+                        case: caseOf(h.documentId),
+                        // Proweniencja strony (audyt P2 #10) - pozwala cytowac "str. N".
+                        page: h.pageNo ?? null,
                         chunk_index: h.chunkIndex,
                         score: Number(h.score.toFixed(4)),
                         text: h.content,
                     })),
-                    note: hits.length
-                        ? undefined
-                        : "Brak trafien w korpusie dla tego zapytania.",
+                    note:
+                        [
+                            hits.length
+                                ? undefined
+                                : "Brak trafien w korpusie dla tego zapytania.",
+                            crossNote,
+                            scopeNote,
+                        ]
+                            .filter(Boolean)
+                            .join(" ") || undefined,
                 });
             } catch (e) {
                 content = JSON.stringify({
@@ -624,6 +796,58 @@ export async function runToolCalls(
                     ? `${citationReminder(docId, filename)}\n\n${content}`
                     : content,
             });
+        } else if (tc.function.name === "get_document_text") {
+            // ADR-0117: stronicowany odczyt. Ta sama sciezka co read_document
+            // (resolver, wersja tracked-changes, ekstrakcja, guard input-security
+            // przez readDocumentContent), tylko zwracamy okno char_offset/max_chars
+            // z jawnym next_offset/truncated zamiast calego tekstu.
+            const rawDocId = args.doc_id as string;
+            const docId =
+                resolveDocLabel(rawDocId, docStore, docIndex) ?? rawDocId;
+            const charOffset =
+                typeof args.char_offset === "number" ? args.char_offset : 0;
+            const maxChars =
+                typeof args.max_chars === "number" ? args.max_chars : undefined;
+            const full = await readDocumentContent(
+                docId,
+                docStore,
+                write,
+                docIndex,
+                db,
+            );
+            if (isReadFailureSentinel(full)) {
+                // Brak dokumentu / blad odczytu / wstrzymanie input-security -
+                // zwroc komunikat bez okienkowania (jak read_document), nie udawaj
+                // okna tekstu.
+                toolResults.push({
+                    role: "tool",
+                    tool_call_id: tc.id,
+                    content: full,
+                });
+            } else {
+                const filename = docStore.get(docId)?.filename;
+                const documentId = docIndex?.[docId]?.document_id;
+                if (filename)
+                    docsRead.push({ filename, document_id: documentId });
+                const window = boundedDocumentText(full, charOffset, maxChars);
+                toolResults.push({
+                    role: "tool",
+                    tool_call_id: tc.id,
+                    content: JSON.stringify({
+                        doc_id: docId,
+                        filename: filename ?? docId,
+                        char_offset: window.charOffset,
+                        max_chars: window.maxChars,
+                        total_chars: window.totalChars,
+                        next_offset: window.nextOffset,
+                        truncated: window.truncated,
+                        note: filename
+                            ? citationReminder(docId, filename)
+                            : undefined,
+                        text: window.text,
+                    }),
+                });
+            }
         } else if (tc.function.name === "find_in_document") {
             const rawDocId = args.doc_id as string;
             const docId =
@@ -846,12 +1070,8 @@ export async function runToolCalls(
                     content: JSON.stringify({ error: err }),
                 });
             } else {
-                write(
-                    `data: ${JSON.stringify({
-                        type: "doc_edited_start",
-                        filename: docInfo.filename,
-                    })}\n\n`,
-                );
+                // Normalizacja edits PRZED bramka, by sciezka staged i inline
+                // wykonywaly DOKLADNIE te same (skoercowane) edits - parytet.
                 const edits: EditInput[] = (
                     editsRaw as Record<string, unknown>[]
                 ).map((e) => ({
@@ -861,6 +1081,62 @@ export async function runToolCalls(
                     context_after: String(e.context_after ?? ""),
                     reason: e.reason ? String(e.reason) : undefined,
                 }));
+                // ADR-0137: bramka human-in-the-loop przed zapisem dokumentu.
+                const stageOutcome = await maybeStageMutation({
+                    toolName: "edit_document",
+                    userId,
+                    db,
+                    chatId: null,
+                    documentId: indexed.document_id,
+                    toolPayload: {
+                        doc_id: docId,
+                        document_id: indexed.document_id,
+                        filename: docInfo.filename,
+                        edits,
+                    },
+                });
+                if (stageOutcome.mode !== "proceed") {
+                    if (stageOutcome.mode === "staged") {
+                        write(
+                            `data: ${JSON.stringify({
+                                type: "doc_edited",
+                                filename: docInfo.filename,
+                                document_id: indexed.document_id,
+                                version_id: "",
+                                download_url: "",
+                                annotations: [],
+                                staged: true,
+                                approval_id: stageOutcome.approvalId,
+                            })}\n\n`,
+                        );
+                        toolResults.push({
+                            role: "tool",
+                            tool_call_id: tc.id,
+                            content: stagedToolResultContent(
+                                "edit_document",
+                                stageOutcome.approvalId,
+                            ),
+                        });
+                    } else {
+                        emitEditError(
+                            docInfo.filename,
+                            indexed.document_id,
+                            stageOutcome.error,
+                        );
+                        toolResults.push({
+                            role: "tool",
+                            tool_call_id: tc.id,
+                            content: JSON.stringify({ error: stageOutcome.error }),
+                        });
+                    }
+                    continue;
+                }
+                write(
+                    `data: ${JSON.stringify({
+                        type: "doc_edited_start",
+                        filename: docInfo.filename,
+                    })}\n\n`,
+                );
                 const reuseVersion = turnEditState?.get(indexed.document_id);
                 const result = await runEditDocument({
                     documentId: indexed.document_id,
@@ -1000,12 +1276,7 @@ export async function runToolCalls(
                     content: JSON.stringify({ error: err }),
                 });
             } else {
-                write(
-                    `data: ${JSON.stringify({
-                        type: "doc_commented_start",
-                        filename: docInfo.filename,
-                    })}\n\n`,
-                );
+                // Normalizacja PRZED bramka - parytet staged/inline (jak edit).
                 const comments: CommentInput[] = (
                     commentsRaw as Record<string, unknown>[]
                 ).map((c) => ({
@@ -1014,6 +1285,62 @@ export async function runToolCalls(
                     context_after: String(c.context_after ?? ""),
                     text: String(c.text ?? ""),
                 }));
+                // ADR-0137 (US3): bramka human-in-the-loop przed dodaniem komentarzy.
+                const stageOutcome = await maybeStageMutation({
+                    toolName: "add_comments",
+                    userId,
+                    db,
+                    chatId: null,
+                    documentId: indexed.document_id,
+                    toolPayload: {
+                        doc_id: docId,
+                        document_id: indexed.document_id,
+                        filename: docInfo.filename,
+                        comments,
+                    },
+                });
+                if (stageOutcome.mode !== "proceed") {
+                    if (stageOutcome.mode === "staged") {
+                        write(
+                            `data: ${JSON.stringify({
+                                type: "doc_commented",
+                                filename: docInfo.filename,
+                                document_id: indexed.document_id,
+                                version_id: "",
+                                download_url: "",
+                                annotations: [],
+                                staged: true,
+                                approval_id: stageOutcome.approvalId,
+                            })}\n\n`,
+                        );
+                        toolResults.push({
+                            role: "tool",
+                            tool_call_id: tc.id,
+                            content: stagedToolResultContent(
+                                "add_comments",
+                                stageOutcome.approvalId,
+                            ),
+                        });
+                    } else {
+                        emitCommentError(
+                            docInfo.filename,
+                            indexed.document_id,
+                            stageOutcome.error,
+                        );
+                        toolResults.push({
+                            role: "tool",
+                            tool_call_id: tc.id,
+                            content: JSON.stringify({ error: stageOutcome.error }),
+                        });
+                    }
+                    continue;
+                }
+                write(
+                    `data: ${JSON.stringify({
+                        type: "doc_commented_start",
+                        filename: docInfo.filename,
+                    })}\n\n`,
+                );
                 const reuseVersion = turnEditState?.get(indexed.document_id);
                 const result = await runAddComments({
                     documentId: indexed.document_id,
@@ -1397,8 +1724,9 @@ export async function runToolCalls(
         } else if (tc.function.name === "generate_docx") {
             const title = args.title as string;
             const landscape = !!args.landscape;
+            const kancelaria = !!args.kancelaria;
             console.log(
-                `[generate_docx] title="${title}" landscape=${landscape} args.landscape=${args.landscape}`,
+                `[generate_docx] title="${title}" landscape=${landscape} kancelaria=${kancelaria}`,
             );
             const previewFilename = `${
                 title
@@ -1406,6 +1734,58 @@ export async function runToolCalls(
                     .trim()
                     .slice(0, 64) || "document"
             }.docx`;
+            // ADR-0137: bramka human-in-the-loop przed wygenerowaniem dokumentu.
+            const genStage = await maybeStageMutation({
+                toolName: "generate_docx",
+                userId,
+                db,
+                chatId: null,
+                documentId: null,
+                toolPayload: {
+                    title,
+                    sections: args.sections,
+                    landscape,
+                    kancelaria,
+                    projectId: projectId ?? null,
+                    filename: previewFilename,
+                },
+            });
+            if (genStage.mode !== "proceed") {
+                if (genStage.mode === "staged") {
+                    write(
+                        `data: ${JSON.stringify({
+                            type: "doc_created",
+                            filename: previewFilename,
+                            download_url: "",
+                            staged: true,
+                            approval_id: genStage.approvalId,
+                        })}\n\n`,
+                    );
+                    toolResults.push({
+                        role: "tool",
+                        tool_call_id: tc.id,
+                        content: stagedToolResultContent(
+                            "generate_docx",
+                            genStage.approvalId,
+                        ),
+                    });
+                } else {
+                    write(
+                        `data: ${JSON.stringify({
+                            type: "doc_created",
+                            filename: previewFilename,
+                            download_url: "",
+                            error: genStage.error,
+                        })}\n\n`,
+                    );
+                    toolResults.push({
+                        role: "tool",
+                        tool_call_id: tc.id,
+                        content: JSON.stringify({ error: genStage.error }),
+                    });
+                }
+                continue;
+            }
             write(
                 `data: ${JSON.stringify({ type: "doc_created_start", filename: previewFilename })}\n\n`,
             );
@@ -1414,7 +1794,7 @@ export async function runToolCalls(
                 args.sections as unknown[],
                 userId,
                 db,
-                { landscape, projectId: projectId ?? null },
+                { landscape, kancelaria, projectId: projectId ?? null },
             );
             let newDocLabel: string | null = null;
             if ("filename" in result && "download_url" in result) {

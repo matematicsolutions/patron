@@ -2,6 +2,8 @@
 
 **Status**: PROPONOWANY (2026-05-27). Realizacja rezerwacji z ADR-0046 (sekcja "Co NIE jest w ADR-0046"). Audytor dostaje samowystarczalny JSON do offline weryfikacji bez dostepu do bazy kancelarii.
 
+> **ERRATA (2026-08-04, ADR-0142):** kontrakt odpowiedzi `GET /api/audit/export/:eventId` opisany w sekcji A zostal ZMIENIONY - endpoint zwraca `application/zip` (artefakt + dwa weryfikatory + instrukcja), nie `application/json`. Zmienilo sie tez znaczenie slowa "samowystarczalny" uzywanego nizej w tym ADR: pack byl samowystarczalny wobec sieci i bazy, ale NIE wobec instalacji - weryfikacja wymagala repozytorium Patrona i `npm run audit:verify-pack`, czyli srodowiska, ktorego sad, regulator ani klient kancelarii nie maja. Od ADR-0142 weryfikatory jada w archiwum. Reszta tego ADR (struktura packa, maskowanie payloadu, Merkle proof, `canonical_sha256`) obowiazuje bez zmian.
+
 **Data**: 2026-05-27
 
 **Powiazane zasady** (Konstytucja Patrona v1.3.0 -> v1.3.1):

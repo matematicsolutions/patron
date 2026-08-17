@@ -7,8 +7,13 @@
 //
 // Polityka (lustro doc w lib/llm/provider.ts DataClassification):
 //   - attorney_client_privileged (tajemnica zawodowa, Pr.Adw. art.6, Pr.RP art.3):
-//       TYLKO no-egress (model lokalny). Kazda chmura = blok. Bez wyjatku - flaga
-//       ALLOW_US_PROVIDERS NIE odblokowuje tajemnicy.
+//       domyslnie TYLKO no-egress (model lokalny). Operator moze jednak wyrazic
+//       swiadoma zgode na chmure dla spraw objetych tajemnica (allowPrivilegedCloud,
+//       env PATRON_ALLOW_PRIVILEGED_CLOUD) - na desktopie single-user adwokat JEST
+//       Operatorem na wlasnej maszynie, a jego wybor modelu chmurowego (np. Libra/
+//       Anthropic, glowne narzedzie prawnikow w PL) jest ta zgoda. Transfer do US
+//       nadal wymaga OSOBNO ALLOW_US_PROVIDERS (egress poza EOG + DPA/DPF). Egress
+//       jest ZAWSZE audytowany (dowod AI Act art. 12) - zgoda zdejmuje blokade, nie audyt.
 //   - client_general (dane klienta nieobjete tajemnica):
 //       no-egress lub eu-only zawsze; us-with-dpa tylko gdy Administrator wlaczyl
 //       ALLOW_US_PROVIDERS (swiadoma decyzja transferu poza EOG + DPA/DPF).
@@ -30,7 +35,8 @@ export type RouteReason =
     | "local-no-egress" // allow: model lokalny, dane nie opuszczaja maszyny
     | "eu-within-allowed-zone" // allow: eu-only dla klasyfikacji ktora to dopuszcza
     | "us-allowed-by-administrator" // allow: us-with-dpa + ALLOW_US_PROVIDERS=true
-    | "privileged-requires-local" // block: tajemnica do nie-lokalnego modelu
+    | "privileged-cloud-by-operator" // allow: tajemnica do chmury za swiadoma zgoda Operatora
+    | "privileged-requires-local" // block: tajemnica do nie-lokalnego modelu (brak zgody)
     | "us-providers-disabled" // block: us-with-dpa ale ALLOW_US_PROVIDERS=false
     | "egress-zone-not-permitted"; // block: strefa niedozwolona dla klasyfikacji
 
@@ -41,9 +47,16 @@ export interface RouteDecisionInput {
     egress: EgressFlag;
     /**
      * Czy Administrator kancelarii wlaczyl transfer do US (DPA + DPF).
-     * Default false. NIE odblokowuje attorney_client_privileged.
+     * Default false. Dotyczy strefy us-with-dpa dla KAZDEJ klasyfikacji.
      */
     allowUsProviders: boolean;
+    /**
+     * Czy Operator wyrazil swiadoma zgode na model chmurowy dla spraw objetych
+     * tajemnica zawodowa (PATRON_ALLOW_PRIVILEGED_CLOUD). Default false (fabryka =
+     * rygor). Gdy true, tajemnica nie wymusza juz modelu lokalnego - obowiazuja
+     * normalne reguly strefy (US nadal pod allowUsProviders). Egress zawsze audytowany.
+     */
+    allowPrivilegedCloud?: boolean;
 }
 
 export interface RouteDecision {
@@ -61,6 +74,7 @@ export interface RouteDecision {
  */
 export function decideRoute(input: RouteDecisionInput): RouteDecision {
     const { classification, egress, allowUsProviders } = input;
+    const allowPrivilegedCloud = input.allowPrivilegedCloud === true;
     const base = { classification, egress } as const;
 
     // Model lokalny zawsze dozwolony - dane nie opuszczaja maszyny kancelarii.
@@ -68,11 +82,22 @@ export function decideRoute(input: RouteDecisionInput): RouteDecision {
         return { action: "allow", reason: "local-no-egress", ...base };
     }
 
-    // Tajemnica zawodowa: tylko lokalnie. Zadna chmura, niezaleznie od flagi.
+    // Tajemnica zawodowa do chmury: domyslnie blok (fabryka serwerowa = rygor).
+    // Gdy Operator wyrazil swiadoma zgode (allowPrivilegedCloud) - dozwolony jest
+    // KAZDY model, niezaleznie od strefy (UE czy US). Zgoda Operatora na chmure dla
+    // tajemnicy jest najmocniejsza decyzja i obejmuje lokalizacje dostawcy. Egress
+    // zawsze trafia do audytu (dowod AI Act art. 12), a PII jest maskowane wczesniej.
     if (classification === "attorney_client_privileged") {
+        if (!allowPrivilegedCloud) {
+            return {
+                action: "block",
+                reason: "privileged-requires-local",
+                ...base,
+            };
+        }
         return {
-            action: "block",
-            reason: "privileged-requires-local",
+            action: "allow",
+            reason: "privileged-cloud-by-operator",
             ...base,
         };
     }

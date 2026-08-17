@@ -7,8 +7,9 @@
 // SAD: nazwy sadow przez gazetteer (sady-pl.json), NIE regex - lista
 // zamknieta ~150 podmiotow.
 //
-// OSOBA / FIRMA: regex form prawnych (Sp. z o.o., S.A.) wykrywa
-// firmy z umiarkowana precyzja. Imiona osob - LLM-fallback (warstwa
+// OSOBA / FIRMA: regex form prawnych (sp. z o.o., S.A., ...) wykrywa
+// firmy z umiarkowana precyzja, niezaleznie od wielkosci liter w formie.
+// Imiona osob - LLM-fallback (warstwa
 // pseudonim ADR-0003 ma to juz wpiete, my reuse'ujemy wynik).
 
 import {
@@ -166,16 +167,134 @@ const PHONE_PL_RE = /\+48[\s-]?\d{3}[\s-]?\d{3}[\s-]?\d{3}\b/g;
 const EMAIL_RE = /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g;
 
 /**
+ * Formy prawne spolek - JEDNO zrodlo prawdy dla regexu FIRMA (ponizej) oraz
+ * slownika bootstrapAnnotate (`LEGAL_FORMS` reeksportuje te liste). Rozjazd
+ * dwoch recznie utrzymywanych list byl zrodlem luki opisanej nizej.
+ *
+ * Zapis kanoniczny MALA litera - tak wystepuje w KRS i w pismach procesowych
+ * ("ABC sp. z o.o."), i to jest zapis dominujacy w polskiej praktyce. Wersja
+ * z wielkiej ("Sp. z o.o.") jest lapana przez kompilacje case-insensitive,
+ * patrz `legalFormPattern`.
+ *
+ * Warianty z polskimi znakami i bez (spolka / spółka) sa osobnymi wpisami -
+ * pisma bywaja ASCII-folded (OCR, eksporty), a fold w regexie zwiekszalby
+ * false-positive.
+ */
+export const LEGAL_FORM_LITERALS: readonly string[] = [
+    "sp. z o.o.",
+    "spółka z ograniczoną odpowiedzialnością",
+    "spolka z ograniczona odpowiedzialnoscia",
+    "s.a.",
+    "sp. k.",
+    "sp. j.",
+    "sp. p.",
+    "s.k.a.",
+    "p.s.a.",
+    "sp. komandytowa",
+    "spółka komandytowa",
+    "spolka komandytowa",
+    "spółka cywilna",
+    "spolka cywilna",
+    "s.c.",
+];
+
+/**
+ * Kompilacja literalu formy prawnej do fragmentu regexu ODPORNEGO NA WIELKOSC
+ * LITER. Nie uzywamy flagi `i` na calym FIRMA_Z_FORMA_RE, bo kotwica nazwy
+ * (`[A-ZŁŚŻŹĆŃÓĄĘ]` - nazwa firmy musi zaczynac sie z wielkiej) traci wtedy
+ * cala precyzje. Flagi inline `(?i:...)` sa poza zasiegiem targetu Node 20.
+ *
+ * Reguly transformacji:
+ *   - litera -> klasa `[xX]` (toUpperCase obsluguje tez ł/ó/ą/ś/ż/ź/ć/ń/ę),
+ *   - kropka -> `\.`,
+ *   - spacja PO kropce -> `\s*` (dopuszcza "sp.k." obok "sp. k."),
+ *   - spacja po literze -> `\s+` (inaczej "spolkacywilna" byloby forma).
+ */
+function legalFormPattern(literal: string): string {
+    let out = "";
+    for (let i = 0; i < literal.length; i++) {
+        const ch = literal[i]!;
+        if (ch === ".") {
+            out += "\\.";
+        } else if (ch === " ") {
+            out += literal[i - 1] === "." ? "\\s*" : "\\s+";
+        } else {
+            out += `[${ch}${ch.toUpperCase()}]`;
+        }
+    }
+    return out;
+}
+
+// Sortowanie malejaco po dlugosci literalu - alternacja JS bierze PIERWSZY
+// pasujacy wariant, wiec dluzsza forma musi byc probowana przed krotsza
+// (inaczej "spolka komandytowa" zredukowaloby sie do przedrostka).
+const LEGAL_FORM_ALT = [...LEGAL_FORM_LITERALS]
+    .sort((a, b) => b.length - a.length)
+    .map(legalFormPattern)
+    .join("|");
+
+/**
  * Forma prawna w nazwie firmy - heurystyka detekcji nazw spolek.
- * Wymaga w dopasowaniu obecnosci formy prawnej (Sp. z o.o., S.A.,
- * Sp. k., S.K.A., Sp. j., Sp. p., P.S.A.) - sama nazwa nie wystarczy.
+ * Wymaga w dopasowaniu obecnosci formy prawnej z `LEGAL_FORM_LITERALS` -
+ * sama nazwa nie wystarczy.
+ *
+ * ADR-0110 (maskowanie podmiotow przed wyslaniem do LLM): wariant
+ * case-sensitive NIE lapal zapisu mala litera ("ABC sp. z o.o."), czyli
+ * zapisu DOMINUJACEGO w KRS i pismach procesowych - nazwa podmiotu klienta
+ * mogla wyjsc do modelu chmurowego otwartym tekstem (tajemnica zawodowa).
+ * Detekcja jest teraz odporna na wielkosc liter w samej formie prawnej;
+ * nazwa nadal musi zaczynac sie z wielkiej litery.
+ *
+ * GRANICE: `(?<![\p{L}\p{N}_])` i `(?![\p{L}\p{N}])` zamiast `\b` - `\b`
+ * jest ASCII, wiec gubi granice przy polskich literach ("Łódzkie Zaklady
+ * sp. z o.o." na poczatku tekstu obcinalo pierwszy token nazwy). Granica
+ * jest OBOWIAZKOWA: bez niej krotkie skroty (s.c., s.a.) generuja szum.
+ *
+ * PRECYZJA vs RECALL: formy slowne ("spolka cywilna") podnosza recall kosztem
+ * precyzji - zdanie "Jest to spolka cywilna" tez sie zlapie. Swiadomy wybor:
+ * nad-maskowanie jest odwracalne (unwrap w egress.ts), wyciek nazwy klienta
+ * nie jest. Confidence 0.75 zostaje - warstwa wyzej moze filtrowac.
  *
  * Lapie tylko czesc nazw - "Acme sp. z o.o." OK, ale "Acme" bez
  * formy nie. W praktyce do uzupelnienia LLM-fallbackiem + lookup KRS.
  */
-// `\b` po "S.A." nie matchuje bo kropka i nastepna spacja to oba non-word.
-// Uzywamy lookahead `(?=\s|$|[.,;:!?])` dla zakonczenia.
-const FIRMA_Z_FORMA_RE = /\b[A-ZŁŚŻŹĆŃÓĄĘ][\wŁŚŻŹĆŃÓĄĘłśżźćńóąę.,\s&-]{0,80}?\s+(?:Sp\.\s+z\s+o\.o\.|S\.A\.|Sp\.\s+k\.|S\.K\.A\.|Sp\.\s+j\.|Sp\.\s+p\.|P\.S\.A\.)(?=\s|$|[.,;:!?])/g;
+const FIRMA_Z_FORMA_RE = new RegExp(
+    `(?<![\\p{L}\\p{N}_])[A-ZŁŚŻŹĆŃÓĄĘ][\\wŁŚŻŹĆŃÓĄĘłśżźćńóąę.,\\s&-]{0,80}?\\s+(?:${LEGAL_FORM_ALT})(?![\\p{L}\\p{N}])`,
+    "gu",
+);
+
+/**
+ * Osoba zakotwiczona na honoryfikatorze / tytule / roli procesowej (ADR-0127,
+ * domkniecie wezlow PERSON grafu - audyt P2 #11). Grupa (1) = sama nazwa
+ * (1-3 tokeny z wielkiej litery, z polskimi znakami i lacznikiem), marker NIE
+ * wchodzi do dopasowania (detectAll bierze m[1]). Zakotwiczenie daje wysoka
+ * precyzje: bez markera NIE lapiemy goych bigramow z wielkich liter (inaczej
+ * "Sad Najwyzszy", nazwy ustaw -> falszywe osoby). Lookbehind Unicode (NIE \b),
+ * bo marker moze zaczynac sie od polskiej litery ("świadek") - \b jest ASCII.
+ * Lustro logiki egress lib/pseudonim/plDetector.ts (tam maskowanie, tu encje z
+ * offsetami) - konwergencja do wspolnego zrodla = rezerwacja.
+ */
+const OSOBA_NAME = "[A-ZŁŚŻŹĆŃÓĄĘ][a-ząćęłńóśźż]+(?:[-\\s][A-ZŁŚŻŹĆŃÓĄĘ][a-ząćęłńóśźż]+){0,2}";
+// Markery w formie kanonicznej (male litery tam gdzie role; Pan/Pani jak w tekscie).
+const OSOBA_MARKERS_BASE = [
+    "Pan", "Pani", "Pana", "Panu", "Panią", "Państwo", "Państwa",
+    "adw\\.", "adwokat", "adwokata", "mec\\.", "mecenas", "mecenasa",
+    "r\\.\\s?pr\\.", "radca prawny", "radcy prawnego",
+    "sędzia", "sędziego", "prokurator", "prokuratora",
+    "świadek", "świadka", "oskarżony", "oskarżonego", "oskarżonej", "oskarżona",
+    "biegły", "biegłego", "biegła", "powód", "powoda", "pozwany", "pozwanego",
+    "pokrzywdzony", "pokrzywdzonego", "obrońca", "obrońcy",
+];
+// Pierwsza litera markera case-insensitive ([xX]) - role bywaja na poczatku
+// zdania z wielkiej ("Świadek X zeznal"); nazwa (grupa 1) wymagana z wielkiej.
+const OSOBA_MARKERS = OSOBA_MARKERS_BASE.map((m) => {
+    const c = m[0]!;
+    return `[${c}${c.toUpperCase()}]${m.slice(1)}`;
+}).join("|");
+const OSOBA_Z_MARKEREM_RE = new RegExp(
+    `(?<![\\p{L}\\p{N}_])(?:${OSOBA_MARKERS})\\s+(${OSOBA_NAME})`,
+    "gu",
+);
 
 /**
  * Komplet regul ekstrakcji. Wywolujacy moze rozszerzac/wylaczac
@@ -306,6 +425,15 @@ export const PL_EXTRACTION_RULES: ExtractionRule[] = [
         id: "firma-z-forma-prawna",
         type: "FIRMA",
         pattern: FIRMA_Z_FORMA_RE,
+        baseConfidence: 0.75,
+        normalize: (v) => v.replace(/\s+/g, " ").trim(),
+    },
+
+    // === Osoby zakotwiczone na markerze (ADR-0127, wezly PERSON grafu) ===
+    {
+        id: "osoba-z-markerem",
+        type: "OSOBA",
+        pattern: OSOBA_Z_MARKEREM_RE,
         baseConfidence: 0.75,
         normalize: (v) => v.replace(/\s+/g, " ").trim(),
     },

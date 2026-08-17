@@ -18,6 +18,7 @@
 
 import { buildWuManber, searchWuManber } from "./wuManber";
 import { COURTS, SIGNATURE_PREFIXES } from "./gazetteers";
+import { LEGAL_FORM_LITERALS } from "./regex";
 
 /** Wpis slownika: term do dopasowania plus etykieta slabej anotacji. */
 export interface DictionaryEntry {
@@ -55,19 +56,16 @@ export interface BootstrapOptions {
 }
 
 /**
- * Formy prawne spolek - lista stala, spojna z FIRMA_Z_FORMA_RE w regex.ts.
- * Trzymana tutaj jawnie (a nie wyciagana z regexu), bo regex koduje je w
- * alternacji z escapowanymi spacjami, niewygodnej do reuzycia jako lista.
+ * Formy prawne spolek - reeksport JEDNEGO zrodla prawdy z regex.ts. Wczesniej
+ * byla to druga, recznie utrzymywana lista; rozjazd z regexem (tam tylko zapis
+ * z wielkiej litery) byl wlasnie luka w maskowaniu nazw podmiotow. Dopisujac
+ * forme prawna zmieniaj `LEGAL_FORM_LITERALS`, nie to miejsce.
+ *
+ * Zapis kanoniczny mala litera - wpisy slownika sa domyslnie
+ * case-insensitive (`caseSensitive` nieustawione), wiec "Sp. z o.o." dalej
+ * jest dopasowywane.
  */
-export const LEGAL_FORMS: readonly string[] = [
-    "Sp. z o.o.",
-    "S.A.",
-    "Sp. k.",
-    "S.K.A.",
-    "Sp. j.",
-    "Sp. p.",
-    "P.S.A.",
-];
+export const LEGAL_FORMS: readonly string[] = LEGAL_FORM_LITERALS;
 
 /**
  * Zbuduj slownik termow do anotacji z gazetteerow PL plus opcjonalny slownik

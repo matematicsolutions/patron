@@ -97,3 +97,40 @@ describe("groundCellText", () => {
         expect(g!.status).toBe("unverified");
     });
 });
+
+describe("groundCellText - stan needs_review (ADR-0102 B, flaga cellStates)", () => {
+    const CIT = "[[page:1||quote:czynsz]]";
+
+    it("cytaty bez zrodla + cellStates -> needs_review (nie milcz, 'pusta komorka ukrywa informacje')", () => {
+        const g = groundCellText(CIT, "", "", { cellStates: true });
+        expect(g).toBeDefined();
+        expect(g!.status).toBe("needs_review");
+        expect(g!.needs_review).toBe(1);
+        expect(g!.verified).toBe(0);
+        expect(g!.unverified).toBe(0);
+        expect(g!.total).toBe(1);
+    });
+
+    it("cytaty bez zrodla BEZ flagi -> undefined (zachowanie ADR-0080, zero zmiany)", () => {
+        expect(groundCellText(CIT, "", "", { cellStates: false })).toBeUndefined();
+        expect(groundCellText(CIT, "", "")).toBeUndefined();
+    });
+
+    it("brak cytatow + cellStates -> undefined (nie ma czego gruntowac)", () => {
+        expect(
+            groundCellText("Nie dotyczy", "", "", { cellStates: true }),
+        ).toBeUndefined();
+    });
+
+    it("zrodlo obecne + cellStates -> normalna weryfikacja (bez needs_review)", () => {
+        const g = groundCellText(
+            "[[page:1||quote:czynsz w wysokosci 5.000 PLN miesiecznie]]",
+            "",
+            DOC,
+            { cellStates: true },
+        );
+        expect(g).toBeDefined();
+        expect(g!.status).toBe("verified");
+        expect(g!.needs_review).toBeUndefined();
+    });
+});

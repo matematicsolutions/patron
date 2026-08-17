@@ -18,9 +18,22 @@ Dokument uziemiony w realnej weryfikacji repo z 2026-06-01 (commit po ADR-0090).
 
 Wniosek: logika aplikacji i runtime (tryb desktop SQLite zero-cloud) sa sprawne. Artefakty buildu kompiluja sie czysto. Sciezka retrievalu (RRF + dual-similarity ADR-0087 + event-centric ADR-0090) domknieta.
 
+## Aktualizacja po audycie 2026-06-02
+
+Pelny audyt (workflow 93 agentow + agent bezpieczenstwa, patrz [docs/AUDYT_2026-06-02.md](../docs/AUDYT_2026-06-02.md)) wykryl i **naprawil 4 blokery P0** + kluczowe P1. Zweryfikowane live na **swiezo zbudowanym i zainstalowanym** instalatorze (NSIS 220 MB, exe 2026-06-02 18:54):
+- `/skills` 404 -> **200** (biblioteka umiejetnosci dostepna; binarny 06-01 nie mial `skills.js`).
+- `/api/security/mcp-status` 500 -> **200** (bug kolumny `created_at` -> `ts`).
+- Egress guard wpiety w tabular (generate/regenerate-cell/chat) i generate-title - tresc akt nie wychodzi do chmury bez kontroli (ADR-0099).
+- SSRF guard `OLLAMA_HOST`; `<html lang="pl">`; i18n stringow; dostepnosc; baza wiedzy [docs/BAZA_WIEDZY.md](../docs/BAZA_WIEDZY.md).
+- Bramki: backend tsc 0 / vitest 1088 pass; frontend tsc 0; instalator exit 0.
+
+Backlog P1/P2 (nie blokuje pierwszego testu, patrz AUDYT sekcja 5): rotacja sekretow lokalnych, at-rest encryption domyslnie off, CSP report-only, MCP gateway domyslnie off, testy integracyjne tras.
+
 ## Bramy kodowe (do zrobienia przed testem, w pasie agenta)
 
-1. **Pakowanie instalatora desktop (electron-builder)** - jedyny zidentyfikowany realny gap kodowy dla sciezki DESKTOP. `desktop/main.js` w produkcji odpala `npm run dev` (serwer deweloperski Next.js) i `node dist/index.js`, a `desktop/package.json` extraResources WYKLUCZA `node_modules` i `src` z obu paczek. Skutek: spakowany instalator dalby aplikacje, ktora nie wstaje (brak natywnego better-sqlite3 w backendzie, brak zrodel/zaleznosci frontu). Dodatkowo main.js spawnuje zewnetrzny `node`/`npm`, co wymaga toolchainu Node na maszynie klienta - sprzeczne z celem "jeden instalator". Wymaga przeprojektowania: serwowanie frontu produkcyjnie (standalone server.js) zamiast dev, bundling produkcyjnych zaleznosci backendu (w tym rebuild natywny better-sqlite3 pod runtime), uruchamianie procesow przez wbudowany node Electrona zamiast zewnetrznego. Weryfikacja wymaga zbudowania NSIS i instalacji na czystej maszynie Windows (GUI) - poza srodowiskiem agenta headless. Status: wydzielone do osobnego zadania.
+1. ~~**Pakowanie instalatora desktop (electron-builder)**~~ **ZAMKNIETE** (ADR-0091; re-weryfikowane 2026-06-02 - swiezy build niesie fixy P0). Pierwotny opis luki ponizej dla historii.
+
+   **Pakowanie instalatora desktop (electron-builder)** - byl jedyny zidentyfikowany realny gap kodowy dla sciezki DESKTOP. `desktop/main.js` w produkcji odpala `npm run dev` (serwer deweloperski Next.js) i `node dist/index.js`, a `desktop/package.json` extraResources WYKLUCZA `node_modules` i `src` z obu paczek. Skutek: spakowany instalator dalby aplikacje, ktora nie wstaje (brak natywnego better-sqlite3 w backendzie, brak zrodel/zaleznosci frontu). Dodatkowo main.js spawnuje zewnetrzny `node`/`npm`, co wymaga toolchainu Node na maszynie klienta - sprzeczne z celem "jeden instalator". Wymaga przeprojektowania: serwowanie frontu produkcyjnie (standalone server.js) zamiast dev, bundling produkcyjnych zaleznosci backendu (w tym rebuild natywny better-sqlite3 pod runtime), uruchamianie procesow przez wbudowany node Electrona zamiast zewnetrznego. Weryfikacja wymaga zbudowania NSIS i instalacji na czystej maszynie Windows (GUI) - poza srodowiskiem agenta headless. Status: wydzielone do osobnego zadania.
 
 Uwaga: sciezka SERWEROWA (Docker + Supabase + MinIO na VPS) z IMPLEMENTATION_PLAYBOOK Tydzien 1 jest dojrzala i nie ma tego gapa - jezeli pierwszy test idzie w trybie serwerowym, brama kodowa numer 1 nie dotyczy.
 

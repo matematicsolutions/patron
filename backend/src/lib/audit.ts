@@ -93,6 +93,30 @@ export const EVENT_TYPES = [
     // Wymaga migracji 009 ALTER CHECK. Lustro: schema.sqlite.ts, schema.sql,
     // migrations/009. Patrz routes/tabular.ts + lib/tabular/audit-grounding.ts.
     "tabular.grounding",
+    // ADR-0128 (audyt P2 #6): swiadoma zgoda Operatora na model chmurowy
+    // per-sprawa (wlaczenie/wylaczenie) - kto/kiedy/ktora sprawa/stan, bez tresci.
+    // AI Act art. 12 (decyzja zmieniajaca brame egress). Wymaga ALTER CHECK
+    // whitelist: sqlite przez runSqliteMigrations v2 (rebuild audit_log),
+    // Postgres migracja 012. Lustro: schema.sqlite.ts, schema.sql, migrations/012.
+    "project.cloud_consent",
+    // ADR-0133: zmiana stanu konektora MCP przez picker (mecenas wlacza/wylacza
+    // konektor = wybor jurysdykcji). Zmiana powierzchni narzedzi agenta -> AI Act
+    // art. 12. Wymaga migracji: SQLite v3 (rebuild) + Postgres 014 (ALTER CHECK).
+    // Lustro: schema.sqlite.ts, schema.sql, migrate.sqlite.ts, migrations/014.
+    "connector.toggle",
+    // ADR-0137: decyzja czlowieka (approve/reject) o karcie zatwierdzenia mutacji
+    // (human-in-the-loop write staging) - akt nadzoru nad zapisem agenta -> AI Act
+    // art. 14 + 12. Loguje kto/kiedy/typ narzedzia/decyzja/id karty, bez pelnego
+    // payloadu mutacji. Wymaga migracji: SQLite v4 (rebuild) + Postgres 016 (ALTER
+    // CHECK). Lustro: schema.sqlite.ts, schema.sql, migrate.sqlite.ts, migrations/016.
+    "mutation.approval.decision",
+    // ADR-0093 (US5): twardy cost-cap per sprawa. Po przekroczeniu progu
+    // (PATRON_CASE_COST_CAP_USD) wywolanie LLM jest blokowane PRZED guardEgress,
+    // chyba ze operator swiadomie nadpisze. Kazda decyzja (block/override) - sprawa,
+    // model, koszt skumulowany, prog - to niezmienny slad (AI Act art. 12, dowod
+    // kontroli kosztu). Wymaga migracji 010 ALTER CHECK. Lustro: schema.sqlite.ts,
+    // schema.sql, migrations/010. Patrz lib/routing/budget.ts + auditCostCap.ts.
+    "cost_cap",
 ] as const;
 
 /** Union literal lustrzany dla CHECK constraint w audit_log. */

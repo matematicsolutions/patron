@@ -14,7 +14,8 @@
 
 import crypto from "crypto";
 import { getDb, isVecEnabled } from "../db/sqlite-connection";
-import { extractEntitiesAndEdges } from "../graph";
+import { locateChunkSpans } from "../citation/locator";
+import { extractEntitiesAndEdges, resolveToDocLinks, proposeEdge } from "../graph";
 import { buildRoleHits, buildEventFrames } from "./events";
 import { embed, EMBED_MODEL } from "./embeddings";
 import { chunkLegalText } from "./legalChunker";
@@ -22,6 +23,40 @@ import { chunkLegalText } from "./legalChunker";
 export interface ChunkPiece {
   index: number;
   content: string;
+}
+
+/** Segment tekstu przypisany do strony zrodla (audyt P2 #10). */
+export interface PageSegment {
+  /** Numer strony z markera [Page N], albo null (zrodlo bez stron). */
+  page: number | null;
+  /** Tekst segmentu (bez markera). */
+  text: string;
+}
+
+/**
+ * Dzieli tekst na segmenty stron po markerach `[Page N]` wstawianych przez
+ * ekstrakcje PDF (lib/chat/pdf.ts). Brak markerow -> jeden segment page=null
+ * (zachowanie jak dotad dla docx/plain). Tekst przed pierwszym markerem (rzadki)
+ * trafia jako segment page=null. Marker NIE wchodzi do tresci segmentu (dotad
+ * "[Page N]" zanieczyszczalo chunki/embeddingi).
+ */
+export function splitByPageMarkers(text: string): PageSegment[] {
+  const re = /\[Page (\d+)\]/g;
+  const markers = [...text.matchAll(re)];
+  if (markers.length === 0) return [{ page: null, text }];
+  const segs: PageSegment[] = [];
+  const firstIdx = markers[0].index ?? 0;
+  if (firstIdx > 0) {
+    const pre = text.slice(0, firstIdx).trim();
+    if (pre) segs.push({ page: null, text: pre });
+  }
+  for (let i = 0; i < markers.length; i++) {
+    const m = markers[i];
+    const start = (m.index ?? 0) + m[0].length;
+    const end = i + 1 < markers.length ? (markers[i + 1].index ?? text.length) : text.length;
+    segs.push({ page: Number(m[1]), text: text.slice(start, end) });
+  }
+  return segs;
 }
 
 export interface IndexResult {
@@ -36,6 +71,9 @@ export interface IndexResult {
 
 const DEFAULT_MAX_CHARS = 900;
 const DEFAULT_MIN_CHARS = 200;
+// Audyt P3 #14: ~13% z maxChars. Zakladka miedzy sasiednimi chunkami, by fakt
+// na granicy chunka nie zostal rozciety na dwa nietrafialne fragmenty.
+const DEFAULT_OVERLAP_CHARS = 120;
 
 /**
  * Dzieli tekst na fragmenty akapitowo. Akapity laczone zachlannie do
@@ -46,6 +84,7 @@ export function chunkText(
   text: string,
   maxChars = DEFAULT_MAX_CHARS,
   minChars = DEFAULT_MIN_CHARS,
+  overlapChars = DEFAULT_OVERLAP_CHARS,
 ): ChunkPiece[] {
   const normalized = text.replace(/\r\n/g, "\n").trim();
   if (!normalized) return [];
@@ -76,7 +115,30 @@ export function chunkText(
   }
   flush();
 
-  return pieces.map((content, index) => ({ index, content }));
+  // Audyt P3 #14: zakladka (~overlapChars) miedzy sasiednimi chunkami - fakt na
+  // granicy chunka (ciety zachlannie) nie ginie. Doklejamy ogon POPRZEDNIEGO
+  // chunku (z oryginalow, bez kompoundowania) na poczatek nastepnego, przyciety
+  // do granicy slowa. Pojedynczy chunk / pusty wynik bez zmian (zero regresji).
+  if (overlapChars <= 0 || pieces.length < 2) {
+    return pieces.map((content, index) => ({ index, content }));
+  }
+  const overlapped = pieces.map((content, i) => {
+    if (i === 0) return content;
+    // Doklejamy ogon TYLKO w ramach pozostalego budzetu do maxChars - kontrakt
+    // "chunk <= maxChars" zostaje zachowany (overlap nie rozdyma chunku ponad
+    // limit; przy chunku pelnym = brak zakladki).
+    const room = maxChars - content.length - 1;
+    if (room <= 0) return content;
+    const prev = pieces[i - 1]!;
+    let tail = prev.slice(Math.max(0, prev.length - Math.min(overlapChars, room)));
+    // Zacznij ogon od granicy slowa: utnij ewentualne wiodace slowo-szczatek lub
+    // spacje (slice mogl trafic w srodek tokenu albo na spacje).
+    const ws = tail.search(/\s/);
+    if (ws >= 0) tail = tail.slice(ws + 1);
+    tail = tail.trimStart();
+    return tail ? `${tail} ${content}` : content;
+  });
+  return overlapped.map((content, index) => ({ index, content }));
 }
 
 /** Usuwa wszystkie artefakty indeksu dla dokumentu (re-index idempotentny). */
@@ -93,8 +155,21 @@ export function clearDocumentIndex(docId: string): void {
       }
     }
     db.prepare("delete from doc_chunks where document_id = ?").run(docId);
+    // Audyt P3 #13: graf czyszczony tylko po from_doc_id zostawial krawedzie
+    // PRZYCHODZACE (to_doc_id) oraz krawedzie wskazujace na encje tego
+    // dokumentu (to_entity_id = UUID encji) jako osierocone. Kasujemy edge
+    // odwolujace sie do encji PRZED usunieciem samych encji (subquery musi je
+    // jeszcze widziec). source_entity_id to lokator tekstowy, nie UUID encji -
+    // nie jest FK, wiec go tu nie ruszamy.
+    db.prepare(
+      "delete from citation_graph where to_entity_id in (select id from extracted_entities where document_id = ?)",
+    ).run(docId);
     db.prepare("delete from extracted_entities where document_id = ?").run(docId);
     db.prepare("delete from citation_graph where from_doc_id = ?").run(docId);
+    // Krawedzie INNYCH dokumentow rozwiazane na ten (to_doc_id, ADR-0111 graf
+    // P2 #11): NIE kasujemy ich - cytujacy nadal cytuje te sygnature, znika tylko
+    // rozwiazany cel. Zerujemy to_doc_id (re-resolve przy nastepnej indeksacji).
+    db.prepare("update citation_graph set to_doc_id = null where to_doc_id = ?").run(docId);
     // Zdarzenia (ADR-0089): event_roles przez FK cascade, ale kasujemy jawnie
     // (foreign_keys PRAGMA moze byc off) - najpierw role, potem wezly.
     db.prepare(
@@ -120,7 +195,17 @@ export async function indexDocument(
   // Tryb prawniczy aktywuje sie tylko przy markerze mocnym albo jednostce
   // redakcyjnej; dla dokumentow bez tej struktury deleguje do chunkText
   // (akapitowego) - identyczny wynik jak dotad, zero regresji.
-  const pieces = chunkLegalText(text);
+  //
+  // Audyt P2 #10: chunkujemy PER STRONA (segmenty z markerow [Page N]), zeby
+  // przypisac chunkowi numer strony zrodla. Bez markerow = jeden segment
+  // page=null -> chunkLegalText(text) jak dotad (zero regresji dla docx/plain).
+  const pieces: { index: number; content: string; page: number | null }[] = [];
+  let pieceIndex = 0;
+  for (const seg of splitByPageMarkers(text)) {
+    for (const p of chunkLegalText(seg.text)) {
+      pieces.push({ index: pieceIndex++, content: p.content, page: seg.page });
+    }
+  }
 
   // Embeddingi passage (jezeli warstwa wektorowa dostepna). Brak embeddera /
   // sqlite-vec => indeksujemy tylko BM25 + graf (Faza 1 wg ADR-0007).
@@ -143,9 +228,17 @@ export async function indexDocument(
     }
   }
 
+  // ADR-0124 (Route B): surowy span kazdego chunka w tekscie zrodlowym
+  // (zero dodatkowego IO - mamy `text` w reku). Forward-scan w kolejnosci
+  // dokumentu; chunk nieodnaleziony -> null (feed robi fallback best-effort).
+  const spans = locateChunkSpans(
+    text,
+    pieces.map((p) => p.content),
+  );
+
   const nowIso = new Date().toISOString();
   const insertChunk = db.prepare(
-    "insert into doc_chunks (document_id, chunk_index, content, embedding_model, created_at) values (?, ?, ?, ?, ?)",
+    "insert into doc_chunks (document_id, chunk_index, content, embedding_model, page_no, source_offset_start, source_offset_end, created_at) values (?, ?, ?, ?, ?, ?, ?, ?)",
   );
   const insertFts = db.prepare(
     "insert into doc_chunks_fts (rowid, content) values (?, ?)",
@@ -157,11 +250,15 @@ export async function indexDocument(
   const writeChunks = db.transaction(() => {
     for (let i = 0; i < pieces.length; i++) {
       const vec = vectors[i];
+      const span = spans[i];
       const info = insertChunk.run(
         docId,
         pieces[i].index,
         pieces[i].content,
         vec ? EMBED_MODEL : null,
+        pieces[i].page,
+        span?.start ?? null,
+        span?.end ?? null,
         nowIso,
       );
       const rowid = Number(info.lastInsertRowid);
@@ -188,10 +285,13 @@ export async function indexDocument(
        source_offset_start, source_offset_end, rule_id, metadata, source, created_at)
      values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'auto', ?)`,
   );
+  // ADR-0125 (T2.1 KGLF): auto-krawedzie zapisywane jako PROPOZYCJE globalne
+  // (status 'proposed', origin 'analysis', run_id null) - widoczne jako kandydat,
+  // nieratyfikowane. Ratyfikacja (akt ludzki) jest osobna operacja.
   const insertEdge = db.prepare(
     `insert into citation_graph
-      (id, from_doc_id, to_doc_id, to_entity_id, relation, confidence, source_entity_id, extracted_at)
-     values (?, ?, ?, ?, ?, ?, ?, ?)`,
+      (id, from_doc_id, to_doc_id, to_entity_id, relation, confidence, source_entity_id, extracted_at, status, origin, run_id)
+     values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
   );
 
   const writeGraph = db.transaction(() => {
@@ -217,6 +317,20 @@ export async function indexDocument(
       const toEntityId = edge.sourceEntityId
         ? (entityIdByLocator.get(edge.sourceEntityId) ?? null)
         : null;
+      // Owijamy przez model KGLF (ADR-0125): propozycja globalna (runId null).
+      // Gdyby etykieta byla spoza ontologii (nie zdarza sie dla CitationRelation)
+      // fallback do tych samych wartosci - nie gubimy krawedzi grafu.
+      const kglf = proposeEdge(
+        {
+          fromDocId: docId,
+          toDocId: edge.toDocId ?? null,
+          toEntityId,
+          relation: edge.relation,
+          confidence: edge.confidence,
+          sourceEntityId: edge.sourceEntityId,
+        },
+        null,
+      );
       insertEdge.run(
         crypto.randomUUID(),
         docId,
@@ -226,6 +340,9 @@ export async function indexDocument(
         edge.confidence,
         edge.sourceEntityId ?? null,
         edge.extractedAt.toISOString(),
+        kglf?.status ?? "proposed",
+        kglf?.origin ?? "analysis",
+        kglf?.runId ?? null,
       );
     }
   });
@@ -253,6 +370,12 @@ export async function indexDocument(
     }
   });
   writeEvents();
+
+  // Audyt P2 #11: rozwiaz krawedzie dokument->dokument (to_doc_id) na poziomie
+  // korpusu. Po dodaniu tego dokumentu moze on byc "dokumentem, ktorym JEST"
+  // sygnatura cytowana przez starsze dokumenty (i odwrotnie) - przeliczamy caly
+  // graf (idempotentnie, tanio dla korpusu desktop single-user).
+  resolveToDocLinks(db);
 
   return {
     docId,

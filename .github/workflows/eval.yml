@@ -1,0 +1,37 @@
+# Eval jedna komenda (spec 010, A2-4) - bramka flipu flag (tracker B2/B3).
+# Manualny (workflow_dispatch): eval to bramka wydania, nie lint per-push.
+# Na runnerze etapy B (skill) i C (Ollama) sa auto-SKIPPED - artefakt zawiera
+# raport z etapu A + jawne powody pominiec. Pelny raport = ta sama komenda
+# lokalnie u WM: node scripts/run-eval.cjs
+name: eval
+
+on:
+  workflow_dispatch:
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend deps
+        working-directory: backend
+        run: npm ci
+
+      - name: Run eval
+        run: node scripts/run-eval.cjs
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-report
+          path: eval-report/
+          if-no-files-found: warn

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { requireAuth } from "../middleware/auth";
-import { createServerSupabase } from "../lib/supabase";
+import { createServerSupabase, isSqliteBackend } from "../lib/supabase";
+import { clearDocumentIndex } from "../lib/retrieval/indexer";
 import {
   buildContentDisposition,
   downloadFile,
@@ -21,6 +22,7 @@ import {
   analyzeInput,
   resolveIngestOutcome,
   toAuditPayload,
+  inputSecurityEnforce,
   INPUT_SECURITY_AUDIT_EVENT,
 } from "../lib/input-security";
 import { extractPdfText } from "../lib/chat/pdf";
@@ -96,6 +98,13 @@ documentsRouter.delete("/:documentId", requireAuth, async (req, res) => {
         .map((p) => deleteFile(p).catch(() => {})),
     ),
   );
+  // Audyt P1 #2: tabele retrievalu/grafu (doc_chunks/vec_chunks/FTS/
+  // extracted_entities/citation_graph/events) NIE maja FK do documents, wiec
+  // sam DELETE rekordu zostawial osierocone chunki, embeddingi i encje PII
+  // (PESEL/NIP/nazwy) w bazie. clearDocumentIndex domyka indeks per dokument.
+  // Tylko tryb sqlite (tam zyje warstwa retrievalu); pamiec "brain" jest
+  // per-sprawa, nie per-dokument, wiec nie ruszamy jej przy kasowaniu jednego.
+  if (isSqliteBackend()) clearDocumentIndex(documentId);
   await db.from("documents").delete().eq("id", documentId);
   res.status(204).send();
 });
@@ -448,7 +457,7 @@ documentsRouter.post(
       declaredType: scanContentType,
       buffer: new Uint8Array(rawArrayBuf),
     });
-    const versionOutcome = resolveIngestOutcome(versionScan);
+    const versionOutcome = resolveIngestOutcome(versionScan, inputSecurityEnforce());
     await appendAuditEvent(db, {
       event_type: INPUT_SECURITY_AUDIT_EVENT,
       actor_user_id: userId,

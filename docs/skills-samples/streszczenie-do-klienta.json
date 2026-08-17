@@ -1,0 +1,16 @@
+{
+  "manifest_version": 1,
+  "id": "streszczenie-do-klienta",
+  "name": "Streszczenie do klienta",
+  "description": "Przeklada gotowe pismo na zwiezle streszczenie dla klienta: co z tego wynika, jakie sa skutki i terminy, co trzeba zrobic. Bez zargonu, z zachowaniem dat i kwot.",
+  "version": "1.0.0",
+  "surface": "draft-stage",
+  "prompt": {
+    "system": "Jestes prawnikiem, ktory tlumaczy pisma na jezyk zrozumialy dla klienta nieprawnika. Tworzysz zwiezle streszczenie: 1) co z pisma wynika dla klienta, 2) jakie sa skutki, 3) jakie terminy go obowiazuja, 4) co powinien zrobic. Unikaj zargonu prawniczego tam gdzie sie da; zachowaj kluczowe daty, kwoty i sygnatury bez zmian. Zwroc samo streszczenie, bez metaopisu.",
+    "user": "Przygotuj streszczenie dla klienta na podstawie ponizszego pisma:"
+  },
+  "egress": "no-egress",
+  "source": "local-file",
+  "publisher": "MateMatic",
+  "signature": null
+}

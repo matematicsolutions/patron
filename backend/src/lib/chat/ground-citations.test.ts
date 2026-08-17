@@ -7,7 +7,12 @@ vi.mock("./tool-dispatch", () => ({
     getDocumentTextForGrounding: (docLabel: string) => getText(docLabel),
 }));
 
-import { groundCitationsByRef } from "./ground-citations";
+import {
+    groundCitationsByRef,
+    extractClaim,
+    groundingSummary,
+} from "./ground-citations";
+import type { JudgeFn } from "../citation/cascade";
 import type { DocStore } from "./types";
 
 const SRC =
@@ -91,5 +96,257 @@ describe("groundCitationsByRef", () => {
             docStore,
         );
         expect(Object.keys(out)).toEqual(["1"]);
+    });
+
+    it("dolacza trwaly lokator do cytatu verbatim, null gdy nie-verbatim", async () => {
+        getText.mockResolvedValue(SRC);
+        const out = await groundCitationsByRef(
+            [
+                { ref: 1, doc_id: "doc-0", quote: "ustawowe przeslanki winy" },
+                { ref: 2, doc_id: "doc-0", quote: "powod zadal 50000 zl tytulem" },
+            ],
+            docStore,
+        );
+        expect(out[1].decision).toBe("verified");
+        expect(out[1].locator).not.toBeNull();
+        expect(out[1].locator!.rawText).toBe("ustawowe przeslanki winy");
+        const s = out[1].locator!.startHint!;
+        expect(SRC.slice(s, s + out[1].locator!.rawText.length)).toBe(
+            "ustawowe przeslanki winy",
+        );
+        // blocked / nie-verbatim -> brak lokatora (fail-closed)
+        expect(out[2].locator).toBeNull();
+    });
+
+    it("brak zrodla -> locator null", async () => {
+        getText.mockResolvedValue(null);
+        const out = await groundCitationsByRef(
+            [{ ref: 1, doc_id: "doc-x", quote: "x" }],
+            docStore,
+        );
+        expect(out[1].locator).toBeNull();
+    });
+
+    it("fallback whitespace: lokator gdy cytat rozni sie tylko bialymi znakami", async () => {
+        // zrodlo z nowa linia i podwojna spacja - exact by sie nie udal
+        getText.mockResolvedValue("Sad uznal, ze\npowodztwo  jest zasadne.");
+        const out = await groundCitationsByRef(
+            [{ ref: 1, doc_id: "doc-0", quote: "powodztwo jest zasadne" }],
+            docStore,
+        );
+        expect(out[1].decision).toBe("verified");
+        expect(out[1].locator).not.toBeNull();
+        expect(out[1].locator!.rawText.replace(/\s+/g, " ")).toBe(
+            "powodztwo jest zasadne",
+        );
+    });
+});
+
+describe("extractClaim", () => {
+    it("wyciaga okno wokol znacznika [ref], ograniczone akapitem", () => {
+        const answer =
+            "Akapit pierwszy bez cytatu.\nSąd oddalił powództwo w całości [2] z uwagi na przedawnienie.\nKoszty obciążają powoda.";
+        const claim = extractClaim(answer, 2);
+        expect(claim).toContain("oddalił powództwo");
+        expect(claim).not.toContain("Akapit pierwszy"); // inny akapit
+        expect(claim).not.toContain("Koszty"); // inny akapit
+    });
+
+    it("NIE lamie sie na polskich skrotach (art./ust.) - okno znakowe, nie zdaniowe", () => {
+        const answer =
+            "Zgodnie z art. 6 ust. 1 ustawy tajemnica jest bezwzględna [1].";
+        const claim = extractClaim(answer, 1);
+        expect(claim).toContain("art. 6 ust. 1");
+        expect(claim).toContain("tajemnica jest bezwzględna");
+    });
+
+    it("odcina blok <CITATIONS> - nie szuka [ref] w surowym JSON", () => {
+        const answer =
+            'Proza bez inline markera.\n<CITATIONS>[{"marker":"[1]","quote":"x"}]</CITATIONS>';
+        expect(extractClaim(answer, 1)).toBe(""); // [1] tylko w JSON -> odciete
+    });
+
+    it("brak znacznika -> pusty string", () => {
+        expect(extractClaim("Jakiś tekst bez markera.", 5)).toBe("");
+    });
+
+    it("brak answerText -> pusty string", () => {
+        expect(extractClaim(undefined, 1)).toBe("");
+    });
+});
+
+describe("groundCitationsByRef - etap semantyczny (judge wstrzykniety)", () => {
+    it("z sedzia 'nie' degraduje verdict do red mimo dokladnego cytatu (decision verified zostaje)", async () => {
+        getText.mockResolvedValue("Sąd oddalił powództwo w całości.");
+        const judge: JudgeFn = async () => ({
+            verdict: "nie",
+            confidence: "wysoka",
+            uzasadnienie: "Zrodlo mowi przeciwnie.",
+        });
+        const out = await groundCitationsByRef(
+            [{ ref: 1, doc_id: "doc-0", quote: "oddalił powództwo" }],
+            docStore,
+            undefined,
+            undefined,
+            { answerText: "Sąd uwzględnił powództwo [1].", judge },
+        );
+        const r = out[1] as typeof out[1] & { verdict?: string; stage?: number };
+        expect(r.decision).toBe("verified"); // deterministyczna nietknieta
+        expect(r.verdict).toBe("red"); // werdykt doradczy zdegradowany
+        expect(r.stage).toBe(3);
+    });
+
+    it("bez sedziego -> sciezka deterministyczna (brak pol verdict/stage z etapu 3)", async () => {
+        getText.mockResolvedValue("Sąd oddalił powództwo w całości.");
+        const out = await groundCitationsByRef(
+            [{ ref: 1, doc_id: "doc-0", quote: "oddalił powództwo" }],
+            docStore,
+        );
+        expect(out[1].decision).toBe("verified");
+        expect((out[1] as { stage?: number }).stage).toBeUndefined();
+    });
+});
+
+describe("groundCitationsByRef - WYMAGA OSADU (judgeUnavailable, fail-closed)", () => {
+    type WithJudg = { requiresJudgment?: boolean; stage?: number };
+
+    it("judgeUnavailable + verified + teza ([ref] w prozie) -> requiresJudgment=true (sciezka deterministyczna)", async () => {
+        getText.mockResolvedValue("Sąd oddalił powództwo w całości.");
+        const out = await groundCitationsByRef(
+            [{ ref: 1, doc_id: "doc-0", quote: "oddalił powództwo" }],
+            docStore,
+            undefined,
+            undefined,
+            { answerText: "Sąd oddalił powództwo [1].", judgeUnavailable: true },
+        );
+        expect(out[1].decision).toBe("verified");
+        expect((out[1] as WithJudg).requiresJudgment).toBe(true);
+        // bez sedziego (fail-closed) -> sciezka deterministyczna, brak etapu 3
+        expect((out[1] as WithJudg).stage).toBeUndefined();
+    });
+
+    it("judgeUnavailable ale cytat BEZ tezy ([ref] poza proza) -> brak requiresJudgment", async () => {
+        getText.mockResolvedValue("Sąd oddalił powództwo w całości.");
+        const out = await groundCitationsByRef(
+            [{ ref: 1, doc_id: "doc-0", quote: "oddalił powództwo" }],
+            docStore,
+            undefined,
+            undefined,
+            { answerText: "Proza bez markera.", judgeUnavailable: true },
+        );
+        expect(out[1].decision).toBe("verified");
+        expect((out[1] as WithJudg).requiresJudgment).toBeUndefined();
+    });
+
+    it("judge=off swiadomie (brak judgeUnavailable) -> brak requiresJudgment", async () => {
+        getText.mockResolvedValue("Sąd oddalił powództwo w całości.");
+        const out = await groundCitationsByRef(
+            [{ ref: 1, doc_id: "doc-0", quote: "oddalił powództwo" }],
+            docStore,
+            undefined,
+            undefined,
+            { answerText: "Sąd oddalił powództwo [1]." },
+        );
+        expect((out[1] as WithJudg).requiresJudgment).toBeUndefined();
+    });
+
+    it("judgeUnavailable ale cytat blocked (BRAK_ZRODLA) -> brak requiresJudgment (nie verified)", async () => {
+        getText.mockResolvedValue(null);
+        const out = await groundCitationsByRef(
+            [{ ref: 1, doc_id: "doc-x", quote: "cokolwiek" }],
+            docStore,
+            undefined,
+            undefined,
+            { answerText: "Teza [1].", judgeUnavailable: true },
+        );
+        expect(out[1].decision).toBe("blocked");
+        expect((out[1] as WithJudg).requiresJudgment).toBeUndefined();
+    });
+});
+
+describe("groundingSummary - statystyka sedziego (AI Act art. 12)", () => {
+    it("bez sedziego: brak pola judge (tylko liczby decyzji)", () => {
+        const s = groundingSummary({
+            1: {
+                ref: 1,
+                doc_id: "d",
+                status: "ZWERYFIKOWANY",
+                decision: "verified",
+                worstRatio: 0,
+                offset: 0,
+            },
+        });
+        expect(s.judge).toBeUndefined();
+        expect(s.verified).toBe(1);
+    });
+
+    it("z sedzia: liczy verdykty i DOWNGRADED (Stanford: verified->red)", () => {
+        const s = groundingSummary({
+            // judge zdegradowal tekstowo-verified do red (FALSE-UNDER-TRUE)
+            1: {
+                ref: 1,
+                doc_id: "d",
+                status: "ZWERYFIKOWANY",
+                decision: "verified",
+                worstRatio: 0,
+                offset: 0,
+                // pola CascadeResult (ADR-0097)
+                verdict: "red",
+                stage: 3,
+            } as never,
+            // judge potwierdzil
+            2: {
+                ref: 2,
+                doc_id: "d",
+                status: "ZWERYFIKOWANY",
+                decision: "verified",
+                worstRatio: 0,
+                offset: 0,
+                verdict: "green",
+                stage: 3,
+            } as never,
+        });
+        expect(s.judge).toBeDefined();
+        expect(s.judge!.judged).toBe(2);
+        expect(s.judge!.red).toBe(1);
+        expect(s.judge!.green).toBe(1);
+        expect(s.judge!.downgraded).toBe(1); // kluczowa metryka moatu
+    });
+
+    it("liczy requiresJudgment (WYMAGA OSADU) jako osobna metryke", () => {
+        const s = groundingSummary({
+            1: {
+                ref: 1,
+                doc_id: "d",
+                status: "ZWERYFIKOWANY",
+                decision: "verified",
+                worstRatio: 0,
+                offset: 0,
+                requiresJudgment: true,
+            } as never,
+            2: {
+                ref: 2,
+                doc_id: "d",
+                status: "ZWERYFIKOWANY",
+                decision: "verified",
+                worstRatio: 0,
+                offset: 0,
+            } as never,
+        });
+        expect(s.requiresJudgment).toBe(1);
+    });
+
+    it("brak requiresJudgment -> pole nieobecne", () => {
+        const s = groundingSummary({
+            1: {
+                ref: 1,
+                doc_id: "d",
+                status: "ZWERYFIKOWANY",
+                decision: "verified",
+                worstRatio: 0,
+                offset: 0,
+            },
+        });
+        expect(s.requiresJudgment).toBeUndefined();
     });
 });

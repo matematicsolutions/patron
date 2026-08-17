@@ -78,6 +78,9 @@ create table if not exists public.projects (
   -- fail-closed 'attorney_client_privileged'. Patrz migration 006.
   classification text not null default 'attorney_client_privileged'
     check (classification in ('public','internal','client_general','attorney_client_privileged')),
+  -- ADR-0128 (audyt P2 #6): swiadoma zgoda na model chmurowy per-sprawa
+  -- (audytowana). Default false (fail-closed). Patrz migration 013.
+  cloud_consent boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -194,6 +197,44 @@ create index if not exists document_edits_message_id_idx
 
 create index if not exists document_edits_version_id_idx
   on public.document_edits(version_id);
+
+-- ---------------------------------------------------------------------------
+-- Mutation approval cards (ADR-0137). Kolejka akcji agenta o skutkach ubocznych
+-- (edit/generate/comments/export) stage'owanych za bramka czlowieka (AI Act
+-- art. 14). Stany pending -> approved | rejected; po approved wykonanie i
+-- znacznik executed_at / execution_error. tool_payload = argumenty narzedzia do
+-- wykonania PO zatwierdzeniu (bez pelnych tresci dokumentu - RODO minimalizacja).
+-- Scoping user_id (jak projects). Lustro: schema.sqlite.ts. Patrz migration 015.
+-- ---------------------------------------------------------------------------
+
+create table if not exists public.mutation_approvals (
+  id uuid primary key default gen_random_uuid(),
+  user_id text not null,
+  chat_id uuid references public.chats(id) on delete set null,
+  document_id uuid references public.documents(id) on delete set null,
+  tool_name text not null,
+  tool_payload jsonb not null default '{}'::jsonb,
+  status text not null default 'pending'
+    check (status in ('pending', 'approved', 'rejected')),
+  staged_at timestamptz not null default now(),
+  staged_by text not null,
+  approved_at timestamptz,
+  approved_by text,
+  rejection_reason text,
+  executed_at timestamptz,
+  execution_error text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists idx_mutation_approvals_user_status
+  on public.mutation_approvals(user_id, status);
+
+create index if not exists idx_mutation_approvals_chat
+  on public.mutation_approvals(chat_id);
+
+create index if not exists idx_mutation_approvals_document
+  on public.mutation_approvals(document_id);
 
 -- ---------------------------------------------------------------------------
 -- Workflows
@@ -325,6 +366,11 @@ create table if not exists public.tabular_cells (
   content text,
   citations jsonb,
   status text not null default 'pending',
+  -- ADR-0126 (T2.2): human-review komorki (akt prawnika, spine art.12).
+  review_action text,
+  reviewed_by text,
+  reviewed_at timestamptz,
+  corrected_content text,
   created_at timestamptz not null default now()
 );
 
@@ -420,7 +466,8 @@ create table if not exists public.audit_log (
   -- + 005_audit_log_event_type_llm_route.sql (ADR-0067, +1 wartosc)
   -- + 007_audit_log_event_type_defense_pipeline.sql (ADR-0068, +1 wartosc)
   -- + 008_audit_log_event_type_document_edit.sql (ADR-0070, +1 wartosc)
-  -- + 009_audit_log_event_type_tabular_grounding.sql (ADR-0082, +1 wartosc).
+  -- + 009_audit_log_event_type_tabular_grounding.sql (ADR-0082, +1 wartosc)
+  -- + 010_audit_log_event_type_cost_cap.sql (ADR-0093, +1 wartosc).
   constraint audit_log_event_type_whitelist check (event_type in (
     'chat.message.user',
     'chat.message.assistant',
@@ -438,7 +485,11 @@ create table if not exists public.audit_log (
     'llm_route',
     'defense.pipeline.run',
     'document.edit_resolved',
-    'tabular.grounding'
+    'tabular.grounding',
+    'project.cloud_consent',
+    'connector.toggle',
+    'mutation.approval.decision',
+    'cost_cap'
   ))
 );
 

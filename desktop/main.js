@@ -1,4 +1,4 @@
-const { app, BrowserWindow, shell, Menu, safeStorage } = require('electron');
+const { app, BrowserWindow, shell, Menu, safeStorage, ipcMain, dialog } = require('electron');
 const { spawn } = require('child_process');
 const path = require('path');
 const http = require('http');
@@ -72,6 +72,93 @@ function getOrCreateDbKey() {
   return key;
 }
 
+// Locale instalacji (ADR-0132/0135/0139): zapisany przez prepare-resources.cjs
+// do backend/patron-locale.json przy buildzie. main.js przekazuje go backendowi
+// jako PATRON_LOCALE - bez tego backend spada na default "pl" i agent odpowiada
+// po polsku takze w instalatorze EN/IT/DE/ES/FR. Jawny process.env.PATRON_LOCALE
+// Operatora ma pierwszenstwo (dev override).
+function installLocale() {
+  if (process.env.PATRON_LOCALE && process.env.PATRON_LOCALE.trim()) {
+    return process.env.PATRON_LOCALE.trim();
+  }
+  try {
+    const raw = fs.readFileSync(path.join(RES(), 'backend', 'patron-locale.json'), 'utf8');
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed.locale === 'string') return parsed.locale;
+  } catch {
+    /* brak pliku (stary build / dev) - default pl w backendzie */
+  }
+  return null;
+}
+
+// ── Auto-update (spec 008, A2-2) ────────────────────────────────────────────
+// electron-updater z GitHub Releases (repo publiczne matematicsolutions/patron,
+// bez tokena). Kanal per edycja jezykowa: pl=latest, en=latest-en, it=latest-it,
+// de=latest-de, es=latest-es, fr=latest-fr - edycja IT nigdy nie dostanie
+// instalatora PL. Pliki latest[-xx].yml produkuje build-locale.cjs.
+// Instalacja TYLKO po decyzji czlowieka (dialog) - zadnego restartu w trakcie
+// pracy nad sprawa. Kill-switch: PATRON_AUTO_UPDATE=off.
+// NOTE: "pt" (BR) brakuje tu tak samo jak w release-all.cjs - istniejaca luka
+// z galezi feature/patron-br-edition, poza zakresem edycji US (brief: "nie
+// martw sie o pt/br"). "us" dodany: jurysdykcja USA, UI+dialog po angielsku
+// (identyczne z "en" - jedyna roznica to kanal auto-update, stad osobny suffix).
+const UPDATE_CHANNEL_SUFFIX = { pl: '', en: '-en', it: '-it', de: '-de', es: '-es', fr: '-fr', pt: '-br', gb: '-gb', us: '-us' };
+const UPDATE_DIALOG_TEXT = {
+  pl: { title: 'Aktualizacja PATRON', msg: (v) => `Pobrano wersję ${v}. Zainstalować teraz (restart aplikacji)?`, now: 'Zainstaluj teraz', later: 'Przy zamknięciu' },
+  en: { title: 'PATRON update', msg: (v) => `Version ${v} downloaded. Install now (restarts the app)?`, now: 'Install now', later: 'On quit' },
+  it: { title: 'Aggiornamento PATRON', msg: (v) => `Versione ${v} scaricata. Installare ora (riavvio dell'app)?`, now: 'Installa ora', later: 'Alla chiusura' },
+  de: { title: 'PATRON-Update', msg: (v) => `Version ${v} heruntergeladen. Jetzt installieren (App-Neustart)?`, now: 'Jetzt installieren', later: 'Beim Beenden' },
+  es: { title: 'Actualización de PATRON', msg: (v) => `Versión ${v} descargada. ¿Instalar ahora (reinicia la aplicación)?`, now: 'Instalar ahora', later: 'Al cerrar' },
+  fr: { title: 'Mise à jour PATRON', msg: (v) => `Version ${v} téléchargée. Installer maintenant (redémarre l'application) ?`, now: 'Installer maintenant', later: 'À la fermeture' },
+  gb: { title: 'PATRON update', msg: (v) => `Version ${v} downloaded. Install now (restarts the app)?`, now: 'Install now', later: 'On quit' },
+  pt: { title: 'Atualizacao do PATRON', msg: (v) => `Versao ${v} baixada. Instalar agora (reinicia o aplicativo)?`, now: 'Instalar agora', later: 'Ao sair' },
+  us: { title: 'PATRON update', msg: (v) => `Version ${v} downloaded. Install now (restarts the app)?`, now: 'Install now', later: 'On quit' },
+};
+
+function setupAutoUpdate() {
+  if (!app.isPackaged) return; // dev: brak app-update.yml, nie ma czego sprawdzac
+  if ((process.env.PATRON_AUTO_UPDATE || '').toLowerCase() === 'off') {
+    console.log('[PATRON] auto-update wylaczony (PATRON_AUTO_UPDATE=off)');
+    return;
+  }
+  let autoUpdater;
+  try {
+    ({ autoUpdater } = require('electron-updater'));
+  } catch (err) {
+    console.error('[PATRON] electron-updater niedostepny:', err.message);
+    return;
+  }
+  const locale = installLocale() || 'pl';
+  const suffix = UPDATE_CHANNEL_SUFFIX[locale] ?? '';
+  autoUpdater.channel = `latest${suffix}`;
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.on('update-downloaded', (info) => {
+    const txt = UPDATE_DIALOG_TEXT[locale] ?? UPDATE_DIALOG_TEXT.pl;
+    dialog
+      .showMessageBox({
+        type: 'info',
+        title: txt.title,
+        message: txt.msg(info.version),
+        buttons: [txt.now, txt.later],
+        defaultId: 1,
+        cancelId: 1,
+      })
+      .then(({ response }) => {
+        if (response === 0) autoUpdater.quitAndInstall();
+        // 1: autoInstallOnAppQuit zainstaluje przy zamknieciu
+      })
+      .catch(() => {});
+  });
+  autoUpdater.on('error', (err) => {
+    // Fail-open: offline / brak assets = log, aplikacja pracuje dalej.
+    console.error('[PATRON] auto-update:', err?.message ?? err);
+  });
+  autoUpdater.checkForUpdates().catch((err) => {
+    console.error('[PATRON] auto-update check:', err?.message ?? err);
+  });
+}
+
 // Env wstrzykiwany do backendu: SQLite + storage FS + dane w userData + sekrety.
 function backendLocalEnv() {
   const ud = app.getPath('userData');
@@ -83,10 +170,98 @@ function backendLocalEnv() {
     PATRON_BRAIN_DIR: path.join(ud, 'brain'),
     DOWNLOAD_SIGNING_SECRET: getOrCreateSecret('download_signing_secret'),
     USER_API_KEYS_ENCRYPTION_SECRET: getOrCreateSecret('api_keys_encryption_secret'),
+    // Desktop single-user: adwokat JEST Operatorem na wlasnej maszynie. Jego wybor
+    // modelu chmurowego (np. Libra/Anthropic - glowne narzedzie prawnikow w PL) jest
+    // swiadoma zgoda na egress. Zdejmujemy domyslny twardy blok chmury dla spraw
+    // objetych tajemnica; egress POZOSTAJE w pelni audytowany (dowod AI Act art. 12),
+    // a PII jest maskowane przed wyslaniem. Kancelaria moze zaostrzyc rygor wylaczajac
+    // te zmienne (tryb serwerowy/fabryczny ich nie ustawia). Patrz ADR-0101.
+    ALLOW_US_PROVIDERS: process.env.ALLOW_US_PROVIDERS ?? 'true',
+    PATRON_ALLOW_PRIVILEGED_CLOUD: process.env.PATRON_ALLOW_PRIVILEGED_CLOUD ?? 'true',
   };
   const dbKey = getOrCreateDbKey();
   if (dbKey) env.PATRON_DB_ENCRYPTION_KEY = dbKey;
+
+  // Jezyk agenta = locale instalacji (mirror frontendu, ADR-0135/0139).
+  const loc = installLocale();
+  if (loc) env.PATRON_LOCALE = loc;
+
+  // Embedder RAG: wskaz lokalnie zbundlowane wagi (dist-resources/backend/models),
+  // jesli sa. Bez tego transformers.js probowalby pobrac z sieci (zablokowane
+  // fail-closed) i retrieval degradowalby do BM25+graf. Ustawiamy tylko gdy
+  // katalog faktycznie istnieje - inaczej nie nadpisujemy domyslnej sciezki.
+  const modelsDir = path.join(RES(), 'backend', 'models');
+  if (fs.existsSync(modelsDir)) {
+    env.PATRON_EMBED_MODELS_PATH = modelsDir;
+  }
+
+  // Indeks orzecznictwa Corte Costituzionale (build IT, ADR-0139): wskaz
+  // zbundlowany plik, jesli jest. Bez pliku narzedzia it_case_* zglaszaja brak
+  // indeksu wprost (fail-loud) - legislacja Normattiva dziala niezaleznie.
+  const itCaselawDb = path.join(RES(), 'backend', 'data', 'it-eli-caselaw', 'cost.sqlite');
+  if (!process.env.IT_ELI_CASELAW_DB && fs.existsSync(itCaselawDb)) {
+    env.IT_ELI_CASELAW_DB = itCaselawDb;
+  }
+
+  // OCR skanow/zdjec (ADR-0074/0075): silnik LOKALNY zero-cloud. Bez tego
+  // isOcrConfigured()=false i obrazy (jpg/png/tiff) sa odrzucane na wejsciu -
+  // realny blocker uzytecznosci dla akt papierowych (pilot Rumpole: "nie czyta
+  // dokumentow"). PATRON_OCR_CMD jest engine-agnostic (silnik wybierany env, nie
+  // kodem). Priorytet rezolucji:
+  //   1) jawny override Operatora (process.env.PATRON_OCR_CMD) - nie ruszamy,
+  //   2) Tesseract zbundlowany w instalatorze (dist-resources/backend/ocr/...),
+  //   3) Tesseract zainstalowany recznie w znanej lokalizacji (maszyna dev).
+  // Sciezka silnika ZAWSZE w cudzyslowie - tokenizer ocrRunner.ts respektuje
+  // cudzyslowy, wiec "C:\Program Files\..." ze spacjami nie rozpada sie na argv.
+  const ocr = resolveOcr();
+  if (ocr) {
+    env.PATRON_OCR_CMD = ocr.cmd;
+    if (ocr.tessdata) env.TESSDATA_PREFIX = ocr.tessdata;
+  }
   return env;
+}
+
+// Rezolucja lokalnego silnika OCR (Tesseract). Zwraca {cmd, tessdata?} albo null.
+// stdout-mode: silnik pisze rozpoznany tekst na stdout (patrz ocrRunner.ts).
+function resolveOcr() {
+  // 1) Override Operatora - process.env jest rozlewane PRZED backendLocalEnv()
+  //    w startBackend, wiec zwracamy null by nie nadpisac swiadomej konfiguracji.
+  if (process.env.PATRON_OCR_CMD && process.env.PATRON_OCR_CMD.trim()) return null;
+
+  const exe = process.platform === 'win32' ? 'tesseract.exe' : 'tesseract';
+
+  // 2) Bundlowany w instalatorze (ADR-0075). Staging w prepare-resources.cjs.
+  const bundledExe = path.join(RES(), 'backend', 'ocr', 'tesseract', exe);
+  const bundledTessdata = path.join(RES(), 'backend', 'ocr', 'tessdata');
+  if (fs.existsSync(bundledExe)) {
+    return {
+      cmd: `"${bundledExe}" {input} stdout -l pol --psm 1`,
+      tessdata: fs.existsSync(bundledTessdata) ? bundledTessdata : undefined,
+    };
+  }
+
+  // 3) Recznie zainstalowany Tesseract (maszyna deweloperska). tessdata pol moze
+  //    byc obok exe (instalator UB-Mannheim) - wskazujemy gdy zawiera pol.
+  const knownDirs = process.platform === 'win32'
+    ? [
+        'C:\\Program Files\\Tesseract-OCR',
+        'C:\\Program Files (x86)\\Tesseract-OCR',
+        path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Tesseract-OCR'),
+      ]
+    : ['/usr/bin', '/usr/local/bin', '/opt/homebrew/bin'];
+  for (const dir of knownDirs) {
+    if (!dir) continue;
+    const p = path.join(dir, exe);
+    if (fs.existsSync(p)) {
+      const td = path.join(dir, 'tessdata');
+      const hasPol = fs.existsSync(path.join(td, 'pol.traineddata'));
+      return {
+        cmd: `"${p}" {input} stdout -l pol --psm 1`,
+        tessdata: hasPol ? td : undefined,
+      };
+    }
+  }
+  return null;
 }
 
 let win = null;
@@ -214,6 +389,10 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
+      // Most do natywnego pickera folderu (FIX pilot Rumpole: "nie wiem jak skopiowac
+      // sciezke - chce jak zalacznik"). Wystawia tylko bezpieczne, jawne API
+      // (window.patron.selectFolder) - bez nodeIntegration, bez require w rendererze.
+      preload: path.join(__dirname, 'preload.js'),
     },
     show: false,
   });
@@ -266,6 +445,24 @@ function createWindow() {
       ],
     },
     {
+      // Submenu Edytuj - bez niego skroty schowka (Ctrl+C/V/X/Z/A) sa martwe,
+      // bo w Electronie akcje edycyjne sa podpiete przez role menu, a minimalne
+      // menu ich nie mialo. Blokowalo wklejanie klucza API w Konto -> Modele
+      // (zgloszenie Pilot-01-Rumpole). Jawne pozycje z polskimi labelami;
+      // akceleratory pochodza z domyslnych roli edycyjnych Electrona.
+      label: 'Edytuj',
+      submenu: [
+        { label: 'Cofnij', role: 'undo' },
+        { label: 'Ponów', role: 'redo' },
+        { type: 'separator' },
+        { label: 'Wytnij', role: 'cut' },
+        { label: 'Kopiuj', role: 'copy' },
+        { label: 'Wklej', role: 'paste' },
+        { type: 'separator' },
+        { label: 'Zaznacz wszystko', role: 'selectAll' },
+      ],
+    },
+    {
       label: 'Sprawa',
       submenu: [
         { label: 'Nowa sprawa', accelerator: 'CmdOrCtrl+N', click: () => win?.webContents.send('new-case') },
@@ -281,6 +478,31 @@ function createWindow() {
     }] : []),
   ]);
   Menu.setApplicationMenu(menu);
+
+  // Menu kontekstowe (prawy-klik) dla pol edytowalnych - czesc uzytkownikow
+  // (mecenasi) wkleja mysza, nie skrotem. Bez tego brak pozycji "Wklej" pod
+  // prawym klawiszem. Pokazujemy tylko akcje dozwolone przez editFlags.
+  win.webContents.on('context-menu', (_event, params) => {
+    const { isEditable, editFlags, selectionText } = params;
+    let template = [];
+    if (isEditable) {
+      template = [
+        { label: 'Cofnij', role: 'undo', enabled: editFlags.canUndo },
+        { label: 'Ponów', role: 'redo', enabled: editFlags.canRedo },
+        { type: 'separator' },
+        { label: 'Wytnij', role: 'cut', enabled: editFlags.canCut },
+        { label: 'Kopiuj', role: 'copy', enabled: editFlags.canCopy },
+        { label: 'Wklej', role: 'paste', enabled: editFlags.canPaste },
+        { type: 'separator' },
+        { label: 'Zaznacz wszystko', role: 'selectAll', enabled: editFlags.canSelectAll },
+      ];
+    } else if (selectionText && selectionText.trim().length > 0) {
+      template = [{ label: 'Kopiuj', role: 'copy', enabled: editFlags.canCopy }];
+    }
+    if (template.length > 0) {
+      Menu.buildFromTemplate(template).popup({ window: win });
+    }
+  });
 
   win.loadURL(`http://localhost:${FRONTEND_PORT}`);
 }
@@ -336,6 +558,18 @@ function showSplash() {
 }
 
 // ── Boot sequence ──────────────────────────────────────────────────────────
+// IPC: natywny picker folderu sprawy (FIX pilot Rumpole). Renderer wola
+// window.patron.selectFolder() (patrz preload.js); zwraca wybrana sciezke albo
+// null gdy Operator anulowal. Read-only wybor katalogu - nie dotyka FS sam.
+ipcMain.handle('patron:selectFolder', async () => {
+  const res = await dialog.showOpenDialog(win ?? undefined, {
+    title: 'Wybierz folder sprawy',
+    properties: ['openDirectory'],
+  });
+  if (res.canceled || res.filePaths.length === 0) return null;
+  return res.filePaths[0];
+});
+
 app.whenReady().then(async () => {
   const splash = showSplash();
 
@@ -351,6 +585,7 @@ app.whenReady().then(async () => {
 
     createWindow();
     splash.close();
+    setupAutoUpdate();
   } catch (err) {
     console.error('[PATRON] Boot error:', err.message);
     splash.close();

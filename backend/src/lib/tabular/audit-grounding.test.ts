@@ -29,6 +29,14 @@ const zmodyfikowany: TabularCellGrounding = {
     unverified: 0,
     status: "modified",
 };
+const doPrzegladu: TabularCellGrounding = {
+    total: 2,
+    verified: 0,
+    modified: 0,
+    unverified: 0,
+    needs_review: 2,
+    status: "needs_review",
+};
 
 describe("aggregateGrounding", () => {
     it("pusta lista -> same zera", () => {
@@ -62,6 +70,18 @@ describe("aggregateGrounding", () => {
         expect(agg.modified).toBe(1);
         expect(agg.unverified).toBe(2);
     });
+
+    it("ADR-0102 B: liczy needs_review tylko gdy wystapil (wstecznie kompatybilne)", () => {
+        const agg = aggregateGrounding([verified, doPrzegladu, undefined]);
+        expect(agg.cells_needs_review).toBe(1);
+        expect(agg.needs_review).toBe(2);
+        expect(agg.cells_grounded).toBe(2);
+        expect(agg.citations_total).toBe(4);
+        // bez needs_review w zbiorze - pola nieobecne (stary ksztalt rollupu)
+        const agg2 = aggregateGrounding([verified]);
+        expect(agg2.cells_needs_review).toBeUndefined();
+        expect(agg2.needs_review).toBeUndefined();
+    });
 });
 
 describe("buildTabularGroundingEvent", () => {
@@ -88,6 +108,20 @@ describe("buildTabularGroundingEvent", () => {
         });
         // brak pola z trescia cytatu/dokumentu
         expect(JSON.stringify(ev.payload)).not.toMatch(/quote|summary|text/i);
+    });
+
+    it("ADR-0102 B: payload zawiera needs_review tylko gdy wystapil", () => {
+        const ev = buildTabularGroundingEvent({
+            actorUserId: "user-1",
+            reviewId: "rev-1",
+            documents: 1,
+            aggregate: aggregateGrounding([doPrzegladu]),
+            trigger: "generate",
+        });
+        expect(ev.payload).toMatchObject({
+            cells_needs_review: 1,
+            needs_review: 2,
+        });
     });
 });
 

@@ -4,7 +4,7 @@ import type { Provider } from "./types";
 // Canonical model IDs
 // ---------------------------------------------------------------------------
 // Main-chat tier (top-end) — user picks one of these per message.
-export const CLAUDE_MAIN_MODELS = ["claude-opus-4-7", "claude-sonnet-4-6"] as const;
+export const CLAUDE_MAIN_MODELS = ["claude-opus-4-8", "claude-sonnet-4-6"] as const;
 export const GEMINI_MAIN_MODELS = [
     "gemini-3.1-pro-preview",
     "gemini-3-flash-preview",
@@ -22,9 +22,16 @@ export const CLAUDE_LOW_MODELS = ["claude-haiku-4-5"] as const;
 export const GEMINI_LOW_MODELS = ["gemini-3.1-flash-lite-preview"] as const;
 export const OPENAI_LOW_MODELS = ["gpt-5.4-nano"] as const;
 
-export const DEFAULT_MAIN_MODEL = "gemini-3-flash-preview";
-export const DEFAULT_TITLE_MODEL = "gemini-3.1-flash-lite-preview";
-export const DEFAULT_TABULAR_MODEL = "gemini-3-flash-preview";
+// Domyslne modele dla WSZYSTKICH zadan pomocniczych (glowny fallback, generowanie
+// tytulu czatu, przeglad tabelaryczny). Celowo OpenRouter, nie chmura-direct:
+// jeden klucz OPENROUTER_API_KEY Operatora pokrywa je wszystkie, wiec gdy mecenas
+// wybierze dowolny model, KAZDA funkcja dziala na tym samym kluczu. Wczesniej byly
+// to modele Gemini-direct (wlasny klucz Google) - bez tego klucza tytuly i tabela
+// cicho padaly, mimo ze czat na OpenRouterze dzialal ("wybieram model, a czesc
+// rzeczy nie dziala"). OpenRouter Gemini Flash = tani i szybki do zadan pomocniczych.
+export const DEFAULT_MAIN_MODEL = "openrouter/google/gemini-3-flash-preview";
+export const DEFAULT_TITLE_MODEL = "openrouter/google/gemini-3-flash-preview";
+export const DEFAULT_TABULAR_MODEL = "openrouter/google/gemini-3-flash-preview";
 
 const ALL_MODELS = new Set<string>([
     ...CLAUDE_MAIN_MODELS,
@@ -60,15 +67,30 @@ export function openRouterModelId(model: string): string {
         : model;
 }
 
+// Ollama (lokalna inferencja, ADR-0014 T2): modele oznaczane prefiksem
+// "ollama/", po ktorym nastepuje natywny id Ollama "model:tag" (np.
+// "ollama/llama3.3:70b"). Prefiks odroznia je od kanonicznych modeli chmurowych
+// i jest jedynym sygnalem egress=no-egress (patrz routing/egress.ts). Jedno
+// zrodlo prawdy tutaj - egress.ts re-eksportuje, analogicznie do OPENROUTER_PREFIX.
+export const OLLAMA_PREFIX = "ollama/";
+
+export function isOllamaModel(model: string): boolean {
+    return model.startsWith(OLLAMA_PREFIX);
+}
+
 export function providerForModel(model: string): Provider {
     if (isOpenRouterModel(model)) return "openrouter";
     if (model.startsWith("claude")) return "claude";
     if (model.startsWith("gemini")) return "gemini";
     if (model.startsWith("gpt-")) return "openai";
+    // Ollama (no-egress) NIE jest w unii `Provider` warstwy funkcyjnej - jest
+    // dispatchowany wczesniej w llm/index.ts (completeText/streamChatWithTools)
+    // przez isOllamaModel. Jezeli ollama/* tu dotarl, to omieto ten guard.
     throw new Error(`Unknown model id: ${model}`);
 }
 
 export function resolveModel(id: string | null | undefined, fallback: string): string {
-    if (id && (ALL_MODELS.has(id) || isOpenRouterModel(id))) return id;
+    if (id && (ALL_MODELS.has(id) || isOpenRouterModel(id) || isOllamaModel(id)))
+        return id;
     return fallback;
 }

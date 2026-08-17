@@ -188,7 +188,7 @@ function BulkEditActions({
                 {busy === "accept" && (
                     <Loader2 className="h-3 w-3 animate-spin" />
                 )}
-                Accept all
+                {t("chat.bulkAcceptAll")}
             </button>
             <button
                 onClick={() => handleAll("reject")}
@@ -198,7 +198,7 @@ function BulkEditActions({
                 {busy === "reject" && (
                     <Loader2 className="h-3 w-3 animate-spin" />
                 )}
-                Reject all
+                {t("chat.bulkRejectAll")}
             </button>
             {progress && (
                 <span className="text-xs font-serif text-gray-500">
@@ -213,7 +213,7 @@ function BulkEditActions({
                     disabled={!!busy}
                     className="ml-auto px-2 py-1 text-xs rounded border border-gray-200 bg-white text-gray-700 hover:bg-gray-100 disabled:opacity-50"
                 >
-                    View
+                    {t("chat.bulkView")}
                 </button>
             )}
         </div>
@@ -1075,23 +1075,72 @@ function MarkdownContent({
                                 // weryfikacji cytatu. Brak werdyktu = neutralny szary
                                 // (np. cytat MCP albo starszy czat bez groundingu).
                                 const grounding = annotation.grounding;
-                                const groundingClass =
-                                    grounding === "verified"
+                                // ADR-0097: werdykt semantyczny sedziego (gdy flaga
+                                // wlaczona) ma PIERWSZENSTWO - lapie cytat doslowny pod
+                                // falszywa teza (decision byloby wtedy "verified"/zielone).
+                                const verdict = annotation.groundingVerdict;
+                                const groundingClass = verdict
+                                    ? verdict === "green"
                                         ? "bg-green-100 text-green-900 hover:bg-green-200"
-                                        : grounding === "unverified"
+                                        : verdict === "yellow"
                                           ? "bg-amber-100 text-amber-900 hover:bg-amber-200"
-                                          : grounding === "blocked"
-                                            ? "bg-red-100 text-red-900 hover:bg-red-200"
-                                            : "bg-gray-100 text-gray-900 hover:bg-gray-200";
-                                const groundingLabel =
-                                    grounding === "verified"
-                                        ? t("citations.groundingVerified")
-                                        : grounding === "unverified"
-                                          ? t("citations.groundingUnverified")
-                                          : grounding === "blocked"
-                                            ? t("citations.groundingBlocked")
-                                            : "";
-                                const tooltipText = `${formatCitationPage(annotation)}: "${displayCitationQuote(annotation)}"${groundingLabel ? ` (${groundingLabel})` : ""}`;
+                                          : "bg-red-100 text-red-900 hover:bg-red-200"
+                                    : grounding === "verified"
+                                      ? "bg-green-100 text-green-900 hover:bg-green-200"
+                                      : grounding === "unverified"
+                                        ? "bg-amber-100 text-amber-900 hover:bg-amber-200"
+                                        : grounding === "blocked"
+                                          ? "bg-red-100 text-red-900 hover:bg-red-200"
+                                          : "bg-gray-100 text-gray-900 hover:bg-gray-200";
+                                const groundingLabel = verdict
+                                    ? verdict === "green"
+                                        ? t("citations.verdictGreen")
+                                        : verdict === "yellow"
+                                          ? t("citations.verdictYellow")
+                                          : t("citations.verdictRed")
+                                    : grounding === "verified"
+                                      ? t("citations.groundingVerified")
+                                      : grounding === "unverified"
+                                        ? t("citations.groundingUnverified")
+                                        : grounding === "blocked"
+                                          ? t("citations.groundingBlocked")
+                                          : "";
+                                // ADR-0102 (A): tag proweniencji w tooltipie (gdy flaga
+                                // wlaczona). Enum -> i18n; zero PII. `model` = wiedza
+                                // modelu (default, do weryfikacji); pinpoint dokleja
+                                // "- zweryfikuj" do tagu pobranego.
+                                const provenance = annotation.provenance;
+                                const provenanceLabel = !provenance
+                                    ? ""
+                                    : provenance.tag === "model"
+                                      ? t("citations.provenanceModel")
+                                      : (provenance.tag === "saos"
+                                            ? t("citations.provenanceSaos")
+                                            : provenance.tag === "isap"
+                                              ? t("citations.provenanceIsap")
+                                              : provenance.tag === "eurlex"
+                                                ? t("citations.provenanceEurlex")
+                                                : t(
+                                                      "citations.provenanceUzytkownik",
+                                                  )) +
+                                        (provenance.pinpoint
+                                            ? ` ${t("citations.provenancePinpoint")}`
+                                            : "");
+                                // ADR-0097 (WYMAGA OSADU): cytat tekstowo ugruntowany i
+                                // podpiera teze, ale substancja NIE zostala oceniona
+                                // semantycznie (sedzia sie nie odpalil - np. tajemnica +
+                                // model chmurowy). Pierscien amber odroznia "zielony, lecz
+                                // nieoceniony" od "zielony, oceniony" - cichy przypadek
+                                // Stanford. Nie zmienia koloru bazowego (ten oddaje grounding tekstowy).
+                                const needsJudgment =
+                                    annotation.requiresJudgment === true;
+                                const judgmentRing = needsJudgment
+                                    ? " ring-1 ring-amber-400"
+                                    : "";
+                                const judgmentNote = needsJudgment
+                                    ? ` [${t("citations.requiresJudgment")}]`
+                                    : "";
+                                const tooltipText = `${formatCitationPage(annotation)}: "${displayCitationQuote(annotation)}"${groundingLabel ? ` (${groundingLabel})` : ""}${provenanceLabel ? ` [${provenanceLabel}]` : ""}${judgmentNote}`;
                                 return (
                                     <button
                                         onClick={() => {
@@ -1101,7 +1150,7 @@ function MarkdownContent({
                                             );
                                             onCitationClick?.(annotation);
                                         }}
-                                        className={`mx-0.5 inline-flex items-center justify-center rounded-full w-4 h-4 text-[10px] font-medium transition-colors align-super ${groundingClass}`}
+                                        className={`mx-0.5 inline-flex items-center justify-center rounded-full w-4 h-4 text-[10px] font-medium transition-colors align-super ${groundingClass}${judgmentRing}`}
                                         title={tooltipText}
                                     >
                                         {idx + 1}
@@ -1433,7 +1482,7 @@ export function AssistantMessage({
                         <div className="absolute bottom-0 w-[1px] bg-gray-300 top-[13px] left-[2.5px] h-[calc(100%+11px)]" />
                     )}
                     <div className="w-1.5 h-1.5 rounded-full border border-gray-400 border-t-transparent animate-spin shrink-0" />
-                    <span className="ml-2">Thinking...</span>
+                    <span className="ml-2">{t("chat.thinking1")}</span>
                 </div>
             );
         }

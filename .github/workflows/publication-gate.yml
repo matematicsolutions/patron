@@ -1,0 +1,31 @@
+# Pre-publication leak gate dla PATRON-Desktop. Blokuje wejscie danych klienta /
+# PESEL / sekretow do publicznego repo. Local-first: dziala na runnerze, zero egressu.
+# Narzedzie: matematic-publication-gate (vendored w scripts/publication_gate.py).
+name: publication-gate
+
+on:
+  pull_request:
+  push:
+    branches: [main, "release/**"]   # solo-flow pushuje bez PR - gate lapie tez push
+  schedule:
+    - cron: "0 6 * * 1"   # cotygodniowy skan calej historii git (pon 06:00 UTC)
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # pelna historia dla cotygodniowego --history
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Skan trackowanych plikow (PR i push)
+        if: github.event_name == 'pull_request' || github.event_name == 'push'
+        run: python scripts/publication_gate.py .
+      - name: Skan calej historii git (cotygodniowo)
+        if: github.event_name == 'schedule'
+        run: python scripts/publication_gate.py . --history

@@ -8,6 +8,7 @@ import {
     Loader2,
     ShieldAlert,
     Clock,
+    FolderOpen,
     X,
 } from "lucide-react";
 import {
@@ -22,6 +23,16 @@ interface Props {
     onClose: () => void;
     /** Opcjonalna sprawa (projekt), do ktorej trafiaja dokumenty. */
     projectId?: string | null;
+}
+
+/** Most preload.js (tylko w powloce Electron). W przegladarce/dev jest undefined. */
+interface PatronBridge {
+    selectFolder: () => Promise<string | null>;
+    isDesktop?: boolean;
+}
+function patronBridge(): PatronBridge | undefined {
+    if (typeof window === "undefined") return undefined;
+    return (window as unknown as { patron?: PatronBridge }).patron;
 }
 
 type FileStatus = "imported" | "review" | "blocked" | "error";
@@ -94,13 +105,19 @@ export function FolderIngestModal({ open, onClose, projectId }: Props) {
 
     const canImport = path.trim().length > 0 && !loading;
 
-    const handleImport = async () => {
-        if (!canImport) return;
+    const bridge = patronBridge();
+
+    // Wspolna sciezka importu - parametr targetPath, by picker mogl zaimportowac
+    // OD RAZU po wyborze (bez czekania na re-render stanu `path`).
+    const runImport = async (targetPath: string) => {
+        const p = targetPath.trim();
+        if (!p || loading) return;
+        setPath(p);
         setLoading(true);
         setError(null);
         setResult(null);
         try {
-            const res = await ingestCaseFolder(path.trim(), projectId);
+            const res = await ingestCaseFolder(p, projectId);
             setResult(res);
         } catch (e) {
             setError(e instanceof Error ? e.message : t("folderIngest.error"));
@@ -108,6 +125,21 @@ export function FolderIngestModal({ open, onClose, projectId }: Props) {
             setLoading(false);
         }
     };
+
+    // Picker jak załącznik (parytet z Librą): wybierasz folder -> import startuje
+    // od razu. Nietechniczny Operator nie wpisuje sciezki ani nie szuka "Importuj".
+    const handleBrowse = async () => {
+        const b = patronBridge();
+        if (!b) return;
+        try {
+            const picked = await b.selectFolder();
+            if (picked) await runImport(picked);
+        } catch (e) {
+            setError(e instanceof Error ? e.message : t("folderIngest.error"));
+        }
+    };
+
+    const handleImport = () => runImport(path);
 
     const summary = t("folderIngest.summary")
         .replace("{indexed}", String(result?.indexed ?? 0))
@@ -138,22 +170,71 @@ export function FolderIngestModal({ open, onClose, projectId }: Props) {
                 {/* Body */}
                 <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
                     <div>
-                        <label className="mb-1 block text-xs font-medium text-gray-600">
-                            {t("folderIngest.pathLabel")}
-                        </label>
-                        <input
-                            type="text"
-                            value={path}
-                            onChange={(e) => setPath(e.target.value)}
-                            placeholder={t("folderIngest.pathPlaceholder")}
-                            onKeyDown={(e) => {
-                                if (e.key === "Enter") handleImport();
-                            }}
-                            className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm font-mono text-gray-800 outline-none focus:border-gray-400"
-                        />
-                        <p className="mt-1 text-xs text-gray-400">
-                            {t("folderIngest.pathHint")}
-                        </p>
+                        {bridge?.selectFolder ? (
+                            <>
+                                {/* Desktop: picker = akcja glowna, jak zalacznik (parytet z Libra).
+                                    Klik -> natywne okno -> wybor -> import startuje od razu. */}
+                                <button
+                                    type="button"
+                                    onClick={handleBrowse}
+                                    disabled={loading}
+                                    className="flex w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 px-4 py-7 text-center hover:border-gray-400 hover:bg-gray-100 disabled:opacity-40 transition-colors"
+                                >
+                                    {loading ? (
+                                        <Loader2 className="h-7 w-7 animate-spin text-gray-500" />
+                                    ) : (
+                                        <FolderOpen className="h-7 w-7 text-gray-500" />
+                                    )}
+                                    <span className="text-sm font-semibold text-gray-800">
+                                        {loading
+                                            ? t("folderIngest.importing")
+                                            : t("folderIngest.browseHero")}
+                                    </span>
+                                    <span className="text-xs text-gray-500">
+                                        {t("folderIngest.browseHeroHint")}
+                                    </span>
+                                </button>
+                                <p className="mt-2 text-xs text-gray-400">
+                                    {t("folderIngest.pathHint")}
+                                </p>
+                                {/* Fallback techniczny: sciezka reczna, zwiniety wizualnie. */}
+                                <details className="mt-2">
+                                    <summary className="cursor-pointer text-xs text-gray-400 hover:text-gray-600">
+                                        {t("folderIngest.manualLabel")}
+                                    </summary>
+                                    <input
+                                        type="text"
+                                        value={path}
+                                        onChange={(e) => setPath(e.target.value)}
+                                        placeholder={t("folderIngest.pathPlaceholder")}
+                                        onKeyDown={(e) => {
+                                            if (e.key === "Enter") handleImport();
+                                        }}
+                                        className="mt-1.5 w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm font-mono text-gray-800 outline-none focus:border-gray-400"
+                                    />
+                                </details>
+                            </>
+                        ) : (
+                            <>
+                                {/* Przegladarka/dev bez Electrona: pole tekstowe + Importuj. */}
+                                <label className="mb-1 block text-xs font-medium text-gray-600">
+                                    {t("folderIngest.pathLabel")}
+                                </label>
+                                <input
+                                    type="text"
+                                    value={path}
+                                    onChange={(e) => setPath(e.target.value)}
+                                    placeholder={t("folderIngest.pathPlaceholder")}
+                                    onKeyDown={(e) => {
+                                        if (e.key === "Enter") handleImport();
+                                    }}
+                                    className="w-full rounded-md border border-gray-200 bg-white px-3 py-2 text-sm font-mono text-gray-800 outline-none focus:border-gray-400"
+                                />
+                                <p className="mt-1 text-xs text-gray-400">
+                                    {t("folderIngest.pathHint")}
+                                </p>
+                            </>
+                        )}
                     </div>
 
                     {error && (

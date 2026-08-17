@@ -4,10 +4,11 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/contexts/UserProfileContext";
 import { PATRONIcon } from "@/components/chat/patron-icon";
-import { FolderOpen } from "lucide-react";
+import { Blocks, FolderOpen } from "lucide-react";
 import { ChatInput } from "./ChatInput";
 import { SelectAssistantProjectModal } from "./SelectAssistantProjectModal";
 import { FolderIngestModal } from "./FolderIngestModal";
+import { SkillLibraryPanel } from "./SkillLibraryPanel";
 import type { PATRONMessage } from "../shared/types";
 import { t } from "@/i18n";
 
@@ -24,6 +25,7 @@ export function InitialView({ onSubmit }: InitialViewProps) {
     const [loaded, setLoaded] = useState(false);
     const [projectModalOpen, setProjectModalOpen] = useState(false);
     const [folderIngestOpen, setFolderIngestOpen] = useState(false);
+    const [skillsOpen, setSkillsOpen] = useState(false);
     const [iconOffset, setIconOffset] = useState(0);
     const [textOffset, setTextOffset] = useState(0);
     const textRef = useRef<HTMLHeadingElement>(null);
@@ -50,7 +52,7 @@ export function InitialView({ onSubmit }: InitialViewProps) {
         <div className="flex flex-col h-full w-full px-6">
             <div className="flex-1 flex flex-col items-center justify-center">
                 <div className="flex-col items-center w-full max-w-4xl relative px-0 xl:px-8">
-                    <div className="mb-10 relative flex items-center justify-center">
+                    <div className="mb-10 relative flex items-center justify-center" style={{ minHeight: "45px" }}>
                         <div
                             className="absolute h-[35px]"
                             style={{
@@ -64,9 +66,8 @@ export function InitialView({ onSubmit }: InitialViewProps) {
                         >
                             <PATRONIcon size={ICON_SIZE} />
                         </div>
-                        <h1
-                            ref={textRef}
-                            className="absolute text-4xl font-serif font-light text-gray-900 whitespace-nowrap"
+                        <div
+                            className="absolute"
                             style={{
                                 left: "50%",
                                 transform: loaded
@@ -75,10 +76,16 @@ export function InitialView({ onSubmit }: InitialViewProps) {
                                 opacity: loaded ? 1 : 0,
                                 transition:
                                     "transform 900ms cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 800ms ease-in-out 300ms",
+                                maxWidth: "min(600px, calc(100vw - 6rem))",
                             }}
                         >
-                            {t("chat.greetingPrefix")}, {username}
-                        </h1>
+                            <h1
+                                ref={textRef}
+                                className="text-4xl font-serif font-light text-bordeaux whitespace-nowrap overflow-hidden text-ellipsis tracking-[0.01em]"
+                            >
+                                {t("chat.greetingPrefix")}, {username}
+                            </h1>
+                        </div>
                     </div>
 
                     <ChatInput
@@ -88,6 +95,41 @@ export function InitialView({ onSubmit }: InitialViewProps) {
                         onProjectsClick={() => setProjectModalOpen(true)}
                     />
 
+                    {/* Starter-chipy: zaproszenie dla nowego mecenasa, by zagadał
+                        o funkcje. Etykieta w glosie PATRONa (gospodarz); klik
+                        wysyla pytanie w intencji mecenasa (label != tresc). */}
+                    <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                        {[
+                            {
+                                label: t("chat.starterHelp"),
+                                query: t("chat.starterHelpSend"),
+                            },
+                            {
+                                label: t("chat.starterAnalyze"),
+                                query: t("chat.starterAnalyze"),
+                            },
+                            {
+                                label: t("chat.starterImport"),
+                                query: t("chat.starterImport"),
+                            },
+                            {
+                                label: t("chat.starterShowcase"),
+                                query: t("chat.starterShowcaseSend"),
+                            },
+                        ].map(({ label, query }) => (
+                            <button
+                                key={label}
+                                type="button"
+                                onClick={() =>
+                                    onSubmit({ role: "user", content: query })
+                                }
+                                className="rounded-full border border-border/70 bg-card/40 px-3.5 py-1.5 text-xs text-muted-foreground transition-all hover:border-bordeaux/40 hover:text-bordeaux hover:bg-card active:scale-[0.97]"
+                            >
+                                {label}
+                            </button>
+                        ))}
+                    </div>
+
                     <div className="text-center">
                         <button
                             onClick={() => setFolderIngestOpen(true)}
@@ -95,6 +137,13 @@ export function InitialView({ onSubmit }: InitialViewProps) {
                         >
                             <FolderOpen className="h-3.5 w-3.5" />
                             {t("folderIngest.open")}
+                        </button>
+                        <button
+                            onClick={() => setSkillsOpen(true)}
+                            className="mt-3 ml-2 inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors"
+                        >
+                            <Blocks className="h-3.5 w-3.5" />
+                            {t("skillLibrary.open")}
                         </button>
                         <p className="text-xs py-3 mb-3 text-gray-500">
                             {t("chat.legalDisclaimer")}
@@ -110,6 +159,10 @@ export function InitialView({ onSubmit }: InitialViewProps) {
             <FolderIngestModal
                 open={folderIngestOpen}
                 onClose={() => setFolderIngestOpen(false)}
+            />
+            <SkillLibraryPanel
+                open={skillsOpen}
+                onClose={() => setSkillsOpen(false)}
             />
         </div>
     );

@@ -8,7 +8,10 @@ import { useGenerateChatTitle } from "./useGenerateChatTitle";
 import type {
     AssistantEvent,
     PATRONCitationAnnotation,
+    PATRONCitationProvenance,
+    PATRONCitationLocator,
     PATRONGroundingDecision,
+    PATRONGroundingVerdict,
     PATRONMcpCitation,
     PATRONMessage,
 } from "@/app/components/shared/types";
@@ -408,6 +411,43 @@ export function useAssistantChat({
                             streamedChatId = data.chatId;
                             setChatId(data.chatId);
                             setCurrentChatId(data.chatId);
+                            continue;
+                        }
+
+                        // Zdarzenie bledu ze strumienia (np. egress_blocked:
+                        // sprawa objeta tajemnica + model chmurowy). Dotad NIE
+                        // bylo obslugiwane - UI wisial na kreciolku. Teraz
+                        // pokazujemy czytelny komunikat (czerwony blok) i konczymy
+                        // ladowanie, by mecenas wiedzial DLACZEGO brak odpowiedzi.
+                        if (data.type === "error") {
+                            stopDrip();
+                            const errMsg =
+                                (typeof data.message === "string" &&
+                                    data.message) ||
+                                (typeof data.error === "string" &&
+                                    data.error) ||
+                                "Wystąpił błąd podczas generowania odpowiedzi.";
+                            setMessages((prev) => {
+                                const last = prev[prev.length - 1];
+                                if (last?.role === "assistant") {
+                                    const updated = [...prev];
+                                    updated[updated.length - 1] = {
+                                        ...last,
+                                        error: errMsg,
+                                    };
+                                    return updated;
+                                }
+                                return [
+                                    ...prev,
+                                    {
+                                        role: "assistant",
+                                        content: "",
+                                        error: errMsg,
+                                    },
+                                ];
+                            });
+                            setIsResponseLoading(false);
+                            setIsLoadingCitations(false);
                             continue;
                         }
 
@@ -831,15 +871,50 @@ export function useAssistantChat({
                             // ADR-0005: werdykt groundingu przychodzi rownolegle
                             // jako mapa ref -> { decision }. Skladamy go w pole
                             // `grounding` kazdego cytatu, by UI pokazal badge.
+                            // ADR-0122: ta sama mapa niesie trwaly `locator`
+                            // (rawText + occurrenceHint) - przewlekamy go do
+                            // cytatu, by occurrence-aware highlight wybral
+                            // wlasciwe wystapienie frazy w dokumencie.
                             const groundingMap = (data.grounding ?? {}) as Record<
                                 string,
-                                { decision?: PATRONGroundingDecision }
+                                {
+                                    decision?: PATRONGroundingDecision;
+                                    verdict?: PATRONGroundingVerdict;
+                                    provenance?: PATRONCitationProvenance;
+                                    locator?: PATRONCitationLocator | null;
+                                    requiresJudgment?: boolean;
+                                }
                             >;
                             const incoming = (
                                 (data.citations ?? []) as PATRONCitationAnnotation[]
                             ).map((c) => {
-                                const decision = groundingMap[String(c.ref)]?.decision;
-                                return decision ? { ...c, grounding: decision } : c;
+                                // ADR-0005 decision (deterministyczna) + ADR-0097 verdict
+                                // (semantyczny sedzia) + ADR-0102 provenance (tag zrodla)
+                                // + ADR-0122 locator (occurrence-aware highlight). Wszystkie
+                                // to enumy/lokator; uzasadnienie sedziego (PII) NIE jest pobierane.
+                                const g = groundingMap[String(c.ref)];
+                                if (
+                                    !g?.decision &&
+                                    !g?.verdict &&
+                                    !g?.provenance &&
+                                    !g?.locator &&
+                                    !g?.requiresJudgment
+                                )
+                                    return c;
+                                return {
+                                    ...c,
+                                    ...(g.decision ? { grounding: g.decision } : {}),
+                                    ...(g.verdict
+                                        ? { groundingVerdict: g.verdict }
+                                        : {}),
+                                    ...(g.provenance
+                                        ? { provenance: g.provenance }
+                                        : {}),
+                                    ...(g.locator ? { locator: g.locator } : {}),
+                                    ...(g.requiresJudgment
+                                        ? { requiresJudgment: true }
+                                        : {}),
+                                };
                             });
                             setMessages((prev) => {
                                 const updated = [...prev];

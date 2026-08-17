@@ -84,8 +84,18 @@ export interface RetrievedChunk {
   chunkId: number;
   documentId: string;
   chunkIndex: number;
+  /** Numer strony zrodla (audyt P2 #10) lub null (zrodlo bez stron / stary index). */
+  pageNo: number | null;
   content: string;
   score: number;
+  /**
+   * ADR-0124 (Route B): surowy span chunka w zrodle (UTF-16, end exclusive).
+   * Pozwala feedowi zbudowac EXACT lokator bez fuzzy matchingu znormalizowanej
+   * tresci. null/undefined dla chunkow sprzed Route B (re-index uzupelnia) -
+   * feed robi wtedy fallback best-effort.
+   */
+  sourceOffsetStart?: number | null;
+  sourceOffsetEnd?: number | null;
 }
 
 /**
@@ -109,10 +119,36 @@ export function reciprocalRankFusion(
 }
 
 /** Buduje bezpieczne zapytanie FTS5 MATCH z tokenow (OR). null jezeli brak. */
+/**
+ * Lekki rdzen morfologiczny PL dla prefix-matchu FTS (audyt P3 #15). Polska
+ * fleksja jest sufiksalna, wiec formy odmienione dziela rdzen prefiksowy:
+ * "oskarzonego"/"oskarzonemu"/"oskarzony" -> "oskarzon". Obcinamy do 3 znakow
+ * z konca, z podloga 5 znakow rdzenia (krotszy prefix = za duzo false-positive).
+ * Bez slownika sufiksow - jednolita truncacja jest stabilna i deterministyczna.
+ */
+function ftsStem(token: string): string {
+  const strip = Math.min(3, token.length - 5);
+  return strip > 0 ? token.slice(0, token.length - strip) : token;
+}
+
+/**
+ * Buduje wyrazenie FTS5 MATCH z zapytania. Tokeny czysto literowe dlugosci >=7
+ * dostaja prefix-match rdzenia (`rdzen*`) - lapie formy odmienione (recall PL,
+ * audyt P3 #15). Krotkie tokeny, liczby i sygnatury (czp/iii/11) zostaja exact
+ * (prefix krotki = za duzo false-positive). Term laczone przez OR.
+ */
 export function buildFtsMatch(query: string): string | null {
   const tokens = query.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? [];
   if (tokens.length === 0) return null;
-  return tokens.map((t) => `"${t.replace(/"/g, '""')}"`).join(" OR ");
+  return tokens
+    .map((t) => {
+      if (/^\p{L}+$/u.test(t) && t.length >= 7) {
+        // prefix term FTS5 (bez cudzyslowu, z gwiazdka)
+        return `${ftsStem(t)}*`;
+      }
+      return `"${t.replace(/"/g, '""')}"`;
+    })
+    .join(" OR ");
 }
 
 /** Wektorowy MATCH (sqlite-vec). Zwraca chunk id best-first (distance asc). */
@@ -379,13 +415,16 @@ export async function retrieve(
     const placeholders = fused.map(() => "?").join(",");
     const rows = db
       .prepare(
-        `select id, document_id, chunk_index, content from doc_chunks where id in (${placeholders})`,
+        `select id, document_id, chunk_index, content, page_no, source_offset_start, source_offset_end from doc_chunks where id in (${placeholders})`,
       )
       .all(...fused.map((f) => f.id)) as {
       id: number;
       document_id: string;
       chunk_index: number;
       content: string;
+      page_no: number | null;
+      source_offset_start: number | null;
+      source_offset_end: number | null;
     }[];
 
     return rows
@@ -393,8 +432,11 @@ export async function retrieve(
         chunkId: r.id,
         documentId: r.document_id,
         chunkIndex: r.chunk_index,
+        pageNo: r.page_no ?? null,
         content: r.content,
         score: byId.get(r.id) ?? 0,
+        sourceOffsetStart: r.source_offset_start ?? null,
+        sourceOffsetEnd: r.source_offset_end ?? null,
       }))
       .sort((a, b) => b.score - a.score);
   }
@@ -409,13 +451,16 @@ export async function retrieve(
   const placeholders = reranked.map(() => "?").join(",");
   const rows = db
     .prepare(
-      `select id, document_id, chunk_index, content from doc_chunks where id in (${placeholders})`,
+      `select id, document_id, chunk_index, content, page_no, source_offset_start, source_offset_end from doc_chunks where id in (${placeholders})`,
     )
     .all(...reranked.map((f) => f.id)) as {
     id: number;
     document_id: string;
     chunk_index: number;
     content: string;
+    page_no: number | null;
+    source_offset_start: number | null;
+    source_offset_end: number | null;
   }[];
 
   // Zachowaj kolejnosc re-rankingu (z jego deterministycznym tie-breakiem),
@@ -425,8 +470,11 @@ export async function retrieve(
       chunkId: r.id,
       documentId: r.document_id,
       chunkIndex: r.chunk_index,
+      pageNo: r.page_no ?? null,
       content: r.content,
       score: byId.get(r.id) ?? 0,
+      sourceOffsetStart: r.source_offset_start ?? null,
+      sourceOffsetEnd: r.source_offset_end ?? null,
     }))
     .sort((a, b) => (orderIndex.get(a.chunkId)! - orderIndex.get(b.chunkId)!));
 }

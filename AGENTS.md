@@ -6,7 +6,7 @@ Plik standardu [agents.md](https://agents.md) (Linux Foundation / Agentic AI Fou
 
 ## Cel projektu
 
-Patron to **lokalny RODO-safe agent AI dla polskiej kancelarii prawnej**. Aplikacja desktop (Electron) zero-cloud, single-user: domyslnie lokalny SQLite ([ADR-0053](./governance/adr/0053-sqlite-single-user-zero-cloud.md)) + 6 konektorow MCP polskiego i unijnego prawa, audit trail z hash-chain (AI Act art. 12), bring-your-own-model (Gemini / Claude / Ollama lokalny / OpenRouter). Tryb serwerowy (Postgres + MinIO + Supabase) pozostaje jako alternatywa. Forka [willchen96/mike](https://github.com/willchen96/mike) (MIT) na powloce AGPL-3.0 - patrz [ADR-0002](./governance/adr/0002-dual-license-agpl-shell-mit-connectors.md).
+Patron to **lokalny RODO-safe agent AI dla polskiej kancelarii prawnej**. Aplikacja desktop (Electron) zero-cloud, single-user: domyslnie lokalny SQLite ([ADR-0053](./governance/adr/0053-sqlite-single-user-zero-cloud.md)) + 6 konektorow MCP polskiego i unijnego prawa, audit trail z hash-chain (AI Act art. 12), bring-your-own-model (Gemini / Claude / Ollama lokalny / OpenRouter). Tryb serwerowy (Postgres + MinIO + Supabase) pozostaje jako alternatywa. Forka [willchen96/mike](https://github.com/willchen96/mike) (AGPL-3.0) - powloka Patrona dziedziczy AGPL-3.0 jako derivative work; konektory MCP osobno na MIT - patrz [ADR-0002](./governance/adr/0002-dual-license-agpl-shell-mit-connectors.md).
 
 ## Kontekst MateMatic (TWARDE OGRANICZENIA)
 
@@ -26,8 +26,38 @@ cd backend && npm install && npm run build && npm test
 # Frontend (Next.js)
 cd frontend && npm install && npm run build && npm test
 
-# Bundle 6 konektorow MCP do obrazu backendu
+# Bundle 6 konektorow MCP do obrazu backendu (tryb SERWEROWY / docker)
 node scripts/bundle-mcp.cjs
+
+# Bundle 6 konektorow MCP + model embeddera do instalatora DESKTOP (Electron)
+# odbywa sie w prepare-resources.cjs (stageMcpConnectors + stageEmbedModel),
+# wymaga 6 zbudowanych repo mcp-* obok patron/ (MCP_REPOS_DIR, default `..`).
+# Patrz ADR-0100. Dodajac konektor NODE, zsynchronizuj jego nazwe w PIECIU miejscach:
+# backend/src/lib/mcp-security/pipeline.ts (APPROVED_PATRON_CONNECTORS),
+# backend/src/lib/mcp/connectors.ts (JURISDICTION_BY_CONNECTOR - inaczej picker
+# wrzuca go do "OTHER"), desktop/scripts/prepare-resources.cjs (MCP_SERVERS ORAZ
+# lokalny mirror JURISDICTION + ORDER_PL/ORDER_EN - bez wpisu w mirrorze konektor
+# laduje w instalatorze jako enabled=false, zmierzone 2026-08-17 na eureka) i
+# mcp-servers.example.json; do trybu docker dodatkowo scripts/bundle-mcp.cjs -
+# rozjazd nazw = bramka typosquat + ring-policy blokuja WLASNY konektor (ADR-0027/0028).
+# Stan 2026-08-17: 7 konektorow Node (6 + eureka), repo eureka = ~/Projects/mcp-eureka
+# widoczne obok patron/ przez junction ~/mcp-eureka.
+#
+# Konektory PYTHON (9 krajowych UE, Opcja C - ADR-0136): NIE freeze per konektor,
+# lecz JEDEN bundlowany standalone CPython + `uv pip install` 9 do jego site-packages
+# przy buildzie (stageBundledPython w prepare-resources.cjs). Repo eli w ~/Projects
+# (MCP_PY_REPOS_DIR, nie obok patron). 3-sync nazw: pipeline.ts APPROVED +
+# prepare-resources.cjs MCP_SERVERS_PYTHON + mcp-servers.example.json. Spawn:
+# py-runtime/python.exe -s -E -c "from <modul>.server import main; main()".
+# Build locale (ADR-0132/0139): NEXT_PUBLIC_PATRON_LOCALE in {pl,en,it,de,es,fr,us}.
+# (br shipped on another branch - lista tu jest juz niepelna, "us" dopisany bez
+# pelnej rekonstrukcji; sprawdz frontend/src/i18n/index.ts SUPPORTED_LOCALES
+# jako zrodlo prawdy).
+# en = zestaw UE-first + samouczek EN; it/de/es/fr = konektor macierzysty ON +
+# substancja krajowa w promptach (PROFILES w backend/src/lib/chat/prompts.ts).
+# Preferuj `npm run build:<locale>` (desktop/scripts/build-locale.cjs) - ustawia
+# locale, jezyk NSIS i kanoniczna nazwe artefaktu PATRON-Setup-Windows[-XX].exe.
+cd desktop && npm run build
 
 # Pelny stack (Docker, wymaga Supabase + MinIO osobno)
 cp .env.docker.example .env.docker
@@ -35,7 +65,7 @@ cp .env.docker.example .env.docker
 docker compose --env-file .env.docker up -d
 ```
 
-Testy: 817/822 pass na 2026-05-30 (5 todo, 0 fail). TSC clean. **Nie commituj jezeli testy fail** - bramka jakosci z [Konstytucja](./governance/CONSTITUTION.md) Art. 7.
+Testy: 1440/1445 pass (5 todo, 0 fail) na 2026-08-04 (backend vitest). TSC clean (backend + frontend). **Nie commituj jezeli testy fail** - bramka jakosci z [Konstytucja](./governance/CONSTITUTION.md) Art. 7.
 
 ## Zasady kodu
 
@@ -45,8 +75,13 @@ Testy: 817/822 pass na 2026-05-30 (5 todo, 0 fail). TSC clean. **Nie commituj je
 - **Input security** - dokumenty wejsciowe (PDF/DOCX/TXT) przechodza przez `backend/src/lib/input-security/` (prompt-injection / steganografia / homoglify / evasion) PRZED indeksacja RAG. Oba szwy uploadu (single-document i projektowy) dziela JEDNA funkcje `backend/src/lib/documentIngest.ts` - nie kopiuj logiki ingestu, importuj ja. Patrz [ADR-0019](./governance/adr/0019-input-document-security-pipeline-pl.md) + [ADR-0020](./governance/adr/0020-wpiecie-input-security-w-ingest.md) + [ADR-0055](./governance/adr/0055-parytet-skanu-input-security-sciezka-projektowa.md).
 - **MCP security gateway** - definicje konektorow MCP przechodza przez `backend/src/lib/mcp-security/` (typosquat / drift / hidden-instructions / tool-poisoning) PRZED registracja toolow w runtime. Decyzja `denied`/`human_review` blokuje wpiecie. Decyzje inne niz `allowed-clean` propaguja sie do audit hash-chain (`event_type = "mcp_security.gateway"`) przez `backend/src/lib/mcp/audit-bridge.ts`. Patrz [ADR-0025](./governance/adr/0025-mcp-security-gateway-wdrazenie.md) + [ADR-0028](./governance/adr/0028-wpiecie-mcp-security-gateway-w-startup.md) + [ADR-0033](./governance/adr/0033-propagacja-mcp-security-do-audit-hash-chain.md).
 - **Merkle audit chain** - nad istniejacym hash-chain (ADR-0001) zbudowane jest drzewo Merkle (RFC 6962). Audytor dostaje proof-of-inclusion w O(log n) zamiast O(n) lancucha. Tabela `audit_merkle_roots` (block_start, block_end, merkle_root, event_count). 3 moduly w `backend/src/lib/`: `audit-merkle.ts` (pure functions), `audit-merkle-roots.ts` (storage layer, nie modyfikuje audit_log), `audit-merkle-verifier.ts` (offline verifier dla audytora). Manualny trigger w tej iteracji (compute root przy administratorze kancelarii); automatyzacja + UI viewer = rezerwacja ADR-0036; RFC 3161 timestamping = rezerwacja ADR-0037. Patrz [ADR-0026](./governance/adr/0026-merkle-audit-chain-upgrade.md).
-- **i18n** - tlumaczenia w `frontend/messages/`. Slownik PRZED komponenty.
+- **Human-in-the-loop write staging (ADR-0137)** - akcje agenta o skutkach ubocznych (`edit_document` / `generate_docx`) moga przejsc przez bramke `maybeStageMutation` w `backend/src/lib/chat/tool-dispatch.ts` PRZED wykonaniem - staged jako karty `mutation_approvals` (`pending`); wykonuje je dopiero zatwierdzenie czlowieka (`backend/src/routes/approvals.ts`, `requireAuth`, fail-closed, scoping `user_id`). Wykonanie po approve w `backend/src/lib/chat/mutation-approval-executor.ts`; rdzen czysty w `backend/src/lib/mutation-approval.ts`. Decyzja (approve/reject) w audit hash-chain (`event_type = "mutation.approval.decision"`, payload bez tresci dokumentu). Inbox UI `frontend/src/app/(pages)/account/approval-cards`. Domyslnie OFF (`PATRON_MUTATION_APPROVAL=true` wlacza) do czasu akceptacji ADR-0137. Dodajac nowy `event_type`: 5 mirrorow wg precedensu connector.toggle (audit.ts + schema.sqlite.ts CHECK + schema.sql CHECK + migrate.sqlite.ts rebuild + Postgres migracja). Patrz [ADR-0137](./governance/adr/0137-mutation-approval-cards-human-in-the-loop.md).
+- **Eksport audytowy jedzie z weryfikatorem (ADR-0142)** - `GET /api/audit/export/:eventId` zwraca ZIP: artefakt + `SPRAWDZ-TEN-PLIK.html` + `verify.py` + instrukcja. Tresc obu weryfikatorow jest **OSADZONA** w `backend/src/lib/audit-verifier-assets.ts` (`String.raw`), NIE czytana z dysku - plik pominiety w pakowaniu Electron zniknalby po cichu, a eksport nadal konczylby sie sukcesem, czyli odbiorca dostalby archiwum bez narzedzia. Edytujac te ciagi uruchom `audit-verifier-assets.test.ts` - pilnuje, ze weryfikator w Pythonie, weryfikator w przegladarce i kod produkcyjny daja TEN SAM werdykt (kanonikalizacja + przypadki manipulacji). Nie dodawaj do nich backticka ani `${`. Instrukcja w artefakcie ma odsylac do narzedzi Z ARCHIWUM, nigdy do katalogu `backend/` - odbiorca go nie ma. Patrz [ADR-0142](./governance/adr/0142-weryfikator-w-paczce-eksportu-audytowego.md).
+- **Skille: integralnosc i egress (ADR-0143)** - audyt zapisuje skill jako rekord z `version` i `prompt_sha256`, nie sam `id`: `importSkill` robi upsert po `id` przy niepodpisanym manifescie, wiec para `(id, version)` NIE identyfikuje tresci. Suma liczona PRZY ODCZYCIE w `backend/src/lib/skills/integrity.ts` (`canonicalSha256` z ADR-0142 - jedna kanonikalizacja w projekcie). Deklaracja `egress` z manifestu jest EGZEKWOWANA przed uruchomieniem (`partitionSkillsByEgress`): skill `no-egress` nie idzie do modelu opuszczajacego maszyne, a pominiecie laduje w audycie jako `skipped_skills` z powodem. Dodajac nowa `surface` przepusc ja przez te sama bramke, inaczej luka wraca. Patrz [ADR-0143](./governance/adr/0143-integralnosc-skilla-i-bramka-egress.md).
+- **i18n** - tlumaczenia w `frontend/src/i18n/` (`pl.ts` zrodlo kluczy, `en.ts` deep-partial + fallback PL, `index.ts` = `t()` + helpery formatu locale-aware). Jeden jezyk per instalacja, bez next-intl/locale-w-URL. Patrz [ADR-0132](./governance/adr/0132-locale-selection-jeden-jezyk-per-instalacja.md). Slownik PRZED komponenty.
 - **Bez polskich znakow w commit messages** - konwencja organizacji (a -> a, e -> e, l -> l, o -> o, s -> s, n -> n, c -> c, z -> z).
+- **Rejestr numerow migracji/ADR** - PRZED utworzeniem nowej migracji Postgres lub ADR wez numer z rejestru w `.matematic/releases/<aktualne wydanie>/README.md` (sekcja "Rejestr wolnych numerow") i podbij licznik W TYM SAMYM commicie. Numery rezerwowane "na oko" na rownoleglych galeziach kolidowaly (2x migracja 014).
+- **Higiena galezi** - WIP zawsze zacommitowany (choćby `wip:`); galaz po wtopieniu tresci do linii release kasowac; worktree po skonczonej fazie usuwac; dane testowe = syntetyczna obsada od PIERWSZEGO commita (scrub po fakcie = falszywe konflikty w calej historii). Stan galezi vs release mierzy `git log --cherry-pick --right-only`, nie is-ancestor.
 - **ADR przed kazda nietrwialnaa decyzja architektoniczna** - `governance/adr/NNNN-slug.md`. wewnetrzny review tresci 2x runda PRZED merge.
 
 ## Czego NIE robic (twarde reguly)
@@ -60,9 +95,9 @@ Testy: 817/822 pass na 2026-05-30 (5 todo, 0 fail). TSC clean. **Nie commituj je
 ## Zrodla prawdy (kolejnosc czytania)
 
 1. [README.md](./README.md) - opis dla ludzi
-2. [governance/CONSTITUTION.md](./governance/CONSTITUTION.md) - 9 zasad, role, audyt (v1.4.6, podpisywana przez kancelarie)
+2. [governance/CONSTITUTION.md](./governance/CONSTITUTION.md) - 9 zasad, role, audyt (v1.7.2, podpisywana przez kancelarie)
 3. [governance/IMPLEMENTATION_PLAYBOOK.md](./governance/IMPLEMENTATION_PLAYBOOK.md) - 6-8 tyg wdrozenia, RACI
-4. [governance/adr/](./governance/adr/) - Architecture Decision Records (0001-0075)
+4. [governance/adr/](./governance/adr/) - Architecture Decision Records (0001-0143)
 5. [THIRD_PARTY_INSPIRATIONS.md](./THIRD_PARTY_INSPIRATIONS.md) - co cherry-pickowalismy i skad (Mike, Lavern, gbrain, isaacus/tabular-review, PII-Shield, earendil/pi, awesome-llm-apps)
 6. [CHANGELOG.md](./CHANGELOG.md), [SECURITY.md](./SECURITY.md), [CONTRIBUTING.md](./CONTRIBUTING.md)
 
