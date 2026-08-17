@@ -70,15 +70,23 @@ function killTree(pid: number | undefined, kill: () => void): void {
   }
 }
 
+// Zimny start `npx tsx src/index.ts` na maszynie bez GPU/z wolnym dyskiem
+// przekracza 20 s (zmierzone 2026-08-17: bramka failowala na 40 probach, ten sam
+// boot recznie odpowiadal {"ok":true}). Timeout dobrany z zapasem - bramka ma
+// wykrywac ZEPSUTY backend, nie wolna maszyne.
+const HEALTH_TIMEOUT_MS = 120_000;
+const HEALTH_INTERVAL_MS = 500;
+
 async function waitForHealth(): Promise<boolean> {
-  for (let i = 0; i < 40; i++) {
+  const deadline = Date.now() + HEALTH_TIMEOUT_MS;
+  while (Date.now() < deadline) {
     try {
       const r = await fetch(`${BASE}/health`);
       if (r.ok) return true;
     } catch {
       /* not up yet */
     }
-    await new Promise((res) => setTimeout(res, 500));
+    await new Promise((res) => setTimeout(res, HEALTH_INTERVAL_MS));
   }
   return false;
 }
@@ -107,12 +115,33 @@ async function main() {
       DOWNLOAD_SIGNING_SECRET: "smoke",
       USER_API_KEYS_ENCRYPTION_SECRET: "smoke",
     },
-    stdio: "ignore",
+    stdio: ["ignore", "pipe", "pipe"],
     shell: process.platform === "win32",
   });
 
+  // Wyjscie dziecka BUFORUJEMY i drukujemy dopiero gdy boot padnie. Przy
+  // stdio:"ignore" bramka zwracala samo "FAIL backend wstal" + ECONNREFUSED z
+  // nastepnego requestu, czyli ukrywala JEDYNY komunikat mowiacy DLACZEGO
+  // (brakujaca migracja, zajety port, blad kompilacji). Awaria konczaca sie bez
+  // przyczyny kosztuje wiecej niz kilka linii logu.
+  const serverLog: string[] = [];
+  const capture = (chunk: Buffer) => {
+    serverLog.push(chunk.toString());
+    if (serverLog.length > 200) serverLog.shift();
+  };
+  server.stdout?.on("data", capture);
+  server.stderr?.on("data", capture);
+
   try {
-    check("backend wstal (/health)", await waitForHealth());
+    const healthy = await waitForHealth();
+    check("backend wstal (/health)", healthy);
+    if (!healthy) {
+      console.error(
+        `\n--- wyjscie backendu (${serverLog.length} fragmentow, ostatnie na koncu) ---`,
+      );
+      console.error(serverLog.join("") || "(backend nie wypisal NICZEGO - sprawdz czy npx/tsx sa dostepne)");
+      console.error("--- koniec wyjscia backendu ---\n");
+    }
 
     // 1. Upload pojedynczego dokumentu -> skan + utrwalenie + index w tle.
     const docx = await makeDocx(
