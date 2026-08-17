@@ -22,6 +22,7 @@ const JURIS_ORDER: ConnectorJurisdiction[] = [
     "SE",
     "FR",
     "LU",
+    "BR",
     "OTHER",
 ];
 
@@ -37,6 +38,7 @@ const JURIS_KEY: Record<ConnectorJurisdiction, TranslationKey> = {
     SE: "connectors.jurisdictionSE",
     FR: "connectors.jurisdictionFR",
     LU: "connectors.jurisdictionLU",
+    BR: "connectors.jurisdictionBR",
     OTHER: "connectors.jurisdictionOTHER",
 };
 

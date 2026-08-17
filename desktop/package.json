@@ -18,7 +18,8 @@
     "build:it": "node scripts/build-locale.cjs it",
     "build:de": "node scripts/build-locale.cjs de",
     "build:es": "node scripts/build-locale.cjs es",
-    "build:fr": "node scripts/build-locale.cjs fr"
+    "build:fr": "node scripts/build-locale.cjs fr",
+    "build:pt": "node scripts/build-locale.cjs pt"
   },
   "build": {
     "appId": "co.matematicsolutions.patron",

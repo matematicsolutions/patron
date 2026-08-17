@@ -69,6 +69,10 @@ export const APPROVED_PATRON_CONNECTORS: ReadonlyArray<string> = [
     // Smoke live 2026-08-17: 520 406 interpretacji indywidualnych, cytat zwraca
     // sygnature + URL + date wydania (kontrakt structuredContent.citations).
     "eureka",
+    // ADR-0139: rynek brazylijski (pt-BR). br-eli = legis.senado.leg.br +
+    // normas.leg.br (legislacao federal, texto por artigo) + DataJud CNJ
+    // (metadados processuais). Gateway-scan przechodzi jak dla pozostalych.
+    "br-eli",
 ];
 
 /** Skanuje pojedynczy konektor MCP. */

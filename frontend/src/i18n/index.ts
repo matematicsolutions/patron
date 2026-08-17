@@ -20,12 +20,13 @@ import { it } from "./it";
 import { de } from "./de";
 import { es } from "./es";
 import { fr } from "./fr";
+import { pt } from "./pt";
 
-// 6 rynkow docelowych (ADR-0139): PL (macierzysty), EN (miedzynarodowy),
-// IT / DE / ES / FR (najwieksze rynki LegalTech UE, kolejnosc wdrozenia
-// wg wielkosci rynku). Slownik moze byc uzupelniany przyrostowo - brak
-// klucza w slowniku rynkowym pokrywa fallback EN -> PL.
-export type Locale = "pl" | "en" | "it" | "de" | "es" | "fr";
+// 7 rynkow docelowych (ADR-0139): PL (macierzysty), EN (miedzynarodowy),
+// IT / DE / ES / FR (najwieksze rynki LegalTech UE), BR (pt-BR, kolejnosc
+// wdrozenia wg wielkosci rynku). Slownik moze byc uzupelniany przyrostowo -
+// brak klucza w slowniku rynkowym pokrywa fallback EN -> PL.
+export type Locale = "pl" | "en" | "it" | "de" | "es" | "fr" | "pt";
 
 const SUPPORTED_LOCALES: ReadonlyArray<Locale> = [
     "pl",
@@ -34,6 +35,7 @@ const SUPPORTED_LOCALES: ReadonlyArray<Locale> = [
     "de",
     "es",
     "fr",
+    "pt",
 ];
 
 // Aktywne locale - jeden jezyk per instalacja (ADR-0132). Domyslnie PL.
@@ -59,6 +61,7 @@ const DICTS: Record<Locale, Record<string, unknown>> = {
     de,
     es,
     fr,
+    pt,
 };
 
 /** Ustaw aktywny jezyk UI. Wolaj raz przy bootstrapie aplikacji. */
@@ -139,6 +142,7 @@ const LOCALE_TAGS: Record<Locale, string> = {
     de: "de-DE",
     es: "es-ES",
     fr: "fr-FR",
+    pt: "pt-BR",
 };
 
 function localeTag(): string {
@@ -197,6 +201,13 @@ const RELATIVE: Record<
         hoursAgo: (n) => `il y a ${n} h`,
         yesterday: "hier",
         daysAgo: (n) => `il y a ${n} jours`,
+    },
+    pt: {
+        now: "agora",
+        minAgo: (n) => `ha ${n} min`,
+        hoursAgo: (n) => `ha ${n} h`,
+        yesterday: "ontem",
+        daysAgo: (n) => `ha ${n} dias`,
     },
 };
 
@@ -273,4 +284,4 @@ export function formatCurrency(amount: number, currency = "PLN"): string {
 }
 
 // Re-export slownikow dla testow / debug.
-export { pl, en, it, de, es, fr };
+export { pl, en, it, de, es, fr, pt };

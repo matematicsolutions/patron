@@ -136,5 +136,14 @@
     "command": "uv",
     "args": ["run", "--directory", "/path/to/it-eli-mcp", "italy-eli-mcp"],
     "enabled": false
+  },
+  {
+    "_comment": "br-eli (ADR-0139, rynek brazylijski): legis.senado.leg.br + normas.leg.br legislacao federal (URN Lex, texto por artigo, historico de alteracoes, sinalizacoes STF) + DataJud CNJ (metadados processuais, br_search_processos/br_get_processo). Repo br-eli-mcp, paczka PyPI br-eli-mcp.",
+    "name": "br-eli",
+    "transport": "stdio",
+    "runtime": "python",
+    "command": "uv",
+    "args": ["run", "--directory", "/path/to/br-eli-mcp", "br-eli-mcp"],
+    "enabled": false
   }
 ]

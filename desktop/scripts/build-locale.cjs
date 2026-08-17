@@ -27,6 +27,7 @@ const LOCALES = {
   de: { nsisLang: "de-DE", lcid: "1031", suffix: "-DE" },
   es: { nsisLang: "es-ES", lcid: "3082", suffix: "-ES" },
   fr: { nsisLang: "fr-FR", lcid: "1036", suffix: "-FR" },
+  pt: { nsisLang: "pt-BR", lcid: "1046", suffix: "-BR" },
 };
 
 const locale = (process.argv[2] || "").toLowerCase();
