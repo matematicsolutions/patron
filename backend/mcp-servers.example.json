@@ -46,6 +46,14 @@
     "enabled": false
   },
   {
+    "_comment": "eureka = EUREKA MF (interpretacje podatkowe KIS, WIS, WIA). Zapytanie LIVE do eureka.mf.gov.pl - nie wozi lokalnego korpusu, wiec przy odcietej sieci degraduje sie do braku trafien, nie do bledu.",
+    "name": "eureka",
+    "transport": "stdio",
+    "command": "node",
+    "args": ["/path/to/mcp-eureka/dist/index.js"],
+    "enabled": false
+  },
+  {
     "_comment": "Konektory krajowe UE (Python, ADR-0133/0134). Gateway-scan 2026-06-24: wszystkie 9 czyste (threat=low, zero hidden-instructions/tool-poisoning) -> w APPROVED_PATRON_CONNECTORS. runtime:python.",
     "_comment_dev": "Dev/serwer: uruchamiane przez uv (command 'uv', args ['run','--directory','/path/to/<x>-eli-mcp','<x>-eli-mcp']). Bundle desktop: frozen-exe (PyInstaller) w mcp-bundled/<name>/, command 'mcp-bundled/<name>/<name>-mcp.exe' (sciezka wzgledna rozwiazywana wzgledem korzenia backendu).",
     "_comment_fr": "fr-eli (Legifrance/PISTE) wymaga kluczy OAuth w env do wywolan; listTools dziala bez kluczy.",

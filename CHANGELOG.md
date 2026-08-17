@@ -8,6 +8,22 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 ## [Unreleased]
 
 ### Added
+- **Konektor `eureka` (siodmy konektor Node, Ring 1)** - EUREKA MF (`eureka.mf.gov.pl`):
+  interpretacje podatkowe KIS, WIS, WIA, objasnienia; `mcp-eureka` 0.2.0 (MIT, osobne repo).
+  Wpiety w czterech miejscach 3-sync (`APPROVED_PATRON_CONNECTORS`, `JURISDICTION_BY_CONNECTOR`
+  = PL, `prepare-resources.cjs` MCP_SERVERS, `mcp-servers.example.json`) + `bundle-mcp.cjs`.
+  Przebieg bojowy 2026-08-17: backend podlacza 7 konektorow, realne pytanie podatkowe (art. 10
+  ust. 1 pkt 8 PIT, nabycie w spadku) przechodzi `eureka__search` -> `eureka__get_interpretation`,
+  22 cytaty MCP z sygnatura/URL/data, teza poprawna. Zmierzona GRANICA (nie zalatana, wymaga
+  ADR): `mcp_citations` NIE przechodza przez kaskade groundingu (`groundCitationsByRef` liczy
+  tylko cytaty `<CITATIONS>` z dokumentow kancelarii) - blockquote podany przez model jako
+  doslowny cytat organu (sygn. 0114-KDIP3-1.4011.844.2024.2.MS2) nie wystepuje w zrodle
+  (0/4 zdan, string-match po normalizacji na pelnym dokumencie z API), a UI nie pokazuje
+  ostrzezenia. Praktyka organow, nie zrodlo prawa (art. 14a-14s o.p.). backend 1441 pass / 0 fail.
+- **`smoke:desktop`: bramka przestaje ukrywac przyczyne** - timeout bootu 20 s -> 120 s (zimny
+  `npx tsx` na maszynie bez GPU przekraczal 20 s i bramka failowala, choc ten sam boot recznie
+  odpowiadal `{"ok":true}`); wyjscie backendu buforowane i drukowane przy FAIL zamiast
+  `stdio:"ignore"`, ktore zostawialo sam `ECONNREFUSED` bez slowa DLACZEGO.
 - **Weryfikator w paczce eksportu audytowego (ADR-0142)** - `GET /api/audit/export/:eventId`
   zwraca archiwum ZIP zamiast samego JSON. Obok artefaktu jada dwa samodzielne weryfikatory:
   `SPRAWDZ-TEN-PLIK.html` (przegladarka, zero instalacji, wlasna implementacja SHA-256 zamiast

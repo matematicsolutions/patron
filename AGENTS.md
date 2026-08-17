@@ -32,10 +32,16 @@ node scripts/bundle-mcp.cjs
 # Bundle 6 konektorow MCP + model embeddera do instalatora DESKTOP (Electron)
 # odbywa sie w prepare-resources.cjs (stageMcpConnectors + stageEmbedModel),
 # wymaga 6 zbudowanych repo mcp-* obok patron/ (MCP_REPOS_DIR, default `..`).
-# Patrz ADR-0100. Dodajac konektor NODE, zsynchronizuj jego nazwe w TRZECH miejscach:
+# Patrz ADR-0100. Dodajac konektor NODE, zsynchronizuj jego nazwe w PIECIU miejscach:
 # backend/src/lib/mcp-security/pipeline.ts (APPROVED_PATRON_CONNECTORS),
-# desktop/scripts/prepare-resources.cjs (MCP_SERVERS) i mcp-servers.example.json -
+# backend/src/lib/mcp/connectors.ts (JURISDICTION_BY_CONNECTOR - inaczej picker
+# wrzuca go do "OTHER"), desktop/scripts/prepare-resources.cjs (MCP_SERVERS ORAZ
+# lokalny mirror JURISDICTION + ORDER_PL/ORDER_EN - bez wpisu w mirrorze konektor
+# laduje w instalatorze jako enabled=false, zmierzone 2026-08-17 na eureka) i
+# mcp-servers.example.json; do trybu docker dodatkowo scripts/bundle-mcp.cjs -
 # rozjazd nazw = bramka typosquat + ring-policy blokuja WLASNY konektor (ADR-0027/0028).
+# Stan 2026-08-17: 7 konektorow Node (6 + eureka), repo eureka = ~/Projects/mcp-eureka
+# widoczne obok patron/ przez junction ~/mcp-eureka.
 #
 # Konektory PYTHON (9 krajowych UE, Opcja C - ADR-0136): NIE freeze per konektor,
 # lecz JEDEN bundlowany standalone CPython + `uv pip install` 9 do jego site-packages

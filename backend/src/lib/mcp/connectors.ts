@@ -36,6 +36,7 @@ const JURISDICTION_BY_CONNECTOR: Readonly<Record<string, Jurisdiction>> = {
     nsa: "PL",
     isap: "PL",
     krs: "PL",
+    eureka: "PL",
     "sejm-eli": "PL",
     "eu-sparql": "EU",
     "eu-compliance": "EU",

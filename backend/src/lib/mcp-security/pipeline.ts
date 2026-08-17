@@ -63,6 +63,12 @@ export const APPROVED_PATRON_CONNECTORS: ReadonlyArray<string> = [
     // Gateway-scan przechodzi przy starcie jak dla pozostalych 9 (typosquat/
     // drift/tool-poisoning, fail-closed).
     "it-eli",
+    // eureka = EUREKA MF (eureka.mf.gov.pl): interpretacje podatkowe KIS, WIS,
+    // WIA, objasnienia. Praktyka organow, NIE zrodlo prawa (art. 14a-14s o.p.) -
+    // ochrona prawna dziala dla wnioskodawcy danej interpretacji indywidualnej.
+    // Smoke live 2026-08-17: 520 406 interpretacji indywidualnych, cytat zwraca
+    // sygnature + URL + date wydania (kontrakt structuredContent.citations).
+    "eureka",
 ];
 
 /** Skanuje pojedynczy konektor MCP. */

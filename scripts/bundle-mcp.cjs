@@ -40,6 +40,7 @@ const SERVERS = [
     { name: "krs", repoDir: "mcp-krs" },
     { name: "eu-sparql", repoDir: "mcp-eu-sparql" },
     { name: "eu-compliance", repoDir: "mcp-eu-compliance", needsData: true },
+    { name: "eureka", repoDir: "mcp-eureka" },
 ];
 
 const ROOT = path.resolve(__dirname, "..");

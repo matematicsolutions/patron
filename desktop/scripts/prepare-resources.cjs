@@ -67,6 +67,7 @@ const MCP_SERVERS = [
   { name: "krs", repoDir: "mcp-krs" },
   { name: "eu-sparql", repoDir: "mcp-eu-sparql" },
   { name: "eu-compliance", repoDir: "mcp-eu-compliance", needsData: true },
+  { name: "eureka", repoDir: "mcp-eureka" },
 ];
 
 // ── Konektory Python (9 krajowych UE) - Opcja C (ADR-0133/0134/0136) ─────────
@@ -104,7 +105,7 @@ const SKIP_PYTHON_CONNECTORS = process.env.SKIP_PYTHON_CONNECTORS === "1";
 // Jurysdykcja per konektor (mirror connectors.ts) - decyduje o defaultach enabled
 // i kolejnosci wg locale. Konektory wymagajace klucza (FR-PISTE) = domyslnie OFF.
 const JURISDICTION = {
-  saos: "PL", nsa: "PL", isap: "PL", krs: "PL",
+  saos: "PL", nsa: "PL", isap: "PL", krs: "PL", eureka: "PL",
   "eu-sparql": "EU", "eu-compliance": "EU",
   "de-eli": "DE", "at-eli": "AT", "es-eli": "ES", "fi-eli": "FI", "ie-eli": "IE",
   "nl-eli": "NL", "se-eli": "SE", "fr-eli": "FR", "lu-eli": "LU", "it-eli": "IT",
@@ -117,10 +118,10 @@ const EU_LARGEST_FIRST = [
 ];
 // EN: UE-first (largest-first), PL na koncu. PL: dotychczasowe PL-first.
 const ORDER_EN = [
-  ...EU_LARGEST_FIRST, "eu-sparql", "eu-compliance", "saos", "nsa", "isap", "krs",
+  ...EU_LARGEST_FIRST, "eu-sparql", "eu-compliance", "saos", "nsa", "isap", "krs", "eureka",
 ];
 const ORDER_PL = [
-  "saos", "nsa", "isap", "krs", "eu-sparql", "eu-compliance", ...EU_LARGEST_FIRST,
+  "saos", "nsa", "isap", "krs", "eureka", "eu-sparql", "eu-compliance", ...EU_LARGEST_FIRST,
 ];
 // Rynki (ADR-0139): konektor macierzysty pierwszy, potem UE-zbiorcze, reszta
 // krajowych largest-first, PL na koncu (obecne, przelaczalne pickerem).
