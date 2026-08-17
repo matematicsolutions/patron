@@ -154,5 +154,14 @@
     "command": "uv",
     "args": ["run", "--directory", "/path/to/gb-eli-mcp", "gb-eli-mcp"],
     "enabled": false
+  },
+  {
+    "_comment": "us-eli (jurysdykcja USA, locale us): Congress.gov (proces legislacyjny) + GovInfo (US Code/Statutes at Large/CFR/Federal Register jako pakiety) + Federal Register full-text + eCFR (biezace przepisy) + CourtListener (orzecznictwo, glownie stanowe). Repo us-eli-mcp, paczka PyPI us-eli-mcp. Keyless poza Congress.gov/GovInfo (DEMO_KEY dziala, wlasny klucz zalecany produkcyjnie).",
+    "name": "us-eli",
+    "transport": "stdio",
+    "runtime": "python",
+    "command": "uv",
+    "args": ["run", "--directory", "/path/to/us-eli-mcp", "us-eli-mcp"],
+    "enabled": false
   }
 ]

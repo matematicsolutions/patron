@@ -30,7 +30,13 @@ import { pt } from "./pt";
 // reuses the "en" dictionary verbatim (same UI language) and only carries a
 // distinct PROFILES entry (backend) + home connector (gb-eli) - see ADR-0139
 // follow-up. No new dictionary file, no new translation keys.
-export type Locale = "pl" | "en" | "it" | "de" | "es" | "fr" | "pt" | "gb";
+//
+// "us" (jurysdykcja USA) NIE jest jezykiem UI - jest angielski, identyczny z
+// "en". Zamiast nowego 614-kluczowego slownika, "us" wskazuje na TEN SAM
+// obiekt slownika `en` (patrz DICTS nizej); rozni sie tylko LOCALE_TAGS
+// (en-US zamiast en-GB dla formatDate/formatNumber) i profilem jurysdykcji w
+// backend/src/lib/chat/prompts.ts (substancja USA zamiast PL+UE).
+export type Locale = "pl" | "en" | "it" | "de" | "es" | "fr" | "pt" | "gb" | "us";
 
 const SUPPORTED_LOCALES: ReadonlyArray<Locale> = [
     "pl",
@@ -41,6 +47,7 @@ const SUPPORTED_LOCALES: ReadonlyArray<Locale> = [
     "fr",
     "pt",
     "gb",
+    "us",
 ];
 
 // Aktywne locale - jeden jezyk per instalacja (ADR-0132). Domyslnie PL.
@@ -68,6 +75,9 @@ const DICTS: Record<Locale, Record<string, unknown>> = {
     fr,
     pt,
     gb: en,
+    // "us" reuzywa DOKLADNIE ten sam obiekt slownika co "en" (UI jezyk = EN;
+    // "us" to jurysdykcja, nie jezyk). Zero duplikacji 614 kluczy.
+    us: en,
 };
 
 /** Ustaw aktywny jezyk UI. Wolaj raz przy bootstrapie aplikacji. */
@@ -115,7 +125,10 @@ function lookup(key: string): string | undefined {
     // Fallback lancuchowy: aktywne -> EN -> PL (zrodlo kluczy). Dla locale
     // nie-PL brak tlumaczenia lepiej pokryc angielskim niz polskim (rynki UE),
     // PL zostaje ostatnia deska ratunku jako slownik kompletny z definicji.
-    if (activeLocale !== "en" && activeLocale !== "gb" && activeLocale !== "pl") {
+    // "us" jest juz aliasem "en" (DICTS.us === en), wiec ten fallback jest dla
+    // niego no-op w praktyce (primary lookup w DICTS.us juz znajdzie to co
+    // znalazlby enHit), ale wykluczamy go tu jawnie dla spojnosci z resztą.
+    if (activeLocale !== "en" && activeLocale !== "gb" && activeLocale !== "us" && activeLocale !== "pl") {
         const enHit = lookupIn(en as Record<string, unknown>, parts);
         if (enHit !== undefined) return enHit;
     }
@@ -150,6 +163,9 @@ const LOCALE_TAGS: Record<Locale, string> = {
     fr: "fr-FR",
     pt: "pt-BR",
     gb: "en-GB",
+    // "us" jurysdykcja USA: en-US formatowanie dat/liczb (MM/DD/YYYY), a nie
+    // en-GB dziedziczone po "en" (UE-first).
+    us: "en-US",
 };
 
 function localeTag(): string {
@@ -217,6 +233,14 @@ const RELATIVE: Record<
         daysAgo: (n) => `ha ${n} dias`,
     },
     gb: {
+        now: "now",
+        minAgo: (n) => `${n} min ago`,
+        hoursAgo: (n) => `${n} h ago`,
+        yesterday: "yesterday",
+        daysAgo: (n) => `${n} days ago`,
+    },
+    // "us" = same words as "en" (UI language is English either way).
+    us: {
         now: "now",
         minAgo: (n) => `${n} min ago`,
         hoursAgo: (n) => `${n} h ago`,

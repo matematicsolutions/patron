@@ -78,6 +78,10 @@ export const APPROVED_PATRON_CONNECTORS: ReadonlyArray<string> = [
     // + Find Case Law (orzecznictwo, neutral citation) + GOV.UK Search/Content API
     // (trybunaly, HMRC, CMA). Gateway-scan przechodzi jak dla pozostalych.
     "gb-eli",
+    // Jurysdykcja USA (locale "us", UI dalej EN). us-eli = Congress.gov +
+    // GovInfo + Federal Register + eCFR + CourtListener (search). Gateway-scan
+    // przechodzi jak dla pozostalych konektorow Python.
+    "us-eli",
 ];
 
 /** Skanuje pojedynczy konektor MCP. */

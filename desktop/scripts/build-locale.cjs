@@ -33,6 +33,15 @@ const LOCALES = {
   // warning. Reuse the complete en-US (1033) NSIS language pack instead - this
   // only affects installer chrome text, not the app's own UI/substance.
   gb: { nsisLang: "en-US", lcid: "1033", suffix: "-GB" },
+  // Jurysdykcja USA (UI EN, patron-locale.json "us"). NSIS/electron-builder
+  // nie ma osobny locale-tag dla "US-market English" poza en-US samym LCID
+  // 1033 - to samo, co "en" (locale UE-first) juz uzywa dla jezyka instalatora.
+  // Instalator NSIS wiec wyswietli sie identycznie po angielsku dla obu
+  // buildow (poprawnie - to i tak ten sam jezyk, en-US). Rozdziela je NAZWA
+  // ARTEFAKTU (sufiks "-US" zamiast "-EN") i patron-locale.json wewnatrz
+  // instalatora, ktore ustawia PATRON_LOCALE=us w backendzie -> profil
+  // jurysdykcyjny USA w prompts.ts, nie profil PL+UE dla "en".
+  us: { nsisLang: "en-US", lcid: "1033", suffix: "-US" },
 };
 
 const locale = (process.argv[2] || "").toLowerCase();

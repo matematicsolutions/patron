@@ -49,7 +49,10 @@ node scripts/bundle-mcp.cjs
 # (MCP_PY_REPOS_DIR, nie obok patron). 3-sync nazw: pipeline.ts APPROVED +
 # prepare-resources.cjs MCP_SERVERS_PYTHON + mcp-servers.example.json. Spawn:
 # py-runtime/python.exe -s -E -c "from <modul>.server import main; main()".
-# Build locale (ADR-0132/0139): NEXT_PUBLIC_PATRON_LOCALE in {pl,en,it,de,es,fr}.
+# Build locale (ADR-0132/0139): NEXT_PUBLIC_PATRON_LOCALE in {pl,en,it,de,es,fr,us}.
+# (br shipped on another branch - lista tu jest juz niepelna, "us" dopisany bez
+# pelnej rekonstrukcji; sprawdz frontend/src/i18n/index.ts SUPPORTED_LOCALES
+# jako zrodlo prawdy).
 # en = zestaw UE-first + samouczek EN; it/de/es/fr = konektor macierzysty ON +
 # substancja krajowa w promptach (PROFILES w backend/src/lib/chat/prompts.ts).
 # Preferuj `npm run build:<locale>` (desktop/scripts/build-locale.cjs) - ustawia
