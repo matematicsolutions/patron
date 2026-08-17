@@ -73,6 +73,11 @@ export const APPROVED_PATRON_CONNECTORS: ReadonlyArray<string> = [
     // normas.leg.br (legislacao federal, texto por artigo) + DataJud CNJ
     // (metadados processuais). Gateway-scan przechodzi jak dla pozostalych.
     "br-eli",
+    // ADR-0139: rynek brytyjski (locale gb, jezyk UI = en, reuzywa slownik en.ts).
+    // gb-eli = legislation.gov.uk (Acts/SI, wlasny stabilny id, brak natywnego ELI)
+    // + Find Case Law (orzecznictwo, neutral citation) + GOV.UK Search/Content API
+    // (trybunaly, HMRC, CMA). Gateway-scan przechodzi jak dla pozostalych.
+    "gb-eli",
 ];
 
 /** Skanuje pojedynczy konektor MCP. */

@@ -145,5 +145,14 @@
     "command": "uv",
     "args": ["run", "--directory", "/path/to/br-eli-mcp", "br-eli-mcp"],
     "enabled": false
+  },
+  {
+    "_comment": "gb-eli (ADR-0139, rynek brytyjski, locale gb): legislation.gov.uk (Acts/UK SI, wlasny stabilny id URI, brak natywnego ELI) + Find Case Law (orzecznictwo, neutral citation) + GOV.UK Search/Content API (trybunaly, HMRC, CMA). Repo gb-eli-mcp, paczka PyPI gb-eli-mcp.",
+    "name": "gb-eli",
+    "transport": "stdio",
+    "runtime": "python",
+    "command": "uv",
+    "args": ["run", "--directory", "/path/to/gb-eli-mcp", "gb-eli-mcp"],
+    "enabled": false
   }
 ]

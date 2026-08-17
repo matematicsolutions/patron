@@ -26,7 +26,11 @@ import { pt } from "./pt";
 // IT / DE / ES / FR (najwieksze rynki LegalTech UE), BR (pt-BR, kolejnosc
 // wdrozenia wg wielkosci rynku). Slownik moze byc uzupelniany przyrostowo -
 // brak klucza w slowniku rynkowym pokrywa fallback EN -> PL.
-export type Locale = "pl" | "en" | "it" | "de" | "es" | "fr" | "pt";
+// GB (United Kingdom) is a JURISDICTION edition, not a language edition: it
+// reuses the "en" dictionary verbatim (same UI language) and only carries a
+// distinct PROFILES entry (backend) + home connector (gb-eli) - see ADR-0139
+// follow-up. No new dictionary file, no new translation keys.
+export type Locale = "pl" | "en" | "it" | "de" | "es" | "fr" | "pt" | "gb";
 
 const SUPPORTED_LOCALES: ReadonlyArray<Locale> = [
     "pl",
@@ -36,6 +40,7 @@ const SUPPORTED_LOCALES: ReadonlyArray<Locale> = [
     "es",
     "fr",
     "pt",
+    "gb",
 ];
 
 // Aktywne locale - jeden jezyk per instalacja (ADR-0132). Domyslnie PL.
@@ -62,6 +67,7 @@ const DICTS: Record<Locale, Record<string, unknown>> = {
     es,
     fr,
     pt,
+    gb: en,
 };
 
 /** Ustaw aktywny jezyk UI. Wolaj raz przy bootstrapie aplikacji. */
@@ -109,7 +115,7 @@ function lookup(key: string): string | undefined {
     // Fallback lancuchowy: aktywne -> EN -> PL (zrodlo kluczy). Dla locale
     // nie-PL brak tlumaczenia lepiej pokryc angielskim niz polskim (rynki UE),
     // PL zostaje ostatnia deska ratunku jako slownik kompletny z definicji.
-    if (activeLocale !== "en" && activeLocale !== "pl") {
+    if (activeLocale !== "en" && activeLocale !== "gb" && activeLocale !== "pl") {
         const enHit = lookupIn(en as Record<string, unknown>, parts);
         if (enHit !== undefined) return enHit;
     }
@@ -143,6 +149,7 @@ const LOCALE_TAGS: Record<Locale, string> = {
     es: "es-ES",
     fr: "fr-FR",
     pt: "pt-BR",
+    gb: "en-GB",
 };
 
 function localeTag(): string {
@@ -208,6 +215,13 @@ const RELATIVE: Record<
         hoursAgo: (n) => `ha ${n} h`,
         yesterday: "ontem",
         daysAgo: (n) => `ha ${n} dias`,
+    },
+    gb: {
+        now: "now",
+        minAgo: (n) => `${n} min ago`,
+        hoursAgo: (n) => `${n} h ago`,
+        yesterday: "yesterday",
+        daysAgo: (n) => `${n} days ago`,
     },
 };
 
