@@ -178,8 +178,15 @@ if (fs.existsSync(latestYml)) {
       .replace(/sha512: .*/g, `sha512: ${sha512}`)
       .replace(/size: \d+/g, `size: ${buf.length}`);
   }
-  fs.writeFileSync(path.join(DIST_DIR, channelFile), patched, "utf8");
-  console.log(`OK: ${channelFile} (kanal auto-update edycji ${locale})`);
+  // Kanal zapisujemy do dist/channels/, NIE do dist/: kanal PL nazywa sie
+  // "latest.yml", czyli tak samo jak surowy plik electron-buildera - kazda
+  // nastepna edycja nadpisywala go swoimi danymi (zmierzone 2026-08-17: po
+  // buildzie US "latest.yml" niosl hash i rozmiar US, a release-all wzialby go
+  // jako kanal PL). Osobny katalog = zero kolizji nazw.
+  const channelsDir = path.join(DIST_DIR, "channels");
+  fs.mkdirSync(channelsDir, { recursive: true });
+  fs.writeFileSync(path.join(channelsDir, channelFile), patched, "utf8");
+  console.log(`OK: channels/${channelFile} (kanal auto-update edycji ${locale})`);
 } else {
   console.warn(
     "UWAGA: brak dist/latest.yml - electron-builder nie wygenerowal metadanych " +

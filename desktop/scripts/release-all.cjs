@@ -44,10 +44,17 @@ for (const l of locales) {
 
 function run(cmd, args, opts = {}) {
     console.log(`\n> ${cmd} ${args.join(" ")}`);
-    const r = spawnSync(cmd, args, {
+    // shell:true na win32 sklada linie polecen BEZ cytowania - argument ze
+    // spacja ("PATRON 1.1.0" w --title) rozpadal sie na dwa tokeny, a gh
+    // szukal pliku "1.1.0" (zmierzone 2026-08-17: draft padl po 4 h buildu).
+    const useShell = process.platform === "win32";
+    const safeArgs = useShell
+        ? args.map((a) => (/[\s"]/.test(a) ? `"${a.replace(/"/g, '\\"')}"` : a))
+        : args;
+    const r = spawnSync(cmd, safeArgs, {
         cwd: DESKTOP,
         stdio: "inherit",
-        shell: process.platform === "win32",
+        shell: useShell,
         ...opts,
     });
     if (r.status !== 0) {
@@ -87,7 +94,7 @@ for (const locale of locales) {
 
     const suffix = SUFFIX[locale];
     const exe = path.join(DIST, `PATRON-Setup-Windows${suffix}.exe`);
-    const yml = path.join(DIST, `latest${suffix.toLowerCase()}.yml`);
+    const yml = path.join(DIST, "channels", `latest${suffix.toLowerCase()}.yml`);
     const blockmap = `${exe}.blockmap`;
 
     // Weryfikacja kompletu artefaktow edycji (fail-fast)
