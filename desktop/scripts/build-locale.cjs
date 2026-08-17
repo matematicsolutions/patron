@@ -154,7 +154,20 @@ if (fs.existsSync(latestYml)) {
     .join(canonicalExe)
     // electron-builder koduje spacje w url jako %20 - podmien tez wariant encoded
     .split(encodeURIComponent(originalName).replace(/%2E/gi, "."))
+    .join(canonicalExe)
+    // electron-builder 25.x wpisuje do latest.yml nazwe ze spacjami zamienionymi
+    // na MYSLNIKI ("PATRON-Setup-1.1.0.exe"). Bez tej podmiany yml wskazywal
+    // asset, ktorego w Release nie ma (zmierzone 2026-08-17 na v1.0.0:
+    // latest-gb.yml -> PATRON-Setup-1.0.0.exe, 404) - auto-update nigdy nie
+    // mogl zadzialac, a build konczyl sie sukcesem.
+    .split(originalName.replace(/ /g, "-"))
     .join(canonicalExe);
+  if (patched.includes(originalName.replace(/ /g, "-")) || !patched.includes(canonicalExe)) {
+    throw new Error(
+      `${channelFile}: url nie wskazuje ${canonicalExe} - auto-update dostalby 404. ` +
+        "Sprawdz nazwe artefaktu z electron-buildera vs podmiany powyzej.",
+    );
+  }
   if (signed) {
     // Podpis zmienil bajty exe - sha512/size z electron-buildera sa juz
     // nieaktualne. Przelicz z podpisanego pliku, inaczej auto-update odrzuci
