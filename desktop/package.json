@@ -1,6 +1,6 @@
 {
   "name": "patron-desktop",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "PATRON — Desktop dla Prawnika",
   "main": "main.js",
   "scripts": {
@@ -49,7 +49,9 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
-      "installerLanguages": ["pl-PL"],
+      "installerLanguages": [
+        "pl-PL"
+      ],
       "language": "1045"
     },
     "extraResources": [

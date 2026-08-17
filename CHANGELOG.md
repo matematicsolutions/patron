@@ -7,7 +7,20 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-08-17
+
+Wydanie zbiorcze linii release/v2.0.0-prep + trzy edycje jurysdykcyjne, ktore
+dotad zyly na osobnych galeziach. 9 edycji instalatora z jednej linii kodu:
+PL, EN, IT, DE, ES, FR, BR (pt), GB, US. Instalatory nadal NIEPODPISANE
+(SmartScreen) - code signing = osobna decyzja, nie zmiana wersji.
+
 ### Added
+- **Edycje BR (pt-BR), GB i US w jednej linii kodu** - wmerge'owane galezie
+  `feature/patron-br-edition` / `-gb-edition` / `-us-edition` (ADR-0139): konektory
+  macierzyste `br-eli`, `gb-eli`, `us-eli` w `APPROVED_PATRON_CONNECTORS` (20 nazw),
+  profile jurysdykcyjne w `prompts.ts`, `release:all` buduje 9 edycji, kanaly
+  auto-update per edycja (`latest[-xx].yml`; dodany brakujacy kanal `pt` -> `latest-br.yml`
+  i dialog aktualizacji pt-BR - dotad edycja BR dostawalaby polskie okienko).
 - **Konektor `eureka` (siodmy konektor Node, Ring 1)** - EUREKA MF (`eureka.mf.gov.pl`):
   interpretacje podatkowe KIS, WIS, WIA, objasnienia; `mcp-eureka` 0.2.0 (MIT, osobne repo).
   Wpiety w czterech miejscach 3-sync (`APPROVED_PATRON_CONNECTORS`, `JURISDICTION_BY_CONNECTOR`
