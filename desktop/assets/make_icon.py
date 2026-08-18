@@ -107,4 +107,5 @@ def save_multi_ico(frames_dict, path):
 if __name__ == "__main__":
     sizes = [16, 32, 48, 64, 128, 256]
     frames = {s: make_frame(s) for s in sizes}
-    save_multi_ico(frames, "C:/Users/Wieslaw/patron/desktop/assets/icon.ico")
+    import os
+    save_multi_ico(frames, os.path.join(os.path.dirname(os.path.abspath(__file__)), "icon.ico"))

@@ -1,0 +1,25 @@
+[
+  {
+    "timestamp": "2026-08-18T18:10:00+02:00",
+    "project": "patron",
+    "scope": "full-repo main@229ef49 (scalona linia, pre-public-push)",
+    "overall_score": 7.4,
+    "dimensions": {
+      "1 Architektura": 8.0,
+      "2 Bezpieczenstwo": 8.0,
+      "3 Stabilnosc": 8.5,
+      "5 Testy": 6.5,
+      "8 Release": 6.0,
+      "9 Dokumentacja": 7.0,
+      "11 Konfiguracja": 7.5,
+      "12 Integralnosc danych": 7.5,
+      "13 Prywatnosc": 8.5,
+      "15 Supply chain": 5.5,
+      "17 AI safety": 7.0,
+      "18 Fallback": 8.5,
+      "19 Autentycznosc testow": 8.0,
+      "20 Type safety": 7.5
+    },
+    "delta_vs_previous": null
+  }
+]

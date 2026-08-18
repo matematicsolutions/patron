@@ -24,8 +24,8 @@ const OUT_DIR = path.join(ROOT, "eval-report");
 const HARNESS =
     process.env.PATRON_EVAL_HARNESS_DIR ||
     [
-        "C:/Users/Wieslaw/Projects/legal-eval-harness",
         path.join(ROOT, "..", "legal-eval-harness"),
+        path.join(ROOT, "..", "Projects", "legal-eval-harness"),
     ].find((p) => fs.existsSync(p)) ||
     "";
 

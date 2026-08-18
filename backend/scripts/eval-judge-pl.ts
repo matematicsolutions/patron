@@ -28,9 +28,16 @@ interface Case {
     claim: string;
 }
 
-const corpusPath =
-    process.argv[2] ??
-    "C:/Users/Wieslaw/Projects/legal-eval-harness/judge-pl/corpus-pl.json";
+// Korpus z argumentu albo env PATRON_EVAL_CORPUS. Repo legal-eval-harness jest
+// prywatne - brak sciezki = czytelny blad, nie ENOENT z cudza sciezka bezwzgledna.
+const corpusPath = process.argv[2] ?? process.env.PATRON_EVAL_CORPUS?.trim();
+if (!corpusPath) {
+    console.error(
+        "Uzycie: tsx scripts/eval-judge-pl.ts <sciezka/corpus-pl.json> [trials]  " +
+            "albo env PATRON_EVAL_CORPUS=<sciezka>",
+    );
+    process.exit(2);
+}
 const TRIALS = Number(process.argv[3] ?? 3);
 const MODEL = process.env.PATRON_LOCAL_MODEL?.trim() || "ollama/llama3.2:3b";
 
