@@ -3,6 +3,7 @@
 
 import { attachActiveVersionPaths } from "../documentVersions";
 import type { McpCitation } from "../mcp";
+import { mcpCitationKey, type McpGroundingReport } from "../citation/mcp-grounding";
 import { createServerSupabase } from "../supabase";
 import type { GroundingResult } from "../citation/grounding";
 import type { CitationLocator } from "../citation/locator";
@@ -36,6 +37,12 @@ export function extractAnnotations(
         number,
         GroundingResult & { locator?: CitationLocator | null }
     >,
+    // ADR-0146: grounding cytatow MCP. Werdykt per karta doklejany do adnotacji
+    // `mcp_citation` (pole `grounding`), a raport per cytat (spany + werdykty)
+    // jako JEDNA adnotacja `mcp_grounding` - dzieki temu baner i badge'e przetrwaja
+    // reload czatu. Cytaty w raporcie to fragmenty odpowiedzi (juz persystowanej),
+    // nie tresc zrodel; NIE trafia do audit_log (tam tylko liczby).
+    mcpGrounding?: McpGroundingReport | null,
 ): unknown[] {
     const out: unknown[] = parseCitations(fullText).map((c) => {
         const docInfo = resolveDoc(c.doc_id, docIndex);
@@ -80,8 +87,20 @@ export function extractAnnotations(
     // (frontend loader rozdziela mieszane annotations na klasyczne i MCP).
     if (Array.isArray(mcpCitations)) {
         for (const c of mcpCitations) {
-            out.push({ ...c, type: "mcp_citation" });
+            const verdict = mcpGrounding?.perCitation[mcpCitationKey(c)];
+            out.push(
+                verdict
+                    ? { ...c, type: "mcp_citation", grounding: verdict }
+                    : { ...c, type: "mcp_citation" },
+            );
         }
+    }
+    if (mcpGrounding) {
+        out.push({
+            type: "mcp_grounding",
+            quotes: mcpGrounding.quotes,
+            summary: mcpGrounding.summary,
+        });
     }
     return out;
 }

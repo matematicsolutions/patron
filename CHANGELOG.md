@@ -7,6 +7,27 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ## [Unreleased]
 
+### Added
+- **Grounding cytatow z konektorow MCP (ADR-0146)** - cytaty z SAOS / NSA / ISAP / KRS /
+  EUREKA / EUR-Lex przechodza teraz te sama kontrole, co cytaty z dokumentow kancelarii:
+  spany, ktore model prezentuje jako DOSLOWNE (blockquote markdown, cudzyslowy), sa
+  sprawdzane string-matchem wzgledem tekstu, ktory konektor faktycznie zwrocil w tej turze.
+  Werdykt trojstanowy per cytat i per karta zrodla (green / yellow / red), baner pod
+  odpowiedzia dla cytatow bez jednoznacznego przypisania, brak tekstu zrodla = yellow
+  "nie zweryfikowano" (nigdy green), awaria groundingu = jawny sygnal w UI (nigdy cicho).
+  Deterministycznie, offline, zero LLM, zero egressu. Powod: pomiar 2026-08-17 - model podal
+  blockquote jako doslowny cytat interpretacji KIS (sygnatura i data PRAWDZIWE), a tekst nie
+  wystepowal w zrodle (0/4 zdan), UI milczal. Nowy modul `backend/src/lib/citation/mcp-grounding.ts`
+  (czysty, bez I/O), zdarzenie SSE `mcp_grounding`, trwalosc przez adnotacje (baner przetrwa
+  reload), audyt `chat.message.assistant` dostaje same liczby (zero tresci cytatow, bez nowego
+  `event_type`). Warstwa DORADCZA - nie blokuje odpowiedzi. Wydajnosc: kotwice + okna
+  edit-distance zamiast przesuwania po calym orzeczeniu (teksty 100k+ znakow).
+  backend 1460 pass / 0 fail (+16), frontend tsc czysto.
+- **`smoke:surfaces`: szosty punkt - research + grounding cytatow MCP** - bramka pilnuje, ze
+  werdykt DOCHODZI do klienta (zdarzenie, zrodla, werdykt na kazdej karcie), nie tylko ze
+  konektor odpowiedzial. Zmierzone 2026-08-18 na SAOS: przy cytacie doslownym werdykt `red`
+  (cytat nieobecny w 10 pobranych zrodlach), przy parafrazie `yellow/no_quote`.
+
 ## [1.1.0] - 2026-08-17
 
 Wydanie zbiorcze linii release/v2.0.0-prep + trzy edycje jurysdykcyjne, ktore

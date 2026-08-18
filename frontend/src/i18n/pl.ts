@@ -260,6 +260,23 @@ export const pl = {
         provenanceUzytkownik: "źródło: dokument klienta",
         provenanceModel: "wiedza modelu - zweryfikuj",
         provenancePinpoint: "- zweryfikuj numer jednostki",
+        // ADR-0146: grounding cytatów z konektorów MCP (karta źródła + baner odpowiedzi).
+        mcpCardGreen: "cytat z odpowiedzi zgadza się z treścią tego źródła",
+        mcpCardYellowModified: "cytat prawie dosłowny, sprawdź w źródle",
+        mcpCardYellowNoQuote: "nie zweryfikowano - odpowiedź nie cytuje tego źródła dosłownie",
+        mcpCardYellowNoSource: "nie zweryfikowano - nie pobrano treści tego źródła",
+        mcpCardRed: "uwaga: tego cytatu nie ma w treści tego źródła",
+        mcpBannerTitle: "Weryfikacja cytatów ze źródeł",
+        mcpBannerRed: "Model przedstawił jako dosłowny cytat fragment, którego nie ma w pobranych źródłach. Sprawdź przed użyciem.",
+        mcpBannerRedMany: "Model przedstawił jako dosłowne cytaty fragmenty, których nie ma w pobranych źródłach. Sprawdź przed użyciem.",
+        mcpBannerAllGreen: "Każdy dosłowny cytat ze źródeł znaleziono w ich treści.",
+        mcpBannerNoQuotes: "Odpowiedź streszcza źródła własnymi słowami, bez dosłownych cytatów. Brzmienie przepisu lub tezy sprawdź w źródle.",
+        mcpBannerFailed: "Cytaty w tej odpowiedzi pozostały niesprawdzone. Zweryfikuj je w źródłach przed użyciem.",
+        mcpQuoteFound: "znaleziono",
+        mcpQuoteModified: "prawie dosłowny",
+        mcpQuoteNotFound: "brak w źródłach",
+        mcpQuoteNoSource: "brak treści źródła",
+        mcpClosestSource: "najbliższe źródło",
     },
 
     // ---------------------------------------------------------------------

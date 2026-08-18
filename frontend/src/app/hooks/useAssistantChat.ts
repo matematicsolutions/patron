@@ -13,8 +13,11 @@ import type {
     PATRONGroundingDecision,
     PATRONGroundingVerdict,
     PATRONMcpCitation,
+    PATRONMcpCardVerdict,
+    PATRONMcpGrounding,
     PATRONMessage,
 } from "@/app/components/shared/types";
+import { mcpCitationKey } from "@/app/components/shared/types";
 
 interface UseAssistantChatOptions {
     initialMessages?: PATRONMessage[];
@@ -942,6 +945,42 @@ export function useAssistantChat({
                                     updated[updated.length - 1] = {
                                         ...last,
                                         mcpCitations: incoming,
+                                    };
+                                }
+                                return updated;
+                            });
+                            continue;
+                        }
+
+                        if (data.type === "mcp_grounding") {
+                            // ADR-0146: werdykt groundingu cytatow MCP - raport na
+                            // wiadomosci (baner) + werdykt per karta doklejony do
+                            // mcpCitations (badge). Event przychodzi PO mcp_citations.
+                            const report: PATRONMcpGrounding = data.error
+                                ? {
+                                      quotes: [],
+                                      summary: { quotes: 0, green: 0, yellow: 0, red: 0, sources: 0, cards: 0 },
+                                      error: String(data.error),
+                                  }
+                                : {
+                                      quotes: (data.quotes ?? []) as PATRONMcpGrounding["quotes"],
+                                      summary: data.summary as PATRONMcpGrounding["summary"],
+                                  };
+                            const perCitation = (data.perCitation ?? {}) as Record<
+                                string,
+                                PATRONMcpCardVerdict
+                            >;
+                            setMessages((prev) => {
+                                const updated = [...prev];
+                                const last = updated[updated.length - 1];
+                                if (last?.role === "assistant") {
+                                    updated[updated.length - 1] = {
+                                        ...last,
+                                        mcpGrounding: report,
+                                        mcpCitations: last.mcpCitations?.map((c) => {
+                                            const g = perCitation[mcpCitationKey(c)];
+                                            return g ? { ...c, grounding: g } : c;
+                                        }),
                                     };
                                 }
                                 return updated;

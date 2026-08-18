@@ -1193,6 +1193,7 @@ export default function ProjectAssistantChatPage({ params }: Props) {
                                             isError={!!(msg as any).error}
                                             annotations={msg.annotations}
                                             mcpCitations={msg.mcpCitations}
+                                                mcpGrounding={msg.mcpGrounding}
                                             onCitationClick={
                                                 handleCitationClick
                                             }

@@ -12,6 +12,7 @@ import {
     PROJECT_EXTRA_TOOLS,
     type ChatMessage,
 } from "../lib/chatTools";
+import { mcpGroundingSummary } from "../lib/citation/mcp-grounding";
 import { getUserApiKeys } from "../lib/userSettings";
 import { checkProjectAccess } from "../lib/access";
 import { appendAuditEvent } from "../lib/audit";
@@ -178,7 +179,7 @@ projectChatRouter.post("/", requireAuth, async (req, res) => {
     try {
         write(`data: ${JSON.stringify({ type: "chat_id", chatId })}\n\n`);
 
-        const { fullText, events, mcpCitations, grounding } =
+        const { fullText, events, mcpCitations, grounding, mcpGrounding } =
             await runLLMStream({
                 apiMessages,
                 docStore,
@@ -200,6 +201,7 @@ projectChatRouter.post("/", requireAuth, async (req, res) => {
             events,
             mcpCitations,
             grounding,
+            mcpGrounding,
         );
         await db.from("chat_messages").insert({
             chat_id: chatId,
@@ -228,6 +230,8 @@ projectChatRouter.post("/", requireAuth, async (req, res) => {
                 mcp_tools_called: mcpToolsCalled,
                 // ADR-0005: wynik mechanicznej weryfikacji cytatow w tej turze.
                 grounding: groundingSummary(grounding),
+                // ADR-0146: grounding cytatow MCP - tylko liczby (zero tresci cytatow).
+                mcp_grounding: mcpGroundingSummary(mcpGrounding),
             },
         });
 

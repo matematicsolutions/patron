@@ -698,9 +698,18 @@ export async function getChat(chatId: string): Promise<PATRONChatDetailOut> {
             .filter((a) => a.type === "mcp_citation")
             .map((a) => {
                 // Strip discriminator pole `type` przed castem do PATRONMcpCitation.
+                // (pole `grounding` = werdykt karty ADR-0146, zostaje).
                 const { type: _t, ...rest } = a;
                 return rest as unknown as import("@/app/components/shared/types").PATRONMcpCitation;
             });
+        // ADR-0146: raport groundingu cytatow MCP (jedna adnotacja per odpowiedz).
+        const mcpGroundingRaw = rawAnns.find((a) => a.type === "mcp_grounding");
+        const mcpGrounding = mcpGroundingRaw
+            ? ({
+                  quotes: (mcpGroundingRaw.quotes ?? []) as import("@/app/components/shared/types").PATRONMcpGrounding["quotes"],
+                  summary: mcpGroundingRaw.summary as import("@/app/components/shared/types").PATRONMcpGrounding["summary"],
+              } satisfies import("@/app/components/shared/types").PATRONMcpGrounding)
+            : undefined;
         return {
             role: "assistant",
             content:
@@ -712,6 +721,7 @@ export async function getChat(chatId: string): Promise<PATRONChatDetailOut> {
                 ? (docCitations as unknown as PATRONCitationAnnotation[])
                 : undefined,
             mcpCitations: mcpCitations.length ? mcpCitations : undefined,
+            mcpGrounding,
             events,
         };
     });

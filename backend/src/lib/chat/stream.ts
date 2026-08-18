@@ -28,6 +28,12 @@ import { CITATIONS_OPEN_TAG, parseCitations, resolveDoc } from "./citations";
 import { groundCitationsByRef } from "./ground-citations";
 import { makeJudge } from "../citation/judge";
 import type { GroundingResult } from "../citation/grounding";
+import {
+    groundMcpCitations,
+    mcpCitationKey,
+    type McpGroundingReport,
+    type McpSourceText,
+} from "../citation/mcp-grounding";
 import { TOOLS, WORKFLOW_TOOLS } from "./tools";
 import { runToolCalls, type TurnEditState } from "./tool-dispatch";
 import type {
@@ -123,6 +129,8 @@ export async function runLLMStream(params: {
     mcpCitations: McpCitation[];
     /** ADR-0005: werdykt mechanicznej weryfikacji cytatow per ref. */
     grounding: Record<number, GroundingResult>;
+    /** ADR-0146: grounding cytatow MCP (null gdy w turze nie bylo zrodel MCP). */
+    mcpGrounding: McpGroundingReport | null;
 }> {
     const {
         apiMessages,
@@ -172,12 +180,17 @@ export async function runLLMStream(params: {
     const mcpCitationKeys = new Set<string>();
     const appendMcpCitations = (cs: McpCitation[]) => {
         for (const c of cs) {
-            const key = `${c.server}|${c.tool}|${c.url ?? c.title ?? ""}`;
+            const key = mcpCitationKey(c);
             if (mcpCitationKeys.has(key)) continue;
             mcpCitationKeys.add(key);
             mcpCitations.push(c);
         }
     };
+    // ADR-0146: teksty tool_result z konektorow MCP (to, co model faktycznie widzial)
+    // - zrodlo do groundingu cytatow MCP po zakonczeniu odpowiedzi. Zbierane per
+    // wywolanie razem z kluczami kart, ktore z niego powstaly (nie tylko nowych -
+    // duplikat karty z kolejnego wywolania nadal wskazuje na to samo zrodlo).
+    const mcpSources: McpSourceText[] = [];
     let fullText = "";
     let iterText = "";
     let iterVisibleText = "";
@@ -286,7 +299,7 @@ export async function runLLMStream(params: {
                     `data: ${JSON.stringify({ type: "error", message: `Przekroczono limit kosztu sprawy (${spentUsd.toFixed(2)} / ${capUsd.toFixed(2)} USD). Operator moze kontynuowac swiadomie.`, code: "budget_exceeded" })}\n\n`,
                 );
                 write("data: [DONE]\n\n");
-                return { fullText: "", events: [], mcpCitations: [], grounding: {} };
+                return { fullText: "", events: [], mcpCitations: [], grounding: {}, mcpGrounding: null };
             }
         }
     }
@@ -310,7 +323,7 @@ export async function runLLMStream(params: {
             `data: ${JSON.stringify({ type: "error", message: msg, code: "egress_blocked" })}\n\n`,
         );
         write("data: [DONE]\n\n");
-        return { fullText: "", events: [], mcpCitations: [], grounding: {} };
+        return { fullText: "", events: [], mcpCitations: [], grounding: {}, mcpGrounding: null };
     }
 
     // ADR-0067 (B1): maskuj PII PRZED wyjsciem do chmury (defense-in-depth nad
@@ -512,6 +525,17 @@ export async function runLLMStream(params: {
                         if (mcpResult.citations.length > 0) {
                             appendMcpCitations(mcpResult.citations);
                         }
+                        // ADR-0146: zrodlo do groundingu (bledy konektora pomijamy -
+                        // komunikat bledu nie jest tekstem zrodla).
+                        if (!mcpResult.isError) {
+                            const sep = c.function.name.indexOf("__");
+                            mcpSources.push({
+                                server: sep > 0 ? c.function.name.slice(0, sep) : c.function.name,
+                                tool: sep > 0 ? c.function.name.slice(sep + 2) : "",
+                                text: mcpResult.text ?? "",
+                                citationKeys: mcpResult.citations.map(mcpCitationKey),
+                            });
+                        }
                     }),
             );
 
@@ -620,8 +644,44 @@ export async function runLLMStream(params: {
             `data: ${JSON.stringify({ type: "mcp_citations", citations: mcpCitations })}\n\n`,
         );
     }
+    // ADR-0146: grounding cytatow MCP - spany, ktore model prezentuje jako doslowne
+    // cytaty (blockquote / cudzyslow), sprawdzane string-matchem wzgledem tekstow
+    // tool_result z konektorow w tej turze. Werdykt per cytat + per karta; brak
+    // tekstu zrodla = yellow "nie zweryfikowano", nigdy cicho. Deterministyczne,
+    // offline, zero LLM. Odpalane TYLKO gdy w turze byly zrodla MCP - bez nich nie
+    // ma z czym porownywac i event nie leci. Cytaty <CITATIONS> (juz ugruntowane
+    // ADR-0005) i tresc wiadomosci uzytkownika sa wykluczone z oceny.
+    let mcpGrounding: McpGroundingReport | null = null;
+    if (mcpSources.length > 0 || mcpCitations.length > 0) {
+        try {
+            const excludeTexts: string[] = [];
+            for (const c of citations) {
+                const q = (c as { quote?: unknown }).quote;
+                if (typeof q === "string" && q) excludeTexts.push(q);
+            }
+            for (const m of chatMessages) {
+                if (m.role === "user" && typeof m.content === "string") {
+                    excludeTexts.push(m.content);
+                }
+            }
+            mcpGrounding = groundMcpCitations({
+                answerText: fullText,
+                sources: mcpSources,
+                citations: mcpCitations,
+                excludeTexts,
+            });
+            write(`data: ${JSON.stringify({ type: "mcp_grounding", ...mcpGrounding })}\n\n`);
+        } catch (err) {
+            // Grounding doradczy nie moze wywrocic odpowiedzi - ale brak werdyktu
+            // tez nie moze byc cichy: UI dostaje jawny sygnal "nie zweryfikowano".
+            console.warn("[stream] mcp grounding failed:", String(err).slice(0, 200));
+            write(
+                `data: ${JSON.stringify({ type: "mcp_grounding", error: "grounding_failed" })}\n\n`,
+            );
+        }
+    }
     write("data: [DONE]\n\n");
 
-    return { fullText, events, mcpCitations, grounding };
+    return { fullText, events, mcpCitations, grounding, mcpGrounding };
 }
 

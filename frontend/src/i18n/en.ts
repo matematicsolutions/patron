@@ -227,6 +227,23 @@ export const en: DictShape<typeof pl> = {
         provenanceUzytkownik: "source: client document",
         provenanceModel: "model knowledge - verify",
         provenancePinpoint: "- verify the provision number",
+        // ADR-0146: grounding of citations from MCP connectors (source card + answer banner).
+        mcpCardGreen: "a quote in the answer matches the text of this source",
+        mcpCardYellowModified: "near-verbatim quote, check the source",
+        mcpCardYellowNoQuote: "not verified - the answer does not quote this source verbatim",
+        mcpCardYellowNoSource: "not verified - this source text was not retrieved",
+        mcpCardRed: "warning: this quote is not in the text of this source",
+        mcpBannerTitle: "Quote verification against sources",
+        mcpBannerRed: "The model presented as a verbatim quote a passage that is not in the retrieved sources. Check it before use.",
+        mcpBannerRedMany: "The model presented as verbatim quotes passages that are not in the retrieved sources. Check them before use.",
+        mcpBannerAllGreen: "Every verbatim quote was found in the text of its source.",
+        mcpBannerNoQuotes: "The answer paraphrases the sources instead of quoting them. Check the wording in the source itself.",
+        mcpBannerFailed: "The quotes in this answer stayed unchecked. Verify them against the sources before use.",
+        mcpQuoteFound: "found",
+        mcpQuoteModified: "near-verbatim",
+        mcpQuoteNotFound: "not in sources",
+        mcpQuoteNoSource: "no source text",
+        mcpClosestSource: "closest source",
     },
 
     usage: {

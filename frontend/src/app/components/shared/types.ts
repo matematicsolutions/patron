@@ -196,6 +196,12 @@ export interface PATRONMessage {
    * znacznikami [N] w prozie.
    */
   mcpCitations?: PATRONMcpCitation[];
+  /**
+   * ADR-0146: raport groundingu cytatow MCP dla tej odpowiedzi (spany, ktore
+   * model podal jako doslowne cytaty, sprawdzone wzgledem tresci z konektorow).
+   * `error` = grounding sie nie odpalil (UI pokazuje "nie zweryfikowano").
+   */
+  mcpGrounding?: PATRONMcpGrounding;
   events?: AssistantEvent[];
   /** Set when streaming failed; rendered as a red error block. */
   error?: string;
@@ -322,6 +328,47 @@ export interface PATRONMcpCitation {
   snippet?: string;
   /** Dowolne dodatkowe pola charakterystyczne dla domeny (sygnatura, sad, data). */
   metadata?: Record<string, unknown>;
+  /** ADR-0146: werdykt groundingu tej karty (z eventu `mcp_grounding` lub z annotations po reload). */
+  grounding?: PATRONMcpCardVerdict;
+}
+
+/** ADR-0146: werdykt per karta zrodla MCP. */
+export interface PATRONMcpCardVerdict {
+  verdict: "green" | "yellow" | "red";
+  reason:
+    | "quote_found"
+    | "quote_modified"
+    | "quote_not_found"
+    | "no_quote"
+    | "no_source";
+  matched: number;
+}
+
+/** ADR-0146: werdykt per cytowany span odpowiedzi. */
+export interface PATRONMcpQuoteResult {
+  quote: string;
+  kind: "blockquote" | "inline";
+  verdict: "green" | "yellow" | "red";
+  status: "ZWERYFIKOWANY" | "ZMODYFIKOWANY" | "NIEZWERYFIKOWANY" | "BRAK_ZRODLA";
+  ratio: number;
+  source?: { server: string; tool: string };
+  citationKey?: string;
+}
+
+/**
+ * ADR-0146: raport groundingu cytatow MCP dla odpowiedzi.
+ * Backend kontrakt: event SSE `{ type: "mcp_grounding", quotes, perCitation, summary }`
+ * albo `{ type: "mcp_grounding", error: "grounding_failed" }`.
+ */
+export interface PATRONMcpGrounding {
+  quotes: PATRONMcpQuoteResult[];
+  summary: { quotes: number; green: number; yellow: number; red: number; sources: number; cards: number };
+  error?: string;
+}
+
+/** Klucz karty MCP - lustro `mcpCitationKey` z backendu (dedup + perCitation). */
+export function mcpCitationKey(c: Pick<PATRONMcpCitation, "server" | "tool" | "url" | "title">): string {
+  return `${c.server}|${c.tool}|${c.url ?? c.title ?? ""}`;
 }
 
 const PAGE_BREAK_SENTINEL = "[[PAGE_BREAK]]";

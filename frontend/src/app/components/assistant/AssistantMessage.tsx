@@ -14,6 +14,7 @@ import type {
     PATRONCitationAnnotation,
     PATRONEditAnnotation,
     PATRONMcpCitation,
+    PATRONMcpGrounding,
 } from "../shared/types";
 import { EditCard, applyOptimisticResolution } from "./EditCard";
 import { DraftRefinePanel } from "./DraftRefinePanel";
@@ -1213,6 +1214,12 @@ interface Props {
      * pod prozą wiadomości jako sekcja "Powiązane orzeczenia".
      */
     mcpCitations?: PATRONMcpCitation[];
+    /**
+     * ADR-0146: raport groundingu cytatow MCP (spany podane jako doslowne cytaty
+     * sprawdzone wzgledem tresci z konektorow). Renderowany jako baner nad panelem
+     * powiazanych zrodel; werdykt per karta siedzi w `mcpCitations[i].grounding`.
+     */
+    mcpGrounding?: PATRONMcpGrounding;
     minHeight?: string;
     onWorkflowClick?: (workflowId: string) => void;
     onEditViewClick?: (ann: PATRONEditAnnotation, filename: string) => void;
@@ -1276,6 +1283,7 @@ export function AssistantMessage({
     annotations = [],
     onCitationClick,
     mcpCitations = [],
+    mcpGrounding,
     minHeight = "0px",
     onWorkflowClick,
     onEditViewClick,
@@ -1728,7 +1736,10 @@ export function AssistantMessage({
                     card. Klik w karte otwiera URL w nowej karcie (zewnetrzne
                     zrodlo - PATRON nie przechowuje tych dokumentow). */}
                 {!isStreaming && mcpCitations.length > 0 && (
-                    <McpCitationsPanel citations={mcpCitations} />
+                    <>
+                        <McpGroundingBanner report={mcpGrounding} />
+                        <McpCitationsPanel citations={mcpCitations} />
+                    </>
                 )}
 
                 {isError && (
@@ -1916,6 +1927,117 @@ interface McpCitationsPanelProps {
     citations: PATRONMcpCitation[];
 }
 
+/**
+ * ADR-0146: badge werdyktu groundingu na karcie zrodla MCP. Trojstan
+ * green/yellow/red; brak werdyktu (stara wiadomosc sprzed ADR-0146) = brak badge'a
+ * (nie udajemy, ze sprawdzilismy).
+ */
+function McpCardGroundingBadge({ grounding }: { grounding?: PATRONMcpCitation["grounding"] }) {
+    if (!grounding) return null;
+    const cls =
+        grounding.verdict === "green"
+            ? "bg-green-100 text-green-900"
+            : grounding.verdict === "yellow"
+              ? "bg-amber-100 text-amber-900"
+              : "bg-red-100 text-red-900";
+    const label =
+        grounding.verdict === "green"
+            ? t("citations.mcpCardGreen")
+            : grounding.verdict === "red"
+              ? t("citations.mcpCardRed")
+              : grounding.reason === "quote_modified"
+                ? t("citations.mcpCardYellowModified")
+                : grounding.reason === "no_source"
+                  ? t("citations.mcpCardYellowNoSource")
+                  : t("citations.mcpCardYellowNoQuote");
+    return (
+        <span
+            data-testid="mcp-card-grounding"
+            data-verdict={grounding.verdict}
+            className={`mt-1 inline-block rounded px-1.5 py-0.5 text-[11px] leading-tight ${cls}`}
+        >
+            {label}
+        </span>
+    );
+}
+
+/**
+ * ADR-0146: baner nad panelem zrodel MCP - jedno zdanie o stanie weryfikacji
+ * doslownych cytatow ze zrodel zewnetrznych + lista cytatow czerwonych (fragment
+ * odpowiedzi, ktorego nie ma w zadnym pobranym zrodle). Brak raportu przy
+ * obecnych kartach = "nie zweryfikowano" (nigdy cicho).
+ */
+function McpGroundingBanner({ report }: { report?: PATRONMcpGrounding }) {
+    if (!report || report.error) {
+        return (
+            <div
+                data-testid="mcp-grounding-banner"
+                data-state="failed"
+                className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900"
+            >
+                {t("citations.mcpBannerFailed")}
+            </div>
+        );
+    }
+    const red = report.quotes.filter((q) => q.verdict === "red");
+    if (red.length > 0) {
+        return (
+            <div
+                data-testid="mcp-grounding-banner"
+                data-state="red"
+                className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-900"
+            >
+                <div className="font-semibold">{t("citations.mcpBannerTitle")}</div>
+                <div className="mt-0.5">
+                    {red.length === 1 ? t("citations.mcpBannerRed") : t("citations.mcpBannerRedMany")}
+                </div>
+                <ul className="mt-1.5 space-y-1">
+                    {red.map((q, i) => (
+                        <li key={i} className="rounded border border-red-200 bg-white px-2 py-1 text-red-900">
+                            <span className="italic">
+                                {"\u201e"}
+                                {q.quote.length > 220 ? `${q.quote.slice(0, 220)}\u2026` : q.quote}
+                                {"\u201d"}
+                            </span>
+                            <span className="ml-1 text-[10px] uppercase tracking-wide text-red-700">
+                                {t("citations.mcpQuoteNotFound")}
+                                {q.source ? ` \u00b7 ${t("citations.mcpClosestSource")}: ${q.source.server}` : ""}
+                            </span>
+                        </li>
+                    ))}
+                </ul>
+            </div>
+        );
+    }
+    if (report.summary.quotes === 0) {
+        return (
+            <div
+                data-testid="mcp-grounding-banner"
+                data-state="no-quotes"
+                className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900"
+            >
+                {t("citations.mcpBannerNoQuotes")}
+            </div>
+        );
+    }
+    const allGreen = report.summary.green === report.summary.quotes;
+    return (
+        <div
+            data-testid="mcp-grounding-banner"
+            data-state={allGreen ? "green" : "yellow"}
+            className={
+                allGreen
+                    ? "mt-3 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-xs text-green-900"
+                    : "mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900"
+            }
+        >
+            {allGreen
+                ? t("citations.mcpBannerAllGreen")
+                : `${t("citations.mcpBannerTitle")}: ${report.summary.green} ${t("citations.mcpQuoteFound")}, ${report.summary.yellow} ${t("citations.mcpQuoteModified")} / ${t("citations.mcpQuoteNoSource")}`}
+        </div>
+    );
+}
+
 function McpCitationsPanel({ citations }: McpCitationsPanelProps) {
     // Grupuj po serwerze - sekcja per konektor.
     const groups = new Map<string, PATRONMcpCitation[]>();
@@ -1948,6 +2070,7 @@ function McpCitationsPanel({ citations }: McpCitationsPanelProps) {
                                         <div className="font-medium text-stone-800">
                                             {c.title ?? c.url}
                                         </div>
+                                        <McpCardGroundingBadge grounding={c.grounding} />
                                         {c.snippet && (
                                             <div className="mt-1 text-xs text-stone-500 line-clamp-2">
                                                 {c.snippet}
@@ -1962,6 +2085,7 @@ function McpCitationsPanel({ citations }: McpCitationsPanelProps) {
                                         <div className="font-medium text-stone-800">
                                             {c.title ?? "(brak tytułu)"}
                                         </div>
+                                        <McpCardGroundingBadge grounding={c.grounding} />
                                         {c.snippet && (
                                             <div className="mt-1 text-xs text-stone-500 line-clamp-2">
                                                 {c.snippet}

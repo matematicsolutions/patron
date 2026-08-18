@@ -206,7 +206,39 @@ async function main() {
     report("generowanie DOCX (chat tool)", docOk ? "ok" : toolCalls.some((t) => String(t).includes("docx")) ? "degraded" : "failed",
       `tool_calls=[${toolCalls.join(",")}] download=${dl ? "tak" : "brak"} bytes=${docBytes} PK=${docOk}`);
 
-    // ---------------- 4. DRAFT/REFINE ----------------
+    // ---------------- 4. RESEARCH + GROUNDING CYTATOW MCP (ADR-0146) ----------------
+    // Pytanie o orzecznictwo (konektor SAOS) z JAWNA prosba o doslowny cytat - to jest
+    // scenariusz, ktory 2026-08-17 dal blockquote nieistniejacy w zrodle przy milczacym UI.
+    // Bramka pilnuje, ze werdykt DOCHODZI: event mcp_grounding + zrodla + werdykt per karta.
+    const res = await fetch(`${BASE}/chat`, { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ model: MODEL, messages: [{ role: "user", content:
+        "Znajdz orzeczenie Sadu Najwyzszego o klauzulach niedozwolonych w umowie kredytu (spread walutowy) " +
+        "i zacytuj DOSLOWNIE jedno zdanie z uzasadnienia. Podaj sygnature." }] }) });
+    const rev = await readSse(res, 240_000);
+    const rTools = rev.filter((e) => e.type === "tool_call_start").map((e) => String((e as { name?: string }).name ?? ""));
+    const mcpCit = rev.find((e) => e.type === "mcp_citations") as { citations?: unknown[] } | undefined;
+    const gr = rev.find((e) => e.type === "mcp_grounding") as
+      | { error?: string; summary?: { quotes: number; green: number; yellow: number; red: number; sources: number; cards: number }; perCitation?: Record<string, { verdict: string; reason: string }> }
+      | undefined;
+    const cards = Object.values(gr?.perCitation ?? {});
+    const verdicts = cards.map((c) => c.verdict);
+    const allHaveVerdict = cards.length > 0 && verdicts.every((v) => ["green", "yellow", "red"].includes(v));
+    const detail = gr
+      ? gr.error
+        ? `event przyszedl z error=${gr.error} (UI pokazuje "niesprawdzone")`
+        : `zrodla ${gr.summary?.sources}, kart ${gr.summary?.cards}, cytatow ${gr.summary?.quotes} ` +
+          `(green ${gr.summary?.green} / yellow ${gr.summary?.yellow} / red ${gr.summary?.red}), ` +
+          `werdykty kart [${verdicts.join(",")}], powody [${cards.map((c) => c.reason).join(",")}]`
+      : `BRAK eventu mcp_grounding (tool_calls=[${rTools.join(",")}], mcp_citations=${mcpCit?.citations?.length ?? 0})`;
+    report("research + grounding cytatow MCP (ADR-0146)",
+      gr && !gr.error && allHaveVerdict ? "ok" : gr ? "degraded" : "failed", detail);
+    if (process.env.PATRON_SMOKE_DEBUG && gr && !gr.error) {
+      for (const q of ((gr as { quotes?: { verdict: string; status?: string; quote?: string }[] }).quotes ?? []).slice(0, 4)) {
+        console.log(`     quote [${q.verdict}/${q.status}] ${String(q.quote ?? "").slice(0, 110)}`);
+      }
+    }
+
+    // ---------------- 5. DRAFT/REFINE ----------------
     // draft/refine = pipeline obronny draftu (DefenseResult { final, stages }), NIE "wykonaj polecenie".
     // Kontrola: 200, final niepusty, fakty zachowane (kwota 45 000 EUR, lokal 114, art. 777).
     const rf = await fetch(`${BASE}/draft/refine`, { method: "POST", headers: { "Content-Type": "application/json" },
