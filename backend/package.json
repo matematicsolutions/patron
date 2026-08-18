@@ -31,7 +31,7 @@
     "@huggingface/transformers": "^4.2.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@supabase/supabase-js": "^2.106.1",
-    "@types/better-sqlite3": "^7.6.13",
+    "@types/better-sqlite3": "^9.6.0",
     "better-sqlite3": "npm:better-sqlite3-multiple-ciphers@^12.10.0",
     "cors": "^2.8.5",
     "docx": "^9.5.0",
@@ -53,10 +53,10 @@
     "@types/cors": "^2.8.17",
     "@types/express": "^4.17.21",
     "@types/multer": "^1.4.12",
-    "@types/node": "^22.19.19",
+    "@types/node": "^26.2.0",
     "prettier": "^3.8.1",
-    "tsx": "^4.19.3",
-    "typescript": "^5.8.3",
+    "tsx": "^4.23.12",
+    "typescript": "^7.0.2",
     "vitest": "^4.1.7"
   },
   "license": "AGPL-3.0-only"
