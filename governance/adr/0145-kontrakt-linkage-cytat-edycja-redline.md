@@ -1,4 +1,4 @@
-# ADR-0110 — Kontrakt linkage cytat↔edycja w redline (anchorId + span)
+# ADR-0145 — Kontrakt linkage cytat↔edycja w redline (anchorId + span)
 
 - **Status:** Proponowany (czeka na decyzje governance D1 + bramke WM)
 - **Data:** 2026-06-11

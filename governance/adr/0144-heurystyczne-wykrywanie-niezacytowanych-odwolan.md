@@ -1,4 +1,4 @@
-# ADR-0109 — Heurystyczne wykrywanie niezacytowanych odwolan prawnych (anty-bypass groundingu)
+# ADR-0144 — Heurystyczne wykrywanie niezacytowanych odwolan prawnych (anty-bypass groundingu)
 
 - **Status:** Proponowany (czeka na decyzje governance D1 + eval + bramke WM)
 - **Data:** 2026-06-11
