@@ -10,7 +10,7 @@
 // Kazdy przypadek N prob (LLM niedeterministyczny) -> werdykt wiekszosciowy + slad.
 //
 // Uruchom:  npx tsx scripts/eval-judge-pl.ts [sciezka-korpusu] [trials]
-//   default korpus: C:/Users/Wieslaw/Projects/legal-eval-harness/judge-pl/corpus-pl.json
+//   korpus: argument albo env PATRON_EVAL_CORPUS (repo legal-eval-harness jest prywatne)
 //   default model:  env PATRON_LOCAL_MODEL || "ollama/llama3.2:3b"
 
 import { readFileSync, writeFileSync } from "node:fs";
