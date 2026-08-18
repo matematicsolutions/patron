@@ -45,6 +45,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
   `AssistantMessage.tsx` do `McpCitationsPanel.tsx` (bez zmiany zachowania; testowalny bez
   katex/supabase w jsdom).
 
+- **AGENTS.md po angielsku (audyt 25 wymiarow: README EN vs AGENTS PL na publicznym repo)** -
+  kanoniczny plik agents.md przetlumaczony na EN z aktualizacja faktow (7 konektorow Node + 13
+  Python ELI, backend 1467 / frontend 43 testow, ADR 0001-0146, 9 locale, bramki release
+  smoke:surfaces + e2e), reguly ADR-0146 i parytetu event_type dopisane; bramka reviewer-en
+  wylapala i naprawila 3 bledne kotwice odziedziczone z wersji PL (Konstytucja Art. 7 jako
+  "bramka jakosci" - to minimalnosc danych; "Art. 2" przy tajemnicy zawodowej - to Art. 1/5;
+  "GDPR-safe" jako obietnica bez testu). CLAUDE.md (wskaznik) rowniez EN.
+
 ### Security
 - **Toolchain desktop: `electron-builder` 25 -> 26.15.3, `@electron/rebuild` 3 -> 4.2, `npm audit fix`
   runtime (`js-yaml` w `electron-updater`)** - `npm audit` w `desktop/`: 19 podatnosci (18 high,

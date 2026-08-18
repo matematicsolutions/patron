@@ -1,5 +1,5 @@
 # CLAUDE.md
 
-Ten plik istnieje dla zgodnosci z Claude Code, ktory szuka `CLAUDE.md` natywnie. Kanoniczne instrukcje dla agentow AI tego repo znajduja sie w **[AGENTS.md](./AGENTS.md)** - standardzie [agents.md](https://agents.md) (Linux Foundation / Agentic AI Foundation) wspieranym przez 20+ narzedzi.
+This file exists for compatibility with Claude Code, which looks for `CLAUDE.md` natively. The canonical instructions for AI agents in this repo live in **[AGENTS.md](./AGENTS.md)** - the [agents.md](https://agents.md) standard (Linux Foundation / Agentic AI Foundation) supported by 20+ tools.
 
 @AGENTS.md

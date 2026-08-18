@@ -1,23 +1,23 @@
 # AGENTS.md - Patron
 
-Plik standardu [agents.md](https://agents.md) (Linux Foundation / Agentic AI Foundation) - kanoniczne instrukcje dla agentow AI pracujacych z tym repozytorium. Czytany natywnie przez Cursor, Codex (OpenAI), Jules (Google), Devin / Windsurf (Cognition), Aider, Amp, Factory, GitHub Copilot i kolejne narzedzia z [oficjalnej listy](https://agents.md/#supported-tools).
+This is the [agents.md](https://agents.md) file (Linux Foundation / Agentic AI Foundation) - the canonical instructions for AI agents working in this repository. Read natively by Cursor, Codex (OpenAI), Jules (Google), Devin / Windsurf (Cognition), Aider, Amp, Factory, GitHub Copilot and the other tools on the [official list](https://agents.md/#supported-tools).
 
-> **Dla agenta:** jezeli zmieniasz cokolwiek w tym repo, zacznij od przeczytania trzech plikow w kolejnosci: ten plik (AGENTS.md), [governance/CONSTITUTION.md](./governance/CONSTITUTION.md), [README.md](./README.md). To nie jest formalnosc - Patron jest produktem governance, nie zwyklym kodem.
+> **For the agent:** before you change anything in this repo, read three files in this order: this file (AGENTS.md), [governance/CONSTITUTION.md](./governance/CONSTITUTION.md), [README.md](./README.md). This is not a formality - Patron is a governance product, not ordinary code.
 
-## Cel projektu
+## Purpose
 
-Patron to **lokalny RODO-safe agent AI dla polskiej kancelarii prawnej**. Aplikacja desktop (Electron) zero-cloud, single-user: domyslnie lokalny SQLite ([ADR-0053](./governance/adr/0053-sqlite-single-user-zero-cloud.md)) + 6 konektorow MCP polskiego i unijnego prawa, audit trail z hash-chain (AI Act art. 12), bring-your-own-model (Gemini / Claude / Ollama lokalny / OpenRouter). Tryb serwerowy (Postgres + MinIO + Supabase) pozostaje jako alternatywa. Forka [willchen96/mike](https://github.com/willchen96/mike) (AGPL-3.0) - powloka Patrona dziedziczy AGPL-3.0 jako derivative work; konektory MCP osobno na MIT - patrz [ADR-0002](./governance/adr/0002-dual-license-agpl-shell-mit-connectors.md).
+Patron is a **local-first, self-hosted AI agent for a Polish law firm, built for GDPR and professional-secrecy compliance**. A zero-cloud, single-user desktop application (Electron): local SQLite by default ([ADR-0053](./governance/adr/0053-sqlite-single-user-zero-cloud.md)) plus MCP connectors to Polish and EU law (7 Node connectors: SAOS, NSA, ISAP, KRS, EUR-Lex SPARQL, EU compliance, EUREKA; 13 Python ELI connectors for national law), an audit trail with a hash chain (AI Act art. 12), bring-your-own-model (Gemini / Claude / local Ollama / OpenRouter). Server mode (Postgres + MinIO + Supabase) remains available as an alternative. A fork of [willchen96/mike](https://github.com/willchen96/mike) (AGPL-3.0) - Patron's shell inherits AGPL-3.0 as a derivative work; the MCP connectors are separate and MIT-licensed - see [ADR-0002](./governance/adr/0002-dual-license-agpl-shell-mit-connectors.md).
 
-## Kontekst MateMatic (TWARDE OGRANICZENIA)
+## MateMatic context (HARD CONSTRAINTS)
 
-Repo prowadzi [MateMatic Solutions](https://matematicsolutions.com). Patron jest **produktem regulowanym** - dotyczy go:
+The repository is maintained by [MateMatic Solutions](https://matematicsolutions.com). Patron is a **regulated product** - it is bound by:
 
-- **Tajemnica zawodowa adwokacka / radcowska** (PoA art. 6, URP art. 3) - bezwzgledna. Patron nie wysyla aktow sprawy do chmury bez zgody Operatora ([Konstytucja](./governance/CONSTITUTION.md) Art. 2).
-- **RODO art. 5/25/30/32** - minimalizacja, privacy by design, rejestr czynnosci, bezpieczenstwo. Schemat danych (lokalny SQLite w trybie desktop - ADR-0053; Postgres `backend/schema.sql` w trybie serwerowym) jest projektowany pod art. 30 i 32.
-- **AI Act art. 6 (high-risk AI w prawie, od 2026-08-02)** + **art. 12 (record-keeping)** - kazda interakcja LLM jest logowana z hash-chainem (ADR-0001).
-- **Neutralnosc wobec dostawcow** ([Konstytucja](./governance/CONSTITUTION.md) Art. 4) - Patron nie faworyzuje zadnego LLM ani providera. NIE wprowadzaj zaleznosci od jednego providera w kodzie powloki.
+- **Professional secrecy of advocates and legal advisers** (Polish Bar Act art. 6, Legal Advisers Act art. 3) - absolute. Patron does not send case files to the cloud without the Operator's informed decision ([Constitution](./governance/CONSTITUTION.md) Art. 1 and Art. 5).
+- **GDPR art. 5/25/30/32** - data minimisation, privacy by design, records of processing, security. The data schema (local SQLite in desktop mode - ADR-0053; Postgres `backend/schema.sql` in server mode) is designed around art. 30 and 32.
+- **AI Act art. 6 (high-risk AI in the legal domain, from 2026-08-02)** + **art. 12 (record-keeping)** - every LLM interaction is logged with a hash chain (ADR-0001).
+- **Vendor neutrality** ([Constitution](./governance/CONSTITUTION.md) Art. 4) - Patron does not favour any LLM or provider. Do NOT introduce a single-provider dependency into the shell code.
 
-## Build i test
+## Build and test
 
 ```bash
 # Backend (Node 20+, TypeScript)
@@ -26,93 +26,93 @@ cd backend && npm install && npm run build && npm test
 # Frontend (Next.js)
 cd frontend && npm install && npm run build && npm test
 
-# Bundle 6 konektorow MCP do obrazu backendu (tryb SERWEROWY / docker)
+# Bundle the Node MCP connectors into the backend image (SERVER / docker mode)
 node scripts/bundle-mcp.cjs
 
-# Bundle 6 konektorow MCP + model embeddera do instalatora DESKTOP (Electron)
-# odbywa sie w prepare-resources.cjs (stageMcpConnectors + stageEmbedModel),
-# wymaga 6 zbudowanych repo mcp-* obok patron/ (MCP_REPOS_DIR, default `..`).
-# Patrz ADR-0100. Dodajac konektor NODE, zsynchronizuj jego nazwe w PIECIU miejscach:
+# Bundling the Node MCP connectors + the embedder model into the DESKTOP installer
+# (Electron) happens in prepare-resources.cjs (stageMcpConnectors + stageEmbedModel);
+# it needs the built mcp-* repos next to patron/ (MCP_REPOS_DIR, default `..`).
+# See ADR-0100. When you add a NODE connector, sync its name in FIVE places:
 # backend/src/lib/mcp-security/pipeline.ts (APPROVED_PATRON_CONNECTORS),
-# backend/src/lib/mcp/connectors.ts (JURISDICTION_BY_CONNECTOR - inaczej picker
-# wrzuca go do "OTHER"), desktop/scripts/prepare-resources.cjs (MCP_SERVERS ORAZ
-# lokalny mirror JURISDICTION + ORDER_PL/ORDER_EN - bez wpisu w mirrorze konektor
-# laduje w instalatorze jako enabled=false, zmierzone 2026-08-17 na eureka) i
-# mcp-servers.example.json; do trybu docker dodatkowo scripts/bundle-mcp.cjs -
-# rozjazd nazw = bramka typosquat + ring-policy blokuja WLASNY konektor (ADR-0027/0028).
-# Stan 2026-08-17: 7 konektorow Node (6 + eureka), repo eureka = ~/Projects/mcp-eureka
-# widoczne obok patron/ przez junction ~/mcp-eureka.
+# backend/src/lib/mcp/connectors.ts (JURISDICTION_BY_CONNECTOR - otherwise the picker
+# files it under "OTHER"), desktop/scripts/prepare-resources.cjs (MCP_SERVERS AND the
+# local JURISDICTION mirror + ORDER_PL/ORDER_EN - without the mirror entry the connector
+# ships in the installer as enabled=false, measured 2026-08-17 on eureka) and
+# mcp-servers.example.json; for docker mode additionally scripts/bundle-mcp.cjs.
+# A name mismatch = the typosquat gate + ring policy block OUR OWN connector (ADR-0027/0028).
+# State on 2026-08-17: 7 Node connectors (6 + eureka); the eureka repo lives in
+# ~/Projects/mcp-eureka and is visible next to patron/ through the junction ~/mcp-eureka.
 #
-# Konektory PYTHON (9 krajowych UE, Opcja C - ADR-0136): NIE freeze per konektor,
-# lecz JEDEN bundlowany standalone CPython + `uv pip install` 9 do jego site-packages
-# przy buildzie (stageBundledPython w prepare-resources.cjs). Repo eli w ~/Projects
-# (MCP_PY_REPOS_DIR, nie obok patron). 3-sync nazw: pipeline.ts APPROVED +
-# prepare-resources.cjs MCP_SERVERS_PYTHON + mcp-servers.example.json. Spawn:
-# py-runtime/python.exe -s -E -c "from <modul>.server import main; main()".
-# Build locale (ADR-0132/0139): NEXT_PUBLIC_PATRON_LOCALE in {pl,en,it,de,es,fr,us}.
-# (br shipped on another branch - lista tu jest juz niepelna, "us" dopisany bez
-# pelnej rekonstrukcji; sprawdz frontend/src/i18n/index.ts SUPPORTED_LOCALES
-# jako zrodlo prawdy).
-# en = zestaw UE-first + samouczek EN; it/de/es/fr = konektor macierzysty ON +
-# substancja krajowa w promptach (PROFILES w backend/src/lib/chat/prompts.ts).
-# Preferuj `npm run build:<locale>` (desktop/scripts/build-locale.cjs) - ustawia
-# locale, jezyk NSIS i kanoniczna nazwe artefaktu PATRON-Setup-Windows[-XX].exe.
+# PYTHON connectors (national ELI connectors, Option C - ADR-0136): NOT frozen per
+# connector; ONE bundled standalone CPython + `uv pip install` of all of them into its
+# site-packages at build time (stageBundledPython in prepare-resources.cjs). The eli
+# repos live in ~/Projects (MCP_PY_REPOS_DIR, not next to patron). 3-way name sync:
+# pipeline.ts APPROVED + prepare-resources.cjs MCP_SERVERS_PYTHON + mcp-servers.example.json.
+# Spawn: py-runtime/python.exe -s -E -c "from <module>.server import main; main()".
+# Build locale (ADR-0132/0139): NEXT_PUBLIC_PATRON_LOCALE in {pl,en,it,de,es,fr,pt,gb,us}
+# (source of truth: SUPPORTED_LOCALES in frontend/src/i18n/index.ts; gb and us reuse the
+# en dictionary and differ only in the jurisdiction profile + home connector).
+# en = EU-first connector set + EN tutorial; it/de/es/fr = home connector ON + national
+# substance in the prompts (PROFILES in backend/src/lib/chat/prompts.ts).
+# Prefer `npm run build:<locale>` (desktop/scripts/build-locale.cjs) - it sets the locale,
+# the NSIS language and the canonical artifact name PATRON-Setup-Windows[-XX].exe.
 cd desktop && npm run build
 
-# Pelny stack (Docker, wymaga Supabase + MinIO osobno)
+# Full stack (Docker; needs Supabase + MinIO separately)
 cp .env.docker.example .env.docker
-# (uzupelnij sekrety)
+# (fill in the secrets)
 docker compose --env-file .env.docker up -d
 ```
 
-Testy: 1440/1445 pass (5 todo, 0 fail) na 2026-08-04 (backend vitest). TSC clean (backend + frontend). **Nie commituj jezeli testy fail** - bramka jakosci z [Konstytucja](./governance/CONSTITUTION.md) Art. 7.
+Tests: backend vitest 1467 pass / 0 fail / 5 todo, frontend vitest 43 pass, on 2026-08-18. TSC clean (backend + frontend). **Do not commit if tests fail** - the quality gate from [CONTRIBUTING.md](./CONTRIBUTING.md) (`npm test --prefix backend` must stay green). Before a release, additionally run `npm run smoke:surfaces` (backend, real model: tabular / workflows / DOCX / research + MCP grounding / draft-refine) and `npm run build:dir && npm run e2e:smoke` (desktop, packaged app on a clean profile) - the build tooling exits 0 even when the package is incomplete; only the e2e catches that.
 
-## Zasady kodu
+## Code rules
 
-- **TypeScript strict**. Bez `any` w nowym kodzie, bez `// @ts-ignore` bez komentarza dlaczego.
-- **Audit-first** - kazda nowa interakcja z LLM przechodzi przez `backend/src/lib/audit/` (hash-chain). Bypass = blad krytyczny.
-- **Pseudonim/anonimizacja** - dane wrazliwe (PESEL/imie/nazwisko/adres) przechodza przez `backend/src/lib/pl-entities/` PRZED wyslaniem do LLM. Patrz [ADR-0003](./governance/adr/0003-hey-jude-pseudonim-pipeline.md).
-- **Input security** - dokumenty wejsciowe (PDF/DOCX/TXT) przechodza przez `backend/src/lib/input-security/` (prompt-injection / steganografia / homoglify / evasion) PRZED indeksacja RAG. Oba szwy uploadu (single-document i projektowy) dziela JEDNA funkcje `backend/src/lib/documentIngest.ts` - nie kopiuj logiki ingestu, importuj ja. Patrz [ADR-0019](./governance/adr/0019-input-document-security-pipeline-pl.md) + [ADR-0020](./governance/adr/0020-wpiecie-input-security-w-ingest.md) + [ADR-0055](./governance/adr/0055-parytet-skanu-input-security-sciezka-projektowa.md).
-- **MCP security gateway** - definicje konektorow MCP przechodza przez `backend/src/lib/mcp-security/` (typosquat / drift / hidden-instructions / tool-poisoning) PRZED registracja toolow w runtime. Decyzja `denied`/`human_review` blokuje wpiecie. Decyzje inne niz `allowed-clean` propaguja sie do audit hash-chain (`event_type = "mcp_security.gateway"`) przez `backend/src/lib/mcp/audit-bridge.ts`. Patrz [ADR-0025](./governance/adr/0025-mcp-security-gateway-wdrazenie.md) + [ADR-0028](./governance/adr/0028-wpiecie-mcp-security-gateway-w-startup.md) + [ADR-0033](./governance/adr/0033-propagacja-mcp-security-do-audit-hash-chain.md).
-- **Merkle audit chain** - nad istniejacym hash-chain (ADR-0001) zbudowane jest drzewo Merkle (RFC 6962). Audytor dostaje proof-of-inclusion w O(log n) zamiast O(n) lancucha. Tabela `audit_merkle_roots` (block_start, block_end, merkle_root, event_count). 3 moduly w `backend/src/lib/`: `audit-merkle.ts` (pure functions), `audit-merkle-roots.ts` (storage layer, nie modyfikuje audit_log), `audit-merkle-verifier.ts` (offline verifier dla audytora). Manualny trigger w tej iteracji (compute root przy administratorze kancelarii); automatyzacja + UI viewer = rezerwacja ADR-0036; RFC 3161 timestamping = rezerwacja ADR-0037. Patrz [ADR-0026](./governance/adr/0026-merkle-audit-chain-upgrade.md).
-- **Human-in-the-loop write staging (ADR-0137)** - akcje agenta o skutkach ubocznych (`edit_document` / `generate_docx`) moga przejsc przez bramke `maybeStageMutation` w `backend/src/lib/chat/tool-dispatch.ts` PRZED wykonaniem - staged jako karty `mutation_approvals` (`pending`); wykonuje je dopiero zatwierdzenie czlowieka (`backend/src/routes/approvals.ts`, `requireAuth`, fail-closed, scoping `user_id`). Wykonanie po approve w `backend/src/lib/chat/mutation-approval-executor.ts`; rdzen czysty w `backend/src/lib/mutation-approval.ts`. Decyzja (approve/reject) w audit hash-chain (`event_type = "mutation.approval.decision"`, payload bez tresci dokumentu). Inbox UI `frontend/src/app/(pages)/account/approval-cards`. Domyslnie OFF (`PATRON_MUTATION_APPROVAL=true` wlacza) do czasu akceptacji ADR-0137. Dodajac nowy `event_type`: 5 mirrorow wg precedensu connector.toggle (audit.ts + schema.sqlite.ts CHECK + schema.sql CHECK + migrate.sqlite.ts NOWY krok rebuild z PELNA lista + Postgres migracja z PELNA lista) - pilnuje tego test `backend/src/lib/db/event-type-parity.test.ts` (porownuje 5 luster; pomiar 2026-08-18: `cost_cap` wypadl z 3 migracji Postgres i 3 rebuildow SQLite, naprawione krokiem v5 + migracja 019). Patrz [ADR-0137](./governance/adr/0137-mutation-approval-cards-human-in-the-loop.md).
-- **Eksport audytowy jedzie z weryfikatorem (ADR-0142)** - `GET /api/audit/export/:eventId` zwraca ZIP: artefakt + `SPRAWDZ-TEN-PLIK.html` + `verify.py` + instrukcja. Tresc obu weryfikatorow jest **OSADZONA** w `backend/src/lib/audit-verifier-assets.ts` (`String.raw`), NIE czytana z dysku - plik pominiety w pakowaniu Electron zniknalby po cichu, a eksport nadal konczylby sie sukcesem, czyli odbiorca dostalby archiwum bez narzedzia. Edytujac te ciagi uruchom `audit-verifier-assets.test.ts` - pilnuje, ze weryfikator w Pythonie, weryfikator w przegladarce i kod produkcyjny daja TEN SAM werdykt (kanonikalizacja + przypadki manipulacji). Nie dodawaj do nich backticka ani `${`. Instrukcja w artefakcie ma odsylac do narzedzi Z ARCHIWUM, nigdy do katalogu `backend/` - odbiorca go nie ma. Patrz [ADR-0142](./governance/adr/0142-weryfikator-w-paczce-eksportu-audytowego.md).
-- **Skille: integralnosc i egress (ADR-0143)** - audyt zapisuje skill jako rekord z `version` i `prompt_sha256`, nie sam `id`: `importSkill` robi upsert po `id` przy niepodpisanym manifescie, wiec para `(id, version)` NIE identyfikuje tresci. Suma liczona PRZY ODCZYCIE w `backend/src/lib/skills/integrity.ts` (`canonicalSha256` z ADR-0142 - jedna kanonikalizacja w projekcie). Deklaracja `egress` z manifestu jest EGZEKWOWANA przed uruchomieniem (`partitionSkillsByEgress`): skill `no-egress` nie idzie do modelu opuszczajacego maszyne, a pominiecie laduje w audycie jako `skipped_skills` z powodem. Dodajac nowa `surface` przepusc ja przez te sama bramke, inaczej luka wraca. Patrz [ADR-0143](./governance/adr/0143-integralnosc-skilla-i-bramka-egress.md).
-- **i18n** - tlumaczenia w `frontend/src/i18n/` (`pl.ts` zrodlo kluczy, `en.ts` deep-partial + fallback PL, `index.ts` = `t()` + helpery formatu locale-aware). Jeden jezyk per instalacja, bez next-intl/locale-w-URL. Patrz [ADR-0132](./governance/adr/0132-locale-selection-jeden-jezyk-per-instalacja.md). Slownik PRZED komponenty.
-- **Bez polskich znakow w commit messages** - konwencja organizacji (a -> a, e -> e, l -> l, o -> o, s -> s, n -> n, c -> c, z -> z).
-- **Rejestr numerow migracji/ADR** - PRZED utworzeniem nowej migracji Postgres lub ADR wez numer z rejestru w `.matematic/releases/<aktualne wydanie>/README.md` (sekcja "Rejestr wolnych numerow") i podbij licznik W TYM SAMYM commicie. Numery rezerwowane "na oko" na rownoleglych galeziach kolidowaly (2x migracja 014). Bramka mechaniczna: `python scripts/adr_number_gate.py .` (duplikat prefiksu ADR/migracji albo nie podbity rejestr = fail; w CI w `publication-gate.yml`).
-- **Higiena galezi** - WIP zawsze zacommitowany (choćby `wip:`); galaz po wtopieniu tresci do linii release kasowac; worktree po skonczonej fazie usuwac; dane testowe = syntetyczna obsada od PIERWSZEGO commita (scrub po fakcie = falszywe konflikty w calej historii). Stan galezi vs release mierzy `git log --cherry-pick --right-only`, nie is-ancestor.
-- **ADR przed kazda nietrwialnaa decyzja architektoniczna** - `governance/adr/NNNN-slug.md`. wewnetrzny review tresci 2x runda PRZED merge.
+- **TypeScript strict**. No `any` in new code, no `// @ts-ignore` without a comment explaining why.
+- **Audit-first** - every new LLM interaction goes through `backend/src/lib/audit/` (hash chain). Bypassing it is a critical bug.
+- **Pseudonymisation / anonymisation** - sensitive data (PESEL / first name / surname / address) goes through `backend/src/lib/pl-entities/` BEFORE it is sent to the LLM. See [ADR-0003](./governance/adr/0003-hey-jude-pseudonim-pipeline.md).
+- **Input security** - input documents (PDF/DOCX/TXT) go through `backend/src/lib/input-security/` (prompt injection / steganography / homoglyphs / evasion) BEFORE RAG indexing. Both upload seams (single document and project) share ONE function, `backend/src/lib/documentIngest.ts` - do not copy the ingest logic, import it. See [ADR-0019](./governance/adr/0019-input-document-security-pipeline-pl.md) + [ADR-0020](./governance/adr/0020-wpiecie-input-security-w-ingest.md) + [ADR-0055](./governance/adr/0055-parytet-skanu-input-security-sciezka-projektowa.md).
+- **MCP security gateway** - MCP connector definitions go through `backend/src/lib/mcp-security/` (typosquat / drift / hidden instructions / tool poisoning) BEFORE tools are registered at runtime. A `denied` / `human_review` decision blocks the connector. Decisions other than `allowed-clean` propagate to the audit hash chain (`event_type = "mcp_security.gateway"`) through `backend/src/lib/mcp/audit-bridge.ts`. See [ADR-0025](./governance/adr/0025-mcp-security-gateway-wdrazenie.md) + [ADR-0028](./governance/adr/0028-wpiecie-mcp-security-gateway-w-startup.md) + [ADR-0033](./governance/adr/0033-propagacja-mcp-security-do-audit-hash-chain.md).
+- **Merkle audit chain** - a Merkle tree (RFC 6962) is built on top of the existing hash chain (ADR-0001). An auditor gets a proof of inclusion in O(log n) instead of walking the O(n) chain. Table `audit_merkle_roots` (block_start, block_end, merkle_root, event_count). Three modules in `backend/src/lib/`: `audit-merkle.ts` (pure functions), `audit-merkle-roots.ts` (storage layer, does not modify audit_log), `audit-merkle-verifier.ts` (offline verifier for the auditor). Manual trigger in this iteration (the firm's administrator computes the root); automation + UI viewer = reserved as ADR-0036; RFC 3161 timestamping = reserved as ADR-0037. See [ADR-0026](./governance/adr/0026-merkle-audit-chain-upgrade.md).
+- **Human-in-the-loop write staging (ADR-0137)** - agent actions with side effects (`edit_document` / `generate_docx`) can pass through the `maybeStageMutation` gate in `backend/src/lib/chat/tool-dispatch.ts` BEFORE execution - staged as `mutation_approvals` cards (`pending`); only a human approval executes them (`backend/src/routes/approvals.ts`, `requireAuth`, fail-closed, scoped by `user_id`). Execution after approval lives in `backend/src/lib/chat/mutation-approval-executor.ts`; the pure core in `backend/src/lib/mutation-approval.ts`. The decision (approve/reject) goes to the audit hash chain (`event_type = "mutation.approval.decision"`, payload without document content). Inbox UI: `frontend/src/app/(pages)/account/approval-cards`. OFF by default (`PATRON_MUTATION_APPROVAL=true` enables it) until ADR-0137 is accepted. When you add a new `event_type`: five mirrors, following the connector.toggle precedent (audit.ts + schema.sqlite.ts CHECK + schema.sql CHECK + a NEW migrate.sqlite.ts rebuild step with the FULL list + a Postgres migration with the FULL list) - guarded by `backend/src/lib/db/event-type-parity.test.ts` (compares all five mirrors; measured 2026-08-18: `cost_cap` had dropped out of three Postgres migrations and three SQLite rebuilds, fixed by step v5 + migration 019). See [ADR-0137](./governance/adr/0137-mutation-approval-cards-human-in-the-loop.md).
+- **Citation grounding, including MCP sources (ADR-0005 / ADR-0146)** - quotes from firm documents are string-matched against the document text (`groundCitationsByRef`); spans the model presents as verbatim quotes from external sources (blockquotes, quotation marks) are matched against the text the MCP connector actually returned in that turn (`backend/src/lib/citation/mcp-grounding.ts`, SSE event `mcp_grounding`). Deterministic, offline, no LLM. Verdicts are advisory (green / yellow / red); a missing source text is yellow "not verified", never green, and a grounding failure is an explicit signal in the UI, never silence. The audit log receives counts only - never the quote text. See [ADR-0146](./governance/adr/0146-grounding-cytatow-mcp.md).
+- **The audit export ships with its verifier (ADR-0142)** - `GET /api/audit/export/:eventId` returns a ZIP: the artifact + `SPRAWDZ-TEN-PLIK.html` + `verify.py` + instructions. The content of both verifiers is **EMBEDDED** in `backend/src/lib/audit-verifier-assets.ts` (`String.raw`), NOT read from disk - a file skipped by Electron packaging would vanish silently while the export still succeeded, so the recipient would get an archive without the tool. When you edit those strings, run `audit-verifier-assets.test.ts` - it checks that the Python verifier, the browser verifier and the production code give THE SAME verdict (canonicalisation + tampering cases). Do not add a backtick or `${` to them. The instructions inside the artifact must point to the tools IN THE ARCHIVE, never to the `backend/` directory - the recipient does not have it. See [ADR-0142](./governance/adr/0142-weryfikator-w-paczce-eksportu-audytowego.md).
+- **Skills: integrity and egress (ADR-0143)** - the audit records a skill as `version` plus `prompt_sha256`, not just `id`: `importSkill` upserts by `id` when the manifest is unsigned, so the pair `(id, version)` does NOT identify the content. The hash is computed AT READ TIME in `backend/src/lib/skills/integrity.ts` (`canonicalSha256` from ADR-0142 - one canonicalisation in the project). The `egress` declaration from the manifest is ENFORCED before execution (`partitionSkillsByEgress`): a `no-egress` skill does not go to a model that leaves the machine, and the omission is recorded in the audit as `skipped_skills` with a reason. When you add a new `surface`, route it through the same gate, otherwise the gap returns. See [ADR-0143](./governance/adr/0143-integralnosc-skilla-i-bramka-egress.md).
+- **i18n** - translations live in `frontend/src/i18n/` (`pl.ts` is the source of keys, `en.ts` is deep-partial with fallback to PL, `index.ts` = `t()` + locale-aware format helpers). One language per installation, no next-intl / no locale in the URL. See [ADR-0132](./governance/adr/0132-locale-selection-jeden-jezyk-per-instalacja.md). Dictionary BEFORE components.
+- **No Polish diacritics in commit messages** - organisation convention (ą -> a, ę -> e, ł -> l, ó -> o, ś -> s, ń -> n, ć -> c, ż/ź -> z).
+- **Registry of migration/ADR numbers** - BEFORE you create a new Postgres migration or ADR, take the number from the registry in `.matematic/releases/<current release>/README.md` (section "Rejestr wolnych numerow") and bump the counter IN THE SAME commit. Numbers reserved "by eye" on parallel branches collided (migration 014 twice). Mechanical gate: `python scripts/adr_number_gate.py .` (a duplicate ADR/migration number prefix or an un-bumped registry = fail; runs in CI in `publication-gate.yml`).
+- **Branch hygiene** - WIP is always committed (even as `wip:`); delete a branch once its content has been merged into the release line; remove a worktree once its phase is done; test data = a synthetic cast from the FIRST commit (scrubbing after the fact creates false conflicts across the whole history). Measure a branch against the release with `git log --cherry-pick --right-only`, not is-ancestor.
+- **An ADR before every non-trivial architectural decision** - `governance/adr/NNNN-slug.md`. Two rounds of internal content review BEFORE merge.
 
-## Czego NIE robic (twarde reguly)
+## What NOT to do (hard rules)
 
-- **NIE dodawaj LLM provider w core path bez ADR.** Patron jest vendor-neutral by design.
-- **NIE wysylaj danych klienta kancelarii do US.** Transfer poza EOG wymaga DPA + DPF i decyzji Administratora (rola z [Konstytucja](./governance/CONSTITUTION.md)).
-- **NIE wylaczaj audit trail** ani jego weryfikacji hash-chain. To jest jedyny dowod compliance.
-- **NIE forkuj struktury polskich entities** (PESEL/NIP/REGON/sygnatury) - sa w `backend/src/lib/pl-entities/` jako shared library z testami.
-- **NIE commituj** node_modules / dist / .env / dump bazy.
+- **Do NOT add an LLM provider to the core path without an ADR.** Patron is vendor-neutral by design.
+- **Do NOT send the law firm's client data to the US.** A transfer outside the EEA requires a DPA + DPF and a decision of the Controller (a role from the [Constitution](./governance/CONSTITUTION.md)).
+- **Do NOT disable the audit trail** or its hash-chain verification. It is the only evidence of compliance.
+- **Do NOT fork the structure of the Polish entities** (PESEL/NIP/REGON/case signatures) - they live in `backend/src/lib/pl-entities/` as a shared library with tests.
+- **Do NOT commit** node_modules / dist / .env / database dumps.
 
-## Zrodla prawdy (kolejnosc czytania)
+## Sources of truth (reading order)
 
-1. [README.md](./README.md) - opis dla ludzi
-2. [governance/CONSTITUTION.md](./governance/CONSTITUTION.md) - 9 zasad, role, audyt (v1.7.2, podpisywana przez kancelarie)
-3. [governance/IMPLEMENTATION_PLAYBOOK.md](./governance/IMPLEMENTATION_PLAYBOOK.md) - 6-8 tyg wdrozenia, RACI
-4. [governance/adr/](./governance/adr/) - Architecture Decision Records (0001-0143)
-5. [THIRD_PARTY_INSPIRATIONS.md](./THIRD_PARTY_INSPIRATIONS.md) - co cherry-pickowalismy i skad (Mike, Lavern, gbrain, isaacus/tabular-review, PII-Shield, earendil/pi, awesome-llm-apps)
+1. [README.md](./README.md) - description for humans
+2. [governance/CONSTITUTION.md](./governance/CONSTITUTION.md) - 9 principles, roles, audit (v1.7.2, signed by law firms)
+3. [governance/IMPLEMENTATION_PLAYBOOK.md](./governance/IMPLEMENTATION_PLAYBOOK.md) - 6-8 week rollout, RACI
+4. [governance/adr/](./governance/adr/) - Architecture Decision Records (0001-0146)
+5. [THIRD_PARTY_INSPIRATIONS.md](./THIRD_PARTY_INSPIRATIONS.md) - what we cherry-picked and from where (Mike, Lavern, gbrain, isaacus/tabular-review, PII-Shield, earendil/pi, awesome-llm-apps)
 6. [CHANGELOG.md](./CHANGELOG.md), [SECURITY.md](./SECURITY.md), [CONTRIBUTING.md](./CONTRIBUTING.md)
 
-## Kompatybilnosc agentow
+## Agent compatibility
 
-Ten plik (AGENTS.md) jest standardem [agents.md](https://agents.md) wspieranym przez **Linux Foundation / Agentic AI Foundation**. Czytany natywnie przez 20+ narzedzi.
+This file (AGENTS.md) follows the [agents.md](https://agents.md) standard backed by the **Linux Foundation / Agentic AI Foundation**. Read natively by 20+ tools.
 
-Dla Claude Code dodatkowo istnieje plik [CLAUDE.md](./CLAUDE.md) ktory importuje ten dokument (`@AGENTS.md`).
+For Claude Code there is additionally [CLAUDE.md](./CLAUDE.md), which imports this document (`@AGENTS.md`).
 
-Dla agentow uruchamianych w kontenerach: pelny `AGENTS.md` ma byc obecny w obrazie backendu (skopiuj w Dockerfile).
+For agents running in containers: the full `AGENTS.md` must be present in the backend image (copy it in the Dockerfile).
 
-## Licencja i atrybucja
+## Licence and attribution
 
-- **Powloka** (`backend/`, `frontend/`, `deploy/`, `governance/`, `scripts/`) - **AGPL-3.0**. Patrz [LICENSE](./LICENSE) i [NOTICE](./NOTICE).
-- **6 konektorow MCP** (osobne repo `mcp-*`) - **MIT**.
-- Cherry-pick i atrybucje: [THIRD_PARTY_INSPIRATIONS.md](./THIRD_PARTY_INSPIRATIONS.md).
+- **Shell** (`backend/`, `frontend/`, `deploy/`, `governance/`, `scripts/`) - **AGPL-3.0**. See [LICENSE](./LICENSE) and [NOTICE](./NOTICE).
+- **MCP connectors** (separate `mcp-*` repositories) - **MIT**.
+- Cherry-picks and attributions: [THIRD_PARTY_INSPIRATIONS.md](./THIRD_PARTY_INSPIRATIONS.md).
 
-Cytowanie: *MateMatic Solutions (2026), Patron - lokalny agent AI dla polskiej kancelarii, https://github.com/matematicsolutions/patron, AGPL-3.0.*
+Citation: *MateMatic Solutions (2026), Patron - a local AI agent for the Polish law firm, https://github.com/matematicsolutions/patron, AGPL-3.0.*
