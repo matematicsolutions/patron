@@ -10,7 +10,7 @@
 
 > **A local-first, self-hosted AI agent for a law firm.** A zero-cloud, single-user desktop
 > application (Electron): local SQLite by default ([ADR-0053](./governance/adr/0053-sqlite-single-user-zero-cloud.md)), 7 connectors to Polish and EU law
-> (SAOS / NSA / ISAP / KRS / EUR-Lex / EU-Compliance), a hash-chained audit trail (AI Act art. 12),
+> (SAOS / NSA / ISAP / KRS / EUREKA / EUR-Lex / EU-Compliance), a hash-chained audit trail (AI Act art. 12),
 > bring-your-own-model (Gemini / Claude / local Ollama / OpenRouter). A server mode (Postgres + MinIO) remains available as an alternative.
 
 Patron is a fork of [Mike](https://github.com/willchen96/mike) (a document-centric
@@ -18,6 +18,44 @@ legal assistant, **AGPL-3.0**). The Patron shell inherits AGPL-3.0 as a derivati
 work. It adds Polish localization, a Polish legal stack, and the compliance
 requirements a law firm needs. The full rules live in
 [governance/CONSTITUTION.md](./governance/CONSTITUTION.md).
+
+## What Patron does
+
+Everything below ran end-to-end on 2026-08-18 against a real model on synthetic contract fixtures
+(`npm run smoke:surfaces`, `smoke:desktop`, packaged app `e2e:smoke`); nothing here is a roadmap item.
+
+- **Chat over the case files** with a colour badge next to every citation from your own documents:
+  green (verbatim), yellow (paraphrase), red (the source does not support the claim). A local
+  paraphrase judge, never a cloud call, decides the colour.
+- **Case law, legislation and tax practice while answering** - 7 MCP connectors (SAOS, NSA, ISAP,
+  KRS, EUREKA, EUR-Lex/CJEU) queried live, plus an offline EU compliance corpus (GDPR, AI Act, DORA,
+  NIS2, eIDAS 2.0, CRA) that works without internet. Connector answers carry source, signature or
+  identifier, date and URL (measured on SAOS and EUREKA; the same MCS contract applies to the rest).
+- **A table from a batch of contracts** (Tabular Review): you define the columns as questions,
+  Patron fills one cell per document with the answer, a quote from the source page and a
+  confidence flag (green / yellow / red / grey).
+- **Editing documents as a lawyer does** - you ask for a change and review it as Word tracked
+  changes, then accept or reject. A file edited in Word comes back into Patron with its changes
+  intact.
+- **Drafting** - generate a new .docx from the chat, or run a whole pleading through a review,
+  devil's advocate and language pass before it leaves the firm.
+- **Workflows** - saved prompts and column sets you reuse across cases.
+- **Human-in-the-loop for agent writes** (optional, ADR-0137): edits and generated files can be
+  staged as approval cards; nothing is written until a human approves.
+- **An audit trail you can hand to a regulator** - every model interaction hash-chained (AI Act
+  art. 12) with a Merkle root, exportable as a ZIP that ships its own verifier (a browser page and a
+  Python script), so a court, the DPA or the client can check it without this repository (ADR-0142).
+- **PII does not leave the machine by accident** - names, companies, PESEL/NIP/REGON are masked before
+  any cloud model; a per-case cloud consent and an egress guard sit in front of every outbound call.
+- **Bring your own model** - Gemini, Claude, OpenRouter, or a local Ollama model, chosen in
+  settings or per conversation.
+- **9 installer editions** from one code line: PL, EN (EU-first), US, GB, BR, IT, DE, ES, FR - each
+  with its home jurisdiction connector on by default. Downloads: [matematicsolutions.com/pobierz](https://matematicsolutions.com/pobierz).
+
+Two limits we say out loud. Citations returned by MCP connectors are shown with their source but
+do not pass through the colour badge verification that citations from your own documents get; treat
+them as unverified until you open the source. The Windows installer is not code-signed, so SmartScreen
+warns on first run.
 
 ## Contents
 
@@ -108,19 +146,19 @@ This requires a separately provisioned Supabase + MinIO (a separate stack). See 
 
 ## Governance (before deployment)
 
-- [**Patron AI Constitution v1.6.1**](./governance/CONSTITUTION.md) -
+- [**Patron AI Constitution v1.7.2**](./governance/CONSTITUTION.md) -
   9 principles, product boundaries, roles (Administrator / Operator / Inspector),
   audit, and evolution. Mapped to AI Act art. 12, RODO art. 5/25/30/32,
   and professional ethics. Art. 5 covers input-document control.
 - [**Implementation Playbook**](./governance/IMPLEMENTATION_PLAYBOOK.md) -
   a 6-8 week step-by-step rollout with a RACI matrix.
-- [**ADRs**](./governance/adr/) - Architecture Decision Records (0001-0130),
+- [**ADRs**](./governance/adr/) - Architecture Decision Records (0001-0145),
   including [0001 hash-chain](./governance/adr/0001-hash-chain-audit-trail.md),
   [0002 dual-license](./governance/adr/0002-dual-license-agpl-shell-mit-connectors.md),
   [0019 input-document scan](./governance/adr/0019-input-document-security-pipeline-pl.md),
   [0020 wiring into ingest](./governance/adr/0020-wpiecie-input-security-w-ingest.md).
 
-The firm reads and signs the **Constitution v1.6.1** before deployment
+The firm reads and signs the **Constitution v1.7.2** before deployment
 (the signature section is at the end of the file).
 
 ## Open standard - MCS v0.1
