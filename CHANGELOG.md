@@ -48,6 +48,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
   `extraResources` dla `backend/node_modules` i `frontend/node_modules`; `e2e:smoke` dostal
   asercje kompletnosci paczki PRZED startem (pusty `resources/*/node_modules` = exit 2 z nazwa
   przyczyny, nie timeout).
+- **`npm audit fix` (bez `--force`) backend + frontend** - backend 15 -> 5 findingow (zostaly bez
+  fixa: `adm-zip` przez `onnxruntime-node` i `sharp` przez `@xenova/transformers` = lancuch
+  embeddera ADR-0071; `esbuild` 0.27.x dev-only pod `tsx`/`vitest`, dev-server nieuzywany);
+  frontend 15 -> 2 moderate (`uuid` bez fixa w zakresie), w tym `next` 16.2.6 -> 16.3.1 (minor,
+  w zakresie `^16`). Bramki po bumpie: backend tsc + vitest 1467/0, frontend tsc + 12/12 +
+  `next build`, `smoke:surfaces` 6/6, `build:dir` + `e2e:smoke` PASS.
 
 ### Fixed
 - **`cost_cap` wypadal z whitelist `event_type` na bazach MIGROWANYCH** - test parytetu
