@@ -33,6 +33,18 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
   SQLite; `scripts/adr_number_gate.py` (w `publication-gate.yml`) pada na duplikacie
   prefiksu numeru ADR/migracji albo nie podbitym rejestrze wolnych numerow.
 
+- **Testy frontendu na powierzchniach demo (audyt 25 wymiarow: 111 komponentow / 3 pliki testow)** -
+  frontend vitest 3 pliki / 12 testow -> 7 plikow / 43 testy: `McpCitationsPanel.test.tsx` (baner i badge
+  groundingu MCP ADR-0146: red widoczny z trescia cytatu, brak raportu = "nie zweryfikowano", karta bez
+  werdyktu bez badge'a), `account/connectors/page.test.tsx` (picker konektorow ADR-0133: operator-only
+  nie do przelaczenia, odwrocona wartosc do API, note o restarcie, blad nie zmienia stanu),
+  `account/approval-cards/page.test.tsx` (inbox ADR-0137: approve/reject z id, powod odrzucenia, blad
+  wykonania po zatwierdzeniu NIE cichy, blad decyzji zostawia karte), `AssistantWorkflowModal.test.tsx`
+  (wbudowane + custom, filtr, Use zablokowane bez wyboru, awaria API zostawia wbudowane); tabular
+  pokryty istniejacymi `TabularCell` / `TRSidePanel`. Panel zrodel MCP wydzielony z
+  `AssistantMessage.tsx` do `McpCitationsPanel.tsx` (bez zmiany zachowania; testowalny bez
+  katex/supabase w jsdom).
+
 ### Security
 - **Toolchain desktop: `electron-builder` 25 -> 26.15.3, `@electron/rebuild` 3 -> 4.2, `npm audit fix`
   runtime (`js-yaml` w `electron-updater`)** - `npm audit` w `desktop/`: 19 podatnosci (18 high,
