@@ -11,17 +11,29 @@ This product is a fork of the **Mike** legal document assistant.
   Copyright (c) 2025 Will Chen and contributors
   Licensed under GNU Affero General Public License v3.0 (AGPL-3.0)
 
+Patron keeps the full upstream history, so commits by Mike's contributors are
+part of this repository. Beyond Will Chen, the pre-fork history includes work by
+Eli Fayerman (project folder boundary checks, local testing guide) and Amir B.
+(fail-fast when the download HMAC secret is missing). Upstream ships no AUTHORS
+file; this list is ours, compiled from `git log`, and is not exhaustive.
+
 The fork dates from 2026-05-19. Significant additions in Patron:
   - Polish locale and SYSTEM_PROMPT for Polish legal practice
-  - Zero-cloud self-host (Supabase + MinIO, no Cloudflare R2)
-  - 5 Polish legal MCP connectors (mcp-saos, mcp-nsa, mcp-isap,
-    mcp-krs, mcp-eu-sparql - all MIT-licensed, separate repositories)
-  - Hash-chain audit trail (AI Act art. 12 compliant)
-  - Constitution AI v1.0.0 and Implementation Playbook (governance/)
-  - Modular chat layer (lib/chat/* - 12 modules from monolithic chatTools.ts)
-  - Vitest test suite (69 tests in 6 files)
+  - Zero-cloud by default: local SQLite in the desktop application
+    (ADR-0053); the server mode (Postgres + MinIO, no Cloudflare R2)
+    remains available as an alternative
+  - 7 legal MCP connectors for Polish and EU law (mcp-saos, mcp-nsa,
+    mcp-isap, mcp-krs, mcp-eureka, mcp-eu-sparql, mcp-eu-compliance -
+    all MIT-licensed, separate repositories)
+  - Hash-chain audit trail with a Merkle root (AI Act art. 12), exportable
+    with its own verifier
+  - Constitution AI v1.7.2 and Implementation Playbook (governance/)
+  - Modular chat layer (lib/chat/* - from monolithic chatTools.ts)
+  - Vitest test suite (1444 passing across 106 files, measured 2026-08-18)
+  - Nine installer editions from one code line (PL, EN, US, GB, BR, IT,
+    DE, ES, FR) with auto-update channels per edition
   - Docker compose deployment + multi-stage Dockerfiles
-  - LibreOffice in-container support for .docx → .pdf
+  - LibreOffice in-container support for .docx to .pdf
 
 The upstream Mike repository (https://github.com/willchen96/mike) is
 licensed under AGPL-3.0. Patron's shell is therefore distributed under
@@ -45,8 +57,8 @@ agent**. AGPL-3.0 is the right license because:
    service - undermining the moat we build with the community.
 
 3. **The MCP connectors are intentionally MIT.** Each connector
-   (mcp-saos, mcp-nsa, mcp-isap, mcp-krs, mcp-eu-sparql) lives in a
-   separate repository under MIT so that the broader Polish legal-tech
+   (mcp-saos, mcp-nsa, mcp-isap, mcp-krs, mcp-eureka, mcp-eu-sparql,
+   mcp-eu-compliance) lives in a separate repository under MIT so that the broader Polish legal-tech
    ecosystem can integrate them into other products - even commercial,
    closed-source ones. Connectors are infrastructure; the value-add is
    in the shell (Patron itself).
@@ -70,22 +82,69 @@ LibreOffice (runtime dependency for docx-to-pdf conversion):
   - https://www.libreoffice.org
 
 
-Bundled EU national legal MCP connectors (desktop installer)
-------------------------------------------------------------
+Bundled national legal MCP connectors (desktop installer)
+---------------------------------------------------------
 
-The desktop installer additionally bundles nine national EU legal MCP
+The desktop installer additionally bundles thirteen national legal MCP
 connectors, each in a separate repository under the Apache License 2.0
 (distinct from the MIT connectors above; Apache-2.0 is compatible with
-AGPL-3.0 for distribution):
+AGPL-3.0 for distribution). Which ones are enabled by default depends on
+the installer edition:
 
-  - de-eli-mcp, at-eli-mcp, es-eli-mcp, fi-eli-mcp, ie-eli-mcp,
-    nl-eli-mcp, se-eli-mcp, fr-eli-mcp, lu-eli-mcp
+  - EU: de-eli-mcp, at-eli-mcp, es-eli-mcp, fi-eli-mcp, ie-eli-mcp,
+    nl-eli-mcp, se-eli-mcp, fr-eli-mcp, lu-eli-mcp, it-eli-mcp
+  - outside the EU: br-eli-mcp (Brazil), gb-eli-mcp (United Kingdom),
+    us-eli-mcp (United States)
   - Copyright (c) 2026 MateMatic Solutions / Wiesław Mazur
   - Licensed under the Apache License, Version 2.0
   - https://github.com/matematicsolutions/<name>-eli-mcp
 
 These connectors are Python (fastmcp) and are run from a bundled CPython
 runtime (see below). See governance/adr/0136-bundled-python-runtime-eli.md.
+
+
+Bundled OCR engine (desktop installer)
+--------------------------------------
+
+To read scanned files offline, the desktop installer bundles Tesseract OCR
+with its Windows build dependencies and two language data files:
+
+  - Tesseract OCR 5.4.0 - Apache License 2.0
+    https://github.com/tesseract-ocr/tesseract
+    The Apache-2.0 text and the Tesseract AUTHORS file ship with the installer,
+    at `resources/backend/ocr/tesseract/doc/` in an installed Patron.
+  - Language data: pol.traineddata, osd.traineddata, from
+    https://github.com/tesseract-ocr/tessdata (Apache License 2.0 upstream).
+  - Statically linked into that Windows build, as reported by
+    `tesseract --version`: Leptonica 1.84.1 (own two-clause BSD-style license,
+    http://www.leptonica.org), libjpeg-turbo 3.0.1, libpng 1.6.43, libtiff 4.6.0,
+    zlib 1.3, libwebp 1.4.0, libgif 5.2.1, OpenJPEG 2.5.2 - all permissive
+    (BSD / zlib / libpng / IJG family).
+
+    Their notices ship as `resources/backend/ocr/THIRD-PARTY-OCR-LICENSES.txt`,
+    with Leptonica's copyright notice reproduced in full as its clause 2 requires
+    for a binary distribution. The 1.1.0 installers carried only Tesseract's own
+    Apache-2.0 text; the file was added on 2026-08-18 after that gap was measured,
+    and the build now fails if it is missing.
+
+The OCR engine is selected by configuration (`PATRON_OCR_CMD`), so Patron can
+also run against a different local engine; only Tesseract is redistributed here.
+
+
+Bundled embedding model (desktop installer)
+-------------------------------------------
+
+Semantic retrieval runs locally, so the installer bundles an ONNX embedding
+model instead of calling an embedding API:
+
+  - Xenova/multilingual-e5-small - ONNX conversion for Transformers.js
+    https://huggingface.co/Xenova/multilingual-e5-small
+  - Converted from intfloat/multilingual-e5-small, licensed MIT
+    https://huggingface.co/intfloat/multilingual-e5-small
+  - The conversion carries no separate license of its own; MIT applies.
+
+Without the model Patron still starts and retrieval degrades to BM25 plus the
+citation graph (ADR-0071 - fail-closed, no download at first run).
 
 
 Bundled CPython runtime (desktop installer)

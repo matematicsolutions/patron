@@ -1,0 +1,130 @@
+Third-party license notices for the OCR engine bundled with PATRON
+=================================================================
+
+PATRON's desktop installer redistributes a Windows build of Tesseract OCR.
+Tesseract's own license (Apache-2.0) and its AUTHORS file are in
+`ocr/tesseract/doc/`. This file carries the notices of the libraries linked
+into that build, as reported by `tesseract --version`:
+
+  Leptonica 1.84.1, libjpeg-turbo 3.0.1, libpng 1.6.43, libtiff 4.6.0,
+  zlib 1.3, libwebp 1.4.0, libgif 5.2.1, OpenJPEG 2.5.2
+
+Verified against the bundled binary on 2026-08-18. Full license texts and
+sources live at the projects' own sites, linked per entry below.
+
+
+1. Leptonica (image processing library used by Tesseract)
+--------------------------------------------------------
+http://www.leptonica.org - https://github.com/DanBloomberg/leptonica
+
+  Copyright (C) 2001-2020 Leptonica.  All rights reserved.
+
+  Redistribution and use in source and binary forms, with or without
+  modification, are permitted provided that the following conditions
+  are met:
+  1. Redistributions of source code must retain the above copyright
+     notice, this list of conditions and the following disclaimer.
+  2. Redistributions in binary form must reproduce the above
+     copyright notice, this list of conditions and the following
+     disclaimer in the documentation and/or other materials
+     provided with the distribution.
+
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+  ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+  A PARTICULAR PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL ANY
+  CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+  EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+  PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+  PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
+  OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+  NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+(Reproduced from the project's `leptonica-license.txt` to satisfy clause 2.)
+
+
+2. libjpeg-turbo (JPEG codec)
+-----------------------------
+https://libjpeg-turbo.org - https://github.com/libjpeg-turbo/libjpeg-turbo
+
+Distributed under three licenses: the IJG (Independent JPEG Group) License,
+a three-clause BSD license for the SIMD extensions, and the zlib License for
+the TurboJPEG wrapper. All three are permissive and require the copyright
+notice and disclaimer to be retained. Full texts: `LICENSE.md` in the project
+repository.
+
+
+3. libpng (PNG codec)
+---------------------
+http://www.libpng.org/pub/png/libpng.html
+
+Distributed under the PNG Reference Library License version 2 (permissive,
+BSD-like; requires retention of the copyright notice and disclaimer).
+Full text: `LICENSE` in the project repository.
+
+
+4. libtiff (TIFF codec)
+-----------------------
+http://www.libtiff.org - https://gitlab.com/libtiff/libtiff
+
+  Copyright (c) 1988-1997 Sam Leffler
+  Copyright (c) 1991-1997 Silicon Graphics, Inc.
+
+Permission to use, copy, modify, distribute, and sell this software and its
+documentation for any purpose is hereby granted without fee, provided that
+the above copyright notice appears in all copies and that both that
+copyright notice and this permission notice appear in supporting
+documentation. Full text ("libtiff license", BSD-like): `LICENSE.md` in the
+project repository.
+
+
+5. zlib (compression)
+---------------------
+https://zlib.net
+
+Distributed under the zlib License (permissive; the origin of the software
+must not be misrepresented and altered versions must be marked as such).
+Full text: `LICENSE` in the project repository.
+
+
+6. libwebp (WebP codec)
+-----------------------
+https://developers.google.com/speed/webp
+
+  Copyright (c) 2010, Google Inc. All rights reserved.
+
+Distributed under a three-clause BSD license. Full text: `COPYING` in the
+project repository.
+
+
+7. giflib (GIF codec, reported as libgif)
+-----------------------------------------
+https://giflib.sourceforge.net
+
+Distributed under the MIT License. Full text: `COPYING` in the project
+distribution.
+
+
+8. OpenJPEG (JPEG 2000 codec)
+-----------------------------
+https://www.openjpeg.org - https://github.com/uclouvain/openjpeg
+
+Distributed under the two-clause BSD license. Full text: `LICENSE` in the
+project repository.
+
+
+9. Tesseract language data (tessdata)
+-------------------------------------
+https://github.com/tesseract-ocr/tessdata
+
+`pol.traineddata` and `osd.traineddata` come from the tessdata repository,
+which is distributed under the Apache License, Version 2.0 - the same text
+as in `ocr/tesseract/doc/LICENSE`.
+
+
+How to check this yourself
+--------------------------
+Run `ocr/tesseract/tesseract.exe --version` in an installed PATRON: it prints
+the exact library versions this file documents. If a version differs from the
+list above, this file is stale - report it as a bug.

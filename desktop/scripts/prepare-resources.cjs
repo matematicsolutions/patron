@@ -665,7 +665,18 @@ function stageOcrEngine() {
     }
   }
   mustExist(path.join(tessOut, exe), "tesseract.exe w zbundlowanym OCR");
-  log("Silnik OCR (Tesseract + pol) gotowy.");
+
+  // Noty licencyjne bibliotek WLINKOWANYCH w build Tesseracta (leptonica,
+  // libjpeg-turbo, libpng, libtiff, zlib, libwebp, giflib, openjpeg). Sam
+  // Tesseract wiezie swoj Apache-2.0 w doc/, ale ich notek NIE ma - a klauzula 2
+  // licencji Leptoniki wprost wymaga reprodukcji noty w dystrybucji binarnej
+  // (zmierzone na instalatorach 1.1.0, 2026-08-18). Brak pliku = blad buildu,
+  // nie ciche pominiecie: instalator bez notek narusza warunki redystrybucji.
+  const ocrLicSrc = path.join(DESKTOP_DIR, "licenses", "THIRD-PARTY-OCR-LICENSES.txt");
+  mustExist(ocrLicSrc, "desktop/licenses/THIRD-PARTY-OCR-LICENSES.txt (noty bibliotek OCR)");
+  fs.copyFileSync(ocrLicSrc, path.join(ocrRoot, "THIRD-PARTY-OCR-LICENSES.txt"));
+
+  log("Silnik OCR (Tesseract + pol + noty licencyjne) gotowy.");
 }
 
 // ── 4. Staging frontendu standalone ──────────────────────────────────────────
