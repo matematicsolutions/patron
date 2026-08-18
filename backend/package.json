@@ -20,7 +20,8 @@
     "migrate:rollback:mark": "tsx scripts/run-migrations.ts rollback:mark",
     "kek:verify": "tsx scripts/verify-kek-backup.ts",
     "merkle:trigger": "tsx scripts/trigger-merkle.ts",
-    "smoke:desktop": "tsx scripts/smoke-desktop.ts"
+    "smoke:desktop": "tsx scripts/smoke-desktop.ts",
+    "smoke:surfaces": "tsx scripts/smoke-surfaces.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.99.0",
