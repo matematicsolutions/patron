@@ -26,6 +26,12 @@ jobs:
       - name: Skan trackowanych plikow (PR i push)
         if: github.event_name == 'pull_request' || github.event_name == 'push'
         run: python scripts/publication_gate.py .
+      # Numeracja ADR / migracji: duplikat prefiksu albo nie podbity rejestr
+      # wolnych numerow = fail (kolizje 014/014, 0109/0110, 0141/0142 na
+      # rownoleglych galeziach - regula bez bramki nie trzymala).
+      - name: Bramka numeracji ADR i migracji
+        if: github.event_name == 'pull_request' || github.event_name == 'push'
+        run: python scripts/adr_number_gate.py .
       - name: Skan calej historii git (cotygodniowo)
         if: github.event_name == 'schedule'
         run: python scripts/publication_gate.py . --history

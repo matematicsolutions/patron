@@ -27,6 +27,22 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
   werdykt DOCHODZI do klienta (zdarzenie, zrodla, werdykt na kazdej karcie), nie tylko ze
   konektor odpowiedzial. Zmierzone 2026-08-18 na SAOS: przy cytacie doslownym werdykt `red`
   (cytat nieobecny w 10 pobranych zrodlach), przy parafrazie `yellow/no_quote`.
+- **Test parytetu whitelist `event_type` (5 luster) + bramka numeracji ADR/migracji w CI** -
+  `backend/src/lib/db/event-type-parity.test.ts` porownuje `EVENT_TYPES` (audit.ts) z CHECK
+  w `schema.sqlite.ts`, `schema.sql`, najnowsza migracja Postgres i najnowszym rebuildem
+  SQLite; `scripts/adr_number_gate.py` (w `publication-gate.yml`) pada na duplikacie
+  prefiksu numeru ADR/migracji albo nie podbitym rejestrze wolnych numerow.
+
+### Fixed
+- **`cost_cap` wypadal z whitelist `event_type` na bazach MIGROWANYCH** - test parytetu
+  wykryl (audyt 25 wymiarow 2026-08-18 mial to jako *Suspected*): `cost_cap` (ADR-0093,
+  migracja 010) byl w CREATE swiezych baz, ale nie w listach migracji Postgres 012/014/016
+  ani w rebuildach SQLite v2/v3/v4 (kazdy sprawdzal obecnosc jednej wartosci i przepuszczal
+  luke po srodku). Baza migrowana miala 20 wartosci zamiast 21 i odrzucala zdarzenie
+  cost-cap - a kazda migracja konczyla sie sukcesem. Naprawa: krok SQLite v5 (rebuild do
+  pelnej listy, samo-pomijalny tylko gdy CHECK ma WSZYSTKIE wartosci; hash-chain i indeksy
+  zachowane) + migracja Postgres 019 (pelna lista, idempotentna). Test bojowy na bazie
+  "po v4 bez cost_cap" w suite.
 
 ## [1.1.0] - 2026-08-17
 

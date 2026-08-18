@@ -71,7 +71,7 @@ Numery migracji Postgres i ADR byly rezerwowane rownolegle na galeziach -> koliz
 (migracja 014 zajeta 2x; ADR 0108-0126 zyly poza linia release). Od teraz numer
 bierze sie STAD i od razu podbija licznik w tym samym commicie co plik.
 
-- **Nastepna migracja Postgres:** `019` (ostatnia zajeta: 018_tabular_cell_review)
+- **Nastepna migracja Postgres:** `020` (ostatnia zajeta: 019_audit_log_event_type_parity_cost_cap)
 - **Nastepny ADR:** `0147` (ostatni zajety: 0146-grounding-cytatow-mcp; 0144/0145 = renumeracja Fable5 przy scaleniu linii 2026-08-18)
 
 ## Higiena galezi (lekcja z 2026-07-04)

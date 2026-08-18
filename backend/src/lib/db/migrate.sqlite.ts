@@ -298,6 +298,87 @@ function migrateV4MutationApprovals(db: Database.Database): void {
     rebuildAuditLogAddMutationApproval(db);
 }
 
+/**
+ * Krok v5 (pomiar 2026-08-18, plan 2.0.0 pkt 5): PARYTET whitelist `event_type`.
+ *
+ * Rozjazd zmierzony testem parytetu (`event-type-parity.test.ts`): `cost_cap`
+ * (ADR-0093, migracja Postgres 010, obecny w CREATE `schema.sqlite.ts`) NIE
+ * wystepowal w listach rebuildow v2/v3/v4 ani w migracjach Postgres 012/014/016.
+ * Skutek: baza SWIEZA ma 21 wartosci, baza MIGROWANA sciezka rebuild - 20 (bez
+ * `cost_cap`) i wstawienie zdarzenia cost-cap odbija sie od CHECK. Klasyczna
+ * cicha niekompletnosc: kazda migracja konczyla sie sukcesem.
+ *
+ * Ten krok NIE dodaje nowego typu - doprowadza CHECK do pelnego lustra
+ * EVENT_TYPES (lib/audit.ts) na dzien 2026-08-18. Samo-pomijalny tylko gdy CHECK
+ * zawiera JUZ WSZYSTKIE wartosci z listy (nie "ostatnia dodana" - to byl blad
+ * konstrukcyjny v2-v4: sprawdzaly obecnosc jednej wartosci i przepuszczaly bazy
+ * z luka po srodku). Rebuild z zachowaniem wierszy (hash-chain i Merkle wazne).
+ *
+ * Dodajac kolejny event_type: NOWY krok v6 z pelna lista (nie edytuj tej), test
+ * parytetu wymusi zgodnosc z EVENT_TYPES / schema.sqlite.ts / schema.sql /
+ * najnowsza migracja Postgres.
+ */
+export const AUDIT_EVENT_TYPES_V5 = [
+    "chat.message.user",
+    "chat.message.assistant",
+    "input_security_scan",
+    "mcp_security.gateway",
+    "ring_policy.decision",
+    "rodo.delete",
+    "rodo.export",
+    "admin.access.audit_viewer",
+    "admin.access.audit_export",
+    "admin.access.merkle_compute_now",
+    "admin.access.security_banner",
+    "admin.access.metrics",
+    "migrate.rollback",
+    "llm_route",
+    "defense.pipeline.run",
+    "document.edit_resolved",
+    "tabular.grounding",
+    "project.cloud_consent",
+    "connector.toggle",
+    "mutation.approval.decision",
+    "cost_cap",
+] as const;
+
+function rebuildAuditLogEventTypeParityV5(db: Database.Database): void {
+    const row = db
+        .prepare(
+            "select sql from sqlite_master where type = 'table' and name = 'audit_log'",
+        )
+        .get() as { sql?: string } | undefined;
+    if (!row?.sql) return;
+    const missing = AUDIT_EVENT_TYPES_V5.filter((t) => !row.sql!.includes(`'${t}'`));
+    if (missing.length === 0) return;
+
+    const list = AUDIT_EVENT_TYPES_V5.map((t) => `          '${t}'`).join(",\n");
+    db.exec(`
+      create table audit_log_new (
+        id integer primary key autoincrement,
+        ts text not null,
+        actor_user_id text,
+        event_type text not null check (event_type in (
+${list}
+        )),
+        chat_id text,
+        document_id text,
+        payload text not null,
+        prev_hash text not null,
+        hash text not null unique
+      );
+      insert into audit_log_new
+        (id, ts, actor_user_id, event_type, chat_id, document_id, payload, prev_hash, hash)
+        select id, ts, actor_user_id, event_type, chat_id, document_id, payload, prev_hash, hash
+        from audit_log;
+      drop table audit_log;
+      alter table audit_log_new rename to audit_log;
+      create index if not exists idx_audit_log_chat on audit_log(chat_id, ts);
+      create index if not exists idx_audit_log_actor on audit_log(actor_user_id, ts);
+      create index if not exists idx_audit_log_event_type on audit_log(event_type, ts);
+    `);
+}
+
 /** Lista migracji SQLite (kolejnosc = version rosnaco). */
 export const SQLITE_MIGRATIONS: ReadonlyArray<SqliteMigration> = [
     {
@@ -319,6 +400,11 @@ export const SQLITE_MIGRATIONS: ReadonlyArray<SqliteMigration> = [
         version: 4,
         name: "mutation_approvals_table_and_event_type",
         up: migrateV4MutationApprovals,
+    },
+    {
+        version: 5,
+        name: "audit_log_event_type_parity_cost_cap",
+        up: rebuildAuditLogEventTypeParityV5,
     },
 ];
 
