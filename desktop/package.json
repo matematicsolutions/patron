@@ -36,8 +36,10 @@
     "win": {
       "target": "nsis",
       "icon": "assets/icon.ico",
-      "signingHashAlgorithms": [],
-      "sign": null
+      "signtoolOptions": {
+        "signingHashAlgorithms": [],
+        "sign": null
+      }
     },
     "publish": [
       {
@@ -60,15 +62,23 @@
         "to": "backend"
       },
       {
+        "from": "dist-resources/backend/node_modules",
+        "to": "backend/node_modules"
+      },
+      {
         "from": "dist-resources/frontend",
         "to": "frontend"
+      },
+      {
+        "from": "dist-resources/frontend/node_modules",
+        "to": "frontend/node_modules"
       }
     ]
   },
   "devDependencies": {
-    "@electron/rebuild": "^3.7.0",
+    "@electron/rebuild": "^4.2.0",
     "electron": "^35.0.0",
-    "electron-builder": "^25.0.0"
+    "electron-builder": "^26.15.3"
   },
   "dependencies": {
     "electron-updater": "^6.3.9"

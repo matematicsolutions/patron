@@ -75,6 +75,24 @@ async function main() {
         );
         process.exit(2);
     }
+    // Kompletnosc paczki PRZED startem: electron-builder 26 wycina katalog
+    // node_modules z korzenia kazdego matchera extraResources (v25 tego nie
+    // robil) - build konczy sie sukcesem, a spakowany backend/frontend nie ma
+    // zaleznosci i apka pada na starcie (zmierzone 2026-08-18 przy bumpie 25->26).
+    // Osobne wpisy extraResources dla node_modules w package.json to obejscie;
+    // ta asercja pilnuje, zeby regresja nie wrocila cicho.
+    const RESOURCES = path.join(DESKTOP, "dist", "win-unpacked", "resources");
+    for (const rel of ["backend/node_modules", "frontend/node_modules"]) {
+        const dir = path.join(RESOURCES, rel);
+        const n = fs.existsSync(dir) ? fs.readdirSync(dir).length : 0;
+        if (n === 0) {
+            console.error(
+                `Paczka NIEKOMPLETNA: resources/${rel} pusty lub brak (extraResources ` +
+                    "nie skopiowal node_modules - patrz komentarz w e2e-smoke.cjs).",
+            );
+            process.exit(2);
+        }
+    }
     if ((await portInUse(BACKEND_PORT)) || (await portInUse(FRONTEND_PORT))) {
         console.error(
             `Port ${BACKEND_PORT} lub ${FRONTEND_PORT} zajety - dziala inny PATRON? ` +

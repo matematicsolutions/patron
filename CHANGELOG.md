@@ -33,6 +33,22 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
   SQLite; `scripts/adr_number_gate.py` (w `publication-gate.yml`) pada na duplikacie
   prefiksu numeru ADR/migracji albo nie podbitym rejestrze wolnych numerow.
 
+### Security
+- **Toolchain desktop: `electron-builder` 25 -> 26.15.3, `@electron/rebuild` 3 -> 4.2, `npm audit fix`
+  runtime (`js-yaml` w `electron-updater`)** - `npm audit` w `desktop/`: 19 podatnosci (18 high,
+  1 critical `tar` w lancuchu buildu) -> 2 high, obie = Electron 35 (bump do 43 = osobna decyzja,
+  nie na tydzien przed demo); runtime (`--omit=dev`) = 0. `electron-updater` 6.8.9 juz uzywal
+  `builder-util-runtime` 9.7.0 (naprawionego) - podatna 9.2.x siedziala tylko pod
+  electron-builder 25 (build-time). Konfiguracja: `win.sign`/`signingHashAlgorithms` przeniesione
+  pod `win.signtoolOptions` (schemat v26).
+  **Regresja v26 zlapana przez e2e, nie przez build:** `electron-builder` 26 bezwarunkowo wycina
+  katalog `node_modules` z korzenia kazdego matchera `extraResources` (v25 tego nie robil) -
+  spakowany backend i frontend (Next standalone) traca zaleznosci, `build:dir` konczy sie
+  sukcesem, apka pada na starcie (`Cannot find module 'dotenv/config'`). Obejscie: osobne wpisy
+  `extraResources` dla `backend/node_modules` i `frontend/node_modules`; `e2e:smoke` dostal
+  asercje kompletnosci paczki PRZED startem (pusty `resources/*/node_modules` = exit 2 z nazwa
+  przyczyny, nie timeout).
+
 ### Fixed
 - **`cost_cap` wypadal z whitelist `event_type` na bazach MIGROWANYCH** - test parytetu
   wykryl (audyt 25 wymiarow 2026-08-18 mial to jako *Suspected*): `cost_cap` (ADR-0093,
