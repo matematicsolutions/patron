@@ -61,6 +61,13 @@ jobs:
       - name: TypeScript check
         run: npx tsc --noEmit
 
+      # Do 2026-08-21 lint nie byl bramka: zaden workflow go nie wolal, mimo ze
+      # AGENTS.md wymaga "no `any` in new code". Efekt: 39 bledow narosla po cichu.
+      # Regula bez bramki nie trzyma. Failuje na BLEDACH; ostrzezenia (w tym
+      # zdegradowane reguly react-hooks, patrz eslint.config.mjs) przechodza.
+      - name: ESLint (bez bledow)
+        run: npx eslint .
+
       - name: Vitest (spec 012)
         run: npm test
 
