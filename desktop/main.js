@@ -704,10 +704,15 @@ app.whenReady().then(async () => {
     setupAutoUpdate();
   } catch (err) {
     console.error('[PATRON] Boot error:', err.message);
-    splash.close();
 
-    // Pokaż błąd w oknie
-    const errWin = new BrowserWindow({ width: 500, height: 300, backgroundColor: '#0e1825' });
+    // KOLEJNOSC MA ZNACZENIE. Okno bledu powstaje PRZED zamknieciem splashu.
+    // Odwrotnie (splash.close() -> new BrowserWindow) miedzy jednym a drugim nie
+    // ma ZADNEGO okna, wiec Electron odpala 'window-all-closed' i konczy proces,
+    // zanim komunikat zdazy sie pokazac. Zmierzone 2026-08-21 na spakowanej
+    // paczce: przy obcym backendzie na 3001 aplikacja znikala bez slowa.
+    // W produkcie, ktorego teza brzmi "nie milcz", cicha smierc przy starcie
+    // jest najgorszym mozliwym zachowaniem.
+    const errWin = new BrowserWindow({ width: 560, height: 320, backgroundColor: '#0e1825' });
     errWin.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(`
       <body style="background:#0e1825;color:#ffb4ab;font-family:monospace;padding:32px">
         <h2 style="color:#c9a55a;margin-bottom:16px">PATRON — błąd uruchomienia</h2>
@@ -718,6 +723,7 @@ app.whenReady().then(async () => {
         <p style="margin-top:12px;font-size:10px;opacity:0.35">Instrukcja &bdquo;npm run build&rdquo; zostala stad usunieta - u odbiorcy nie jest wykonalna.</p>
       </body>
     `)}`);
+    splash.close();
   }
 });
 
