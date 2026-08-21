@@ -100,6 +100,24 @@ kosc sloniowa, nie biel; promienie `0.625rem` -> `0.375rem`; ruch bez odbicia
 - Przy okazji zamkniety realny wyciek: `global-error.tsx` ciagnal krój z zewnetrznego CDN
   **w runtime**, w produkcie zero-cloud, na ekranie awarii.
 
+**Ustalenie z 2026-08-21 po wdrozeniu: tryb ciemny jest NIEOSIAGALNY**
+
+Pomiar po zmianie palety: klasa `.dark` **nie jest w tym repo nigdzie zakladana** — nie ma
+przelacznika motywu ani detekcji `prefers-color-scheme`. Niezaleznie od tego przemapowanie
+skali neutralnej w `@theme` jest **statyczne**, wiec nie reaguje na motyw, a kolory sa wpisane
+na sztywno w komponentach: `bg-white` w 68 plikach, `bg-gray-50/100` w 70, `border-gray-200`
+w 57, `text-gray-900` w 49.
+
+Wniosek: punkt 4 tej decyzji (cieply grafit zamiast domyslki shadcn) jest **poprawny, ale
+martwy** dopoki nie zrobi sie dwoch rzeczy — przelacznika motywu i migracji kolorow wpisanych
+na sztywno na tokeny semantyczne (`bg-card`, `bg-muted`, `text-foreground`, `border-border`).
+To ~100 plikow pracy mechanicznej, ktorej **nie wolno robic bez weryfikacji wizualnej**.
+
+Do rozstrzygniecia przez WM: albo tryb ciemny wypada z zakresu przed demo (rekomendacja —
+nie jest do demo potrzebny), albo dostaje wlasna fale z weryfikacja na ekranie. Zapisane
+tutaj, zeby "tryb ciemny zrobiony" nie stalo sie w tym projekcie zdaniem prawdziwym o
+tokenach i falszywym o produkcie.
+
 **Koszty i ryzyka**
 
 - Zmiana kroju dotyka kazdego ekranu. Bramki maszynowe (tsc, build, 50/50 testow) nie mowia,
