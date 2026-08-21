@@ -3,10 +3,15 @@
 //
 // Regula bez bramki nie trzyma: proporcja wpisana raz w piksele wykrusza sie
 // przy pierwszym "tylko troche szerzej". Dlatego podzial zyje w TOKENACH
-// (--gold-major / --gold-minor dla pionu, --rail / --rail-gap dla trzeciej
-// strefy), a ten test pilnuje dwoch rzeczy naraz: ze tokeny sa zlote
-// arytmetycznie ORAZ ze komponenty ukladu biora szerokosc z nich, a nie
-// z reki.
+// (--gold-major / --gold-minor dla pionu, --rail-ratio dla trzeciej strefy),
+// a ten test pilnuje, ze tokeny sa zlote arytmetycznie ORAZ ze komponenty
+// ukladu biora z nich szerokosc, a nie z reki.
+//
+// Lekcja z pomiaru na zywo (2026-08-21): pierwsza wersja miala rail o stalej
+// szerokosci 25,5rem i bylo to ZLE - φ wychodzilo tylko przy jednej szerokosci
+// okna, a przy 1280 px stosunek spadal do 1,29. Dlatego niezmiennikiem jest
+// UDZIAL, nie liczba, a test pilnuje takze tego, ze nikt nie wroci do wartosci
+// stalej.
 
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
@@ -43,43 +48,51 @@ describe("zloty podzial jako token, nie jako pamiec projektanta", () => {
         expect(minor).toBeLessThan(major);
     });
 
-    it("margines dowodu dzieli szerokosc w proporcji phi (rynna poza podzialem)", () => {
-        // Kontener roboczy przy xl: max-w-6xl (72rem) minus padding 2x2rem.
-        const inner = 72 - 4; // rem
-        const gap = parseFloat(token("rail-gap"));
-        const rail = parseFloat(token("rail"));
-        const text = inner - gap - rail;
-        // Rynna nie nalezy do zadnej kolumny - dzielimy to, co po niej zostaje.
-        expect(text / rail).toBeGreaterThan(1.55);
-        expect(text / rail).toBeLessThan(1.69);
+    it("udzial marginesu dowodu to mniejsza czesc podzialu: 1/(1+φ)", () => {
+        const ratio = Number(token("rail-ratio"));
+        expect(ratio).toBeCloseTo(1 / (1 + PHI), 3);
+        // Rownowazny warunek od drugiej strony - tekst do marginesu ma sie jak φ.
+        expect((1 - ratio) / ratio).toBeCloseTo(PHI, 2);
     });
 
-    it("rezerwa marginesu to margines plus rynna - kolumna tekstu nie skacze", () => {
-        const reserve = token("rail-reserve");
-        expect(reserve).toContain("var(--rail)");
-        expect(reserve).toContain("var(--rail-gap)");
+    it("margines jest UDZIALEM, nie stala szerokoscia", () => {
+        // Wartosc stala daje zloty podzial przy jednej szerokosci okna i psuje
+        // go przy kazdej innej - zmierzone: 1,29 zamiast 1,618 przy 1280 px.
+        expect(CSS).not.toMatch(/--rail:\s*[\d.]+rem/);
+        expect(CSS).not.toMatch(/--rail-reserve:/);
     });
 
-    it("kontrola pozytywna: komponenty faktycznie biora szerokosc z tokenu", () => {
+    it("kontrola pozytywna: komponenty faktycznie licza z tokenu udzialu", () => {
         const uses = tsxFiles(SRC).filter((f) =>
-            readFileSync(f, "utf8").includes("var(--rail)"),
+            readFileSync(f, "utf8").includes("var(--rail-ratio)"),
         );
         // Gdyby ten warunek nie swiecil, test ponizej ("brak sztywnych
         // szerokosci") przechodzilby na slepo - bo skan nie widzialby niczego.
         expect(uses.length).toBeGreaterThan(0);
     });
 
+    it("rynna jest odejmowana PRZED podzialem, nie doliczana do kolumny", () => {
+        // Wzorzec (100% - rynna) * udzial. Policzenie rynny po stronie jednej
+        // z kolumn przesuwa stosunek o kilka procent i cichaczem psuje regule.
+        const uses = tsxFiles(SRC)
+            .map((f) => readFileSync(f, "utf8"))
+            .filter((s) => s.includes("var(--rail-ratio)"));
+        for (const src of uses) {
+            expect(src).toMatch(/100%\s*-\s*[^)]*var\(--rail-gap\)/);
+        }
+    });
+
     it("zadna kolumna ukladu nie ma szerokosci wpisanej z reki", () => {
         // Historyczne wartosci sprzed tokenizacji; kazdy powrot do nich
         // oznacza, ze proporcja znowu zostala ustawiona "na oko".
-        const zakazane = /(?:w|pr)-\[1[789](?:\.\d+)?rem\]/;
+        const zakazane = /(?:w|pr)-\[(?:1[789]|2[0-9])(?:\.\d+)?rem\]/;
         const winne = tsxFiles(SRC).filter((f) =>
             zakazane.test(readFileSync(f, "utf8")),
         );
         expect(
             winne.map((f) => f.replace(SRC, "src")),
-            "Szerokosc kolumny bierz z var(--rail) / var(--rail-reserve), " +
-                "nie z liczby - inaczej zloty podzial rozjedzie sie po pierwszej korekcie.",
+            "Szerokosc kolumny licz z var(--rail-ratio), nie z liczby - " +
+                "inaczej zloty podzial trzyma tylko przy jednej szerokosci okna.",
         ).toEqual([]);
     });
 });
