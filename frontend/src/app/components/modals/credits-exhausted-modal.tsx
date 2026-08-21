@@ -31,7 +31,7 @@ export function CreditsExhaustedModal({
                 <div className="relative bg-white rounded-2xl shadow-2xl p-6">
                     {/* Header */}
                     <div className="flex items-start justify-between mb-4">
-                        <h2 className="text-3xl font-light font-eb-garamond text-gray-900">
+                        <h2 className="text-3xl font-light font-display text-gray-900">
                             {t("modals.limitTitle")}
                         </h2>
                     </div>

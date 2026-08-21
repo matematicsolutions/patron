@@ -115,7 +115,7 @@ export default function SupportPage() {
                 {/* Fixed Header Section */}
                 <div className="flex-shrink-0 pt-6 md:pt-10 pb-0">
                     <div className="mb-5">
-                        <h1 className="text-4xl font-medium font-eb-garamond text-gray-900 mb-3">
+                        <h1 className="text-4xl font-medium font-display text-gray-900 mb-3">
                             {t("support.title")}
                         </h1>
                     </div>

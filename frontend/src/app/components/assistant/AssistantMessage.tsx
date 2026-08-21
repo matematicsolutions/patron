@@ -970,7 +970,7 @@ function MarkdownContent({
     return (
         <div
             ref={divRef}
-            className="text-gray-900 mb-4 text-base prose prose-sm max-w-none font-serif"
+            className="text-gray-900 mb-4 text-base prose prose-sm max-w-none font-text leading-[1.7]"
         >
             <ReactMarkdown
                 remarkPlugins={[

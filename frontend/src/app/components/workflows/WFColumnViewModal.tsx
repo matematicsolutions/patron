@@ -52,7 +52,7 @@ export function WFColumnViewModal({ col, onClose }: Props) {
                     )}
                     <div>
                         <p className="text-sm font-medium text-gray-500 mb-2">{t("workflows.prompt")}</p>
-                        <div className="text-base text-gray-700 leading-relaxed font-serif prose prose-base max-w-none">
+                        <div className="text-base text-gray-700 leading-relaxed font-text prose prose-base max-w-none">
                             <ReactMarkdown remarkPlugins={[remarkGfm]}>{col.prompt || t("workflowColumn.noPromptDefined")}</ReactMarkdown>
                         </div>
                     </div>

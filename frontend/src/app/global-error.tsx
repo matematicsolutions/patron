@@ -17,12 +17,18 @@ export default function GlobalError({
             <head>
                 <title>{t("error.somethingWentWrong")} – Patron</title>
                 <style>{`
-                    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=EB+Garamond:wght@400;500&display=swap');
-                    
+                    /* ZADNEGO @import z sieci. global-error zastepuje root layout,
+                       wiec nie ma tu zmiennych next/font - ale pobieranie kroju z
+                       zewnetrznego CDN bylo realnym wyjsciem na zewnatrz w
+                       produkcie zero-cloud, i to akurat w chwili awarii. Stos
+                       systemowy renderuje sie zawsze i nie wychodzi z maszyny.
+                       Nie wpisuj tu nazwy hosta - trafia do bundla i zapala
+                       falszywy alarm w audycie egress grepem. */
+
                     * { margin: 0; padding: 0; box-sizing: border-box; }
-                    
+
                     body {
-                        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+                        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
                         background-color: #ffffff;
                         color: #111;
                         min-height: 100vh;
@@ -38,7 +44,7 @@ export default function GlobalError({
                     }
 
                     .error-title {
-                        font-family: 'EB Garamond', Georgia, serif;
+                        font-family: 'Bona Nova', Georgia, 'Times New Roman', serif;
                         font-size: 1.75rem;
                         font-weight: 400;
                         color: #111;
@@ -60,12 +66,12 @@ export default function GlobalError({
                         border-radius: 0.5rem;
                         font-size: 0.875rem;
                         font-weight: 500;
-                        font-family: 'Inter', sans-serif;
+                        font-family: inherit;
                         cursor: pointer;
                         transition: all 0.15s ease;
                         text-decoration: none;
                         border: none;
-                        background-color: rgb(0, 136, 255);
+                        background-color: #6B2233;
                         color: white;
                     }
 

@@ -41,7 +41,7 @@ export function DeleteChatsModal({
                                 <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
                                     <Check className="h-8 w-8 text-green-600" />
                                 </div>
-                                <h2 className="text-3xl font-light font-eb-garamond text-gray-900 mb-2">
+                                <h2 className="text-3xl font-light font-display text-gray-900 mb-2">
                                     {t("modals.deletedTitle")}
                                 </h2>
                                 <p className="text-gray-600 text-sm">
@@ -53,7 +53,7 @@ export function DeleteChatsModal({
                         <>
                             {/* Header */}
                             <div className="flex items-center justify-between mb-6">
-                                <h2 className="text-4xl font-light font-eb-garamond text-red-700">
+                                <h2 className="text-4xl font-light font-display text-red-700">
                                     {t("modals.deleteAllTitle")}
                                 </h2>
                             </div>

@@ -65,7 +65,7 @@ function StageBlock({ stage }: { stage: DraftStageResult }) {
                 <span className="flex-1 truncate">{stageLabel(stage)}</span>
             </button>
             {open && (
-                <div className="border-t border-gray-200 px-4 py-3 text-sm font-serif text-gray-700 prose prose-sm max-w-none">
+                <div className="border-t border-gray-200 px-4 py-3 text-sm font-text text-gray-700 prose prose-sm max-w-none">
                     <ReactMarkdown
                         remarkPlugins={[remarkGfm]}
                         components={mdComponents}
@@ -271,7 +271,7 @@ export function DraftRefinePanel({ open, onClose, initialText }: Props) {
                                             : t("draft.copy")}
                                     </button>
                                 </div>
-                                <div className="rounded-md border border-gray-200 bg-white px-4 py-3 text-sm font-serif text-gray-800 prose prose-sm max-w-none">
+                                <div className="rounded-md border border-gray-200 bg-white px-4 py-3 text-sm font-text text-gray-800 prose prose-sm max-w-none">
                                     <ReactMarkdown
                                         remarkPlugins={[remarkGfm]}
                                         components={mdComponents}

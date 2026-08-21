@@ -1,17 +1,43 @@
 import type { Metadata } from "next";
-import { Inter, EB_Garamond } from "next/font/google";
+import { Lato, Bona_Nova, Brygada_1918 } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 
-const inter = Inter({
-    variable: "--font-inter",
-    subsets: ["latin"],
+/* Kroje Patrona. Wszystkie na SIL OFL 1.1, wszystkie pobierane przez
+   next/font przy buildzie i serwowane z wlasnego origin - zero zapytan
+   do Google w runtime, zgodnie z obietnica zero-cloud.
+
+   subsets zawiera "latin-ext" swiadomie. UWAGA na czesta pomylke: ta opcja
+   NIE decyduje o tym, ktore @font-face trafiaja do CSS - Google zwraca
+   wszystkie subsety zawsze (zmierzone 2026-08-21: css2?...&subset=latin
+   oddaje latin-ext, cyrillic, greek i vietnamese tak samo jak bez tego
+   parametru). Decyduje o PRELOADZIE. Bez latin-ext polskie a-ogonek,
+   e-ogonek i l-kreska renderowaly sie poprawnie, ale dopiero po
+   doladowaniu drugiego pliku - czyli z migniecien fontu zastepczego
+   na tekscie, ktory w PL UI jest wszedzie. Dla de/fr/it/es/pt to bez
+   znaczenia (te znaki sa w "latin"); dla pl i vi ma znaczenie. */
+
+const lato = Lato({
+    variable: "--font-lato",
+    subsets: ["latin", "latin-ext"],
+    weight: ["400", "700"],
+    display: "swap",
 });
 
-const ebGaramond = EB_Garamond({
-    variable: "--font-eb-garamond",
-    subsets: ["latin"],
-    weight: ["400", "500", "600", "700"],
+const bonaNova = Bona_Nova({
+    variable: "--font-bona-nova",
+    subsets: ["latin", "latin-ext"],
+    weight: ["400", "700"],
+    style: ["normal", "italic"],
+    display: "swap",
+});
+
+const brygada = Brygada_1918({
+    variable: "--font-brygada",
+    subsets: ["latin", "latin-ext"],
+    weight: ["400", "600"],
+    style: ["normal", "italic"],
+    display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -59,7 +85,7 @@ export default function RootLayout({
     return (
         <html lang="pl">
             <body
-                className={`${inter.variable} ${ebGaramond.variable} font-sans antialiased`}
+                className={`${lato.variable} ${bonaNova.variable} ${brygada.variable} font-sans antialiased`}
             >
                 <Providers>{children}</Providers>
             </body>

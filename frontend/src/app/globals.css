@@ -8,8 +8,9 @@
     --color-foreground: var(--foreground);
     --color-bordeaux: var(--bordeaux);
     --color-parchment: var(--parchment);
-    --font-sans: var(--font-inter);
-    --font-serif: var(--font-eb-garamond);
+    --font-sans: var(--font-lato);
+    --font-serif: var(--font-bona-nova);
+    --font-text: var(--font-brygada);
     --color-blue: rgb(0, 136, 255);
     --color-blue-50: rgba(0, 136, 255, 0.05);
     --color-blue-100: rgba(0, 136, 255, 0.1);
@@ -60,7 +61,7 @@
    To jeden punkt prawdy dla spojnosci; pelna odwracalnosc. */
 @theme {
     --color-white: oklch(0.995 0.004 84);
-    --color-black: oklch(0.295 0.055 28);
+    --color-black: oklch(0.185 0.016 50);
     --color-gray-50: oklch(0.984 0.008 83);
     --color-gray-100: oklch(0.966 0.010 82);
     --color-gray-200: oklch(0.922 0.012 80);
@@ -68,29 +69,28 @@
     --color-gray-400: oklch(0.715 0.018 68);
     --color-gray-500: oklch(0.578 0.020 60);
     --color-gray-600: oklch(0.475 0.021 55);
-    --color-gray-700: oklch(0.405 0.05 32);
-    --color-gray-800: oklch(0.355 0.062 30);
-    --color-gray-900: oklch(0.325 0.066 30);
-    --color-gray-950: oklch(0.255 0.058 28);
+    --color-gray-700: oklch(0.390 0.022 55);
+    --color-gray-800: oklch(0.318 0.021 55);
+    --color-gray-900: oklch(0.255 0.020 55);
+    --color-gray-950: oklch(0.200 0.018 52);
     --color-slate-50: oklch(0.984 0.008 83);
     --color-slate-100: oklch(0.966 0.010 82);
     --color-slate-200: oklch(0.922 0.012 80);
-    --color-slate-700: oklch(0.405 0.05 32);
-    --color-slate-800: oklch(0.355 0.062 30);
-    --color-slate-900: oklch(0.325 0.066 30);
+    --color-slate-700: oklch(0.390 0.022 55);
+    --color-slate-800: oklch(0.318 0.021 55);
+    --color-slate-900: oklch(0.255 0.020 55);
     --color-neutral-50: oklch(0.984 0.008 83);
     --color-neutral-100: oklch(0.966 0.010 82);
     --color-neutral-200: oklch(0.922 0.012 80);
-    --color-neutral-900: oklch(0.325 0.066 30);
+    --color-neutral-900: oklch(0.255 0.020 55);
     --color-zinc-50: oklch(0.984 0.008 83);
     --color-zinc-100: oklch(0.966 0.010 82);
     --color-zinc-200: oklch(0.922 0.012 80);
-    --color-zinc-900: oklch(0.325 0.066 30);
+    --color-zinc-900: oklch(0.255 0.020 55);
 }
 
 :root {
-    --radius: 0.625rem;
-    --color-azure: 0, 136, 255;
+    --radius: 0.375rem;
     /* Paleta "pergamin": bardzo delikatne cieple tlo (kremowy papier), inkaust
        w cieplym braz zamiast czerni, akcent bordo na naglowkach serif. Chroma
        trzymana nisko - elegancja, nie krzyk. Hue ~80 (cieply) dla powierzchni,
@@ -98,11 +98,11 @@
     --parchment: oklch(0.983 0.008 84);
     --bordeaux: oklch(0.40 0.10 25);
     --background: oklch(0.985 0.008 84);
-    --foreground: oklch(0.325 0.066 30);
+    --foreground: oklch(0.255 0.020 55);
     --card: oklch(0.995 0.004 84);
-    --card-foreground: oklch(0.325 0.066 30);
+    --card-foreground: oklch(0.255 0.020 55);
     --popover: oklch(0.996 0.004 84);
-    --popover-foreground: oklch(0.325 0.066 30);
+    --popover-foreground: oklch(0.255 0.020 55);
     --primary: oklch(0.305 0.027 46);
     --primary-foreground: oklch(0.986 0.006 84);
     --secondary: oklch(0.958 0.009 82);
@@ -121,47 +121,72 @@
     --chart-4: oklch(0.828 0.189 84.429);
     --chart-5: oklch(0.769 0.188 70.08);
     --sidebar: oklch(0.971 0.01 82);
-    --sidebar-foreground: oklch(0.325 0.066 30);
+    --sidebar-foreground: oklch(0.255 0.020 55);
     --sidebar-primary: oklch(0.305 0.027 46);
     --sidebar-primary-foreground: oklch(0.986 0.006 84);
     --sidebar-accent: oklch(0.949 0.014 70);
     --sidebar-accent-foreground: oklch(0.305 0.027 46);
     --sidebar-border: oklch(0.904 0.012 78);
     --sidebar-ring: oklch(0.62 0.052 30);
+
+    /* Trojstan groundingu cytatu (ADR-0146). Zolty NIE jest ostrzezeniem
+       o bledzie - znaczy "nie potwierdzam", czyli brak tekstu zrodlowego.
+       Nigdy nie awansuje na zielony. */
+    --grounded: oklch(0.48 0.08 155);
+    --grounded-soft: oklch(0.94 0.02 155);
+    --unverified: oklch(0.62 0.10 75);
+    --unverified-soft: oklch(0.95 0.03 85);
+    --ungrounded: oklch(0.50 0.15 25);
+    --ungrounded-soft: oklch(0.95 0.03 25);
 }
 
+/* Tryb ciemny: cieply grafit, nie szarosc z pudelka. Do tej pory .dark
+   bylo domyslka shadcn (chroma 0) - w dzien produkt byl pergaminowy,
+   wieczorem stawal sie innym produktem. Hue trzymany na ~55-60 jak
+   w skali jasnej; inkaust to kosc sloniowa, nie biel. */
 .dark {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.922 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
-    --chart-1: oklch(0.488 0.243 264.376);
-    --chart-2: oklch(0.696 0.17 162.48);
-    --chart-3: oklch(0.769 0.188 70.08);
-    --chart-4: oklch(0.627 0.265 303.9);
-    --chart-5: oklch(0.645 0.246 16.439);
-    --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.269 0 0);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.556 0 0);
+    --parchment: oklch(0.225 0.010 58);
+    --bordeaux: oklch(0.68 0.10 25);
+    --background: oklch(0.185 0.008 58);
+    --foreground: oklch(0.925 0.008 85);
+    --card: oklch(0.225 0.009 58);
+    --card-foreground: oklch(0.925 0.008 85);
+    --popover: oklch(0.235 0.009 58);
+    --popover-foreground: oklch(0.925 0.008 85);
+    --primary: oklch(0.905 0.010 82);
+    --primary-foreground: oklch(0.205 0.012 55);
+    --secondary: oklch(0.272 0.010 58);
+    --secondary-foreground: oklch(0.925 0.008 85);
+    --muted: oklch(0.272 0.010 58);
+    --muted-foreground: oklch(0.685 0.014 62);
+    --accent: oklch(0.292 0.014 50);
+    --accent-foreground: oklch(0.925 0.008 85);
+    --destructive: oklch(0.62 0.16 25);
+    --border: oklch(0.925 0.008 85 / 12%);
+    --input: oklch(0.925 0.008 85 / 16%);
+    --ring: oklch(0.62 0.075 28);
+    --chart-1: oklch(0.68 0.10 25);
+    --chart-2: oklch(0.66 0.08 155);
+    --chart-3: oklch(0.72 0.09 75);
+    --chart-4: oklch(0.60 0.07 250);
+    --chart-5: oklch(0.70 0.06 40);
+    --sidebar: oklch(0.205 0.009 58);
+    --sidebar-foreground: oklch(0.925 0.008 85);
+    --sidebar-primary: oklch(0.68 0.10 25);
+    --sidebar-primary-foreground: oklch(0.185 0.008 58);
+    --sidebar-accent: oklch(0.272 0.012 52);
+    --sidebar-accent-foreground: oklch(0.925 0.008 85);
+    --sidebar-border: oklch(0.925 0.008 85 / 12%);
+    --sidebar-ring: oklch(0.62 0.075 28);
+
+    /* Trojstan po ciemnej stronie: te same role, podniesiona jasnosc,
+       zeby kontrast na grafitowym tle zostal czytelny. */
+    --grounded: oklch(0.72 0.10 155);
+    --grounded-soft: oklch(0.30 0.04 155);
+    --unverified: oklch(0.80 0.11 80);
+    --unverified-soft: oklch(0.32 0.05 80);
+    --ungrounded: oklch(0.72 0.13 25);
+    --ungrounded-soft: oklch(0.32 0.06 25);
 }
 
 @layer base {
@@ -183,7 +208,7 @@
         button:not(:disabled),
         [role="button"]:not([aria-disabled="true"]) {
             transition:
-                transform 0.14s cubic-bezier(0.34, 1.56, 0.64, 1),
+                transform 0.12s cubic-bezier(0.2, 0, 0, 1),
                 background-color 0.15s ease,
                 color 0.15s ease,
                 border-color 0.15s ease,
@@ -191,7 +216,7 @@
         }
         button:not(:disabled):active,
         [role="button"]:not([aria-disabled="true"]):active {
-            transform: scale(0.97);
+            transform: scale(0.985);
         }
     }
 }
@@ -216,153 +241,11 @@
     background-position: center;
 }
 
-.usc-section {
-    font-family: var(--font-serif);
-    line-height: 1.6;
-}
-
-.usc-section h1,
-.usc-section h2,
-.usc-section h3,
-.usc-section h4,
-.usc-section h5,
-.usc-section h6 {
-    font-family: var(--font-serif);
-    font-weight: 600;
-    margin-top: 1.5em;
-    margin-bottom: 0.5em;
-    line-height: 1.2;
-}
-
-.usc-section h1 {
-    font-size: 1.5em;
-}
-
-.usc-section h2 {
-    font-size: 1.25em;
-}
-
-.usc-section h3 {
-    font-size: 1.125em;
-}
-
-.usc-section p {
-    margin-bottom: 1em;
-}
-
-/* Inline cross-reference links within section text */
-.usc-xref,
-.usc-section a {
-    color: rgb(var(--color-azure));
-    text-decoration: none;
-    border-bottom: 1px dotted rgba(var(--color-azure), 0.4);
-    transition: border-bottom-color 0.2s;
-}
-
-.usc-xref:hover,
-.usc-section a:hover {
-    border-bottom-color: rgb(var(--color-azure));
-}
-
-/* Remove automatic list styling for USC section content */
-/* The labels are already embedded in the HTML content */
-.usc-section ol,
-.usc-section ul {
-    list-style: none !important;
-    padding-left: 0 !important;
-    margin: 0;
-}
-
-.usc-section li {
-    margin-bottom: 0.125em;
-    text-indent: -1.25em;
-    padding-left: 1.25em;
-}
-
-/* Add indentation for nested lists */
-.usc-section ol ol,
-.usc-section ol ul,
-.usc-section ul ol {
-    padding-left: 0.75em !important;
-    margin-top: 0;
-}
-
-/* ─── CFR (Code of Federal Regulations) ────────────────────────── */
-.cfr-section {
-    font-family: var(--font-serif);
-    line-height: 1.6;
-}
-
-.cfr-section h1,
-.cfr-section h2,
-.cfr-section h3,
-.cfr-section h4,
-.cfr-section h5,
-.cfr-section h6 {
-    font-family: var(--font-serif);
-    font-weight: 600;
-    margin-top: 1.5em;
-    margin-bottom: 0.5em;
-    line-height: 1.2;
-}
-
-.cfr-section h1 {
-    font-size: 1.5em;
-}
-.cfr-section h2 {
-    font-size: 1.25em;
-}
-.cfr-section h3 {
-    font-size: 1.125em;
-}
-
-.cfr-section p {
-    margin-bottom: 0.75em;
-}
-
-.cfr-section a {
-    color: rgb(var(--color-azure));
-    text-decoration: none;
-    border-bottom: 1px dotted rgba(var(--color-azure), 0.4);
-    transition: border-bottom-color 0.2s;
-}
-
-.cfr-section a:hover {
-    border-bottom-color: rgb(var(--color-azure));
-}
-
-.cfr-section table {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 1em 0;
-    font-size: 0.875em;
-}
-
-.cfr-section th,
-.cfr-section td {
-    border: 1px solid #e2e8f0;
-    padding: 0.5em 0.75em;
-    text-align: left;
-}
-
-.cfr-section th {
-    background: #f8fafc;
-    font-weight: 600;
-}
-
-.cfr-section .authority-section,
-.cfr-section .source-section {
-    font-size: 0.875em;
-    color: #64748b;
-    margin: 1em 0;
-    padding: 0.75em;
-    border-left: 3px solid #e2e8f0;
-}
-
 @layer utilities {
-    .font-eb-garamond {
-        font-family: var(--font-eb-garamond);
+    .font-display {
+        font-family: var(--font-bona-nova);
     }
+
 
     .sidebar-fade-in {
         animation: sidebarFadeIn 0.3s ease-out forwards;
