@@ -1,6 +1,6 @@
 # ADR-0148 — Sprawy i Warsztat: jeden korzen nawigacji i granica poufnosci widoczna w UI
 
-- **Status:** Zaproponowany (do decyzji WM — zmienia slownik produktu)
+- **Status:** Zaakceptowany (WM 2026-08-21, "dokoncz cala planowana architekture"; fala slownikowa PL+EN wdrozona w `db65017` - nav.assistant=Warsztat, nav.projects=Sprawy; pozostale jezyki i polityka egress per zakres = otwarte)
 - **Data:** 2026-08-21
 - **Galaz:** `feat/design-system-2-0` (dokument; kod bez zmian)
 - **Zrodlo:** przeglad architektury informacji 2026-08-21 + korekta WM (mecenas uzywa Patrona
