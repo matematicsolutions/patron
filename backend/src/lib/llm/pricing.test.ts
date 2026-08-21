@@ -39,8 +39,17 @@ describe("pricing.resolveCost", () => {
         expect(r.costUsd).toBeCloseTo(0.2, 6);
     });
 
-    it("brakujace tokeny traktowane jak 0", () => {
+    it("brak licznikow tokenow = NIEROZLICZONE, nie zero", () => {
+        // Odwrocenie decyzji 2026-08-21. Poprzednio "brakujace tokeny traktowane
+        // jak 0" - przez co panel kosztu po 5 realnych wywolaniach Gemini pokazywal
+        // "0,00 USD / 0 nierozliczonych", czyli brak pomiaru udawal darmowosc.
         const r = resolveCost("claude-opus-4-7", null, undefined, null);
+        expect(r.costUsd).toBeNull();
+        expect(r.unpriced).toBe(true);
+    });
+
+    it("zero tokenow to nadal koszt 0, a nie brak pomiaru", () => {
+        const r = resolveCost("claude-opus-4-7", 0, 0, null);
         expect(r.costUsd).toBe(0);
         expect(r.unpriced).toBe(false);
     });
