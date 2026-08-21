@@ -100,25 +100,30 @@ kosc sloniowa, nie biel; promienie `0.625rem` -> `0.375rem`; ruch bez odbicia
 - Przy okazji zamkniety realny wyciek: `global-error.tsx` ciagnal krój z zewnetrznego CDN
   **w runtime**, w produkcie zero-cloud, na ekranie awarii.
 
-**Ustalenie z 2026-08-21 po wdrozeniu: tryb ciemny jest NIEOSIAGALNY**
+**Ustalenie z 2026-08-21 (po wdrozeniu) i jego ROZWIAZANIE tego samego dnia**
 
-Pomiar po zmianie palety: klasa `.dark` **nie jest w tym repo nigdzie zakladana** — nie ma
-przelacznika motywu ani detekcji `prefers-color-scheme`. Niezaleznie od tego przemapowanie
-skali neutralnej w `@theme` jest **statyczne**, wiec nie reaguje na motyw, a kolory sa wpisane
-na sztywno w komponentach: `bg-white` w 68 plikach, `bg-gray-50/100` w 70, `border-gray-200`
-w 57, `text-gray-900` w 49.
+Pomiar po zmianie palety pokazal, ze punkt 4 tej decyzji byl **poprawny, ale martwy**:
+klasa `.dark` nie byla w repo nigdzie zakladana (brak przelacznika), przemapowanie skali
+neutralnej w `@theme` bylo statyczne, a kolory siedzialy na sztywno w komponentach
+(`bg-white` w 68 plikach, `bg-gray-50/100` w 70, `border-gray-200` w 57).
 
-Wniosek: punkt 4 tej decyzji (cieply grafit zamiast domyslki shadcn) jest **poprawny, ale
-martwy** dopoki nie zrobi sie dwoch rzeczy — przelacznika motywu i migracji kolorow wpisanych
-na sztywno na tokeny semantyczne (`bg-card`, `bg-muted`, `text-foreground`, `border-border`).
-To ~100 plikow pracy mechanicznej, ktorej **nie wolno robic bez weryfikacji wizualnej**.
+Rekomendowalem wtedy wypisanie trybu ciemnego z zakresu przed demo, szacujac koszt na
+migracje ~250 klas, ktorej nie wolno robic bez weryfikacji wizualnej.
 
-Do rozstrzygniecia przez WM: albo tryb ciemny wypada z zakresu przed demo (rekomendacja —
-nie jest do demo potrzebny), albo dostaje wlasna fale z weryfikacja na ekranie. Zapisane
-tutaj, zeby "tryb ciemny zrobiony" nie stalo sie w tym projekcie zdaniem prawdziwym o
-tokenach i falszywym o produkcie.
+**To oszacowanie bylo bledne** i zostalo obalone tego samego dnia. Zamiast migrowac klasy,
+cala skala neutralna zostala przekierowana na zmienne `--n-*` przelaczajace sie z motywem
+(`@theme inline`; bez `inline` Tailwind rozwiazuje wartosci statycznie i przelaczanie
+przestaje dzialac). Kazde istniejace `bg-white` dziala wieczorem bez tykania komponentow.
+Doszedl przelacznik system/jasny/ciemny z ustawieniem motywu przed pierwszym malowaniem.
 
-**Koszty i ryzyka**
+Cena tego rozwiazania jest jedna i trzeba ja znac: **odcien bez mapowania po cichu spada
+na domyslna palete Tailwinda**, zaprojektowana pod jasne tlo. Zdarzylo sie od razu -
+`text-stone-800` dal w trybie ciemnym kontrast 1.57 przy braku jakiegokolwiek bledu.
+Dlatego mapowane sa pelne rampy 5 rodzin x 11 odcieni, a bramka `theme-coverage.test.ts`
+czyta zrodla komponentow i wywala sie na kazdym nieobslugonym odcieniu. Audyt kontrastu
+na zywo: 6 kategorii ponizej progu 3.2 przed poprawka, 0 po.
+
+**Koszty i ryzyka****Koszty i ryzyka**
 
 - Zmiana kroju dotyka kazdego ekranu. Bramki maszynowe (tsc, build, 50/50 testow) nie mowia,
   ze **wyglada** dobrze — weryfikacja wizualna w dzialajacej aplikacji jest warunkiem wydania
