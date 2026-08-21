@@ -194,7 +194,9 @@ export function TRSidePanel({
                                         ref={quoteParagraphRef}
                                         className={`flex-1 text-sm text-gray-600 ${quoteExpanded ? "" : "truncate"}`}
                                     >
-                                        "{docCitation.quote}"
+                                        {'"'}
+                                        {docCitation.quote}
+                                        {'"'}
                                     </p>
                                     {(isTruncated || quoteExpanded) && (
                                         <ChevronDown

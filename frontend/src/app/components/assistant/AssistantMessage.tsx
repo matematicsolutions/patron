@@ -535,7 +535,7 @@ function DocFindBlock({
             <div className="ml-2 min-w-0 flex-1 whitespace-normal break-words">
                 <span className="font-medium">{label}</span>{" "}
                 <span>
-                    „{query}"{matchSuffix}
+                    „{query}”{matchSuffix}
                     <span className="ml-1 text-gray-400">w {filename}</span>
                     {isStreaming && "..."}
                 </span>
@@ -1034,7 +1034,8 @@ function MarkdownContent({
                         />
                     ),
                     p: ({ node, ...props }) => {
-                        const parent = (node as any)?.parent;
+                        const parent = (node as { parent?: { type?: string } } | undefined)
+                            ?.parent;
                         if (parent?.type === "listItem") {
                             return (
                                 <p

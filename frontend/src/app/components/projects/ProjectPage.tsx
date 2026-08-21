@@ -40,6 +40,7 @@ import {
     type PATRONDocumentVersion,
 } from "@/app/lib/patronApi";
 import type {
+    ColumnConfig,
     PATRONDocument,
     PATRONFolder,
     PATRONProject,
@@ -549,7 +550,7 @@ export function ProjectPage({ projectId, initialTab = "documents" }: Props) {
         title: string,
         _projectId?: string,
         documentIds?: string[],
-        columnsConfig?: any,
+        columnsConfig?: ColumnConfig[] | null,
     ) {
         setCreatingReview(true);
         try {

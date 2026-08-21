@@ -502,8 +502,8 @@ export function ChatView({
                                         {msg.role === "user" ? (
                                             <UserMessage
                                                 content={msg.content ?? ""}
-                                                files={(msg as any).files}
-                                                workflow={(msg as any).workflow}
+                                                files={msg.files}
+                                                workflow={msg.workflow}
                                             />
                                         ) : (
                                             <AssistantMessage
@@ -513,13 +513,8 @@ export function ChatView({
                                                     i === messages.length - 1 &&
                                                     isResponseLoading
                                                 }
-                                                isError={!!(msg as any).error}
-                                                errorMessage={
-                                                    typeof (msg as any).error ===
-                                                    "string"
-                                                        ? (msg as any).error
-                                                        : undefined
-                                                }
+                                                isError={!!msg.error}
+                                                errorMessage={msg.error}
                                                 annotations={msg.annotations}
                                                 mcpCitations={msg.mcpCitations}
                                                 mcpGrounding={msg.mcpGrounding}
