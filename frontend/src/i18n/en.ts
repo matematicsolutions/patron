@@ -818,4 +818,10 @@ export const en: DictShape<typeof pl> = {
         decisions24h: "decisions / 24 h",
         blocked: "blocked",
     },
+    theme: {
+        label: "Theme",
+        system: "System",
+        light: "Light",
+        dark: "Dark",
+    },
 } as const;

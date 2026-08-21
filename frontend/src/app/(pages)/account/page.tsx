@@ -9,6 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useUserProfile } from "@/contexts/UserProfileContext";
 import { deleteAccount } from "@/app/lib/patronApi";
 import { t } from "@/i18n";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export default function AccountPage() {
     const router = useRouter();
@@ -80,6 +81,13 @@ export default function AccountPage() {
 
     return (
         <div className="space-y-4">
+            {/* Motyw. Do 2026-08-21 paleta ciemna istniala w CSS, ale klasa
+                `.dark` nie byla nigdzie zakladana - nie dalo sie jej wlaczyc. */}
+            <div className="flex items-center justify-between border-b border-border pb-4">
+                <span className="text-sm text-gray-600">{t("theme.label")}</span>
+                <ThemeToggle />
+            </div>
+
             {/* Profile Settings */}
             <div className="pb-6">
                 <div className="flex items-center gap-2 mb-4">

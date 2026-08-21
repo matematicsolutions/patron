@@ -818,6 +818,12 @@ export const pt: DictShape<typeof pl> = {
         decisions24h: "decisões / 24 h",
         blocked: "bloqueadas",
     },
+    theme: {
+        label: "Tema",
+        system: "Sistema",
+        light: "Claro",
+        dark: "Escuro",
+    },
 } as const;
 
 // EN -> arquivo separado `en.ts` (ADR-0132). PL continua sendo a fonte das

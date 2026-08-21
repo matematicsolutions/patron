@@ -83,7 +83,20 @@ export default function RootLayout({
     children: React.ReactNode;
 }>) {
     return (
-        <html lang="pl">
+        <html lang="pl" suppressHydrationWarning>
+            <head>
+                {/* Motyw ustawiany PRZED pierwszym malowaniem - inaczej przy
+                    trybie ciemnym mignie biale tlo (FOUC). Skrypt jest maly i
+                    synchroniczny celowo. Brak zapisanego wyboru = motyw systemu. */}
+                <script
+                    dangerouslySetInnerHTML={{
+                        __html:
+                            "(function(){try{var t=localStorage.getItem('patron-theme');" +
+                            "var d=t?t==='dark':window.matchMedia('(prefers-color-scheme: dark)').matches;" +
+                            "if(d)document.documentElement.classList.add('dark');}catch(e){}})()",
+                    }}
+                />
+            </head>
             <body
                 className={`${lato.variable} ${bonaNova.variable} ${brygada.variable} font-sans antialiased`}
             >

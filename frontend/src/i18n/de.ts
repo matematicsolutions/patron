@@ -799,4 +799,10 @@ export const de: DictShape<typeof pl> = {
         decisions24h: "Entscheidungen / 24 Std.",
         blocked: "blockiert",
     },
+    theme: {
+        label: "Design",
+        system: "System",
+        light: "Hell",
+        dark: "Dunkel",
+    },
 } as const;

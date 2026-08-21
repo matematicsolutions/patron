@@ -71,45 +71,95 @@
     --radius-xl: calc(var(--radius) + 4px);
 }
 
-/* ─── Przemapowanie skali neutralnej na "pergamin" ──────────────────────
+/* ─── Skala neutralna: pergamin w dzien, cieply grafit wieczorem ────────
    Aplikacja ma kolory wpisane na sztywno (bg-white, bg-gray-*, text-gray-*)
-   w dziesiatkach plikow. Zamiast edytowac kazdy z osobna, ocieplamy CALA
-   skale u zrodla: kazdy bg-white staje sie cieplym papierem, bg-gray-50/100
-   pergaminem, text-gray-700/900 cieplym inkaustem. Chroma trzymana NISKO
-   (0.004-0.022) - ma byc cieplo-neutralnie, nie zolto. Hue ~50-84.
-   To jeden punkt prawdy dla spojnosci; pelna odwracalnosc. */
-@theme {
-    --color-white: oklch(0.995 0.004 84);
-    --color-black: oklch(0.185 0.016 50);
-    --color-gray-50: oklch(0.984 0.008 83);
-    --color-gray-100: oklch(0.966 0.010 82);
-    --color-gray-200: oklch(0.922 0.012 80);
-    --color-gray-300: oklch(0.872 0.014 78);
-    --color-gray-400: oklch(0.715 0.018 68);
-    --color-gray-500: oklch(0.578 0.020 60);
-    --color-gray-600: oklch(0.475 0.021 55);
-    --color-gray-700: oklch(0.390 0.022 55);
-    --color-gray-800: oklch(0.318 0.021 55);
-    --color-gray-900: oklch(0.255 0.020 55);
-    --color-gray-950: oklch(0.200 0.018 52);
-    --color-slate-50: oklch(0.984 0.008 83);
-    --color-slate-100: oklch(0.966 0.010 82);
-    --color-slate-200: oklch(0.922 0.012 80);
-    --color-slate-700: oklch(0.390 0.022 55);
-    --color-slate-800: oklch(0.318 0.021 55);
-    --color-slate-900: oklch(0.255 0.020 55);
-    --color-neutral-50: oklch(0.984 0.008 83);
-    --color-neutral-100: oklch(0.966 0.010 82);
-    --color-neutral-200: oklch(0.922 0.012 80);
-    --color-neutral-900: oklch(0.255 0.020 55);
-    --color-zinc-50: oklch(0.984 0.008 83);
-    --color-zinc-100: oklch(0.966 0.010 82);
-    --color-zinc-200: oklch(0.922 0.012 80);
-    --color-zinc-900: oklch(0.255 0.020 55);
+   w dziesiatkach plikow. Zamiast edytowac kazdy z osobna, przekierowujemy CALA
+   skale na zmienne --n-*, ktore przelaczaja sie razem z motywem.
+
+   Dzieki temu tryb ciemny przestaje byc martwy BEZ migracji ~250 klas: kazde
+   istniejace `bg-white` staje sie wieczorem ciemnym papierem, a `text-gray-900`
+   koscia sloniowa. W trybie ciemnym rampa jest ODWROCONA - `gray-50` (najjasniejsza
+   powierzchnia) staje sie najciemniejsza, `gray-900` (inkaust) najjasniejsze.
+
+   `@theme inline` jest tu konieczne: bez `inline` Tailwind rozwiazalby wartosci
+   statycznie przy buildzie i przelaczanie motywu przestaloby dzialac.
+   Chroma trzymana NISKO - ma byc cieplo-neutralnie, nie zolto. */
+@theme inline {
+    --color-white: var(--n-0);
+    --color-black: var(--n-950);
+    --color-gray-50: var(--n-50);
+    --color-gray-100: var(--n-100);
+    --color-gray-200: var(--n-200);
+    --color-gray-300: var(--n-300);
+    --color-gray-400: var(--n-400);
+    --color-gray-500: var(--n-500);
+    --color-gray-600: var(--n-600);
+    --color-gray-700: var(--n-700);
+    --color-gray-800: var(--n-800);
+    --color-gray-900: var(--n-900);
+    --color-gray-950: var(--n-950);
+    --color-slate-50: var(--n-50);
+    --color-slate-100: var(--n-100);
+    --color-slate-200: var(--n-200);
+    --color-slate-300: var(--n-300);
+    --color-slate-400: var(--n-400);
+    --color-slate-500: var(--n-500);
+    --color-slate-600: var(--n-600);
+    --color-slate-700: var(--n-700);
+    --color-slate-800: var(--n-800);
+    --color-slate-900: var(--n-900);
+    --color-slate-950: var(--n-950);
+    --color-zinc-50: var(--n-50);
+    --color-zinc-100: var(--n-100);
+    --color-zinc-200: var(--n-200);
+    --color-zinc-300: var(--n-300);
+    --color-zinc-400: var(--n-400);
+    --color-zinc-500: var(--n-500);
+    --color-zinc-600: var(--n-600);
+    --color-zinc-700: var(--n-700);
+    --color-zinc-800: var(--n-800);
+    --color-zinc-900: var(--n-900);
+    --color-zinc-950: var(--n-950);
+    --color-neutral-50: var(--n-50);
+    --color-neutral-100: var(--n-100);
+    --color-neutral-200: var(--n-200);
+    --color-neutral-300: var(--n-300);
+    --color-neutral-400: var(--n-400);
+    --color-neutral-500: var(--n-500);
+    --color-neutral-600: var(--n-600);
+    --color-neutral-700: var(--n-700);
+    --color-neutral-800: var(--n-800);
+    --color-neutral-900: var(--n-900);
+    --color-neutral-950: var(--n-950);
+    --color-stone-50: var(--n-50);
+    --color-stone-100: var(--n-100);
+    --color-stone-200: var(--n-200);
+    --color-stone-300: var(--n-300);
+    --color-stone-400: var(--n-400);
+    --color-stone-500: var(--n-500);
+    --color-stone-600: var(--n-600);
+    --color-stone-700: var(--n-700);
+    --color-stone-800: var(--n-800);
+    --color-stone-900: var(--n-900);
+    --color-stone-950: var(--n-950);
 }
 
 :root {
     --radius: 0.375rem;
+    /* Rampa neutralna (jasny): pergamin -> cieply inkaust. */
+    --n-0: oklch(0.995 0.004 84);
+    --n-50: oklch(0.984 0.008 83);
+    --n-100: oklch(0.966 0.010 82);
+    --n-200: oklch(0.922 0.012 80);
+    --n-300: oklch(0.872 0.014 78);
+    --n-400: oklch(0.715 0.018 68);
+    --n-500: oklch(0.578 0.020 60);
+    --n-600: oklch(0.475 0.021 55);
+    --n-700: oklch(0.390 0.022 55);
+    --n-800: oklch(0.318 0.021 55);
+    --n-900: oklch(0.255 0.020 55);
+    --n-950: oklch(0.200 0.018 52);
+
     /* Paleta "pergamin": bardzo delikatne cieple tlo (kremowy papier), inkaust
        w cieplym braz zamiast czerni, akcent bordo na naglowkach serif. Chroma
        trzymana nisko - elegancja, nie krzyk. Hue ~80 (cieply) dla powierzchni,
@@ -167,6 +217,22 @@
    w skali jasnej; inkaust to kosc sloniowa, nie biel. */
 .dark {
     --parchment: oklch(0.225 0.010 58);
+    /* Rampa ODWROCONA: to, co w dzien bylo najjasniejsza powierzchnia, wieczorem
+       jest najciemniejsza; inkaust staje sie koscia sloniowa. Dzieki temu
+       `bg-white` i `text-gray-900` w komponentach dzialaja bez zmian. */
+    --n-0: oklch(0.205 0.009 58);
+    --n-50: oklch(0.225 0.009 58);
+    --n-100: oklch(0.252 0.010 58);
+    --n-200: oklch(0.292 0.011 58);
+    --n-300: oklch(0.400 0.013 58);
+    --n-400: oklch(0.585 0.015 60);
+    --n-500: oklch(0.672 0.014 62);
+    --n-600: oklch(0.745 0.012 68);
+    --n-700: oklch(0.800 0.011 74);
+    --n-800: oklch(0.875 0.010 80);
+    --n-900: oklch(0.925 0.008 85);
+    --n-950: oklch(0.965 0.006 85);
+
     --bordeaux: oklch(0.68 0.10 25);
     --bordeaux-hover: oklch(0.74 0.10 25);
     --bordeaux-soft: oklch(0.30 0.045 25);
@@ -204,12 +270,12 @@
 
     /* Trojstan po ciemnej stronie: te same role, podniesiona jasnosc,
        zeby kontrast na grafitowym tle zostal czytelny. */
-    --ok: oklch(0.72 0.10 155);
-    --ok-soft: oklch(0.30 0.04 155);
-    --warn: oklch(0.80 0.11 80);
-    --warn-soft: oklch(0.32 0.05 80);
-    --bad: oklch(0.72 0.13 25);
-    --bad-soft: oklch(0.32 0.06 25);
+    --ok: oklch(0.80 0.10 155);
+    --ok-soft: oklch(0.26 0.04 155);
+    --warn: oklch(0.86 0.11 82);
+    --warn-soft: oklch(0.27 0.04 80);
+    --bad: oklch(0.80 0.12 25);
+    --bad-soft: oklch(0.27 0.05 25);
 }
 
 @layer base {

@@ -956,6 +956,12 @@ export const pl = {
         decisions24h: "decyzji / 24 h",
         blocked: "zablokowane",
     },
+    theme: {
+        label: "Motyw",
+        system: "System",
+        light: "Jasny",
+        dark: "Ciemny",
+    },
 } as const;
 
 // EN -> osobny plik `en.ts` (ADR-0132). PL pozostaje zrodlem kluczy

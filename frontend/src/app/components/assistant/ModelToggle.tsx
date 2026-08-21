@@ -109,7 +109,7 @@ export function ModelToggle({ value, onChange, apiKeys }: Props) {
             <DropdownMenuTrigger asChild>
                 <button
                     type="button"
-                    className={`flex items-center gap-1 rounded-md px-1.5 h-6 text-[11px] transition-colors cursor-pointer text-muted-foreground/60 hover:bg-accent hover:text-foreground ${isOpen ? "bg-accent text-foreground" : ""}`}
+                    className={`flex items-center gap-1 rounded-md px-1.5 h-6 text-[11px] transition-colors cursor-pointer text-muted-foreground hover:bg-accent hover:text-foreground ${isOpen ? "bg-accent text-foreground" : ""}`}
                     title={
                         !selectedAvailable
                             ? t("account.apiKeyMissing")
