@@ -45,12 +45,20 @@ interface McpCitationsPanelProps {
  */
 export function McpCardGroundingBadge({ grounding }: { grounding?: PATRONMcpCitation["grounding"] }) {
     if (!grounding) return null;
-    const cls =
+    // Aparat, nie pigulka: kropka + etykieta wersalikami. Werdykt ma sie czytac
+    // jak adnotacja na marginesie pisma, nie jak tag w panelu SaaS.
+    const tone =
         grounding.verdict === "green"
-            ? "bg-green-100 text-green-900"
+            ? "text-grounded"
             : grounding.verdict === "yellow"
-              ? "bg-amber-100 text-amber-900"
-              : "bg-red-100 text-red-900";
+              ? "text-unverified"
+              : "text-ungrounded";
+    const dot =
+        grounding.verdict === "green"
+            ? "bg-grounded"
+            : grounding.verdict === "yellow"
+              ? "bg-unverified"
+              : "bg-ungrounded";
     const label =
         grounding.verdict === "green"
             ? t("citations.mcpCardGreen")
@@ -65,8 +73,9 @@ export function McpCardGroundingBadge({ grounding }: { grounding?: PATRONMcpCita
         <span
             data-testid="mcp-card-grounding"
             data-verdict={grounding.verdict}
-            className={`mt-1 inline-block rounded px-1.5 py-0.5 text-[11px] leading-tight ${cls}`}
+            className={`mt-1 inline-flex items-baseline gap-1.5 text-[10.5px] font-semibold uppercase leading-tight tracking-[0.08em] ${tone}`}
         >
+            <span className={`h-[7px] w-[7px] shrink-0 translate-y-[-1px] rounded-full ${dot}`} aria-hidden="true" />
             {label}
         </span>
     );
@@ -84,7 +93,7 @@ export function McpGroundingBanner({ report }: { report?: PATRONMcpGrounding }) 
             <div
                 data-testid="mcp-grounding-banner"
                 data-state="failed"
-                className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900"
+                className="mt-3 border-l-2 border-unverified bg-unverified-soft px-3 py-2 text-xs text-unverified"
             >
                 {t("citations.mcpBannerFailed")}
             </div>
@@ -96,7 +105,7 @@ export function McpGroundingBanner({ report }: { report?: PATRONMcpGrounding }) 
             <div
                 data-testid="mcp-grounding-banner"
                 data-state="red"
-                className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-900"
+                className="mt-3 border-l-2 border-ungrounded bg-ungrounded-soft px-3 py-2 text-xs text-ungrounded"
             >
                 <div className="font-semibold">{t("citations.mcpBannerTitle")}</div>
                 <div className="mt-0.5">
@@ -104,13 +113,13 @@ export function McpGroundingBanner({ report }: { report?: PATRONMcpGrounding }) 
                 </div>
                 <ul className="mt-1.5 space-y-1">
                     {red.map((q, i) => (
-                        <li key={i} className="rounded border border-red-200 bg-white px-2 py-1 text-red-900">
+                        <li key={i} className="border-l border-ungrounded/40 bg-card px-2 py-1 text-ungrounded">
                             <span className="italic">
                                 {"\u201e"}
                                 {q.quote.length > 220 ? `${q.quote.slice(0, 220)}\u2026` : q.quote}
                                 {"\u201d"}
                             </span>
-                            <span className="ml-1 text-[10px] uppercase tracking-wide text-red-700">
+                            <span className="ml-1 text-[10px] font-semibold uppercase tracking-[0.08em] text-ungrounded">
                                 {t("citations.mcpQuoteNotFound")}
                                 {q.source ? ` \u00b7 ${t("citations.mcpClosestSource")}: ${q.source.server}` : ""}
                             </span>
@@ -125,7 +134,7 @@ export function McpGroundingBanner({ report }: { report?: PATRONMcpGrounding }) 
             <div
                 data-testid="mcp-grounding-banner"
                 data-state="no-quotes"
-                className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900"
+                className="mt-3 border-l-2 border-unverified bg-unverified-soft px-3 py-2 text-xs text-unverified"
             >
                 {t("citations.mcpBannerNoQuotes")}
             </div>
@@ -138,8 +147,8 @@ export function McpGroundingBanner({ report }: { report?: PATRONMcpGrounding }) 
             data-state={allGreen ? "green" : "yellow"}
             className={
                 allGreen
-                    ? "mt-3 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-xs text-green-900"
-                    : "mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900"
+                    ? "mt-3 border-l-2 border-grounded bg-grounded-soft px-3 py-2 text-xs text-grounded"
+                    : "mt-3 border-l-2 border-unverified bg-unverified-soft px-3 py-2 text-xs text-unverified"
             }
         >
             {allGreen

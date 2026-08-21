@@ -942,6 +942,20 @@ export const pl = {
         toolEditDocument: "Edycja dokumentu",
         toolGenerateDocx: "Wygenerowanie dokumentu .docx",
     },
+    perimeter: {
+        label: "Perymetr",
+        local: "Dane nie opuszczają urządzenia",
+        cloudPrivileged: "Model chmurowy dopuszczony dla spraw objętych tajemnicą",
+        cloudUs: "Dostawcy z USA dopuszczeni",
+        unknown: "Nie potwierdzam — brak odpowiedzi o konfiguracji",
+        model: "Model",
+        localModel: "lokalny",
+        gateway: "Bramka MCP",
+        gatewayActive: "aktywna",
+        gatewayInactive: "nieaktywna",
+        decisions24h: "decyzji / 24 h",
+        blocked: "zablokowane",
+    },
 } as const;
 
 // EN -> osobny plik `en.ts` (ADR-0132). PL pozostaje zrodlem kluczy

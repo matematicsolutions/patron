@@ -10,6 +10,7 @@ import { AppSidebar } from "@/app/components/shared/AppSidebar";
 import { McpSecurityBanner } from "@/components/mcp-security-banner";
 import { EgressConfigBanner } from "@/components/egress-config-banner";
 import { PackUpdateBanner } from "@/components/pack-update-banner";
+import { PerimeterBar } from "@/components/perimeter-bar";
 import { t } from "@/i18n";
 
 export default function PATRONLayout({
@@ -114,6 +115,9 @@ export default function PATRONLayout({
                             </main>
                         </div>
                     </div>
+                    {/* Perymetr spina cale okno, takze pod panelem bocznym -
+                        to granica aplikacji, nie element widoku. */}
+                    <PerimeterBar />
                 </div>
             </SidebarContext.Provider>
         </ChatHistoryProvider>

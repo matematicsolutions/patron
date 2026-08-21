@@ -11,6 +11,15 @@
     --font-sans: var(--font-lato);
     --font-serif: var(--font-bona-nova);
     --font-text: var(--font-brygada);
+    /* Trojstan groundingu jako kolory Tailwinda: text-grounded, bg-unverified-soft
+       itd. Semantyka werdyktu NIE jest akcentem marki - to osobna skala i nie
+       wolno jej mieszac z bordo. */
+    --color-grounded: var(--grounded);
+    --color-grounded-soft: var(--grounded-soft);
+    --color-unverified: var(--unverified);
+    --color-unverified-soft: var(--unverified-soft);
+    --color-ungrounded: var(--ungrounded);
+    --color-ungrounded-soft: var(--ungrounded-soft);
     --color-blue: rgb(0, 136, 255);
     --color-blue-50: rgba(0, 136, 255, 0.05);
     --color-blue-100: rgba(0, 136, 255, 0.1);
