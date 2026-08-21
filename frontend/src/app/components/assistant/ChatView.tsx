@@ -461,7 +461,7 @@ export function ChatView({
                     className="flex-1 w-full overflow-y-auto"
                     style={{ scrollbarGutter: "stable both-edges" }}
                 >
-                    <div className="w-full max-w-4xl mx-auto pb-32 px-6 md:px-8 pt-4 md:pt-6 min-h-full flex flex-col relative">
+                    <div className="w-full max-w-4xl xl:max-w-6xl mx-auto pb-32 px-6 md:px-8 pt-4 md:pt-6 min-h-full flex flex-col relative">
                         {!messagesVisible && (
                             <div className="space-y-6 w-full">
                                 <div className="flex justify-end">
@@ -578,7 +578,7 @@ export function ChatView({
                     ref={chatInputRef}
                     className="absolute bottom-0 left-0 right-0 w-full z-30"
                 >
-                    <div className="w-full max-w-4xl mx-auto px-4 md:px-6">
+                    <div className="w-full max-w-4xl xl:max-w-6xl mx-auto px-4 md:px-6">
                         <div className="w-full rounded-t-[20px] bg-white">
                             <ChatInput
                                 onSubmit={handleChat}

@@ -1593,7 +1593,7 @@ export function AssistantMessage({
     return (
         <div style={{ minHeight }}>
             <ResponseStatus status={status} />
-            <div className="w-full font-inter relative mt-2">
+            <div className="w-full relative mt-2 xl:pr-[19rem]">
                 {events && events.length > 0 ? (
                     <div className="flex flex-col gap-4">
                         {groups.map((g, gIdx) => {
@@ -1738,10 +1738,16 @@ export function AssistantMessage({
                     card. Klik w karte otwiera URL w nowej karcie (zewnetrzne
                     zrodlo - PATRON nie przechowuje tych dokumentow). */}
                 {!isStreaming && mcpCitations.length > 0 && (
-                    <>
+                    /* MARGINES. Ponizej xl aparat zostaje pod proza (waskie
+                       okno = jedna kolumna). Od xl przechodzi w prawy margines
+                       na wysokosci poczatku odpowiedzi: prawnik czyta teze i
+                       jej podstawe JEDNYM ruchem oka, bez klikania i bez
+                       gubienia miejsca w tekscie. Wysokosc ograniczona, zeby
+                       dluga lista zrodel nie nachodzila na kolejna wiadomosc. */
+                    <div className="xl:absolute xl:right-0 xl:top-0 xl:w-[17.5rem] xl:max-h-[70vh] xl:overflow-y-auto xl:pr-1">
                         <McpGroundingBanner report={mcpGrounding} />
                         <McpCitationsPanel citations={mcpCitations} />
-                    </>
+                    </div>
                 )}
 
                 {isError && (
