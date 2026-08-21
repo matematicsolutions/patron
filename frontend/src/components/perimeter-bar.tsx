@@ -71,10 +71,14 @@ export function PerimeterBar(): ReactElement {
             aria-label={t("perimeter.label")}
             // Perymetr jest ZAWSZE rewersem biezacego motywu (ciemny pas na
             // jasnym ekranie i odwrotnie): governance to "druga strona kartki",
-            // widoczna obwodowo i nigdy nie zlewajaca sie z trescia.
-            className="flex shrink-0 flex-wrap items-center gap-x-5 gap-y-1 border-t border-rev-border bg-rev-background px-4 py-1.5 text-[11px] leading-tight text-rev-muted-foreground"
+            // widoczna obwodowo i nigdy nie zlewajaca sie z trescia. Segmenty
+            // rozdziela wloskowata kreska - pas ma czytac sie jako JEDEN
+            // instrument pomiarowy, nie luzny zbior napisow.
+            className="flex shrink-0 flex-wrap items-stretch gap-y-1 border-t border-rev-border bg-rev-background px-4 py-2 text-[11px] leading-tight text-rev-muted-foreground"
         >
-            <span className={`inline-flex items-baseline gap-1.5 font-semibold ${tone}`}>
+            <span
+                className={`inline-flex items-baseline gap-1.5 self-center font-semibold ${tone}`}
+            >
                 <span
                     className={`h-[7px] w-[7px] shrink-0 translate-y-[-1px] rounded-full ${dot}`}
                     aria-hidden="true"
@@ -82,7 +86,9 @@ export function PerimeterBar(): ReactElement {
                 {postureText}
             </span>
 
-            <span className="inline-flex items-baseline gap-1">
+            <span className="mx-4 w-px self-stretch bg-rev-border" aria-hidden="true" />
+
+            <span className="inline-flex items-baseline gap-1.5 self-center">
                 <span className="uppercase tracking-[0.08em]">{t("perimeter.model")}</span>
                 <span className="font-mono text-rev-foreground">{model}</span>
                 {config?.local_model_configured ? (
@@ -96,29 +102,47 @@ export function PerimeterBar(): ReactElement {
                 nie ma konkurencja, byly nieosiagalne. Licznik decyzji jest teraz
                 wejsciem do akt. */}
             {status ? (
-                <Link
-                    href="/admin/audit"
-                    data-testid="perimeter-audit-link"
-                    title={t("perimeter.auditLink")}
-                    // Odsylacz do akt to znak autorytetu - jedyne zloto na pasku.
-                    className="inline-flex items-baseline gap-1 rounded-sm underline-offset-2 hover:text-rev-gold hover:underline focus-visible:underline"
-                >
-                    <span className="uppercase tracking-[0.08em]">{t("perimeter.gateway")}</span>
-                    <span className={status.gateway.active ? "text-rev-ok" : "text-rev-warn"}>
-                        {status.gateway.active
-                            ? t("perimeter.gatewayActive")
-                            : t("perimeter.gatewayInactive")}
-                    </span>
-                    <span className="font-mono text-rev-foreground">
-                        {status.audit_summary_24h.decisions_total}
-                    </span>
-                    <span>{t("perimeter.decisions24h")}</span>
-                    {blocked > 0 ? (
-                        <span className="font-semibold text-rev-bad">
-                            {blocked} {t("perimeter.blocked")}
+                <>
+                    <span
+                        className="mx-4 w-px self-stretch bg-rev-border"
+                        aria-hidden="true"
+                    />
+                    <span className="inline-flex items-baseline gap-1.5 self-center">
+                        <span className="uppercase tracking-[0.08em]">
+                            {t("perimeter.gateway")}
                         </span>
-                    ) : null}
-                </Link>
+                        <span
+                            className={
+                                status.gateway.active ? "text-rev-ok" : "text-rev-warn"
+                            }
+                        >
+                            {status.gateway.active
+                                ? t("perimeter.gatewayActive")
+                                : t("perimeter.gatewayInactive")}
+                        </span>
+                        <span className="font-mono text-rev-foreground">
+                            {status.audit_summary_24h.decisions_total}
+                        </span>
+                        <span>{t("perimeter.decisions24h")}</span>
+                        {blocked > 0 ? (
+                            <span className="font-semibold text-rev-bad">
+                                {blocked} {t("perimeter.blocked")}
+                            </span>
+                        ) : null}
+                    </span>
+                    <Link
+                        href="/admin/audit"
+                        data-testid="perimeter-audit-link"
+                        title={t("perimeter.auditLink")}
+                        // Odsylacz do akt to znak autorytetu - jedyne zloto na
+                        // pasku, dobite do prawej krawedzi jak pieczec na dole
+                        // dokumentu.
+                        className="ml-auto inline-flex items-baseline gap-1 self-center rounded-sm pl-4 font-semibold uppercase tracking-[0.08em] text-rev-gold underline-offset-2 hover:underline focus-visible:underline"
+                    >
+                        <span aria-hidden="true">⏣</span>
+                        {t("perimeter.auditLink")}
+                    </Link>
+                </>
             ) : null}
         </footer>
     );

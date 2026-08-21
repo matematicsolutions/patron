@@ -9,7 +9,8 @@
 "use client";
 
 import type { ReactElement } from "react";
-import { ShieldCheck, ShieldAlert, ShieldOff } from "lucide-react";
+import { ChevronRight, ShieldCheck, ShieldAlert, ShieldOff } from "lucide-react";
+import Link from "next/link";
 import { useMcpSecurityStatus } from "@/hooks/useMcpSecurityStatus";
 import { t } from "@/i18n";
 
@@ -50,15 +51,24 @@ export function McpSecurityBanner(): ReactElement | null {
         ariaLabel = t("mcpSecurity.auditAriaLabel");
     }
 
+    // Baner jest AKTYWNY (WM 2026-08-21): klik prowadzi do akt audytu, gdzie
+    // widac decyzje bramki i instrukcje wlaczenia. Informacja bez wyjscia
+    // do akcji zamienia governance w tapete.
     return (
-        <div
+        <Link
+            href="/admin/audit"
             role="status"
             aria-live="polite"
             aria-label={ariaLabel}
-            className={`flex items-center gap-2 border-b px-4 py-2 text-sm ${bgClass}`}
+            data-testid="mcp-security-banner"
+            className={`group flex items-center gap-2 border-b px-4 py-2 text-sm transition-colors hover:brightness-95 ${bgClass}`}
         >
             {icon}
             <span>{message}</span>
-        </div>
+            <span className="ml-auto inline-flex shrink-0 items-center gap-0.5 text-xs font-semibold underline-offset-2 group-hover:underline">
+                {t("mcpSecurity.actionHint")}
+                <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
+            </span>
+        </Link>
     );
 }

@@ -59,11 +59,16 @@ export const pl = {
     // ---------------------------------------------------------------------
     // Navigation / sidebar
     // ---------------------------------------------------------------------
+    // ADR-0148 (decyzja WM 2026-08-21): "sprawa" zastepuje "projekt",
+    // a czat bez sprawy nazywa sie Warsztat - pelnoprawna przestrzen na
+    // pytania bez danych klienta. Zmiana WYLACZNIE w slowniku: klucze,
+    // trasy i tabele zostaja przy "project" (rozdzial nazwy widocznej
+    // od identyfikatora).
     nav: {
-        assistant: "Asystent",
+        assistant: "Warsztat",
         assistantHistory: "Historia czatów",
         chats: "Czaty",
-        projects: "Projekty",
+        projects: "Sprawy",
         documents: "Dokumenty",
         workflows: "Workflowy",
         tabularReviews: "Przeglądy tabelaryczne",
@@ -74,11 +79,11 @@ export const pl = {
         openSidebar: "Otwórz menu boczne",
         closeSidebar: "Zamknij menu boczne",
         newChat: "Nowy czat",
-        newProject: "Nowy projekt",
+        newProject: "Nowa sprawa",
         newReview: "Nowy przegląd",
         // Panele boczne - sekcje
-        recentProjects: "Ostatnie projekty",
-        noProjectsYet: "Brak projektów",
+        recentProjects: "Ostatnie sprawy",
+        noProjectsYet: "Brak spraw",
         noChatsYet: "Brak czatów",
         loadMore: "Załaduj więcej",
         accountSettings: "Ustawienia konta",
@@ -798,6 +803,7 @@ export const pl = {
         activeAriaLabel: "MCP Security Gateway aktywny w trybie enforce, {audit} audit {humanReview} human review w 24h",
         auditMessage: "MCP Security: audit-only. {total} zdarzeń w 24h. Narzędzia NIE są blokowane.",
         auditAriaLabel: "MCP Security Gateway w trybie audit-only, narzędzia nie są blokowane",
+        actionHint: "Zobacz akta i decyzje",
     },
 
     // ---------------------------------------------------------------------
@@ -812,6 +818,7 @@ export const pl = {
             "Dostawcy spoza UE (USA): DOZWOLENI (zgoda Administratora, DPA). Transfer poza EOG jest audytowany.",
         usProvidersAriaLabel:
             "Dostawcy spoza UE dozwoleni za zgoda Administratora",
+        actionHint: "Zmień w Modele i klucze",
     },
 
     // ---------------------------------------------------------------------

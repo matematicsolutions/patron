@@ -63,11 +63,13 @@ export const en: DictShape<typeof pl> = {
         noMatches: "No matches",
     },
 
+    // ADR-0148: "matter" replaces "project"; chat without a matter is the
+    // Workshop. Dictionary-only change - keys, routes and tables keep "project".
     nav: {
-        assistant: "Assistant",
+        assistant: "Workshop",
         assistantHistory: "Chat history",
         chats: "Chats",
-        projects: "Projects",
+        projects: "Matters",
         documents: "Documents",
         workflows: "Workflows",
         tabularReviews: "Tabular reviews",
@@ -78,10 +80,10 @@ export const en: DictShape<typeof pl> = {
         openSidebar: "Open sidebar",
         closeSidebar: "Close sidebar",
         newChat: "New chat",
-        newProject: "New project",
+        newProject: "New matter",
         newReview: "New review",
-        recentProjects: "Recent projects",
-        noProjectsYet: "No projects yet",
+        recentProjects: "Recent matters",
+        noProjectsYet: "No matters yet",
         noChatsYet: "No chats yet",
         loadMore: "Load more",
         accountSettings: "Account settings",
@@ -688,6 +690,11 @@ export const en: DictShape<typeof pl> = {
         activeAriaLabel: "MCP Security Gateway active in enforce mode, {audit} audit {humanReview} human review in 24h",
         auditMessage: "MCP Security: audit-only. {total} events in 24h. Tools are NOT blocked.",
         auditAriaLabel: "MCP Security Gateway in audit-only mode, tools are not blocked",
+        actionHint: "View records and decisions",
+    },
+
+    egressConfig: {
+        actionHint: "Change in Models and API keys",
     },
 
     packUpdates: {
