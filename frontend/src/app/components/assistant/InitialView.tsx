@@ -50,10 +50,11 @@ export function InitialView({ onSubmit }: InitialViewProps) {
 
     return (
         <div className="flex flex-col h-full w-full px-6">
-            {/* Zloty podzial pionu (382:618): kompozycja stoi w punkcie 38,2%
-                wysokosci jak tytul na stronie tytulowej, nie na martwym srodku.
-                Bohaterem ekranu jest pole pytania - powitanie to salutacja. */}
-            <div className="flex-[382]" aria-hidden="true" />
+            {/* Zloty podzial pionu: kompozycja stoi w punkcie 38,2% wysokosci
+                jak tytul na stronie tytulowej, nie na martwym srodku. Wagi
+                z tokenow --gold-minor / --gold-major (globals.css), zeby kazdy
+                ekran dzielil sie tak samo. */}
+            <div className="flex-[var(--gold-minor)]" aria-hidden="true" />
             <div className="flex flex-col items-center">
                 <div className="flex-col items-center w-full max-w-4xl relative px-0 xl:px-8">
                     <div className="mb-10 relative flex items-center justify-center" style={{ minHeight: "45px" }}>
@@ -161,7 +162,7 @@ export function InitialView({ onSubmit }: InitialViewProps) {
                     </p>
                 </div>
             </div>
-            <div className="flex-[618]" aria-hidden="true" />
+            <div className="flex-[var(--gold-major)]" aria-hidden="true" />
 
             <SelectAssistantProjectModal
                 open={projectModalOpen}

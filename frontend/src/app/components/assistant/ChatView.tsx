@@ -474,9 +474,9 @@ export function ChatView({
                             strefy - rejestr wraca wtedy nad pole pytania. */}
                         <div
                             aria-hidden="true"
-                            className="pointer-events-none absolute bottom-0 right-6 top-0 hidden w-[17.5rem] border-l border-gray-200 md:right-8 xl:block"
+                            className="pointer-events-none absolute bottom-0 right-6 top-0 hidden w-[var(--rail)] border-l border-gray-200 md:right-8 xl:block"
                         />
-                        <div className="absolute right-6 top-4 hidden w-[17.5rem] pl-4 md:right-8 md:top-6 xl:block">
+                        <div className="absolute right-6 top-4 hidden w-[var(--rail)] pl-4 md:right-8 md:top-6 xl:block">
                             <div className="sticky top-0">
                                 <GroundingLedger
                                     messages={messages}

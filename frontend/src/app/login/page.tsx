@@ -49,10 +49,13 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="min-h-dvh bg-white flex items-start justify-center px-6 pt-32 md:pt-40 pb-10 relative">
+        // Zloty podzial pionu (tokeny --gold-minor / --gold-major): formularz
+        // stoi w punkcie 38,2% wysokosci, nie na stalym odstepie od gory.
+        <div className="min-h-dvh bg-white flex flex-col items-center px-6 pb-10 relative">
             <div className="absolute top-4 md:top-8 left-1/2 -translate-x-1/2">
                 <SiteLogo size="md" className="md:text-4xl" asLink />
             </div>
+            <div className="flex-[var(--gold-minor)] min-h-[7rem]" aria-hidden="true" />
             <div className="w-full max-w-md">
                 {/* Login Form */}
                 <div className="bg-white border border-gray-200 rounded-2xl p-8 mb-4">
@@ -132,6 +135,7 @@ export default function LoginPage() {
                     z RODO. Tajemnica zawodowa pozostaje chroniona.
                 </p>
             </div>
+            <div className="flex-[var(--gold-major)]" aria-hidden="true" />
         </div>
     );
 }

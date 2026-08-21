@@ -92,10 +92,14 @@ export default function SignupPage() {
     // Success View
     if (success) {
         return (
-            <div className="min-h-dvh bg-white flex items-start justify-center px-6 pt-32 md:pt-40 pb-10 relative">
+            <div className="min-h-dvh bg-white flex flex-col items-center px-6 pb-10 relative">
                 <div className="absolute top-4 md:top-8 left-1/2 -translate-x-1/2">
                     <SiteLogo size="md" className="md:text-4xl" asLink />
                 </div>
+                <div
+                    className="flex-[var(--gold-minor)] min-h-[7rem]"
+                    aria-hidden="true"
+                />
                 <div className="w-full max-w-md">
                     <div className="bg-white border border-gray-200 rounded-2xl p-10 text-center shadow-sm">
                         <div className="mx-auto w-12 h-12 bg-ok-soft rounded-full flex items-center justify-center mb-6">
@@ -109,16 +113,18 @@ export default function SignupPage() {
                         </p>
                     </div>
                 </div>
+                <div className="flex-[var(--gold-major)]" aria-hidden="true" />
             </div>
         );
     }
 
     // Default Signup Form View
     return (
-        <div className="min-h-dvh bg-white flex items-start justify-center px-6 pt-32 md:pt-40 pb-10 relative">
+        <div className="min-h-dvh bg-white flex flex-col items-center px-6 pb-10 relative">
             <div className="absolute top-4 md:top-8 left-1/2 -translate-x-1/2">
                 <SiteLogo size="md" className="md:text-4xl" asLink />
             </div>
+            <div className="flex-[var(--gold-minor)] min-h-[7rem]" aria-hidden="true" />
             <div className="w-full max-w-md">
                 <div className="bg-white border border-gray-200 rounded-2xl p-8 mb-4">
                     <div className="flex justify-between items-center mb-6">
@@ -272,6 +278,7 @@ export default function SignupPage() {
                     {t("auth.rodoNote")}
                 </p>
             </div>
+            <div className="flex-[var(--gold-major)]" aria-hidden="true" />
         </div>
     );
 }

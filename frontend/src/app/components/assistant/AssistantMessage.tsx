@@ -1593,7 +1593,11 @@ export function AssistantMessage({
     return (
         <div style={{ minHeight }}>
             <ResponseStatus status={status} />
-            <div className="w-full relative mt-2 xl:pr-[19rem]">
+            {/* Rezerwa na margines dowodu w proporcji zlotego podzialu
+                (tokeny --rail / --rail-gap w globals.css). Rezerwa jest STALA,
+                takze gdy odpowiedz nie ma przywolan - dzieki temu kolumna
+                tekstu nie skacze, gdy aparat sie pojawia. */}
+            <div className="w-full relative mt-2 xl:pr-[var(--rail-reserve)]">
                 {events && events.length > 0 ? (
                     <div className="flex flex-col gap-4">
                         {groups.map((g, gIdx) => {
@@ -1744,7 +1748,7 @@ export function AssistantMessage({
                        jej podstawe JEDNYM ruchem oka, bez klikania i bez
                        gubienia miejsca w tekscie. Wysokosc ograniczona, zeby
                        dluga lista zrodel nie nachodzila na kolejna wiadomosc. */
-                    <div className="xl:absolute xl:right-0 xl:top-0 xl:w-[17.5rem] xl:max-h-[70vh] xl:overflow-y-auto xl:pr-1">
+                    <div className="xl:absolute xl:right-0 xl:top-0 xl:w-[var(--rail)] xl:max-h-[70vh] xl:overflow-y-auto xl:pr-1">
                         <McpGroundingBanner report={mcpGrounding} />
                         <McpCitationsPanel citations={mcpCitations} />
                     </div>
