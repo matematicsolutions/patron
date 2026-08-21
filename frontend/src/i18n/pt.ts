@@ -816,6 +816,7 @@ export const pt: DictShape<typeof pl> = {
         gatewayActive: "ativo",
         gatewayInactive: "inativo",
         decisions24h: "decisões / 24 h",
+        auditLink: "Registos e provas",
         blocked: "bloqueadas",
     },
     theme: {

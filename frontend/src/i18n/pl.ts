@@ -954,6 +954,7 @@ export const pl = {
         gatewayActive: "aktywna",
         gatewayInactive: "nieaktywna",
         decisions24h: "decyzji / 24 h",
+        auditLink: "Akta i dowody",
         blocked: "zablokowane",
     },
     theme: {

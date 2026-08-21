@@ -21,6 +21,7 @@ import type { ReactElement } from "react";
 import { useEgressConfig } from "@/hooks/useEgressConfig";
 import { useMcpSecurityStatus } from "@/hooks/useMcpSecurityStatus";
 import { useSelectedModel } from "@/app/hooks/useSelectedModel";
+import Link from "next/link";
 import { t } from "@/i18n";
 
 type Posture = "local" | "cloud" | "unknown";
@@ -86,8 +87,18 @@ export function PerimeterBar(): ReactElement {
                 ) : null}
             </span>
 
+            {/* Lancuch skrotow, Merkle i eksport teczki dowodowej zyja pod
+                /admin/audit, do ktorego do 2026-08-21 NIE PROWADZIL ZADEN LINK -
+                dalo sie tam wejsc tylko wpisujac adres. Jedyne funkcje, ktorych
+                nie ma konkurencja, byly nieosiagalne. Licznik decyzji jest teraz
+                wejsciem do akt. */}
             {status ? (
-                <span className="inline-flex items-baseline gap-1">
+                <Link
+                    href="/admin/audit"
+                    data-testid="perimeter-audit-link"
+                    title={t("perimeter.auditLink")}
+                    className="inline-flex items-baseline gap-1 rounded-sm underline-offset-2 hover:underline focus-visible:underline"
+                >
                     <span className="uppercase tracking-[0.08em]">{t("perimeter.gateway")}</span>
                     <span className={status.gateway.active ? "text-grounded" : "text-unverified"}>
                         {status.gateway.active
@@ -103,7 +114,7 @@ export function PerimeterBar(): ReactElement {
                             {blocked} {t("perimeter.blocked")}
                         </span>
                     ) : null}
-                </span>
+                </Link>
             ) : null}
         </footer>
     );

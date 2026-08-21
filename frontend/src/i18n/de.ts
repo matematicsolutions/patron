@@ -797,6 +797,7 @@ export const de: DictShape<typeof pl> = {
         gatewayActive: "aktiv",
         gatewayInactive: "inaktiv",
         decisions24h: "Entscheidungen / 24 Std.",
+        auditLink: "Akten und Nachweise",
         blocked: "blockiert",
     },
     theme: {

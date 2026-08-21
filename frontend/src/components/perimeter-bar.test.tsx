@@ -111,3 +111,26 @@ describe("PerimeterBar - postawa perymetru", () => {
         expect(bar().textContent).not.toContain(t("perimeter.blocked"));
     });
 });
+
+describe("PerimeterBar - osiagalnosc akt", () => {
+    beforeEach(() => {
+        egress.config = config();
+        mcp.status = status(0);
+    });
+
+    // Do 2026-08-21 do /admin/audit NIE PROWADZIL zaden link w calym UI - lancuch
+    // skrotow, pieczec Merkle i eksport teczki dowodowej (ADR-0142) dalo sie
+    // otworzyc wylacznie wpisujac adres recznie. Funkcja, ktorej nie da sie
+    // znalezc, nie istnieje dla uzytkownika.
+    it("licznik decyzji prowadzi do akt i dowodow", () => {
+        render(<PerimeterBar />);
+        const link = screen.getByTestId("perimeter-audit-link");
+        expect(link.getAttribute("href")).toBe("/admin/audit");
+    });
+
+    it("bez danych bramki MCP nie zmyslamy linku", () => {
+        mcp.status = null;
+        render(<PerimeterBar />);
+        expect(screen.queryByTestId("perimeter-audit-link")).toBeNull();
+    });
+});
