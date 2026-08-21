@@ -203,7 +203,7 @@ function BulkEditActions({
                 {t("chat.bulkRejectAll")}
             </button>
             {progress && (
-                <span className="text-xs font-serif text-gray-500">
+                <span className="text-xs font-mono text-gray-500">
                     {progress.done}/{progress.total}
                 </span>
             )}
@@ -281,7 +281,7 @@ function EditCardsSection({
         <div className="border border-gray-200 rounded-lg bg-white overflow-hidden">
             {/* Row 1: summary + chevron */}
             <div className="flex items-center gap-2 px-3 pt-3">
-                <p className="flex-1 min-w-0 text-sm font-serif text-gray-700 truncate">
+                <p className="flex-1 min-w-0 text-sm text-gray-700 truncate">
                     {summary}
                 </p>
                 <button
@@ -408,7 +408,7 @@ function ReasoningBlock({
             )}
             <button
                 onClick={() => !isStreaming && setIsOpen((v) => !v)}
-                className="flex items-center text-sm font-serif text-gray-500 hover:text-gray-600 transition-colors"
+                className="flex items-center text-sm text-gray-500 hover:text-gray-600 transition-colors"
             >
                 {isStreaming ? (
                     <div className="w-1.5 h-1.5 rounded-full border border-gray-400 border-t-transparent animate-spin shrink-0" />
@@ -428,7 +428,7 @@ function ReasoningBlock({
                 )}
             </button>
             {showContent && (
-                <div className="mt-2 ml-[14px] text-sm font-serif text-gray-400 prose prose-sm max-w-none [&>*]:text-gray-400 [&>*]:text-sm">
+                <div className="mt-2 ml-[14px] text-sm text-gray-400 prose prose-sm max-w-none [&>*]:text-gray-400 [&>*]:text-sm">
                     <ReactMarkdown
                         remarkPlugins={[remarkGfm]}
                         components={{
@@ -460,7 +460,7 @@ function DocReadBlock({
     isStreaming?: boolean;
 }) {
     return (
-        <div className="flex items-start text-sm font-serif text-gray-500 relative">
+        <div className="flex items-start text-sm text-gray-500 relative">
             {showConnector && (
                 <div className="absolute bottom-0 w-[1px] bg-gray-300 top-[13px] left-[2.5px] h-[calc(100%+11px)]" />
             )}
@@ -521,7 +521,7 @@ function DocFindBlock({
         ? ""
         : ` (${totalMatches} ${matchWord(totalMatches)})`;
     return (
-        <div className="flex items-start text-sm font-serif text-gray-500 relative">
+        <div className="flex items-start text-sm text-gray-500 relative">
             {showConnector && (
                 <div className="absolute bottom-0 w-[1px] bg-gray-300 top-[13px] left-[2.5px] h-[calc(100%+11px)]" />
             )}
@@ -554,7 +554,7 @@ function DocCreatedBlock({
     isStreaming?: boolean;
 }) {
     return (
-        <div className="flex items-start text-sm font-serif text-gray-500 relative">
+        <div className="flex items-start text-sm text-gray-500 relative">
             {showConnector && (
                 <div className="absolute left-0 top-0 bottom-0 w-[1px] bg-gray-300 top-[13px] left-[2.5px] h-[calc(100%+11px)]" />
             )}
@@ -598,7 +598,7 @@ function DocReplicatedBlock({
     const suffix =
         !isStreaming && count > 1 ? ` ${count} times` : isStreaming ? "..." : "";
     return (
-        <div className="flex items-start text-sm font-serif text-gray-500 relative">
+        <div className="flex items-start text-sm text-gray-500 relative">
             {showConnector && (
                 <div className="absolute left-0 top-0 bottom-0 w-[1px] bg-gray-300 top-[13px] left-[2.5px] h-[calc(100%+11px)]" />
             )}
@@ -771,7 +771,7 @@ function WorkflowAppliedBlock({
     onClick?: () => void;
 }) {
     return (
-        <div className="flex items-start text-sm font-serif text-gray-500 relative">
+        <div className="flex items-start text-sm text-gray-500 relative">
             {showConnector && (
                 <div className="absolute bottom-0 w-[1px] bg-gray-300 top-[13px] left-[2.5px] h-[calc(100%+11px)]" />
             )}
@@ -805,7 +805,7 @@ function DocEditedBlock({
     hasError?: boolean;
 }) {
     return (
-        <div className="flex items-start text-sm font-serif text-gray-500 relative">
+        <div className="flex items-start text-sm text-gray-500 relative">
             {showConnector && (
                 <div className="absolute left-0 top-0 bottom-0 w-[1px] bg-gray-300 top-[13px] left-[2.5px] h-[calc(100%+11px)]" />
             )}
@@ -886,7 +886,7 @@ function DocCommentedBlock({
     };
 
     return (
-        <div className="flex items-start text-sm font-serif text-gray-500 relative">
+        <div className="flex items-start text-sm text-gray-500 relative">
             {showConnector && (
                 <div className="absolute left-0 top-0 bottom-0 w-[1px] bg-gray-300 top-[13px] left-[2.5px] h-[calc(100%+11px)]" />
             )}
@@ -1163,7 +1163,7 @@ function MarkdownContent({
                         }
                         return (
                             <code
-                                className="bg-gray-100 px-1.5 py-0.5 rounded text-sm font-serif"
+                                className="bg-gray-100 px-1.5 py-0.5 rounded text-[0.85em] font-mono"
                                 {...props}
                             >
                                 {children}
@@ -1470,7 +1470,7 @@ export function AssistantMessage({
             return (
                 <div
                     key={globalIdx}
-                    className="flex items-center text-sm font-serif text-gray-500 relative"
+                    className="flex items-center text-sm text-gray-500 relative"
                 >
                     {showConnector && (
                         <div className="absolute bottom-0 w-[1px] bg-gray-300 top-[13px] left-[2.5px] h-[calc(100%+11px)]" />
@@ -1486,7 +1486,7 @@ export function AssistantMessage({
             return (
                 <div
                     key={globalIdx}
-                    className="flex items-center text-sm font-serif text-gray-500 relative"
+                    className="flex items-center text-sm text-gray-500 relative"
                 >
                     {showConnector && (
                         <div className="absolute bottom-0 w-[1px] bg-gray-300 top-[13px] left-[2.5px] h-[calc(100%+11px)]" />
@@ -1751,7 +1751,7 @@ export function AssistantMessage({
                 )}
 
                 {isError && (
-                    <div className="mt-2 flex items-start gap-2 rounded-lg border border-bad-soft bg-bad-soft px-3 py-2 text-sm font-serif text-bad">
+                    <div className="mt-2 flex items-start gap-2 rounded-lg border border-bad-soft bg-bad-soft px-3 py-2 text-sm text-bad">
                         <span className="leading-snug">
                             {errorMessage ?? t("chat.sorryError")}
                         </span>

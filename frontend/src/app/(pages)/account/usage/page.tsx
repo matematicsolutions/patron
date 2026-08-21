@@ -186,11 +186,13 @@ export default function UsagePage() {
                             <div className="h-64 w-full rounded-lg border border-gray-200 p-2">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <BarChart data={chartData}>
-                                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                                        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
                                         <XAxis dataKey="date" tick={{ fontSize: 12 }} />
                                         <YAxis tick={{ fontSize: 12 }} width={56} />
                                         <Tooltip />
-                                        <Bar dataKey={t("usage.tokens")} fill="#2563eb" />
+                                        {/* Zloto zamiast niebieskiego forka - jedyny
+                                            wykres w produkcie idzie akcentem pieczeci. */}
+                                        <Bar dataKey={t("usage.tokens")} fill="var(--gold)" />
                                     </BarChart>
                                 </ResponsiveContainer>
                             </div>

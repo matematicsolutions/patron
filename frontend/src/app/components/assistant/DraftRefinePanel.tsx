@@ -187,7 +187,7 @@ export function DraftRefinePanel({ open, onClose, initialText }: Props) {
                             onChange={(e) => setText(e.target.value)}
                             placeholder={t("draft.textPlaceholder")}
                             rows={6}
-                            className="w-full resize-y rounded-md border border-gray-200 bg-white px-3 py-2 text-sm font-serif text-gray-800 outline-none focus:border-gray-400"
+                            className="w-full resize-y rounded-md border border-gray-200 bg-white px-3 py-2 text-sm font-text text-gray-800 outline-none focus:border-gray-400"
                         />
                     </div>
 
@@ -243,7 +243,7 @@ export function DraftRefinePanel({ open, onClose, initialText }: Props) {
                     )}
 
                     {error && (
-                        <div className="rounded-lg border border-bad-soft bg-bad-soft px-3 py-2 text-sm font-serif text-bad">
+                        <div className="rounded-lg border border-bad-soft bg-bad-soft px-3 py-2 text-sm text-bad">
                             {error}
                         </div>
                     )}

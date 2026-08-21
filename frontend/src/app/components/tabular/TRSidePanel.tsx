@@ -153,9 +153,11 @@ export function TRSidePanel({
 
     return (
         <div
-            className="fixed right-0 top-0 bottom-0 z-100 flex flex-row shadow-md border-l border-gray-200"
+            className="fixed right-0 top-0 bottom-0 z-100 flex flex-row border-l border-gray-200"
             style={{
-                background: "rgba(255,255,255,0.08)",
+                // Szklo na tokenie rampy (n-0 = "papier podniesiony"), nie na
+                // literale bieli - w rewersie mleczna zaslona robila sie obca.
+                background: "color-mix(in oklab, var(--n-0) 55%, transparent)",
                 backdropFilter: "blur(10px) saturate(50%)",
                 WebkitBackdropFilter: "blur(10px) saturate(50%)",
             }}
@@ -166,7 +168,7 @@ export function TRSidePanel({
                     {/* Doc header */}
                     <div className="flex items-center gap-2 pt-3 shrink-0 border-b border-white/30">
                         <p
-                            className="flex-1 truncate text-sm font-semibold font-sans text-slate-700 font-serif"
+                            className="flex-1 truncate text-sm font-semibold font-serif text-slate-700"
                             title={doc.filename}
                         >
                             {doc.filename}

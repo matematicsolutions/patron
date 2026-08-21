@@ -27,10 +27,13 @@ export default function GlobalError({
 
                     * { margin: 0; padding: 0; box-sizing: border-box; }
 
+                    /* Awers (ADR-0149): Cloud Dancer + Cocoa, przycisk w zlocie
+                       pieczeci. Strona bledu MUSI byc w palecie produktu - to
+                       ostatnia rzecz, jaka mecenas widzi przed zamknieciem. */
                     body {
                         font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-                        background-color: #ffffff;
-                        color: #111;
+                        background-color: #f1eee5;
+                        color: #2b2219;
                         min-height: 100vh;
                         display: flex;
                         align-items: center;
@@ -44,16 +47,16 @@ export default function GlobalError({
                     }
 
                     .error-title {
-                        font-family: 'Bona Nova', Georgia, 'Times New Roman', serif;
+                        font-family: Georgia, 'Times New Roman', serif;
                         font-size: 1.75rem;
                         font-weight: 400;
-                        color: #111;
+                        color: #2b2219;
                         margin-bottom: 0.75rem;
                     }
 
                     .error-message {
                         font-size: 0.9375rem;
-                        color: #6b7280;
+                        color: #6e6459;
                         line-height: 1.6;
                         margin-bottom: 2rem;
                     }
@@ -63,7 +66,7 @@ export default function GlobalError({
                         align-items: center;
                         gap: 0.5rem;
                         padding: 0.625rem 1.25rem;
-                        border-radius: 0.5rem;
+                        border-radius: 0.375rem;
                         font-size: 0.875rem;
                         font-weight: 500;
                         font-family: inherit;
@@ -71,12 +74,12 @@ export default function GlobalError({
                         transition: all 0.15s ease;
                         text-decoration: none;
                         border: none;
-                        background-color: #6B2233;
-                        color: white;
+                        background-color: #7a5f2b;
+                        color: #f8f6ef;
                     }
 
                     .btn-back:hover {
-                        background-color: rgb(0, 120, 230);
+                        background-color: #6a5225;
                     }
 
                     .btn-back:active {

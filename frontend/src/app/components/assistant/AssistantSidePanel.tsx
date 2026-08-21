@@ -150,7 +150,8 @@ export function AssistantSidePanel({
     return (
         <div
             ref={panelRef}
-            className="flex h-full shrink-0 flex-col bg-white relative border-l border-gray-200 shadow-[-4px_0_12px_rgba(0,0,0,0.02)]"
+            // Zero cieni (ADR-0149): elewacje niesie wloskowata kreska.
+            className="flex h-full shrink-0 flex-col bg-white relative border-l border-gray-200"
             style={{ width: panelWidth }}
         >
             {/* Drag handle */}

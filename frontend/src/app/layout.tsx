@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Lato, Bona_Nova, Brygada_1918 } from "next/font/google";
+import { Lato, Bona_Nova, Brygada_1918, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 
@@ -37,6 +37,15 @@ const brygada = Brygada_1918({
     subsets: ["latin", "latin-ext"],
     weight: ["400", "600"],
     style: ["normal", "italic"],
+    display: "swap",
+});
+
+// Glos dowodu (ADR-0149): hash, sygnatura, licznik. Bez tego font-mono
+// spadal na systemowa Consolas - inna na kazdej maszynie.
+const jbMono = JetBrains_Mono({
+    variable: "--font-jbmono",
+    subsets: ["latin", "latin-ext"],
+    weight: ["400", "500"],
     display: "swap",
 });
 
@@ -99,7 +108,7 @@ export default function RootLayout({
                 />
             </head>
             <body
-                className={`${lato.variable} ${bonaNova.variable} ${brygada.variable} font-sans antialiased`}
+                className={`${lato.variable} ${bonaNova.variable} ${brygada.variable} ${jbMono.variable} font-sans antialiased`}
             >
                 <Providers>{children}</Providers>
             </body>

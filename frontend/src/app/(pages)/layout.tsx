@@ -100,7 +100,7 @@ export default function PATRONLayout({
                             <div className="flex md:hidden items-center gap-3 px-4 pt-3 pb-1 shrink-0">
                                 <button
                                     onClick={handleSidebarToggle}
-                                    className="flex h-8 w-8 items-center justify-center rounded-full bg-white/70 text-gray-700 shadow-[0_8px_24px_rgba(15,23,42,0.12)] ring-1 ring-white/70 backdrop-blur-md transition-all hover:bg-white/90 active:scale-95"
+                                    className="flex h-8 w-8 items-center justify-center rounded-full bg-white/70 text-gray-700 ring-1 ring-white/70 backdrop-blur-md transition-all hover:bg-white/90 active:scale-95"
                                     title={t("nav.openSidebar")}
                                     aria-label={t("nav.openSidebar")}
                                 >

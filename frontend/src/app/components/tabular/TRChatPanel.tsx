@@ -352,7 +352,7 @@ function TRAssistantMessage({
                                             )
                                         }
                                         title={`${cit.col_name} · ${cit.doc_name.replace(/\.[^.]+$/, "")}`}
-                                        className="mx-0.5 inline-flex items-center justify-center rounded-full w-4 h-4 text-[10px] font-medium bg-gray-100 text-gray-900 hover:bg-gray-200 transition-colors align-super font-serif"
+                                        className="mx-0.5 inline-flex items-center justify-center rounded-full w-4 h-4 text-[10px] font-medium bg-gray-100 text-gray-900 hover:bg-gray-200 transition-colors align-super"
                                     >
                                         {idx + 1}
                                     </button>
@@ -373,7 +373,7 @@ function TRAssistantMessage({
     );
 
     return (
-        <div className="text-gray-900 font-serif">
+        <div className="text-gray-900 font-text">
             <TRResponseStatus isActive={!!msg.isStreaming} />
             {groups.length > 0 && (
                 <div className="flex flex-col gap-2.5">
