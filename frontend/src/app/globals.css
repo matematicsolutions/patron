@@ -6,10 +6,27 @@
 @theme inline {
     --color-background: var(--background);
     --color-foreground: var(--foreground);
-    --color-bordeaux: var(--bordeaux);
-    --color-bordeaux-hover: var(--bordeaux-hover);
-    --color-bordeaux-soft: var(--bordeaux-soft);
+    /* Pieczec: matowe zloto (Awers i rewers, 2026-08-21). Klasy *-bordeaux
+       zostaja jako alias na --seal, zeby nie migrowac 64 uzyc naraz - nowy
+       kod pisze seal/gold, nie bordeaux. */
+    --color-bordeaux: var(--seal);
+    --color-bordeaux-hover: var(--seal-hover);
+    --color-bordeaux-soft: var(--seal-soft);
+    --color-seal: var(--seal);
+    --color-seal-hover: var(--seal-hover);
+    --color-seal-soft: var(--seal-soft);
+    --color-gold: var(--gold);
     --color-parchment: var(--parchment);
+    /* Rewers biezacego motywu - dla powierzchni "w kontrze" (pasek perymetru).
+       Na jasnym te zmienne trzymaja wartosci ciemne i odwrotnie. */
+    --color-rev-background: var(--rev-background);
+    --color-rev-foreground: var(--rev-foreground);
+    --color-rev-muted-foreground: var(--rev-muted-foreground);
+    --color-rev-border: var(--rev-border);
+    --color-rev-gold: var(--rev-gold);
+    --color-rev-ok: var(--rev-ok);
+    --color-rev-warn: var(--rev-warn);
+    --color-rev-bad: var(--rev-bad);
     --font-sans: var(--font-lato);
     --font-serif: var(--font-bona-nova);
     --font-text: var(--font-brygada);
@@ -146,136 +163,161 @@
 
 :root {
     --radius: 0.375rem;
-    /* Rampa neutralna (jasny): pergamin -> cieply inkaust. */
-    --n-0: oklch(0.995 0.004 84);
-    --n-50: oklch(0.984 0.008 83);
-    --n-100: oklch(0.966 0.010 82);
-    --n-200: oklch(0.922 0.012 80);
-    --n-300: oklch(0.872 0.014 78);
-    --n-400: oklch(0.715 0.018 68);
-    --n-500: oklch(0.578 0.020 60);
-    --n-600: oklch(0.475 0.021 55);
-    --n-700: oklch(0.390 0.022 55);
-    --n-800: oklch(0.318 0.021 55);
-    --n-900: oklch(0.255 0.020 55);
-    --n-950: oklch(0.200 0.018 52);
+    /* Rampa neutralna (jasny) - AWERS: papier Cloud Dancer, inkaust Cocoa
+       Powder (espresso z grafitem). Kontrast inkaust/papier 13.4:1 (WCAG AAA). */
+    --n-0: #f8f6ef;
+    --n-50: #f4f1e9;
+    --n-100: #ede9de;
+    --n-200: #dcd5c6;
+    --n-300: #c9c1af;
+    --n-400: #9c9284;
+    --n-500: #7e7466;
+    --n-600: #6e6459;
+    --n-700: #55493d;
+    --n-800: #41372d;
+    --n-900: #2b2219;
+    --n-950: #211a14;
 
-    /* Paleta "pergamin": bardzo delikatne cieple tlo (kremowy papier), inkaust
-       w cieplym braz zamiast czerni, akcent bordo na naglowkach serif. Chroma
-       trzymana nisko - elegancja, nie krzyk. Hue ~80 (cieply) dla powierzchni,
-       ~25 (bordo) dla akcentu. */
-    --parchment: oklch(0.983 0.008 84);
-    --bordeaux: oklch(0.40 0.10 25);
-    --bordeaux-hover: oklch(0.34 0.09 25);
-    --bordeaux-soft: oklch(0.955 0.018 30);
-    --background: oklch(0.985 0.008 84);
-    --foreground: oklch(0.255 0.020 55);
-    --card: oklch(0.995 0.004 84);
-    --card-foreground: oklch(0.255 0.020 55);
-    --popover: oklch(0.996 0.004 84);
-    --popover-foreground: oklch(0.255 0.020 55);
-    --primary: oklch(0.305 0.027 46);
-    --primary-foreground: oklch(0.986 0.006 84);
-    --secondary: oklch(0.958 0.009 82);
-    --secondary-foreground: oklch(0.305 0.027 46);
-    --muted: oklch(0.958 0.009 82);
-    --muted-foreground: oklch(0.525 0.018 56);
-    --accent: oklch(0.953 0.013 70);
-    --accent-foreground: oklch(0.305 0.027 46);
+    /* Paleta "Awers i rewers": DWA pigmenty (Cloud Dancer #F1EEE5, Cocoa
+       Powder #2B2219) + jedno matowe zloto. Zloto wylacznie na znakach
+       autorytetu (pieczec, grzbiet aktywnej sprawy, fokus, odsylacz do
+       zrodla) - nigdy jako dekoracja i NIGDY jako kolor stanu. */
+    --parchment: #f1eee5;
+    --seal: #7a5f2b;
+    --seal-hover: #6a5225;
+    --seal-soft: #efe7d2;
+    --gold: #b08d4c;
+    --background: #f1eee5;
+    --foreground: #2b2219;
+    --card: #f8f6ef;
+    --card-foreground: #2b2219;
+    --popover: #faf8f1;
+    --popover-foreground: #2b2219;
+    --primary: #3b3128;
+    --primary-foreground: #f8f6ef;
+    --secondary: #ede9de;
+    --secondary-foreground: #3b3128;
+    --muted: #ede9de;
+    --muted-foreground: #6e6459;
+    --accent: #eae5d6;
+    --accent-foreground: #3b3128;
     --destructive: oklch(0.527 0.17 25);
-    --border: oklch(0.904 0.012 78);
-    --input: oklch(0.904 0.012 78);
-    --ring: oklch(0.62 0.052 30);
-    --chart-1: oklch(0.646 0.222 41.116);
+    --border: #dcd5c6;
+    --input: #dcd5c6;
+    --ring: #b08d4c;
+    --chart-1: #b08d4c;
     --chart-2: oklch(0.6 0.118 184.704);
     --chart-3: oklch(0.398 0.07 227.392);
     --chart-4: oklch(0.828 0.189 84.429);
     --chart-5: oklch(0.769 0.188 70.08);
-    --sidebar: oklch(0.971 0.01 82);
-    --sidebar-foreground: oklch(0.255 0.020 55);
-    --sidebar-primary: oklch(0.305 0.027 46);
-    --sidebar-primary-foreground: oklch(0.986 0.006 84);
-    --sidebar-accent: oklch(0.949 0.014 70);
-    --sidebar-accent-foreground: oklch(0.305 0.027 46);
-    --sidebar-border: oklch(0.904 0.012 78);
-    --sidebar-ring: oklch(0.62 0.052 30);
+    --sidebar: #ece8dc;
+    --sidebar-foreground: #2b2219;
+    --sidebar-primary: #3b3128;
+    --sidebar-primary-foreground: #f8f6ef;
+    --sidebar-accent: #e4dfcf;
+    --sidebar-accent-foreground: #3b3128;
+    --sidebar-border: #dcd5c6;
+    --sidebar-ring: #b08d4c;
 
     /* Trojstan groundingu cytatu (ADR-0146). Zolty NIE jest ostrzezeniem
        o bledzie - znaczy "nie potwierdzam", czyli brak tekstu zrodlowego.
-       Nigdy nie awansuje na zielony. */
-    --ok: oklch(0.48 0.08 155);
-    --ok-soft: oklch(0.94 0.02 155);
-    --warn: oklch(0.62 0.10 75);
-    --warn-soft: oklch(0.95 0.03 85);
-    --bad: oklch(0.50 0.15 25);
-    --bad-soft: oklch(0.95 0.03 25);
+       Nigdy nie awansuje na zielony. Bursztyn jest nasycony, zloto matowe -
+       ta roznica (plus etykieta slowna) oddziela stan od pieczeci. */
+    --ok: #2f6b4f;
+    --ok-soft: #e2ece4;
+    --warn: #8a5c0b;
+    --warn-soft: #f3e9d2;
+    --bad: #8e2b2b;
+    --bad-soft: #f3dfda;
+
+    /* Rewers biezacego motywu: na jasnym te zmienne nosza wartosci ciemne.
+       Konsument: powierzchnie "w kontrze" (pasek perymetru), ktore maja byc
+       widoczne obwodowo i nigdy nie zlewac sie z trescia. */
+    --rev-background: #221b15;
+    --rev-foreground: #efebe0;
+    --rev-muted-foreground: #a2988a;
+    --rev-border: #3a3128;
+    --rev-gold: #c9a25e;
+    --rev-ok: #7fc79e;
+    --rev-warn: #e3a83d;
+    --rev-bad: #e08a8a;
 }
 
-/* Tryb ciemny: cieply grafit, nie szarosc z pudelka. Do tej pory .dark
-   bylo domyslka shadcn (chroma 0) - w dzien produkt byl pergaminowy,
-   wieczorem stawal sie innym produktem. Hue trzymany na ~55-60 jak
-   w skali jasnej; inkaust to kosc sloniowa, nie biel. */
+/* Tryb ciemny - REWERS: nie osobna paleta, tylko te same dwa pigmenty
+   zamienione rolami. Papierem jest Cocoa Powder, inkaustem Cloud Dancer;
+   zloto jasnieje o jeden stopien. Kontrast inkaust/papier 14.4:1. */
 .dark {
-    --parchment: oklch(0.225 0.010 58);
+    --parchment: #251e17;
     /* Rampa ODWROCONA: to, co w dzien bylo najjasniejsza powierzchnia, wieczorem
-       jest najciemniejsza; inkaust staje sie koscia sloniowa. Dzieki temu
+       jest najciemniejsza; inkaust staje sie Cloud Dancer. Dzieki temu
        `bg-white` i `text-gray-900` w komponentach dzialaja bez zmian. */
-    --n-0: oklch(0.205 0.009 58);
-    --n-50: oklch(0.225 0.009 58);
-    --n-100: oklch(0.252 0.010 58);
-    --n-200: oklch(0.292 0.011 58);
-    --n-300: oklch(0.400 0.013 58);
-    --n-400: oklch(0.585 0.015 60);
-    --n-500: oklch(0.672 0.014 62);
-    --n-600: oklch(0.745 0.012 68);
-    --n-700: oklch(0.800 0.011 74);
-    --n-800: oklch(0.875 0.010 80);
-    --n-900: oklch(0.925 0.008 85);
-    --n-950: oklch(0.965 0.006 85);
+    --n-0: #221b15;
+    --n-50: #251e17;
+    --n-100: #2b231c;
+    --n-200: #332b23;
+    --n-300: #453b30;
+    --n-400: #6b5f50;
+    --n-500: #837668;
+    --n-600: #9c9082;
+    --n-700: #b0a597;
+    --n-800: #cfc7b9;
+    --n-900: #efebe0;
+    --n-950: #f6f3ea;
 
-    --bordeaux: oklch(0.68 0.10 25);
-    --bordeaux-hover: oklch(0.74 0.10 25);
-    --bordeaux-soft: oklch(0.30 0.045 25);
-    --background: oklch(0.185 0.008 58);
-    --foreground: oklch(0.925 0.008 85);
-    --card: oklch(0.225 0.009 58);
-    --card-foreground: oklch(0.925 0.008 85);
-    --popover: oklch(0.235 0.009 58);
-    --popover-foreground: oklch(0.925 0.008 85);
-    --primary: oklch(0.905 0.010 82);
-    --primary-foreground: oklch(0.205 0.012 55);
-    --secondary: oklch(0.272 0.010 58);
-    --secondary-foreground: oklch(0.925 0.008 85);
-    --muted: oklch(0.272 0.010 58);
-    --muted-foreground: oklch(0.685 0.014 62);
-    --accent: oklch(0.292 0.014 50);
-    --accent-foreground: oklch(0.925 0.008 85);
+    --seal: #c9a25e;
+    --seal-hover: #d6b273;
+    --seal-soft: #33291b;
+    --gold: #c9a25e;
+    --background: #1e1812;
+    --foreground: #efebe0;
+    --card: #251e17;
+    --card-foreground: #efebe0;
+    --popover: #2b231c;
+    --popover-foreground: #efebe0;
+    --primary: #e7e1d2;
+    --primary-foreground: #241d16;
+    --secondary: #332b23;
+    --secondary-foreground: #efebe0;
+    --muted: #332b23;
+    --muted-foreground: #a2988a;
+    --accent: #3a3128;
+    --accent-foreground: #efebe0;
     --destructive: oklch(0.62 0.16 25);
-    --border: oklch(0.925 0.008 85 / 12%);
-    --input: oklch(0.925 0.008 85 / 16%);
-    --ring: oklch(0.62 0.075 28);
-    --chart-1: oklch(0.68 0.10 25);
+    --border: rgb(239 235 224 / 0.12);
+    --input: rgb(239 235 224 / 0.16);
+    --ring: #c9a25e;
+    --chart-1: #c9a25e;
     --chart-2: oklch(0.66 0.08 155);
     --chart-3: oklch(0.72 0.09 75);
     --chart-4: oklch(0.60 0.07 250);
     --chart-5: oklch(0.70 0.06 40);
-    --sidebar: oklch(0.205 0.009 58);
-    --sidebar-foreground: oklch(0.925 0.008 85);
-    --sidebar-primary: oklch(0.68 0.10 25);
-    --sidebar-primary-foreground: oklch(0.185 0.008 58);
-    --sidebar-accent: oklch(0.272 0.012 52);
-    --sidebar-accent-foreground: oklch(0.925 0.008 85);
-    --sidebar-border: oklch(0.925 0.008 85 / 12%);
-    --sidebar-ring: oklch(0.62 0.075 28);
+    --sidebar: #201a14;
+    --sidebar-foreground: #efebe0;
+    --sidebar-primary: #c9a25e;
+    --sidebar-primary-foreground: #221b15;
+    --sidebar-accent: #332b23;
+    --sidebar-accent-foreground: #efebe0;
+    --sidebar-border: rgb(239 235 224 / 0.12);
+    --sidebar-ring: #c9a25e;
 
-    /* Trojstan po ciemnej stronie: te same role, podniesiona jasnosc,
-       zeby kontrast na grafitowym tle zostal czytelny. */
-    --ok: oklch(0.80 0.10 155);
-    --ok-soft: oklch(0.26 0.04 155);
-    --warn: oklch(0.86 0.11 82);
-    --warn-soft: oklch(0.27 0.04 80);
-    --bad: oklch(0.80 0.12 25);
-    --bad-soft: oklch(0.27 0.05 25);
+    /* Trojstan po stronie rewersu: te same role, podniesiona jasnosc,
+       zeby kontrast na kakaowym tle zostal czytelny (8.5 / 8.0 / 6.6:1). */
+    --ok: #7fc79e;
+    --ok-soft: #24352b;
+    --warn: #e3a83d;
+    --warn-soft: #3a2f17;
+    --bad: #e08a8a;
+    --bad-soft: #3a2424;
+
+    /* Rewers rewersu = awers: pasek perymetru na ciemnym jest jasny. */
+    --rev-background: #f1eee5;
+    --rev-foreground: #2b2219;
+    --rev-muted-foreground: #6e6459;
+    --rev-border: #dcd5c6;
+    --rev-gold: #7a5f2b;
+    --rev-ok: #2f6b4f;
+    --rev-warn: #8a5c0b;
+    --rev-bad: #8e2b2b;
 }
 
 @layer base {
@@ -310,20 +352,20 @@
     }
 }
 
-/* Dyskretna kratka na kanwie aplikacji - papier milimetrowy w cieplym
-   bordo-inkauscie (~7%). Aplikowana na glowny kontener tresci (nie body,
+/* Dyskretna kratka na kanwie aplikacji - papier milimetrowy w matowym
+   zlocie (~7%). Aplikowana na glowny kontener tresci (nie body,
    bo body krylyby nieprzezroczyste panele). Pod kartami/balonami czatu
    znika sama - maja wlasne tlo. Wyczuwalna, nie krzykliwa. */
 .app-grid {
     background-image:
         linear-gradient(
             to right,
-            color-mix(in oklch, var(--bordeaux) 7%, transparent) 1px,
+            color-mix(in oklch, var(--gold) 7%, transparent) 1px,
             transparent 1px
         ),
         linear-gradient(
             to bottom,
-            color-mix(in oklch, var(--bordeaux) 7%, transparent) 1px,
+            color-mix(in oklch, var(--gold) 7%, transparent) 1px,
             transparent 1px
         );
     background-size: 30px 30px;
@@ -483,31 +525,34 @@
     transform-origin: 0% 0%;
 }
 
+/* Podswietlenie cytatu w dokumencie: matowe zloto (znak autorytetu),
+   nie niebieski z forka - to jedyne miejsce, gdzie oko szuka zrodla. */
 .pdf-text-layer .pdf-text-highlight {
-    background-color: rgba(37, 99, 235, 0.2);
+    background-color: rgba(176, 141, 76, 0.28);
     border-radius: 2px;
     position: static;
 }
 
 .docx-view-container span.docx-text-highlight,
 .docx-view-container .docx-text-highlight {
-    background-color: rgba(37, 99, 235, 0.35) !important;
+    background-color: rgba(176, 141, 76, 0.4) !important;
     border-radius: 2px;
     padding: 0 1px;
     color: inherit !important;
 }
 
-/* docx-preview tracked-change styling */
+/* docx-preview tracked-change styling - kolory z trojstanu semantycznego,
+   nie z domyslki Tailwinda */
 .docx-view-container ins {
-    color: #16a34a;
+    color: #2f6b4f;
     text-decoration: none;
-    background-color: rgba(22, 163, 74, 0.08);
+    background-color: rgba(47, 107, 79, 0.1);
 }
 
 .docx-view-container del {
-    color: #dc2626;
+    color: #8e2b2b;
     text-decoration: line-through;
-    background-color: rgba(220, 38, 38, 0.08);
+    background-color: rgba(142, 43, 43, 0.08);
 }
 
 /* Kill docx-preview's default dark-gray wrapper chrome — let the scroll
@@ -542,11 +587,11 @@
 
 @keyframes docxEditFlash {
     0%, 20% {
-        background-color: rgba(59, 130, 246, 0.45);
-        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.45);
+        background-color: rgba(176, 141, 76, 0.45);
+        box-shadow: 0 0 0 2px rgba(176, 141, 76, 0.45);
     }
     100% {
-        background-color: rgba(59, 130, 246, 0);
-        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0);
+        background-color: rgba(176, 141, 76, 0);
+        box-shadow: 0 0 0 2px rgba(176, 141, 76, 0);
     }
 }

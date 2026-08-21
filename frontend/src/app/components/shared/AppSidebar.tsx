@@ -277,13 +277,18 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                                                         )
                                                     }
                                                     title={project.name}
-                                                    className={`flex h-9 w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-xs transition-colors ${
+                                                    // Grzbiety akt: sprawa w nawigacji jak wolumen na polce -
+                                                    // zloty grzbiet ma wylacznie aktywna (zloto = znak autorytetu,
+                                                    // nie dekoracja).
+                                                    className={`flex h-9 w-full items-center gap-2 rounded-r-md border-l-[3px] px-2.5 py-2 text-left text-xs transition-colors ${
                                                         isActive
-                                                            ? "bg-gray-100 text-gray-900"
-                                                            : "text-gray-700 hover:bg-gray-100"
+                                                            ? "border-gold bg-seal-soft text-gray-900"
+                                                            : "border-gray-200 text-gray-700 hover:border-gray-300 hover:bg-gray-100"
                                                     }`}
                                                 >
-                                                    <FolderOpen className="h-3.5 w-3.5 shrink-0 text-gray-500" />
+                                                    <FolderOpen
+                                                        className={`h-3.5 w-3.5 shrink-0 ${isActive ? "text-seal" : "text-gray-500"}`}
+                                                    />
                                                     <span className="min-w-0 flex-1 truncate">
                                                         {project.name}
                                                     </span>

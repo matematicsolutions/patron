@@ -41,17 +41,17 @@ export function PerimeterBar(): ReactElement {
 
     const tone =
         posture === "local"
-            ? "text-grounded"
+            ? "text-rev-ok"
             : posture === "cloud"
-              ? "text-unverified"
-              : "text-unverified";
+              ? "text-rev-warn"
+              : "text-rev-warn";
 
     const dot =
         posture === "local"
-            ? "bg-grounded"
+            ? "bg-rev-ok"
             : posture === "cloud"
-              ? "bg-unverified"
-              : "bg-unverified";
+              ? "bg-rev-warn"
+              : "bg-rev-warn";
 
     const postureText =
         posture === "local"
@@ -69,7 +69,10 @@ export function PerimeterBar(): ReactElement {
             data-testid="perimeter-bar"
             data-posture={posture}
             aria-label={t("perimeter.label")}
-            className="flex shrink-0 flex-wrap items-center gap-x-5 gap-y-1 border-t border-border bg-sidebar px-4 py-1.5 text-[11px] leading-tight text-muted-foreground"
+            // Perymetr jest ZAWSZE rewersem biezacego motywu (ciemny pas na
+            // jasnym ekranie i odwrotnie): governance to "druga strona kartki",
+            // widoczna obwodowo i nigdy nie zlewajaca sie z trescia.
+            className="flex shrink-0 flex-wrap items-center gap-x-5 gap-y-1 border-t border-rev-border bg-rev-background px-4 py-1.5 text-[11px] leading-tight text-rev-muted-foreground"
         >
             <span className={`inline-flex items-baseline gap-1.5 font-semibold ${tone}`}>
                 <span
@@ -81,9 +84,9 @@ export function PerimeterBar(): ReactElement {
 
             <span className="inline-flex items-baseline gap-1">
                 <span className="uppercase tracking-[0.08em]">{t("perimeter.model")}</span>
-                <span className="font-mono text-foreground">{model}</span>
+                <span className="font-mono text-rev-foreground">{model}</span>
                 {config?.local_model_configured ? (
-                    <span className="text-grounded">({t("perimeter.localModel")})</span>
+                    <span className="text-rev-ok">({t("perimeter.localModel")})</span>
                 ) : null}
             </span>
 
@@ -97,20 +100,21 @@ export function PerimeterBar(): ReactElement {
                     href="/admin/audit"
                     data-testid="perimeter-audit-link"
                     title={t("perimeter.auditLink")}
-                    className="inline-flex items-baseline gap-1 rounded-sm underline-offset-2 hover:underline focus-visible:underline"
+                    // Odsylacz do akt to znak autorytetu - jedyne zloto na pasku.
+                    className="inline-flex items-baseline gap-1 rounded-sm underline-offset-2 hover:text-rev-gold hover:underline focus-visible:underline"
                 >
                     <span className="uppercase tracking-[0.08em]">{t("perimeter.gateway")}</span>
-                    <span className={status.gateway.active ? "text-grounded" : "text-unverified"}>
+                    <span className={status.gateway.active ? "text-rev-ok" : "text-rev-warn"}>
                         {status.gateway.active
                             ? t("perimeter.gatewayActive")
                             : t("perimeter.gatewayInactive")}
                     </span>
-                    <span className="font-mono text-foreground">
+                    <span className="font-mono text-rev-foreground">
                         {status.audit_summary_24h.decisions_total}
                     </span>
                     <span>{t("perimeter.decisions24h")}</span>
                     {blocked > 0 ? (
-                        <span className="font-semibold text-ungrounded">
+                        <span className="font-semibold text-rev-bad">
                             {blocked} {t("perimeter.blocked")}
                         </span>
                     ) : null}
