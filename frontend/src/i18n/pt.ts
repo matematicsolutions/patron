@@ -804,6 +804,20 @@ export const pt: DictShape<typeof pl> = {
         toolEditDocument: "Edicao de documento",
         toolGenerateDocx: "Geracao de documento .docx",
     },
+    perimeter: {
+        label: "Perímetro",
+        local: "Os dados não saem deste dispositivo",
+        cloudPrivileged: "Modelo em nuvem permitido para casos sob sigilo profissional",
+        cloudUs: "Fornecedores dos EUA permitidos",
+        unknown: "Não confirmado - sem resposta sobre a configuração",
+        model: "Modelo",
+        localModel: "local",
+        gateway: "Gateway MCP",
+        gatewayActive: "ativo",
+        gatewayInactive: "inativo",
+        decisions24h: "decisões / 24 h",
+        blocked: "bloqueadas",
+    },
 } as const;
 
 // EN -> arquivo separado `en.ts` (ADR-0132). PL continua sendo a fonte das

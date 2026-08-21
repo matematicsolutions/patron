@@ -784,4 +784,18 @@ export const fr: DictShape<typeof pl> = {
         toolEditDocument: "Modification du document",
         toolGenerateDocx: "Génération d'un document .docx",
     },
+    perimeter: {
+        label: "Périmètre",
+        local: "Les données ne quittent pas cet appareil",
+        cloudPrivileged: "Modèle cloud autorisé pour les affaires couvertes par le secret professionnel",
+        cloudUs: "Fournisseurs américains autorisés",
+        unknown: "Non confirmé - aucune réponse sur la configuration",
+        model: "Modèle",
+        localModel: "local",
+        gateway: "Passerelle MCP",
+        gatewayActive: "active",
+        gatewayInactive: "inactive",
+        decisions24h: "décisions / 24 h",
+        blocked: "bloquées",
+    },
 } as const;
