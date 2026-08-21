@@ -825,6 +825,7 @@ export const pl = {
         usProvidersAriaLabel:
             "Dostawcy spoza UE dozwoleni za zgoda Administratora",
         actionHint: "Zmień w Modele i klucze",
+        dismiss: "Zamknij powiadomienie",
     },
 
     // ---------------------------------------------------------------------
@@ -968,6 +969,7 @@ export const pl = {
         gatewayInactive: "nieaktywna",
         decisions24h: "decyzji / 24 h",
         auditLink: "Akta i dowody",
+        policyLink: "Polityka modelu - Modele i klucze",
         blocked: "zablokowane",
     },
     theme: {

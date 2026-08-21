@@ -134,3 +134,36 @@ describe("PerimeterBar - osiagalnosc akt", () => {
         expect(screen.queryByTestId("perimeter-audit-link")).toBeNull();
     });
 });
+
+// ADR-0149 (korekta WM 2026-08-21): pasek przejal caly stan trwaly po gornych
+// banerach, wiec KAZDY segment musi prowadzic tam, gdzie sie tym faktem
+// zarzadza. Segment, ktory tylko informuje, oddaje uzytkownika w rece
+// szukania po ustawieniach - a to byl powod, dla ktorego banery w ogole
+// powstaly na gorze.
+describe("PerimeterBar - kazdy segment prowadzi tam, gdzie sie tym zarzadza", () => {
+    beforeEach(() => {
+        egress.config = config({ privileged_cloud: { allowed: true } });
+        mcp.status = status(0);
+    });
+
+    it("postawa perymetru prowadzi do polityki modelu - zgode da sie ODWOLAC", () => {
+        render(<PerimeterBar />);
+        expect(
+            screen.getByTestId("perimeter-posture-link").getAttribute("href"),
+        ).toBe("/account/models");
+    });
+
+    it("model prowadzi do modeli i kluczy", () => {
+        render(<PerimeterBar />);
+        expect(
+            screen.getByTestId("perimeter-model-link").getAttribute("href"),
+        ).toBe("/account/models");
+    });
+
+    it("bramka MCP prowadzi do akt z decyzjami", () => {
+        render(<PerimeterBar />);
+        expect(
+            screen.getByTestId("perimeter-gateway-link").getAttribute("href"),
+        ).toBe("/admin/audit");
+    });
+});

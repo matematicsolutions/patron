@@ -700,6 +700,7 @@ export const en: DictShape<typeof pl> = {
 
     egressConfig: {
         actionHint: "Change in Models and API keys",
+        dismiss: "Dismiss notice",
     },
 
     packUpdates: {
@@ -829,6 +830,7 @@ export const en: DictShape<typeof pl> = {
         gatewayInactive: "inactive",
         decisions24h: "decisions / 24 h",
         auditLink: "Records and evidence",
+        policyLink: "Model policy - Models and API keys",
         blocked: "blocked",
     },
     theme: {

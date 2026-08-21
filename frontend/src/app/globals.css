@@ -84,6 +84,21 @@
     --radius-md: calc(var(--radius) - 2px);
     --radius-lg: var(--radius);
     --radius-xl: calc(var(--radius) + 4px);
+
+    /* Elewacja (ADR-0149). Cala zmierzona czolowka buduje ja wloskowata
+       kreska, nie rozmyciem - dlatego panele statyczne cieni nie maja wcale.
+       Warstwy PLYWAJACE (modal, dropdown, popover) potrzebuja odklejenia od
+       tla, ale domyslna skala Tailwinda jest zimna (czysta czern) i za mocna:
+       na cieplym papierze czyta sie jak brudny prostokat. Przemapowanie w
+       JEDNYM miejscu zamiast sweepu po ~70 uzyciach - inkaust zamiast czerni,
+       alfa scieta kilkukrotnie, i skala zalezna od motywu. */
+    --shadow-2xs: 0 1px 1px var(--elev-1);
+    --shadow-xs: 0 1px 2px var(--elev-1);
+    --shadow-sm: 0 1px 2px var(--elev-1);
+    --shadow-md: 0 2px 6px var(--elev-2);
+    --shadow-lg: 0 6px 16px var(--elev-3);
+    --shadow-xl: 0 10px 28px var(--elev-4);
+    --shadow-2xl: 0 18px 44px var(--elev-5);
 }
 
 /* ─── Skala neutralna: pergamin w dzien, cieply grafit wieczorem ────────
@@ -228,6 +243,13 @@
     --bad: #8e2b2b;
     --bad-soft: #f3dfda;
 
+    /* Cien = inkaust rozcienczony, nie czern. Na awersie ledwie obecny. */
+    --elev-1: rgb(43 34 25 / 0.05);
+    --elev-2: rgb(43 34 25 / 0.06);
+    --elev-3: rgb(43 34 25 / 0.07);
+    --elev-4: rgb(43 34 25 / 0.08);
+    --elev-5: rgb(43 34 25 / 0.10);
+
     /* Rewers biezacego motywu: na jasnym te zmienne nosza wartosci ciemne.
        Konsument: powierzchnie "w kontrze" (pasek perymetru), ktore maja byc
        widoczne obwodowo i nigdy nie zlewac sie z trescia. */
@@ -306,6 +328,14 @@
     --warn-soft: #3a2f17;
     --bad: #e08a8a;
     --bad-soft: #3a2424;
+
+    /* Na rewersie cien musi byc glebszy od tla, wiec schodzi ku czerni -
+       inaczej warstwa plywajaca nie odkleja sie od kakaowego papieru. */
+    --elev-1: rgb(0 0 0 / 0.22);
+    --elev-2: rgb(0 0 0 / 0.28);
+    --elev-3: rgb(0 0 0 / 0.34);
+    --elev-4: rgb(0 0 0 / 0.40);
+    --elev-5: rgb(0 0 0 / 0.46);
 
     /* Rewers rewersu = awers: pasek perymetru na ciemnym jest jasny. */
     --rev-background: #f1eee5;

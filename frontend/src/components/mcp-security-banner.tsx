@@ -25,6 +25,17 @@ export function McpSecurityBanner(): ReactElement | null {
     const audit = by_action.audit;
     const humanReview = by_action.human_review;
 
+    // ADR-0149 (korekta WM 2026-08-21): STAN TRWALY nalezy do perymetru, gora
+    // jest zarezerwowana na ZDARZENIE. Tryb bramki (disabled / audit / enforce
+    // bez blokad) to konfiguracja srodowiska - mecenas nie zareaguje na nia w
+    // trakcie pracy, a ostrzezenie, ktore jest ZAWSZE, przestaje byc
+    // ostrzezeniem i uczy ignorowania takze tego jednego waznego.
+    //
+    // To NIE tworzy ciszy: pasek perymetru pokazuje stan bramki stale i
+    // klikalnie. Gora zapala sie wylacznie wtedy, gdy bramka FAKTYCZNIE cos
+    // zablokowala - bo to jest zdarzenie, nie ustawienie.
+    if (denied === 0) return null;
+
     // Adnotacja, nie alarm: kolor niesie WYLACZNIE kreska po lewej i ton
     // tekstu; tlo zostaje papierem. Powierzchnia zgodnosciowa ma byc stale
     // obecna jak przypis - nie moze byc najglosniejsza rzecza na ekranie.

@@ -58,25 +58,24 @@ function Item({
     );
 }
 
+/**
+ * `bar` - poziomy pasek nad polem pytania (uzywany ponizej xl, gdy nie ma
+ * marginesu). `margin` - naglowek trzeciej strefy: etykieta i werdykty jedno
+ * pod drugim, bez ramki, bo kolumne wyznacza juz kreska marginesu.
+ */
 export function GroundingLedger({
     messages,
+    variant = "bar",
 }: {
     messages: PATRONMessage[];
+    variant?: "bar" | "margin";
 }): ReactElement | null {
     const c = sumGroundingVerdicts(messages);
     const total = c.green + c.yellow + c.red;
     if (total === 0) return null;
 
-    return (
-        <div
-            role="status"
-            data-testid="grounding-ledger"
-            aria-label={t("citations.ledgerAriaLabel")}
-            className="flex flex-wrap items-center gap-x-3 gap-y-0.5 border-b border-gray-200 px-4 pb-1.5 pt-2 text-[11px] leading-tight text-gray-500"
-        >
-            <span className="uppercase tracking-[0.08em]">
-                {t("citations.ledgerLabel")}
-            </span>
+    const items = (
+        <>
             {c.green > 0 ? (
                 <Item
                     tone="text-grounded"
@@ -101,6 +100,36 @@ export function GroundingLedger({
                     label={t("citations.ledgerRed")}
                 />
             ) : null}
+        </>
+    );
+
+    if (variant === "margin") {
+        return (
+            <div
+                role="status"
+                data-testid="grounding-ledger"
+                aria-label={t("citations.ledgerAriaLabel")}
+                className="flex flex-col gap-1 text-[11px] leading-tight text-gray-500"
+            >
+                <span className="uppercase tracking-[0.1em] text-gray-400">
+                    {t("citations.ledgerLabel")}
+                </span>
+                {items}
+            </div>
+        );
+    }
+
+    return (
+        <div
+            role="status"
+            data-testid="grounding-ledger"
+            aria-label={t("citations.ledgerAriaLabel")}
+            className="flex flex-wrap items-center gap-x-3 gap-y-0.5 border-b border-gray-200 px-4 pb-1.5 pt-2 text-[11px] leading-tight text-gray-500"
+        >
+            <span className="uppercase tracking-[0.08em]">
+                {t("citations.ledgerLabel")}
+            </span>
+            {items}
         </div>
     );
 }

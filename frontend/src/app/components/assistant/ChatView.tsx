@@ -463,6 +463,27 @@ export function ChatView({
                     style={{ scrollbarGutter: "stable both-edges" }}
                 >
                     <div className="w-full max-w-4xl xl:max-w-6xl mx-auto pb-32 px-6 md:px-8 pt-4 md:pt-6 min-h-full flex flex-col relative">
+                        {/* TRZECIA STREFA - margines dowodu (ADR-0149).
+                            To nie jest panel, ktory sie wysuwa: to margines,
+                            ktory JEST. Ciagla kreska wyznacza kolumne przez
+                            cala rozmowe, a przyklejony u gory rejestr trzyma
+                            werdykty na oczach przy kazdym przewinieciu.
+                            Aparat cytowan poszczegolnych odpowiedzi renderuje
+                            sie w tej samej kolumnie, na wysokosci swojego
+                            zdania. Ponizej xl okno jest za waskie na trzy
+                            strefy - rejestr wraca wtedy nad pole pytania. */}
+                        <div
+                            aria-hidden="true"
+                            className="pointer-events-none absolute bottom-0 right-6 top-0 hidden w-[17.5rem] border-l border-gray-200 md:right-8 xl:block"
+                        />
+                        <div className="absolute right-6 top-4 hidden w-[17.5rem] pl-4 md:right-8 md:top-6 xl:block">
+                            <div className="sticky top-0">
+                                <GroundingLedger
+                                    messages={messages}
+                                    variant="margin"
+                                />
+                            </div>
+                        </div>
                         {!messagesVisible && (
                             <div className="space-y-6 w-full">
                                 <div className="flex justify-end">
@@ -581,7 +602,12 @@ export function ChatView({
                 >
                     <div className="w-full max-w-4xl xl:max-w-6xl mx-auto px-4 md:px-6">
                         <div className="w-full rounded-t-[20px] bg-white">
-                            <GroundingLedger messages={messages} />
+                            {/* Przy xl+ rejestr zyje w marginesie dowodu - tu
+                                zostaje tylko dla waskich okien, zeby werdykty
+                                nie zniknely razem z trzecia strefa. */}
+                            <div className="xl:hidden">
+                                <GroundingLedger messages={messages} />
+                            </div>
                             <ChatInput
                                 onSubmit={handleChat}
                                 onCancel={cancel}

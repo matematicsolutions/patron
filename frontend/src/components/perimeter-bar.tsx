@@ -1,23 +1,25 @@
-// Pasek perymetru - governance wyjety z ustawien na powierzchnie produktu.
+// Pasek perymetru - JEDYNA stala powierzchnia governance w produkcie.
 //
-// Po co to istnieje: laancuch skrotow, bramka egress i gateway MCP to jedyne
+// Po co to istnieje: lancuch skrotow, bramka egress i gateway MCP to jedyne
 // rzeczy, ktorych nie ma zaden konkurent w kategorii (zmierzone 2026-08-21 na
 // Harvey, Legora, Hebbia, Wexler, Libra, Omnilexia, Beck-Noxtua). Do tej pory
 // siedzialy w /admin/audit i /account/connectors, czyli tam, gdzie prawnik
-// zaglada raz w zyciu. Sprzedajemy governance i chowamy go jak ustawienia
-// drukarki.
+// zaglada raz w zyciu.
 //
-// Roznica wobec EgressConfigBanner: TAMTEN pokazuje sie tylko, gdy jest zle.
-// Brak banera jest wtedy dwuznaczny - nie wiadomo, czy jest bezpiecznie, czy
-// baner sie zepsul. Ten pasek jest ZAWSZE, wiec cisza przestaje byc informacja
-// (por. "monitor wykrywa sukces, nie awarie"). Trojstan jak przy groundingu
-// cytatu: brak odpowiedzi o konfiguracji to NIE jest stan zielony.
+// ADR-0149 (korekta WM 2026-08-21): pasek przejmuje CALY stan trwaly po gornych
+// banerach. Zasada: STAN TRWALY nalezy do perymetru, ZMIANA STANU do banera.
+// Kazdy segment jest klikalny i prowadzi tam, gdzie sie tym zarzadza - dzieki
+// temu gorne 10% ekranu wraca do sprawy, a governance ma JEDNA powierzchnie
+// zamiast dwoch mowiacych to samo.
+//
+// Cisza nadal nie jest informacja: pasek renderuje sie ZAWSZE, a brak
+// odpowiedzi o konfiguracji to stan "nie potwierdzam", nigdy zielony.
 //
 // Pasywny: czyta stan, niczego nie loguje i niczego nie zmienia.
 
 "use client";
 
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { useEgressConfig } from "@/hooks/useEgressConfig";
 import { useMcpSecurityStatus } from "@/hooks/useMcpSecurityStatus";
 import { useSelectedModel } from "@/app/hooks/useSelectedModel";
@@ -25,6 +27,36 @@ import Link from "next/link";
 import { t } from "@/i18n";
 
 type Posture = "local" | "cloud" | "unknown";
+
+/** Segment paska: klikalny, prowadzi tam, gdzie zarzadza sie tym faktem. */
+function Segment({
+    href,
+    title,
+    testId,
+    className = "",
+    children,
+}: {
+    href: string;
+    title: string;
+    testId?: string;
+    className?: string;
+    children: ReactNode;
+}): ReactElement {
+    return (
+        <Link
+            href={href}
+            title={title}
+            data-testid={testId}
+            className={`inline-flex items-baseline gap-1.5 self-center rounded-sm underline-offset-2 transition-colors hover:underline focus-visible:underline ${className}`}
+        >
+            {children}
+        </Link>
+    );
+}
+
+function Divider(): ReactElement {
+    return <span className="mx-4 w-px self-stretch bg-rev-border" aria-hidden="true" />;
+}
 
 export function PerimeterBar(): ReactElement {
     const { config } = useEgressConfig();
@@ -39,19 +71,8 @@ export function PerimeterBar(): ReactElement {
               ? "cloud"
               : "local";
 
-    const tone =
-        posture === "local"
-            ? "text-rev-ok"
-            : posture === "cloud"
-              ? "text-rev-warn"
-              : "text-rev-warn";
-
-    const dot =
-        posture === "local"
-            ? "bg-rev-ok"
-            : posture === "cloud"
-              ? "bg-rev-warn"
-              : "bg-rev-warn";
+    const tone = posture === "local" ? "text-rev-ok" : "text-rev-warn";
+    const dot = posture === "local" ? "bg-rev-ok" : "bg-rev-warn";
 
     const postureText =
         posture === "local"
@@ -76,38 +97,47 @@ export function PerimeterBar(): ReactElement {
             // instrument pomiarowy, nie luzny zbior napisow.
             className="flex shrink-0 flex-wrap items-stretch gap-y-1 border-t border-rev-border bg-rev-background px-4 py-2 text-[11px] leading-tight text-rev-muted-foreground"
         >
-            <span
-                className={`inline-flex items-baseline gap-1.5 self-center font-semibold ${tone}`}
+            {/* Postawa perymetru: klik prowadzi tam, gdzie Operator moze swoja
+                zgode ODWOLAC - to jest sens wyprowadzenia jej na powierzchnie. */}
+            <Segment
+                href="/account/models"
+                title={t("perimeter.policyLink")}
+                testId="perimeter-posture-link"
+                className={`font-semibold ${tone}`}
             >
                 <span
                     className={`h-[7px] w-[7px] shrink-0 translate-y-[-1px] rounded-full ${dot}`}
                     aria-hidden="true"
                 />
                 {postureText}
-            </span>
+            </Segment>
 
-            <span className="mx-4 w-px self-stretch bg-rev-border" aria-hidden="true" />
+            <Divider />
 
-            <span className="inline-flex items-baseline gap-1.5 self-center">
+            <Segment
+                href="/account/models"
+                title={t("perimeter.policyLink")}
+                testId="perimeter-model-link"
+            >
                 <span className="uppercase tracking-[0.08em]">{t("perimeter.model")}</span>
                 <span className="font-mono text-rev-foreground">{model}</span>
                 {config?.local_model_configured ? (
                     <span className="text-rev-ok">({t("perimeter.localModel")})</span>
                 ) : null}
-            </span>
+            </Segment>
 
             {/* Lancuch skrotow, Merkle i eksport teczki dowodowej zyja pod
                 /admin/audit, do ktorego do 2026-08-21 NIE PROWADZIL ZADEN LINK -
                 dalo sie tam wejsc tylko wpisujac adres. Jedyne funkcje, ktorych
-                nie ma konkurencja, byly nieosiagalne. Licznik decyzji jest teraz
-                wejsciem do akt. */}
+                nie ma konkurencja, byly nieosiagalne. */}
             {status ? (
                 <>
-                    <span
-                        className="mx-4 w-px self-stretch bg-rev-border"
-                        aria-hidden="true"
-                    />
-                    <span className="inline-flex items-baseline gap-1.5 self-center">
+                    <Divider />
+                    <Segment
+                        href="/admin/audit"
+                        title={t("perimeter.auditLink")}
+                        testId="perimeter-gateway-link"
+                    >
                         <span className="uppercase tracking-[0.08em]">
                             {t("perimeter.gateway")}
                         </span>
@@ -129,7 +159,7 @@ export function PerimeterBar(): ReactElement {
                                 {blocked} {t("perimeter.blocked")}
                             </span>
                         ) : null}
-                    </span>
+                    </Segment>
                     <Link
                         href="/admin/audit"
                         data-testid="perimeter-audit-link"
