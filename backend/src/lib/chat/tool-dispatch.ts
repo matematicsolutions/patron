@@ -240,7 +240,30 @@ export async function getDocumentTextForGrounding(
         db,
         { emitEvents: false },
     );
-    return isReadFailureSentinel(text) ? null : text;
+    if (!isReadFailureSentinel(text)) return text;
+
+    // Skany (jpg/png/tiff) nie maja warstwy tekstowej, wiec odczyt pliku zwraca
+    // sentinel - a tekst Z OCR lezy w doc_chunks. Bez tego odwrotu cytat wziety
+    // doslownie ze skanu dostawal BRAK_ZRODLA, mimo poprawnego rozpoznania
+    // (zmierzone 2026-08-21: skan postanowienia, 9/9 slow kontrolnych w bazie,
+    // grounding "nie dostarczono tekstu zrodlowego"). Akta papierowe musza dac
+    // sie ugruntowac tak samo jak docx.
+    const documentId = docIndex?.[docLabel]?.document_id;
+    if (!documentId || !db) return null;
+    try {
+        const { data } = await db
+            .from("doc_chunks")
+            .select("content")
+            .eq("document_id", documentId)
+            .order("chunk_index", { ascending: true });
+        const zChunkow = ((data ?? []) as { content?: string }[])
+            .map((r) => r.content ?? "")
+            .join("\n")
+            .trim();
+        return zChunkow.length > 0 ? zChunkow : null;
+    } catch {
+        return null;
+    }
 }
 
 /**

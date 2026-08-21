@@ -7,6 +7,26 @@ const crypto = require('crypto');
 
 const isDev = process.argv.includes('--dev');
 
+// D2: bez tej blokady kazde kolejne uruchomienie skrotu startowalo PELNA druga
+// instancje. Jej backend dostawal EADDRINUSE i umieral, ale okno i tak sie
+// otwieralo, bo waitForPort sprawdza tylko "czy KTOKOLWIEK odpowiada na porcie",
+// a nie "czy wstal MOJ backend" - druga instancja po cichu sterowala backendem
+// pierwszej (zmierzone 2026-08-21: trzy rownolegle instancje, 17 procesow,
+// ~2,4 GB RAM, zadna sie nie poskarzyla).
+const mamBlokadeInstancji = app.requestSingleInstanceLock();
+if (!mamBlokadeInstancji) {
+  app.quit();
+} else {
+  app.on('second-instance', () => {
+    // Uzytkownik kliknal skrot jeszcze raz - przywroc istniejace okno zamiast
+    // otwierac nowe (typowe pod presja demo).
+    if (win) {
+      if (win.isMinimized()) win.restore();
+      win.focus();
+    }
+  });
+}
+
 const BACKEND_PORT = 3001;
 const FRONTEND_PORT = 3000;
 
@@ -434,6 +454,35 @@ function createWindow() {
   win.once('ready-to-show', () => win.show());
   win.on('closed', () => { win = null; });
 
+  // D1: przy pierwszym starcie okno potrafilo pokazac PUSTY prostokat - UI
+  // rysowalo sie dopiero po recznym przeladowaniu (Ctrl+R), mimo ze backend i
+  // frontend odpowiadaly poprawnie (zmierzone 2026-08-21). `show:false` +
+  // `ready-to-show` pokazuje okno takze wtedy, gdy renderer nic nie narysowal,
+  // a handlera `did-fail-load` nie bylo wcale - awaria ladowania nie dawala
+  // ZADNEGO sygnalu. Ponizej: jedno automatyczne przeladowanie + glosny log.
+  let stronaZaladowana = false;
+  let przeladowanoRaz = false;
+  const przeladujRaz = (powod) => {
+    if (przeladowanoRaz || !win || win.isDestroyed()) return;
+    przeladowanoRaz = true;
+    console.warn(`[PATRON] okno bez tresci (${powod}) - przeladowuje raz`);
+    win.webContents.reload();
+  };
+  win.webContents.on('did-finish-load', () => {
+    stronaZaladowana = true;
+  });
+  win.webContents.on('did-fail-load', (_e, kod, opis, url, glownaRamka) => {
+    if (!glownaRamka) return;
+    console.error(`[PATRON] blad ladowania okna: ${kod} ${opis} (${url})`);
+    przeladujRaz(`did-fail-load ${kod}`);
+  });
+  // Wartownik na wypadek, gdy strona nie zglosi ANI konca ladowania, ANI bledu -
+  // czyli dokladnie ten przypadek, ktory widzielismy.
+  const wartownik = setTimeout(() => {
+    if (!stronaZaladowana) przeladujRaz('brak did-finish-load w 15 s');
+  }, 15000);
+  win.on('closed', () => clearTimeout(wartownik));
+
   // Minimalne menu — bez domyślnych pozycji Electron
   const menu = Menu.buildFromTemplate([
     {
@@ -596,7 +645,10 @@ app.whenReady().then(async () => {
       <body style="background:#0e1825;color:#ffb4ab;font-family:monospace;padding:32px">
         <h2 style="color:#c9a55a;margin-bottom:16px">PATRON — błąd uruchomienia</h2>
         <pre style="font-size:12px;opacity:0.8">${err.message}</pre>
-        <p style="margin-top:24px;font-size:11px;opacity:0.5">Sprawdź czy backend i frontend są zbudowane.<br>Uruchom: npm run build w katalogach backend/ i frontend/</p>
+        <p style="margin-top:24px;font-size:12px;opacity:0.75">Zamknij PATRONa i uruchom go ponownie.<br>
+        Jeżeli błąd wróci, sprawdź, czy aplikacja nie jest już otwarta w innym oknie,<br>
+        a następnie prześlij powyższy komunikat na <b>kontakt@matematic.co</b>.</p>
+        <p style="margin-top:12px;font-size:10px;opacity:0.35">Instrukcja &bdquo;npm run build&rdquo; zostala stad usunieta - u odbiorcy nie jest wykonalna.</p>
       </body>
     `)}`);
   }

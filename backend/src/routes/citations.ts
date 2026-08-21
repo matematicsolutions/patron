@@ -46,8 +46,35 @@ citationsRouter.post("/verify", requireAuth, async (req, res) => {
     userId,
     db,
   );
+  // Kontrakt endpointu mowi `doc_id`, ale magazyn tekstu jest kluczowany
+  // POZYCYJNIE (`doc-0`, `doc-1`... - patrz buildProjectDocContext). Wolajacy,
+  // ktory poda prawdziwy identyfikator dokumentu albo nazwe pliku, dostawal
+  // wiec 100% BRAK_ZRODLA (zmierzone 2026-08-21). Normalizujemy wejscie do
+  // etykiety magazynu; etykieta podana wprost dziala jak dotad.
+  const naEtykiete = new Map<string, string>();
+  for (const [label, info] of Object.entries(docIndex)) {
+    naEtykiete.set(label, label);
+    if (info.document_id) naEtykiete.set(String(info.document_id), label);
+    if (info.filename) naEtykiete.set(String(info.filename), label);
+  }
+  const znormalizowane = body.citations.map((raw) => {
+    if (!raw || typeof raw !== "object") return raw;
+    const cyt = { ...(raw as Record<string, unknown>) };
+    // `ref` musi byc liczba - string byl po cichu odrzucany, a odpowiedz
+    // brzmiala "brak blokady" przy ZEROWEJ weryfikacji.
+    if (typeof cyt.ref === "string" && cyt.ref.trim() !== "") {
+      const n = Number(cyt.ref);
+      if (Number.isFinite(n)) cyt.ref = n;
+    }
+    if (typeof cyt.doc_id === "string") {
+      const label = naEtykiete.get(cyt.doc_id);
+      if (label) cyt.doc_id = label;
+    }
+    return cyt;
+  });
+
   const byRef = await groundCitationsByRef(
-    body.citations,
+    znormalizowane,
     docStore,
     docIndex,
     db,

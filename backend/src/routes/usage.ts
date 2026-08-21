@@ -66,16 +66,18 @@ export function toUsageEvents(rows: AuditRow[]): UsageEvent[] {
         }
         if (!p || typeof p !== "object") continue;
         const model = p.model ?? "(nieznany)";
-        const promptTokens = p.prompt_tokens ?? 0;
-        const completionTokens = p.completion_tokens ?? 0;
+        // `?? 0` gubilo roznice miedzy "zero tokenow" a "brak pomiaru" -
+        // przekazujemy null dalej, zeby resolveCost mogl orzec NIEROZLICZONE.
+        const promptTokens = p.prompt_tokens ?? null;
+        const completionTokens = p.completion_tokens ?? null;
         const cost = resolveCost(model, promptTokens, completionTokens, p.cost_usd ?? null);
         out.push({
             ts: r.ts,
             model,
             provider: p.provider ?? "(nieznany)",
             caseId: p.case_id ?? null,
-            promptTokens,
-            completionTokens,
+            promptTokens: promptTokens ?? 0,
+            completionTokens: completionTokens ?? 0,
             costUsd: cost.costUsd,
             costEstimated: cost.estimated,
             unpriced: cost.unpriced,

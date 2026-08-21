@@ -22,8 +22,30 @@ import {
     wrapConversation,
     PseudonimStreamUnwrapper,
     plEntityDetector,
+    unwrap,
 } from "../pseudonim";
+import type { PseudonimMap } from "../pseudonim";
 import { createServerSupabase } from "../supabase";
+
+/**
+ * Rekurencyjnie odwraca tokeny pseudonimow w argumentach wywolania narzedzia.
+ * Model widzi swiat zamaskowany (egress), ale narzedzia pracuja na danych
+ * LOKALNYCH, ktore zamaskowane nigdy nie byly - token w argumencie jest wiec
+ * zawsze bledem. `unwrap` podmienia tylko ZNANE tokeny, wiec dla zwyklego
+ * tekstu jest to no-op.
+ */
+function odtworzTokeny(wartosc: unknown, map: PseudonimMap): unknown {
+    if (typeof wartosc === "string") return unwrap(wartosc, map);
+    if (Array.isArray(wartosc))
+        return wartosc.map((v) => odtworzTokeny(v, map));
+    if (wartosc && typeof wartosc === "object") {
+        const wynik: Record<string, unknown> = {};
+        for (const [k, v] of Object.entries(wartosc as Record<string, unknown>))
+            wynik[k] = odtworzTokeny(v, map);
+        return wynik;
+    }
+    return wartosc;
+}
 import { CITATIONS_OPEN_TAG, parseCitations, resolveDoc } from "./citations";
 import { groundCitationsByRef } from "./ground-citations";
 import { makeJudge } from "../citation/judge";
@@ -198,6 +220,12 @@ export async function runLLMStream(params: {
     // konwersacja idzie zamaskowana do chmury. null = brak maskowania (lokalny
     // model lub dane publiczne) -> przeplyw bez zmian.
     let unwrapper: PseudonimStreamUnwrapper | null = null;
+    // Ta sama mapa, ale do odwracania ARGUMENTOW NARZEDZI (nie tylko strumienia
+    // odpowiedzi). Maskowanie istnieje wylacznie na potrzeby egressu - dane
+    // lokalne nigdy nie sa zamaskowane, wiec narzedzie musi dostac oryginal.
+    // Bez tego generate_docx wpisywal do pisma "[ORG_1]" zamiast nazwy strony,
+    // a search_corpus/find_in_document szukaly tokenu (zmierzone 2026-08-21).
+    let pseudonimMap: PseudonimMap | null = null;
     let iterReasoning = "";
     let visibleTailBuffer = "";
     let citationsOpenSeen = false;
@@ -346,6 +374,7 @@ export async function runLLMStream(params: {
         outboundSystemPrompt = wrapped.systemPrompt;
         outboundMessages = wrapped.messages;
         unwrapper = new PseudonimStreamUnwrapper(wrapped.map);
+        pseudonimMap = wrapped.map;
     }
 
     const routeStartedAt = Date.now();
@@ -406,7 +435,11 @@ export async function runLLMStream(params: {
                 id: c.id,
                 function: {
                     name: c.name,
-                    arguments: JSON.stringify(c.input),
+                    arguments: JSON.stringify(
+                        pseudonimMap
+                            ? odtworzTokeny(c.input, pseudonimMap)
+                            : c.input,
+                    ),
                 },
             }));
             const {

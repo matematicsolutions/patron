@@ -102,6 +102,16 @@ export function resolveCost(
     if (!price) {
         return { costUsd: null, estimated: true, unpriced: true };
     }
+    // "Brak pomiaru" to NIE jest "zero tokenow". Bez tego rozroznienia model
+    // z cennika liczyl 0 x cena = 0,00 USD i ustawial unpriced=false, wiec licznik
+    // nierozliczonych - istniejacy dokladnie po to - pokazywal 0 (zmierzone
+    // 2026-08-21: 5 realnych wywolan Gemini, panel kosztu "0,00 USD, 0 nierozliczonych").
+    if (
+        (promptTokens === null || promptTokens === undefined) &&
+        (completionTokens === null || completionTokens === undefined)
+    ) {
+        return { costUsd: null, estimated: true, unpriced: true };
+    }
     const inTok = promptTokens ?? 0;
     const outTok = completionTokens ?? 0;
     const costUsd =
