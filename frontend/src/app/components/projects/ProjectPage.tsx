@@ -800,7 +800,7 @@ export function ProjectPage({ projectId, initialTab = "documents" }: Props) {
                     style={treeNameCellStyle(depth)}
                 >
                     <div className="flex items-center gap-1.5">
-                        <FolderPlus className="h-4 w-4 text-amber-400 shrink-0" />
+                        <FolderPlus className="h-4 w-4 text-warn shrink-0" />
                         <input
                             autoFocus
                             className="flex-1 min-w-0 text-sm text-gray-800 bg-transparent outline-none border-b border-gray-300"
@@ -942,7 +942,7 @@ export function ProjectPage({ projectId, initialTab = "documents" }: Props) {
                                     {isProcessing ? (
                                         <Loader2 className="h-4 w-4 animate-spin text-gray-400 shrink-0" />
                                     ) : isError ? (
-                                        <AlertCircle className="h-4 w-4 text-red-500 shrink-0" />
+                                        <AlertCircle className="h-4 w-4 text-bad shrink-0" />
                                     ) : (
                                         <DocIcon fileType={doc.file_type} />
                                     )}
@@ -1100,19 +1100,19 @@ export function ProjectPage({ projectId, initialTab = "documents" }: Props) {
                                     closeRowActionMenus();
                                     setContextMenu({ x: e.clientX, y: e.clientY, folderId: folder.id, showFolderActions: true });
                                 }}
-                                className={`group flex items-center h-10 pr-8 border-b border-gray-50 hover:bg-gray-50 cursor-pointer transition-colors ${isRenaming ? "" : "select-none"} ${dragOverFolderId === folder.id ? "bg-blue-50 ring-1 ring-inset ring-blue-200" : ""}`}
+                                className={`group flex items-center h-10 pr-8 border-b border-gray-50 hover:bg-gray-50 cursor-pointer transition-colors ${isRenaming ? "" : "select-none"} ${dragOverFolderId === folder.id ? "bg-bordeaux-soft ring-1 ring-inset ring-ring" : ""}`}
                             >
-                                <div className={`sticky left-0 z-[60] ${CHECK_W} p-2 flex items-center justify-center ${dragOverFolderId === folder.id ? "bg-blue-50" : "bg-white"} group-hover:bg-gray-50 self-stretch`} style={treeControlCellStyle(depth)}>
+                                <div className={`sticky left-0 z-[60] ${CHECK_W} p-2 flex items-center justify-center ${dragOverFolderId === folder.id ? "bg-bordeaux-soft" : "bg-white"} group-hover:bg-gray-50 self-stretch`} style={treeControlCellStyle(depth)}>
                                     {isExpanded
                                         ? <ChevronDown className="h-3.5 w-3.5 text-gray-400 shrink-0" />
                                         : <ChevronRight className="h-3.5 w-3.5 text-gray-400 shrink-0" />
                                     }
                                 </div>
-                                <div className={`sticky left-8 z-[60] ${DOC_NAME_COL_W} p-2 ${dragOverFolderId === folder.id ? "bg-blue-50" : "bg-white"} group-hover:bg-gray-50`} style={treeNameCellStyle(depth)}>
+                                <div className={`sticky left-8 z-[60] ${DOC_NAME_COL_W} p-2 ${dragOverFolderId === folder.id ? "bg-bordeaux-soft" : "bg-white"} group-hover:bg-gray-50`} style={treeNameCellStyle(depth)}>
                                 <div className="flex items-center gap-1.5">
                                     {isExpanded
-                                        ? <FolderOpen className="h-4 w-4 text-amber-500 shrink-0" />
-                                        : <Folder className="h-4 w-4 text-amber-500 shrink-0" />
+                                        ? <FolderOpen className="h-4 w-4 text-warn shrink-0" />
+                                        : <Folder className="h-4 w-4 text-warn shrink-0" />
                                     }
                                     {isRenaming ? (
                                         <input
@@ -1229,7 +1229,7 @@ export function ProjectPage({ projectId, initialTab = "documents" }: Props) {
                     )}
                     <button
                         onClick={handleDeleteSelected}
-                        className="w-full px-3 py-1.5 text-left text-xs text-red-600 hover:bg-red-50 transition-colors"
+                        className="w-full px-3 py-1.5 text-left text-xs text-bad hover:bg-bad-soft transition-colors"
                     >
                         Delete
                     </button>
@@ -1373,10 +1373,10 @@ export function ProjectPage({ projectId, initialTab = "documents" }: Props) {
                             }}
                         >
                             {dragOverRoot && dragOverFolderId === null && (
-                                <div className="absolute inset-0 border-2 border-blue-400 pointer-events-none z-[80]" />
+                                <div className="absolute inset-0 border-2 border-bordeaux pointer-events-none z-[80]" />
                             )}
                             {dragOverFileRoot && (
-                                <div className="absolute inset-0 z-[90] border-2 border-blue-400 bg-blue-50/40 pointer-events-none" />
+                                <div className="absolute inset-0 z-[90] border-2 border-bordeaux bg-bordeaux-soft/40 pointer-events-none" />
                             )}
 
                         {/* Empty state */}
@@ -1459,7 +1459,7 @@ export function ProjectPage({ projectId, initialTab = "documents" }: Props) {
                                                     </div>
                                                     <div className={`sticky left-8 z-[60] ${DOC_NAME_COL_W} bg-white p-2 group-hover:bg-gray-50`}>
                                                     <div className="flex items-center gap-2">
-                                                        {isProcessing ? <Loader2 className="h-4 w-4 animate-spin text-gray-400 shrink-0" /> : isError ? <AlertCircle className="h-4 w-4 text-red-500 shrink-0" /> : <DocIcon fileType={doc.file_type} />}
+                                                        {isProcessing ? <Loader2 className="h-4 w-4 animate-spin text-gray-400 shrink-0" /> : isError ? <AlertCircle className="h-4 w-4 text-bad shrink-0" /> : <DocIcon fileType={doc.file_type} />}
                                                         {renamingDocumentId === doc.id ? (
                                                             <input
                                                                 autoFocus

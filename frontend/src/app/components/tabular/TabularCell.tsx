@@ -30,10 +30,10 @@ interface Props {
 }
 
 const FLAG_STYLES = {
-    green: "bg-green-500",
+    green: "bg-ok",
     grey: "bg-gray-400",
-    yellow: "bg-amber-400",
-    red: "bg-red-500",
+    yellow: "bg-warn",
+    red: "bg-bad",
 } as const;
 
 // ADR-0080: widoczny sygnal mechanicznej weryfikacji cytatow inline w komorce.
@@ -49,7 +49,7 @@ function GroundingBadge({
         status === "unverified"
             ? {
                   icon: (
-                      <ShieldAlert className="h-3 w-3 shrink-0 text-red-500" />
+                      <ShieldAlert className="h-3 w-3 shrink-0 text-bad" />
                   ),
                   title: `Uwaga: ${unverified} z ${total} cytatow nie znaleziono doslownie w dokumencie - mozliwa halucynacja, sprawdz zrodlo.`,
               }
@@ -65,13 +65,13 @@ function GroundingBadge({
               : status === "modified"
                 ? {
                     icon: (
-                        <ShieldAlert className="h-3 w-3 shrink-0 text-amber-500" />
+                        <ShieldAlert className="h-3 w-3 shrink-0 text-warn" />
                     ),
                     title: `${modified} z ${total} cytatow rozni sie drobnymi szczegolami (interpunkcja/uciecie) - warto sprawdzic zrodlo.`,
                 }
               : {
                     icon: (
-                        <ShieldCheck className="h-3 w-3 shrink-0 text-green-600" />
+                        <ShieldCheck className="h-3 w-3 shrink-0 text-ok" />
                     ),
                     title: `Cytaty zweryfikowane w dokumencie (${verified} z ${total}).`,
                 };
@@ -95,20 +95,20 @@ export function ReviewBadge({
         action === "approved"
             ? {
                   icon: (
-                      <CheckCircle2 className="h-3 w-3 shrink-0 text-green-600" />
+                      <CheckCircle2 className="h-3 w-3 shrink-0 text-ok" />
                   ),
                   title: t("tabular.reviewStatusApproved"),
               }
             : action === "rejected"
               ? {
                     icon: (
-                        <XCircle className="h-3 w-3 shrink-0 text-red-500" />
+                        <XCircle className="h-3 w-3 shrink-0 text-bad" />
                     ),
                     title: t("tabular.reviewStatusRejected"),
                 }
               : {
                     icon: (
-                        <PencilLine className="h-3 w-3 shrink-0 text-amber-500" />
+                        <PencilLine className="h-3 w-3 shrink-0 text-warn" />
                     ),
                     title: t("tabular.reviewStatusCorrected"),
                 };
@@ -180,7 +180,7 @@ function CellMarkdown({
                         href={href}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-blue-600 hover:text-blue-700 underline"
+                        className="text-bordeaux hover:text-bordeaux underline"
                         {...props}
                     >
                         {children}
@@ -278,7 +278,7 @@ export function TabularCell({
     if (cell.status === "error") {
         return (
             <div className="h-10 flex items-center justify-center text-gray-300">
-                <AlertCircle className="h-4 w-4 text-red-300" />
+                <AlertCircle className="h-4 w-4 text-bad" />
             </div>
         );
     }

@@ -38,8 +38,8 @@ export function DeleteChatsModal({
                         <>
                             {/* Success State */}
                             <div className="text-center">
-                                <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mb-4">
-                                    <Check className="h-8 w-8 text-green-600" />
+                                <div className="mx-auto w-16 h-16 bg-ok-soft rounded-full flex items-center justify-center mb-4">
+                                    <Check className="h-8 w-8 text-ok" />
                                 </div>
                                 <h2 className="text-3xl font-light font-display text-gray-900 mb-2">
                                     {t("modals.deletedTitle")}
@@ -53,7 +53,7 @@ export function DeleteChatsModal({
                         <>
                             {/* Header */}
                             <div className="flex items-center justify-between mb-6">
-                                <h2 className="text-4xl font-light font-display text-red-700">
+                                <h2 className="text-4xl font-light font-display text-bad">
                                     {t("modals.deleteAllTitle")}
                                 </h2>
                             </div>
@@ -72,7 +72,7 @@ export function DeleteChatsModal({
                                         onClick={onConfirm}
                                         disabled={isDeleting}
                                         variant="destructive"
-                                        className="w-full bg-red-600 hover:bg-red-700 text-white"
+                                        className="w-full bg-bad hover:bg-bad text-white"
                                     >
                                         {isDeleting
                                             ? t("modals.deleting")

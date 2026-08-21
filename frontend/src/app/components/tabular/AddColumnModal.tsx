@@ -489,7 +489,7 @@ export function AddColumnModal({ open, existingCount, onClose, onAdd, editingCol
                                 <button
                                     type="button"
                                     onClick={onDelete}
-                                    className="rounded-lg px-4 py-2 text-sm text-red-500 hover:bg-red-50 transition-colors"
+                                    className="rounded-lg px-4 py-2 text-sm text-bad hover:bg-bad-soft transition-colors"
                                 >
                                     Delete
                                 </button>

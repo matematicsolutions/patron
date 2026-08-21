@@ -481,12 +481,12 @@ export function DocxView({
             className={`relative flex flex-col flex-1 overflow-hidden ${bordered ? "border border-gray-200" : ""} ${rounded ? "rounded-xl" : ""}`}
         >
             {warning && (
-                <div className="absolute top-2 left-2 z-10 flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-2 py-1 text-xs text-amber-800 shadow-sm">
+                <div className="absolute top-2 left-2 z-10 flex items-center gap-2 rounded-md border border-warn-soft bg-warn-soft px-2 py-1 text-xs text-warn shadow-sm">
                     <span>{warning}</span>
                     <button
                         type="button"
                         onClick={() => onWarningDismiss?.()}
-                        className="text-amber-600 hover:text-amber-900"
+                        className="text-warn hover:text-warn"
                         aria-label="Dismiss warning"
                     >
                         ×
@@ -506,7 +506,7 @@ export function DocxView({
                 )}
                 {error && (
                     <div className="flex h-full items-center justify-center">
-                        <p className="text-sm text-red-500">{error}</p>
+                        <p className="text-sm text-bad">{error}</p>
                     </div>
                 )}
                 <div ref={containerRef} className="docx-view-container" />

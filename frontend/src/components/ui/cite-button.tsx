@@ -46,7 +46,7 @@ export function CiteButton({
             {isCopied ? (
                 <Check
                     style={{ width: iconSize, height: iconSize }}
-                    className="text-green-600"
+                    className="text-ok"
                 />
             ) : (
                 <QuoteIcon style={{ width: iconSize, height: iconSize }} />
@@ -55,7 +55,7 @@ export function CiteButton({
                 <span
                     className={
                         isCopied
-                            ? `text-green-600 ${textClassName}`
+                            ? `text-ok ${textClassName}`
                             : textClassName
                     }
                 >

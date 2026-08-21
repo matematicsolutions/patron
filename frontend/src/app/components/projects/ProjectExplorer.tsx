@@ -31,9 +31,9 @@ interface Props {
 
 function DocIcon({ fileType }: { fileType: string | null }) {
     if (fileType === "pdf")
-        return <FileText className="h-3.5 w-3.5 text-red-500 shrink-0" />;
+        return <FileText className="h-3.5 w-3.5 text-bad shrink-0" />;
     if (fileType === "docx" || fileType === "doc")
-        return <File className="h-3.5 w-3.5 text-blue-500 shrink-0" />;
+        return <File className="h-3.5 w-3.5 text-bordeaux shrink-0" />;
     return <File className="h-3.5 w-3.5 text-gray-400 shrink-0" />;
 }
 
@@ -180,7 +180,7 @@ export function ProjectExplorer({
                         style={{ paddingLeft: basePadding }}
                     >
                         <ChevronRight className="h-3 w-3 text-gray-300 shrink-0" />
-                        <FolderPlus className="h-3.5 w-3.5 text-amber-400 shrink-0" />
+                        <FolderPlus className="h-3.5 w-3.5 text-warn shrink-0" />
                         <input
                             ref={newFolderInputRef}
                             autoFocus
@@ -232,7 +232,7 @@ export function ProjectExplorer({
                                 }}
                                 className={`flex items-center gap-1.5 py-1.5 pr-2 rounded-sm cursor-pointer select-none transition-colors group ${
                                     isDragTarget
-                                        ? "bg-blue-50 ring-1 ring-inset ring-blue-200"
+                                        ? "bg-bordeaux-soft ring-1 ring-inset ring-ring"
                                         : "hover:bg-gray-50"
                                 }`}
                                 style={{ paddingLeft: basePadding }}
@@ -246,8 +246,8 @@ export function ProjectExplorer({
                                     : <ChevronRight className="h-3 w-3 text-gray-400 shrink-0" />
                                 }
                                 {isExpanded
-                                    ? <FolderOpen className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-                                    : <Folder className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                                    ? <FolderOpen className="h-3.5 w-3.5 text-warn shrink-0" />
+                                    : <Folder className="h-3.5 w-3.5 text-warn shrink-0" />
                                 }
                                 {isRenaming ? (
                                     <input
@@ -311,7 +311,7 @@ export function ProjectExplorer({
 
     return (
         <ul
-            className={`p-1 relative h-full ${dragOverRoot && dragOverFolderId === null ? "ring-2 ring-blue-400 ring-inset" : ""}`}
+            className={`p-1 relative h-full ${dragOverRoot && dragOverFolderId === null ? "ring-2 ring-ring ring-inset" : ""}`}
             onContextMenu={(e) => {
                 // Only fires if not stopped by a child
                 openContextMenu(e, null);
@@ -397,7 +397,7 @@ export function ProjectExplorer({
                     )}
                     {contextMenu.folderId && onDeleteFolder && (
                         <button
-                            className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-red-600 hover:bg-red-50"
+                            className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-bad hover:bg-bad-soft"
                             onClick={() => {
                                 onDeleteFolder(contextMenu.folderId!);
                                 setContextMenu(null);
@@ -409,7 +409,7 @@ export function ProjectExplorer({
                     )}
                     {contextMenu.docId && onDeleteDoc && (
                         <button
-                            className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-red-600 hover:bg-red-50"
+                            className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-bad hover:bg-bad-soft"
                             onClick={() => {
                                 void onDeleteDoc(contextMenu.docId!);
                                 setContextMenu(null);

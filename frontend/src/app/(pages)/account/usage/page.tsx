@@ -126,13 +126,13 @@ export default function UsagePage() {
     if (loading) {
         return (
             <div className="flex items-center justify-center py-20">
-                <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+                <Loader2 className="h-6 w-6 animate-spin text-bordeaux" />
             </div>
         );
     }
 
     if (error) {
-        return <div className="py-10 text-sm text-red-600">{error}</div>;
+        return <div className="py-10 text-sm text-bad">{error}</div>;
     }
 
     const empty = !summary || summary.calls === 0;

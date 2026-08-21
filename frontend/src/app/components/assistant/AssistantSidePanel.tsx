@@ -156,7 +156,7 @@ export function AssistantSidePanel({
             {/* Drag handle */}
             <div
                 onMouseDown={onMouseDown}
-                className="absolute left-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-400 transition-colors z-10"
+                className="absolute left-0 top-0 h-full w-1 cursor-col-resize hover:bg-bordeaux transition-colors z-10"
                 style={{ marginLeft: -2 }}
             />
 

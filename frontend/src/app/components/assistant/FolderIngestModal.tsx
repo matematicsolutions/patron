@@ -46,12 +46,12 @@ function statusOf(httpStatus: number): FileStatus {
 
 function StatusIcon({ status }: { status: FileStatus }) {
     if (status === "imported")
-        return <CheckCircle2 className="h-4 w-4 shrink-0 text-green-600" />;
+        return <CheckCircle2 className="h-4 w-4 shrink-0 text-ok" />;
     if (status === "review")
-        return <Clock className="h-4 w-4 shrink-0 text-amber-600" />;
+        return <Clock className="h-4 w-4 shrink-0 text-warn" />;
     if (status === "blocked")
-        return <ShieldAlert className="h-4 w-4 shrink-0 text-red-600" />;
-    return <AlertCircle className="h-4 w-4 shrink-0 text-red-500" />;
+        return <ShieldAlert className="h-4 w-4 shrink-0 text-bad" />;
+    return <AlertCircle className="h-4 w-4 shrink-0 text-bad" />;
 }
 
 function FileRow({ entry }: { entry: FolderIngestEntry }) {
@@ -65,10 +65,10 @@ function FileRow({ entry }: { entry: FolderIngestEntry }) {
             <span
                 className={`shrink-0 text-xs ${
                     s === "imported"
-                        ? "text-green-600"
+                        ? "text-ok"
                         : s === "review"
-                          ? "text-amber-600"
-                          : "text-red-600"
+                          ? "text-warn"
+                          : "text-bad"
                 }`}
             >
                 {t(`folderIngest.status.${s}` as const)}
@@ -238,7 +238,7 @@ export function FolderIngestModal({ open, onClose, projectId }: Props) {
                     </div>
 
                     {error && (
-                        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-serif text-red-700">
+                        <div className="rounded-lg border border-bad-soft bg-bad-soft px-3 py-2 text-sm font-serif text-bad">
                             {error}
                         </div>
                     )}

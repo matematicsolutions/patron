@@ -190,7 +190,7 @@ export function NewWorkflowModal({ open, onClose, onCreated, editWorkflow, onUpd
                         </div>
 
                         {error && (
-                            <p className="mt-4 text-sm text-red-500">{error}</p>
+                            <p className="mt-4 text-sm text-bad">{error}</p>
                         )}
                     </div>
 

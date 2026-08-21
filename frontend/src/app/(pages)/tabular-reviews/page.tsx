@@ -276,7 +276,7 @@ export default function TabularReviewsPage() {
                         <div className="absolute top-full right-0 mt-1 w-36 rounded-lg border border-gray-100 bg-white shadow-lg z-[70] overflow-hidden">
                             <button
                                 onClick={handleDeleteSelected}
-                                className="w-full px-3 py-1.5 text-left text-xs text-red-600 hover:bg-red-50 transition-colors"
+                                className="w-full px-3 py-1.5 text-left text-xs text-bad hover:bg-bad-soft transition-colors"
                             >
                                 {t("tabular.delete")}
                             </button>

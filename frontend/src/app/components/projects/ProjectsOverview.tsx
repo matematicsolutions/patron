@@ -221,7 +221,7 @@ export function ProjectsOverview() {
                         <div className="absolute top-full right-0 mt-1 w-36 rounded-lg border border-gray-100 bg-white shadow-lg z-[70] overflow-hidden">
                             <button
                                 onClick={handleDeleteSelected}
-                                className="w-full px-3 py-1.5 text-left text-xs text-red-600 hover:bg-red-50 transition-colors"
+                                className="w-full px-3 py-1.5 text-left text-xs text-bad hover:bg-bad-soft transition-colors"
                             >
                                 {t("projects.deleteSelected")}
                             </button>
@@ -372,7 +372,7 @@ export function ProjectsOverview() {
                         <p className="text-2xl font-medium font-serif text-gray-900">
                             {t("projects.title")}
                         </p>
-                        <p className="mt-1 text-xs text-red-500 max-w-xs">
+                        <p className="mt-1 text-xs text-bad max-w-xs">
                             {loadError}
                         </p>
                     </div>

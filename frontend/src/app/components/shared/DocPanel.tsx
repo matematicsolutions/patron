@@ -268,12 +268,12 @@ function TrackedChangeHeader({
             <div className="w-full rounded-md bg-gray-50 border border-gray-200 px-2 py-2">
                 <div className="text-sm leading-relaxed font-serif">
                     {edit.inserted_text && (
-                        <span className="text-green-700">
+                        <span className="text-ok">
                             {edit.inserted_text}
                         </span>
                     )}
                     {edit.deleted_text && (
-                        <span className="text-red-600 line-through">
+                        <span className="text-bad line-through">
                             {edit.deleted_text}
                         </span>
                     )}

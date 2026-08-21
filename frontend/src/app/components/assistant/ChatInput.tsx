@@ -163,7 +163,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
                     {(selectedWorkflow || attachedDocs.length > 0) && (
                         <div className="flex flex-wrap gap-1.5 px-2 pt-2">
                             {selectedWorkflow && (
-                                <div className="inline-flex items-center gap-1 pl-2.5 pr-1 py-0.5 rounded-full text-xs bg-blue-600 text-white border border-white/20 shadow backdrop-blur-sm">
+                                <div className="inline-flex items-center gap-1 pl-2.5 pr-1 py-0.5 rounded-full text-xs bg-bordeaux text-white border border-white/20 shadow backdrop-blur-sm">
                                     <Library className="h-2.5 w-2.5 shrink-0" />
                                     <span className="max-w-[140px] truncate">
                                         {selectedWorkflow.title}
@@ -188,9 +188,9 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
                                         className="inline-flex items-center gap-1 pl-2 pr-1 py-0.5 rounded-full text-xs text-white shadow border border-white/20 bg-black backdrop-blur-sm"
                                     >
                                         {isPdf ? (
-                                            <FileText className="h-2.5 w-2.5 shrink-0 text-red-400" />
+                                            <FileText className="h-2.5 w-2.5 shrink-0 text-bad" />
                                         ) : (
-                                            <File className="h-2.5 w-2.5 shrink-0 text-blue-400" />
+                                            <File className="h-2.5 w-2.5 shrink-0 text-bordeaux" />
                                         )}
                                         <span className="max-w-[140px] truncate">
                                             {doc.filename}
@@ -244,7 +244,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
                                     type="button"
                                     onClick={() => setWorkflowModalOpen(true)}
                                     aria-label={t("chat.openWorkflows")}
-                                    className={`flex items-center gap-1.5 rounded-lg px-2 h-8 text-sm transition-colors ${selectedWorkflow ? "text-blue-600 hover:bg-blue-50" : "text-gray-400 hover:bg-gray-100 hover:text-gray-700"}`}
+                                    className={`flex items-center gap-1.5 rounded-lg px-2 h-8 text-sm transition-colors ${selectedWorkflow ? "text-bordeaux hover:bg-bordeaux-soft" : "text-gray-400 hover:bg-gray-100 hover:text-gray-700"}`}
                                 >
                                     {selectedWorkflow ? (
                                         <Check className="h-3.5 w-3.5" />

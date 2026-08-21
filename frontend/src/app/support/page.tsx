@@ -88,8 +88,8 @@ export default function SupportPage() {
             <div className="h-full flex items-center justify-center p-4">
                 <div className="max-w-md w-full bg-white rounded-xl text-center">
                     <div className="flex justify-center mb-4">
-                        <div className="h-16 w-16 bg-green-100 rounded-full flex items-center justify-center">
-                            <CheckCircle className="h-8 w-8 text-green-600" />
+                        <div className="h-16 w-16 bg-ok-soft rounded-full flex items-center justify-center">
+                            <CheckCircle className="h-8 w-8 text-ok" />
                         </div>
                     </div>
                     <h2 className="text-2xl font-semibold text-gray-900 mb-2">
@@ -100,7 +100,7 @@ export default function SupportPage() {
                     </p>
                     <button
                         onClick={() => router.push("/")}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm"
+                        className="px-4 py-2 bg-bordeaux text-white rounded-lg hover:bg-bordeaux-hover transition-colors font-medium text-sm"
                     >
                         {t("support.backHome")}
                     </button>
@@ -140,14 +140,14 @@ export default function SupportPage() {
                                             }
                                             className={`p-4 rounded-lg border-2 text-left transition-all ${
                                                 feedbackType === type.value
-                                                    ? "border-blue-600 bg-blue-50"
+                                                    ? "border-bordeaux bg-bordeaux-soft"
                                                     : "border-gray-200 hover:border-gray-300"
                                             }`}
                                         >
                                             <div
                                                 className={`font-medium ${
                                                     feedbackType === type.value
-                                                        ? "text-blue-700"
+                                                        ? "text-bordeaux"
                                                         : "text-gray-900"
                                                 }`}
                                             >
@@ -178,7 +178,7 @@ export default function SupportPage() {
                                             setLink(e.target.value)
                                         }
                                         placeholder="https://patron.matematicsolutions.com/..."
-                                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                                        className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ring focus:border-bordeaux outline-none transition-all"
                                     />
                                     <p className="text-xs text-gray-500 mt-1">
                                         {t("support.linkHint")}
@@ -199,7 +199,7 @@ export default function SupportPage() {
                                     id="subject"
                                     value={subject}
                                     onChange={(e) => setSubject(e.target.value)}
-                                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ring focus:border-bordeaux outline-none transition-all"
                                     required
                                 />
                             </div>
@@ -218,7 +218,7 @@ export default function SupportPage() {
                                     onChange={(e) => setMessage(e.target.value)}
                                     placeholder={t("support.messagePlaceholder")}
                                     rows={5}
-                                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all resize-none"
+                                    className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-ring focus:border-bordeaux outline-none transition-all resize-none"
                                     required
                                 />
                             </div>
@@ -235,7 +235,7 @@ export default function SupportPage() {
 
                             {/* Error Message */}
                             {error && (
-                                <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                                <div className="p-3 bg-bad-soft border border-bad-soft rounded-lg text-sm text-bad">
                                     {error}
                                 </div>
                             )}
@@ -248,7 +248,7 @@ export default function SupportPage() {
                                     !subject.trim() ||
                                     !message.trim()
                                 }
-                                className="w-full py-3 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium flex items-center justify-center gap-2"
+                                className="w-full py-3 px-4 bg-bordeaux text-white rounded-lg hover:bg-bordeaux-hover disabled:opacity-50 disabled:cursor-not-allowed transition-colors font-medium flex items-center justify-center gap-2"
                             >
                                 {isSubmitting ? (
                                     <>

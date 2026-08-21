@@ -49,7 +49,7 @@ export function TextSearchWidget({
                         placeholder="Find"
                         value={searchQuery}
                         onChange={(e) => onSearchChange(e.target.value)}
-                        className="h-8 text-sm w-full pr-[80px] rounded-sm border-gray-200 bg-gray-100/50 focus-visible:ring-0 focus-visible:border-blue-600 placeholder:text-gray-500"
+                        className="h-8 text-sm w-full pr-[80px] rounded-sm border-gray-200 bg-gray-100/50 focus-visible:ring-0 focus-visible:border-bordeaux placeholder:text-gray-500"
                         onKeyDown={(e) => {
                             if (e.key === "Escape") {
                                 onClose();

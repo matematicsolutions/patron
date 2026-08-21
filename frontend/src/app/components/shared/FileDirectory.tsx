@@ -25,8 +25,8 @@ function formatDate(iso: string | null) {
 
 export function DocFileIcon({ fileType }: { fileType: string | null }) {
     if (fileType === "pdf")
-        return <FileText className="h-3.5 w-3.5 text-red-500 shrink-0" />;
-    return <File className="h-3.5 w-3.5 text-blue-500 shrink-0" />;
+        return <FileText className="h-3.5 w-3.5 text-bad shrink-0" />;
+    return <File className="h-3.5 w-3.5 text-bordeaux shrink-0" />;
 }
 
 interface FileDirectoryProps {
@@ -173,7 +173,7 @@ export function FileDirectory({
                                     type="button"
                                     onClick={handleDelete}
                                     disabled={deleting}
-                                    className="inline-flex items-center gap-1 text-xs text-red-500 hover:text-red-700 transition-colors disabled:opacity-50"
+                                    className="inline-flex items-center gap-1 text-xs text-bad hover:text-bad transition-colors disabled:opacity-50"
                                 >
                                     <Trash2 className="h-3 w-3" />
                                     Delete

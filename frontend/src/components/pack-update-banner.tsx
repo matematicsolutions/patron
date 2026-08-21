@@ -38,7 +38,7 @@ export function PackUpdateBanner(): ReactElement | null {
         <div
             role="status"
             aria-live="polite"
-            className="border-b border-sky-200 bg-sky-50 px-4 py-2 text-sm text-sky-900"
+            className="border-b border-bordeaux-soft bg-bordeaux-soft px-4 py-2 text-sm text-bordeaux"
         >
             {updates.map((u) => (
                 <div

@@ -190,7 +190,7 @@ function Divider({ onDrag }: { onDrag: (dx: number) => void }) {
                 className="absolute inset-y-0 -left-2 -right-2 cursor-col-resize flex items-stretch justify-center"
             >
                 {isDragging && (
-                    <div className="w-1 bg-blue-500 transition-colors" />
+                    <div className="w-1 bg-bordeaux transition-colors" />
                 )}
             </div>
         </div>
@@ -817,7 +817,7 @@ export default function ProjectAssistantChatPage({ params }: Props) {
                         onClick={handleDeleteChat}
                         disabled={deletingChat}
                         title={t("projectChat.deleteChatTooltip")}
-                        className="flex items-center justify-center p-1.5 text-gray-500 hover:text-red-600 transition-colors disabled:opacity-40"
+                        className="flex items-center justify-center p-1.5 text-gray-500 hover:text-bad transition-colors disabled:opacity-40"
                     >
                         {deletingChat ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
@@ -906,7 +906,7 @@ export default function ProjectAssistantChatPage({ params }: Props) {
 
                             {/* Drop overlay */}
                             <div
-                                className={`flex-1 overflow-y-auto relative h-full ${explorerDragOver ? "bg-blue-50" : ""}`}
+                                className={`flex-1 overflow-y-auto relative h-full ${explorerDragOver ? "bg-bordeaux-soft" : ""}`}
                                 onDragOver={(e) => {
                                     e.preventDefault();
                                 }}
@@ -930,7 +930,7 @@ export default function ProjectAssistantChatPage({ params }: Props) {
                             >
                                 {explorerDragOver && (
                                     <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
-                                        <p className="text-xs text-blue-500 font-medium">
+                                        <p className="text-xs text-bordeaux font-medium">
                                             {t("projectChat.dropToUpload")}
                                         </p>
                                     </div>
@@ -989,9 +989,9 @@ export default function ProjectAssistantChatPage({ params }: Props) {
                                     ?.toLowerCase();
                                 const iconColor =
                                     ext === "pdf"
-                                        ? "text-red-500"
+                                        ? "text-bad"
                                         : ext === "doc" || ext === "docx"
-                                          ? "text-blue-500"
+                                          ? "text-bordeaux"
                                           : "text-gray-400";
                                 // Pull the doc's latest_version_number out
                                 // of the project state so the tab shows V#

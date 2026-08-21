@@ -68,7 +68,7 @@ export function SimpleLinkDialog({
                         {/* Copy button */}
                         <button
                             onClick={handleCopyLink}
-                            className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white py-2.5 px-4 rounded-lg transition-colors font-medium"
+                            className="w-full flex items-center justify-center gap-2 bg-bordeaux hover:bg-bordeaux-hover text-white py-2.5 px-4 rounded-lg transition-colors font-medium"
                         >
                             {linkCopied ? (
                                 <>

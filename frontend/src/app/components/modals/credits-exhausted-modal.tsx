@@ -40,11 +40,11 @@ export function CreditsExhaustedModal({
                     <div className="space-y-4">
                         <p className="text-gray-600">{t("modals.limitBody")}</p>
 
-                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                            <p className="text-sm text-blue-900 font-medium mb-1">
+                        <div className="bg-bordeaux-soft border border-bordeaux-soft rounded-lg p-4">
+                            <p className="text-sm text-bordeaux font-medium mb-1">
                                 {t("modals.limitResetOn")}
                             </p>
-                            <p className="text-lg font-semibold text-blue-700">
+                            <p className="text-lg font-semibold text-bordeaux">
                                 {formatResetDate(resetDate)}
                             </p>
                         </div>

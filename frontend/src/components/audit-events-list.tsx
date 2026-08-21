@@ -44,7 +44,7 @@ export function AuditEventsList({
 }: AuditEventsListProps) {
     if (error) {
         return (
-            <div className="rounded-md border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+            <div className="rounded-md border border-bad-soft bg-bad-soft p-4 text-sm text-bad">
                 {error}
             </div>
         );

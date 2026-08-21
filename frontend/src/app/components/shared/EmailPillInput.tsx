@@ -77,7 +77,7 @@ export function EmailPillInput({
             <div
                 className={`flex flex-wrap gap-1.5 rounded-lg border bg-gray-50 px-3 py-2 min-h-[40px] transition-colors ${
                     error
-                        ? "border-red-300 focus-within:border-red-400"
+                        ? "border-bad focus-within:border-bad"
                         : "border-gray-200 focus-within:border-gray-400"
                 }`}
             >
@@ -110,7 +110,7 @@ export function EmailPillInput({
                     autoFocus={autoFocus}
                 />
             </div>
-            {error && <p className="mt-1.5 text-xs text-red-500">{error}</p>}
+            {error && <p className="mt-1.5 text-xs text-bad">{error}</p>}
             {validating && <p className="mt-1.5 text-xs text-gray-400">Checking…</p>}
         </div>
     );

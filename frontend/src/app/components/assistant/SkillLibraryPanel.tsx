@@ -30,14 +30,14 @@ interface Props {
 function EgressBadge({ egress }: { egress: SkillEntry["egress"] }) {
     if (egress === "cloud-allowed") {
         return (
-            <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 ring-1 ring-amber-200">
+            <span className="inline-flex items-center gap-1 rounded-full bg-warn-soft px-2 py-0.5 text-[11px] font-medium text-warn ring-1 ring-warn">
                 <Cloud className="h-3 w-3" />
                 {t("skillLibrary.egressCloud")}
             </span>
         );
     }
     return (
-        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-700 ring-1 ring-emerald-200">
+        <span className="inline-flex items-center gap-1 rounded-full bg-ok-soft px-2 py-0.5 text-[11px] font-medium text-ok ring-1 ring-ok">
             <HardDrive className="h-3 w-3" />
             {t("skillLibrary.egressLocal")}
         </span>
@@ -92,7 +92,7 @@ function SkillCard({
                                 role="switch"
                                 aria-checked={skill.enabled}
                                 className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors disabled:opacity-50 ${
-                                    skill.enabled ? "bg-emerald-500" : "bg-gray-300"
+                                    skill.enabled ? "bg-ok" : "bg-gray-300"
                                 }`}
                                 title={
                                     skill.enabled
@@ -110,7 +110,7 @@ function SkillCard({
                                 type="button"
                                 disabled={busy}
                                 onClick={onRemove}
-                                className="rounded-md p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 transition-colors disabled:opacity-50"
+                                className="rounded-md p-1.5 text-gray-400 hover:bg-bad-soft hover:text-bad transition-colors disabled:opacity-50"
                                 title={t("skillLibrary.remove")}
                             >
                                 <Trash2 className="h-4 w-4" />
@@ -236,7 +236,7 @@ export function SkillLibraryPanel({ open, onClose }: Props) {
                 {/* Tresc */}
                 <div className="flex-1 space-y-5 overflow-y-auto px-6 py-4">
                     {error && (
-                        <div className="rounded-md bg-red-50 px-3 py-2 text-sm text-red-700 ring-1 ring-red-100">
+                        <div className="rounded-md bg-bad-soft px-3 py-2 text-sm text-bad ring-1 ring-bad">
                             {error}
                         </div>
                     )}

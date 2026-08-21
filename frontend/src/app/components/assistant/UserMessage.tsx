@@ -18,7 +18,7 @@ export function UserMessage({ content, files, workflow }: Props) {
                 {(workflow || hasFiles) && (
                     <div className="flex flex-wrap justify-end gap-1.5 mt-3">
                         {workflow && (
-                            <div className="inline-flex items-center gap-1 pl-2 pr-2.5 py-0.5 rounded-full text-xs bg-blue-600 text-white shadow border border-blue-600">
+                            <div className="inline-flex items-center gap-1 pl-2 pr-2.5 py-0.5 rounded-full text-xs bg-bordeaux text-white shadow border border-bordeaux">
                                 <Library className="h-2.5 w-2.5 shrink-0" />
                                 <span className="max-w-[140px] truncate">{workflow.title}</span>
                             </div>
@@ -32,8 +32,8 @@ export function UserMessage({ content, files, workflow }: Props) {
                                     className="inline-flex items-center gap-1 pl-2 pr-2.5 py-0.5 rounded-full text-xs text-white shadow border border-black bg-black"
                                 >
                                     {isPdf
-                                        ? <FileText className="h-2.5 w-2.5 shrink-0 text-red-400" />
-                                        : <File className="h-2.5 w-2.5 shrink-0 text-blue-400" />
+                                        ? <FileText className="h-2.5 w-2.5 shrink-0 text-bad" />
+                                        : <File className="h-2.5 w-2.5 shrink-0 text-bordeaux" />
                                     }
                                     <span className="max-w-[140px] truncate">{f.filename}</span>
                                 </div>

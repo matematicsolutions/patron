@@ -281,7 +281,7 @@ export function TREditColumnMenu({
                             type="button"
                             onClick={handleDelete}
                             disabled={deleting || saving}
-                            className="inline-flex items-center gap-1.5 text-xs text-red-500 transition-colors hover:text-red-600 disabled:text-red-300"
+                            className="inline-flex items-center gap-1.5 text-xs text-bad transition-colors hover:text-bad disabled:text-bad"
                         >
                             <Trash2 className="h-3.5 w-3.5" />
                             Delete

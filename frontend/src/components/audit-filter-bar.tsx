@@ -48,7 +48,7 @@ export function AuditFilterBar({
             <label className="flex flex-col gap-1 text-sm">
                 <span className="text-gray-700">Typ zdarzenia</span>
                 <select
-                    className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ok"
                     value={filter.event_type}
                     onChange={(e) =>
                         setFilter((f) => ({

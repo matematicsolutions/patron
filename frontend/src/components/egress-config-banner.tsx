@@ -33,7 +33,7 @@ export function EgressConfigBanner(): ReactElement | null {
             role="status"
             aria-live="polite"
             aria-label={ariaLabel}
-            className="flex items-center gap-2 border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900"
+            className="flex items-center gap-2 border-b border-warn-soft bg-warn-soft px-4 py-2 text-sm text-warn"
         >
             <Cloud className="h-5 w-5" aria-hidden="true" />
             <span>{message}</span>

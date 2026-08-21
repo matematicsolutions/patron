@@ -52,10 +52,10 @@ interface Props {
 }
 
 const FLAG_BADGE: Record<string, string> = {
-    green: "bg-emerald-600 backdrop-blur-md border border-emerald-300/20 text-white shadow-md",
+    green: "bg-ok backdrop-blur-md border border-ok/20 text-white shadow-md",
     grey: "bg-slate-500 backdrop-blur-md border border-slate-300/20 text-white shadow-md",
-    yellow: "bg-amber-500 backdrop-blur-md border border-amber-300/20 text-white shadow-md",
-    red: "bg-red-600 backdrop-blur-md border border-red-300/20 text-white shadow-md",
+    yellow: "bg-warn backdrop-blur-md border border-warn/20 text-white shadow-md",
+    red: "bg-bad backdrop-blur-md border border-bad/20 text-white shadow-md",
 };
 
 // ---------------------------------------------------------------------------
@@ -382,7 +382,7 @@ export function TRSidePanel({
                                                 submitReview("approved")
                                             }
                                             disabled={savingReview}
-                                            className="rounded-full bg-emerald-600 px-3 py-1 text-xs font-medium text-white transition-colors hover:bg-emerald-700 disabled:opacity-40"
+                                            className="rounded-full bg-ok px-3 py-1 text-xs font-medium text-white transition-colors hover:bg-ok disabled:opacity-40"
                                         >
                                             {t("tabular.reviewApprove")}
                                         </button>
@@ -391,7 +391,7 @@ export function TRSidePanel({
                                                 submitReview("rejected")
                                             }
                                             disabled={savingReview}
-                                            className="rounded-full border border-red-200 bg-white px-3 py-1 text-xs font-medium text-red-600 transition-colors hover:bg-red-50 disabled:opacity-40"
+                                            className="rounded-full border border-bad-soft bg-white px-3 py-1 text-xs font-medium text-bad transition-colors hover:bg-bad-soft disabled:opacity-40"
                                         >
                                             {t("tabular.reviewReject")}
                                         </button>
@@ -412,7 +412,7 @@ export function TRSidePanel({
                                     </div>
                                 )}
                                 {reviewError && (
-                                    <p className="mt-1.5 text-xs text-red-600">
+                                    <p className="mt-1.5 text-xs text-bad">
                                         {t("tabular.reviewError")}
                                     </p>
                                 )}
@@ -567,7 +567,7 @@ function MarkdownContent({
                         href={href}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-blue-600 hover:text-blue-700 underline"
+                        className="text-bordeaux hover:text-bordeaux underline"
                         {...props}
                     >
                         {children}

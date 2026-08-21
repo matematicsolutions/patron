@@ -740,7 +740,7 @@ export function TRView({ reviewId, projectId }: Props) {
                                         </button>
                                         <button
                                             onClick={handleDeleteDocuments}
-                                            className="w-full px-3 py-1.5 text-left text-xs text-red-600 hover:bg-red-50 transition-colors"
+                                            className="w-full px-3 py-1.5 text-left text-xs text-bad hover:bg-bad-soft transition-colors"
                                         >
                                             Delete
                                         </button>

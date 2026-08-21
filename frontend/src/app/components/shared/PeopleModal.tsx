@@ -273,7 +273,7 @@ export function PeopleModal({
                                 </p>
                             )}
                         {error && (
-                            <p className="mt-1.5 text-xs text-red-500">
+                            <p className="mt-1.5 text-xs text-bad">
                                 {error}
                             </p>
                         )}
@@ -349,7 +349,7 @@ export function PeopleModal({
                                                     }
                                                     disabled={busy !== null}
                                                     title="Remove access"
-                                                    className="self-center inline-flex items-center gap-1 rounded px-2 py-1 text-xs text-gray-500 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
+                                                    className="self-center inline-flex items-center gap-1 rounded px-2 py-1 text-xs text-gray-500 hover:bg-bad-soft hover:text-bad disabled:opacity-50"
                                                 >
                                                     {isRemoving && (
                                                         <Loader2 className="h-3 w-3 animate-spin" />

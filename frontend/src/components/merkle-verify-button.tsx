@@ -72,12 +72,12 @@ export function MerkleVerifyButton({ eventId }: MerkleVerifyButtonProps) {
                         </>
                     ) : state.kind === "verified" ? (
                         <>
-                            <ShieldCheck className="h-4 w-4 text-emerald-600" />
+                            <ShieldCheck className="h-4 w-4 text-ok" />
                             <span>Zweryfikowano</span>
                         </>
                     ) : state.kind === "failed" ? (
                         <>
-                            <ShieldAlert className="h-4 w-4 text-red-600" />
+                            <ShieldAlert className="h-4 w-4 text-bad" />
                             <span>Weryfikacja nieudana</span>
                         </>
                     ) : (
@@ -88,7 +88,7 @@ export function MerkleVerifyButton({ eventId }: MerkleVerifyButtonProps) {
                 {state.kind === "verified" && (
                     <button
                         type="button"
-                        className="text-sm text-emerald-700 underline hover:no-underline"
+                        className="text-sm text-ok underline hover:no-underline"
                         onClick={() => setExpanded((v) => !v)}
                     >
                         {expanded ? "Ukryj" : "Pokaz"} bundle
@@ -97,13 +97,13 @@ export function MerkleVerifyButton({ eventId }: MerkleVerifyButtonProps) {
             </div>
 
             {state.kind === "verified" && expanded && (
-                <pre className="overflow-auto rounded-md border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-900">
+                <pre className="overflow-auto rounded-md border border-ok-soft bg-ok-soft p-3 text-xs text-ok">
                     {JSON.stringify(state.bundle, null, 2)}
                 </pre>
             )}
 
             {state.kind === "failed" && (
-                <p className="text-sm text-red-700">{state.error}</p>
+                <p className="text-sm text-bad">{state.error}</p>
             )}
         </div>
     );

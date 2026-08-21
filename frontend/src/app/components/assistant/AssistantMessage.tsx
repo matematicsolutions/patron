@@ -467,7 +467,7 @@ function DocReadBlock({
             {isStreaming ? (
                 <div className="mt-2 w-1.5 h-1.5 rounded-full border border-gray-400 border-t-transparent animate-spin shrink-0" />
             ) : (
-                <div className="mt-2 w-1.5 h-1.5 rounded-full bg-green-400 shrink-0" />
+                <div className="mt-2 w-1.5 h-1.5 rounded-full bg-ok shrink-0" />
             )}
             <div className="ml-2 min-w-0 flex-1 whitespace-normal break-words">
                 <span className="font-medium">
@@ -529,7 +529,7 @@ function DocFindBlock({
                 <div className="mt-2 w-1.5 h-1.5 rounded-full border border-gray-400 border-t-transparent animate-spin shrink-0" />
             ) : (
                 <div
-                    className={`mt-2 w-1.5 h-1.5 rounded-full shrink-0 ${totalMatches > 0 ? "bg-green-400" : "bg-gray-300"}`}
+                    className={`mt-2 w-1.5 h-1.5 rounded-full shrink-0 ${totalMatches > 0 ? "bg-ok" : "bg-gray-300"}`}
                 />
             )}
             <div className="ml-2 min-w-0 flex-1 whitespace-normal break-words">
@@ -561,7 +561,7 @@ function DocCreatedBlock({
             {isStreaming ? (
                 <div className="mt-2 w-1.5 h-1.5 rounded-full border border-gray-400 border-t-transparent animate-spin shrink-0" />
             ) : (
-                <div className="mt-2 w-1.5 h-1.5 rounded-full bg-green-400 shrink-0" />
+                <div className="mt-2 w-1.5 h-1.5 rounded-full bg-ok shrink-0" />
             )}
             <div className="ml-2 min-w-0 flex-1 whitespace-normal break-words">
                 <span className="font-medium">
@@ -606,7 +606,7 @@ function DocReplicatedBlock({
                 <div className="mt-2 w-1.5 h-1.5 rounded-full border border-gray-400 border-t-transparent animate-spin shrink-0" />
             ) : (
                 <div
-                    className={`mt-2 w-1.5 h-1.5 rounded-full shrink-0 ${hasError ? "bg-red-400" : "bg-green-400"}`}
+                    className={`mt-2 w-1.5 h-1.5 rounded-full shrink-0 ${hasError ? "bg-bad" : "bg-ok"}`}
                 />
             )}
             <div className="ml-2 min-w-0 flex-1 whitespace-normal break-words">
@@ -701,7 +701,7 @@ function DocDownloadBlock({
                         </span>
                     )}
                 </div>
-                <p className="text-xs text-blue-500 mt-0.5">{ext}</p>
+                <p className="text-xs text-bordeaux mt-0.5">{ext}</p>
             </div>
         </div>
     );
@@ -775,7 +775,7 @@ function WorkflowAppliedBlock({
             {showConnector && (
                 <div className="absolute bottom-0 w-[1px] bg-gray-300 top-[13px] left-[2.5px] h-[calc(100%+11px)]" />
             )}
-            <div className="mt-2 w-1.5 h-1.5 rounded-full bg-green-400 shrink-0" />
+            <div className="mt-2 w-1.5 h-1.5 rounded-full bg-ok shrink-0" />
             <div className="ml-2 min-w-0 flex-1 whitespace-normal break-words">
                 <span className="font-medium">{t("chat.appliedWorkflow")}</span>{" "}
                 {onClick ? (
@@ -812,9 +812,9 @@ function DocEditedBlock({
             {isStreaming ? (
                 <div className="mt-2 w-1.5 h-1.5 rounded-full border border-gray-400 border-t-transparent animate-spin shrink-0" />
             ) : hasError ? (
-                <div className="mt-2 w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
+                <div className="mt-2 w-1.5 h-1.5 rounded-full bg-bad shrink-0" />
             ) : (
-                <div className="mt-2 w-1.5 h-1.5 rounded-full bg-green-400 shrink-0" />
+                <div className="mt-2 w-1.5 h-1.5 rounded-full bg-ok shrink-0" />
             )}
             <div className="ml-2 min-w-0 flex-1 whitespace-normal break-words">
                 <span className="font-medium">
@@ -893,9 +893,9 @@ function DocCommentedBlock({
             {isStreaming ? (
                 <div className="mt-2 w-1.5 h-1.5 rounded-full border border-gray-400 border-t-transparent animate-spin shrink-0" />
             ) : hasError ? (
-                <div className="mt-2 w-1.5 h-1.5 rounded-full bg-red-500 shrink-0" />
+                <div className="mt-2 w-1.5 h-1.5 rounded-full bg-bad shrink-0" />
             ) : (
-                <div className="mt-2 w-1.5 h-1.5 rounded-full bg-green-400 shrink-0" />
+                <div className="mt-2 w-1.5 h-1.5 rounded-full bg-ok shrink-0" />
             )}
             <div className="ml-2 min-w-0 flex-1 whitespace-normal break-words">
                 <span className="font-medium">
@@ -1084,16 +1084,16 @@ function MarkdownContent({
                                 const verdict = annotation.groundingVerdict;
                                 const groundingClass = verdict
                                     ? verdict === "green"
-                                        ? "bg-green-100 text-green-900 hover:bg-green-200"
+                                        ? "bg-ok-soft text-ok hover:bg-ok-soft"
                                         : verdict === "yellow"
-                                          ? "bg-amber-100 text-amber-900 hover:bg-amber-200"
-                                          : "bg-red-100 text-red-900 hover:bg-red-200"
+                                          ? "bg-warn-soft text-warn hover:bg-warn-soft"
+                                          : "bg-bad-soft text-bad hover:bg-bad-soft"
                                     : grounding === "verified"
-                                      ? "bg-green-100 text-green-900 hover:bg-green-200"
+                                      ? "bg-ok-soft text-ok hover:bg-ok-soft"
                                       : grounding === "unverified"
-                                        ? "bg-amber-100 text-amber-900 hover:bg-amber-200"
+                                        ? "bg-warn-soft text-warn hover:bg-warn-soft"
                                         : grounding === "blocked"
-                                          ? "bg-red-100 text-red-900 hover:bg-red-200"
+                                          ? "bg-bad-soft text-bad hover:bg-bad-soft"
                                           : "bg-gray-100 text-gray-900 hover:bg-gray-200";
                                 const groundingLabel = verdict
                                     ? verdict === "green"
@@ -1138,7 +1138,7 @@ function MarkdownContent({
                                 const needsJudgment =
                                     annotation.requiresJudgment === true;
                                 const judgmentRing = needsJudgment
-                                    ? " ring-1 ring-amber-400"
+                                    ? " ring-1 ring-warn"
                                     : "";
                                 const judgmentNote = needsJudgment
                                     ? ` [${t("citations.requiresJudgment")}]`
@@ -1179,7 +1179,7 @@ function MarkdownContent({
                     a: ({ node, href, children, ...props }) => (
                         <a
                             href={href}
-                            className="text-blue-600 hover:text-blue-700 underline"
+                            className="text-bordeaux hover:text-bordeaux underline"
                             target="_blank"
                             rel="noopener noreferrer"
                             {...props}
@@ -1751,7 +1751,7 @@ export function AssistantMessage({
                 )}
 
                 {isError && (
-                    <div className="mt-2 flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-serif text-red-700">
+                    <div className="mt-2 flex items-start gap-2 rounded-lg border border-bad-soft bg-bad-soft px-3 py-2 text-sm font-serif text-bad">
                         <span className="leading-snug">
                             {errorMessage ?? t("chat.sorryError")}
                         </span>
@@ -1877,7 +1877,7 @@ export function AssistantMessage({
                             onClick={handleCopy}
                         >
                             {isCopied ? (
-                                <Check className="h-3.5 w-3.5 text-green-600" />
+                                <Check className="h-3.5 w-3.5 text-ok" />
                             ) : (
                                 <Copy className="h-3.5 w-3.5" />
                             )}

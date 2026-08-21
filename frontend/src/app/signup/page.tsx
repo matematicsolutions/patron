@@ -98,8 +98,8 @@ export default function SignupPage() {
                 </div>
                 <div className="w-full max-w-md">
                     <div className="bg-white border border-gray-200 rounded-2xl p-10 text-center shadow-sm">
-                        <div className="mx-auto w-12 h-12 bg-green-50 rounded-full flex items-center justify-center mb-6">
-                            <CheckCircle2 className="h-6 w-6 text-green-600" />
+                        <div className="mx-auto w-12 h-12 bg-ok-soft rounded-full flex items-center justify-center mb-6">
+                            <CheckCircle2 className="h-6 w-6 text-ok" />
                         </div>
                         <h2 className="text-2xl font-semibold text-gray-900 mb-3">
                             {t("auth.accountCreated")}
@@ -238,7 +238,7 @@ export default function SignupPage() {
                         </div>
 
                         {error && (
-                            <div className="text-red-600 text-sm bg-red-50 p-3 rounded">
+                            <div className="text-bad text-sm bg-bad-soft p-3 rounded">
                                 {error}
                             </div>
                         )}
@@ -261,7 +261,7 @@ export default function SignupPage() {
                             href="https://github.com/matematicsolutions/patron/blob/main/governance/CONSTITUTION.md"
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-blue-600 hover:underline"
+                            className="text-bordeaux hover:underline"
                         >
                             Konstytucję AI Patrona
                         </Link>

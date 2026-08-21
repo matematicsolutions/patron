@@ -41,7 +41,7 @@ export function ApiKeyMissingModal({ open, onClose, provider, message }: Props) 
             >
                 <div className="flex items-start justify-between gap-3 px-5 pt-5 pb-2">
                     <div className="flex items-center gap-2">
-                        <AlertTriangle className="h-4 w-4 text-amber-600" />
+                        <AlertTriangle className="h-4 w-4 text-warn" />
                         <h2 className="text-base font-medium text-gray-900">
                             {t("account.apiKeyRequired")}
                         </h2>

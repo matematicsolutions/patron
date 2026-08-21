@@ -143,7 +143,7 @@ function DocReadBlock({
             {isStreaming ? (
                 <div className="w-1.5 h-1.5 rounded-full border border-gray-400 border-t-transparent animate-spin shrink-0" />
             ) : (
-                <div className="w-1.5 h-1.5 rounded-full bg-green-400 shrink-0" />
+                <div className="w-1.5 h-1.5 rounded-full bg-ok shrink-0" />
             )}
             <span className="font-medium ml-2">
                 {isStreaming ? "Reading" : "Read"}
@@ -1347,8 +1347,8 @@ export function TRChatPanel({
                 }}
                 className={`absolute top-0 right-0 h-full w-1 cursor-col-resize z-20 transition-colors ${
                     isResizing
-                        ? "bg-blue-500"
-                        : "bg-transparent hover:bg-blue-500"
+                        ? "bg-bordeaux"
+                        : "bg-transparent hover:bg-bordeaux"
                 }`}
             />
             {/* Header */}
@@ -1408,7 +1408,7 @@ export function TRChatPanel({
                         <button
                             onClick={handleDeleteChat}
                             title="Delete chat"
-                            className="flex items-center justify-center h-7 w-7 rounded-md text-gray-400 hover:text-red-600 transition-colors"
+                            className="flex items-center justify-center h-7 w-7 rounded-md text-gray-400 hover:text-bad transition-colors"
                         >
                             <Trash2 className="h-3.5 w-3.5" />
                         </button>

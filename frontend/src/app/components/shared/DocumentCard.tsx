@@ -13,10 +13,10 @@ interface Props {
 
 function FileIcon({ fileType }: { fileType: string | null }) {
   if (fileType === "pdf") {
-    return <FileText className="h-4 w-4 text-red-600 shrink-0" />;
+    return <FileText className="h-4 w-4 text-bad shrink-0" />;
   }
   if (fileType === "docx" || fileType === "doc") {
-    return <File className="h-4 w-4 text-blue-600 shrink-0" />;
+    return <File className="h-4 w-4 text-bordeaux shrink-0" />;
   }
   return <File className="h-4 w-4 text-gray-500 shrink-0" />;
 }
@@ -47,16 +47,16 @@ export function DocumentCard({ document, onRemove, onClick, selected }: Props) {
         "flex items-center gap-2.5 rounded-lg border px-3 py-2.5 text-sm transition-colors",
         onClick ? "cursor-pointer" : "",
         selected
-          ? "border-blue-500 bg-blue-50"
+          ? "border-bordeaux bg-bordeaux-soft"
           : isError
-          ? "border-red-200 bg-red-50"
+          ? "border-bad-soft bg-bad-soft"
           : "border-gray-200 bg-white hover:border-gray-300",
       ].join(" ")}
     >
       {isProcessing ? (
         <Loader2 className="h-4 w-4 animate-spin text-gray-400 shrink-0" />
       ) : isError ? (
-        <AlertCircle className="h-4 w-4 text-red-500 shrink-0" />
+        <AlertCircle className="h-4 w-4 text-bad shrink-0" />
       ) : (
         <FileIcon fileType={document.file_type} />
       )}
@@ -78,7 +78,7 @@ export function DocumentCard({ document, onRemove, onClick, selected }: Props) {
                 .join(" · ")}
         </p>
         {securityNote && (
-          <p className="mt-0.5 flex items-center gap-1 text-xs text-amber-600">
+          <p className="mt-0.5 flex items-center gap-1 text-xs text-warn">
             <ShieldAlert className="h-3 w-3 shrink-0" />
             {securityNote}
           </p>

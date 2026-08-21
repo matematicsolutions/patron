@@ -67,7 +67,7 @@ export function DocViewModal({
                         {onDelete && (
                             <button
                                 onClick={() => { onDelete(doc); onClose(); }}
-                                className="flex items-center justify-center w-6 h-6 rounded hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors"
+                                className="flex items-center justify-center w-6 h-6 rounded hover:bg-bad-soft text-gray-400 hover:text-bad transition-colors"
                             >
                                 <Trash2 className="h-4 w-4" />
                             </button>

@@ -135,7 +135,7 @@ export function ShareWorkflowModal({
                                             <span className="text-xs text-gray-400">{share.allow_edit ? t("workflowShare.canEdit") : t("workflows.readOnly")}</span>
                                             <button
                                                 onClick={() => handleRemoveShare(share.id)}
-                                                className="text-gray-300 hover:text-red-500 transition-colors"
+                                                className="text-gray-300 hover:text-bad transition-colors"
                                             >
                                                 <X className="h-3.5 w-3.5" />
                                             </button>

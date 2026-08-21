@@ -117,7 +117,7 @@ export function ModelToggle({ value, onChange, apiKeys }: Props) {
                     }
                 >
                     {!selectedAvailable && (
-                        <AlertCircle className="h-3 w-3 shrink-0 text-red-500" />
+                        <AlertCircle className="h-3 w-3 shrink-0 text-bad" />
                     )}
                     <span className="max-w-[180px] truncate">{selectedLabel}</span>
                     <ChevronDown
@@ -152,7 +152,7 @@ export function ModelToggle({ value, onChange, apiKeys }: Props) {
                                         </span>
                                         {!available && (
                                             <AlertCircle
-                                                className="h-3.5 w-3.5 text-red-500 ml-1"
+                                                className="h-3.5 w-3.5 text-bad ml-1"
                                                 aria-label="API key missing"
                                             />
                                         )}

@@ -7,6 +7,8 @@
     --color-background: var(--background);
     --color-foreground: var(--foreground);
     --color-bordeaux: var(--bordeaux);
+    --color-bordeaux-hover: var(--bordeaux-hover);
+    --color-bordeaux-soft: var(--bordeaux-soft);
     --color-parchment: var(--parchment);
     --font-sans: var(--font-lato);
     --font-serif: var(--font-bona-nova);
@@ -14,12 +16,20 @@
     /* Trojstan groundingu jako kolory Tailwinda: text-grounded, bg-unverified-soft
        itd. Semantyka werdyktu NIE jest akcentem marki - to osobna skala i nie
        wolno jej mieszac z bordo. */
-    --color-grounded: var(--grounded);
-    --color-grounded-soft: var(--grounded-soft);
-    --color-unverified: var(--unverified);
-    --color-unverified-soft: var(--unverified-soft);
-    --color-ungrounded: var(--ungrounded);
-    --color-ungrounded-soft: var(--ungrounded-soft);
+    --color-ok: var(--ok);
+    --color-ok-soft: var(--ok-soft);
+    --color-warn: var(--warn);
+    --color-warn-soft: var(--warn-soft);
+    --color-bad: var(--bad);
+    --color-bad-soft: var(--bad-soft);
+    /* Grounding cytatu jest KONSUMENTEM skali semantycznej, nie jej wlascicielem.
+       Aliasy zostaja, zeby kod czytal sie intencja ("ungrounded"), a nie barwa. */
+    --color-grounded: var(--ok);
+    --color-grounded-soft: var(--ok-soft);
+    --color-unverified: var(--warn);
+    --color-unverified-soft: var(--warn-soft);
+    --color-ungrounded: var(--bad);
+    --color-ungrounded-soft: var(--bad-soft);
     --color-blue: rgb(0, 136, 255);
     --color-blue-50: rgba(0, 136, 255, 0.05);
     --color-blue-100: rgba(0, 136, 255, 0.1);
@@ -106,6 +116,8 @@
        ~25 (bordo) dla akcentu. */
     --parchment: oklch(0.983 0.008 84);
     --bordeaux: oklch(0.40 0.10 25);
+    --bordeaux-hover: oklch(0.34 0.09 25);
+    --bordeaux-soft: oklch(0.955 0.018 30);
     --background: oklch(0.985 0.008 84);
     --foreground: oklch(0.255 0.020 55);
     --card: oklch(0.995 0.004 84);
@@ -141,12 +153,12 @@
     /* Trojstan groundingu cytatu (ADR-0146). Zolty NIE jest ostrzezeniem
        o bledzie - znaczy "nie potwierdzam", czyli brak tekstu zrodlowego.
        Nigdy nie awansuje na zielony. */
-    --grounded: oklch(0.48 0.08 155);
-    --grounded-soft: oklch(0.94 0.02 155);
-    --unverified: oklch(0.62 0.10 75);
-    --unverified-soft: oklch(0.95 0.03 85);
-    --ungrounded: oklch(0.50 0.15 25);
-    --ungrounded-soft: oklch(0.95 0.03 25);
+    --ok: oklch(0.48 0.08 155);
+    --ok-soft: oklch(0.94 0.02 155);
+    --warn: oklch(0.62 0.10 75);
+    --warn-soft: oklch(0.95 0.03 85);
+    --bad: oklch(0.50 0.15 25);
+    --bad-soft: oklch(0.95 0.03 25);
 }
 
 /* Tryb ciemny: cieply grafit, nie szarosc z pudelka. Do tej pory .dark
@@ -156,6 +168,8 @@
 .dark {
     --parchment: oklch(0.225 0.010 58);
     --bordeaux: oklch(0.68 0.10 25);
+    --bordeaux-hover: oklch(0.74 0.10 25);
+    --bordeaux-soft: oklch(0.30 0.045 25);
     --background: oklch(0.185 0.008 58);
     --foreground: oklch(0.925 0.008 85);
     --card: oklch(0.225 0.009 58);
@@ -190,12 +204,12 @@
 
     /* Trojstan po ciemnej stronie: te same role, podniesiona jasnosc,
        zeby kontrast na grafitowym tle zostal czytelny. */
-    --grounded: oklch(0.72 0.10 155);
-    --grounded-soft: oklch(0.30 0.04 155);
-    --unverified: oklch(0.80 0.11 80);
-    --unverified-soft: oklch(0.32 0.05 80);
-    --ungrounded: oklch(0.72 0.13 25);
-    --ungrounded-soft: oklch(0.32 0.06 25);
+    --ok: oklch(0.72 0.10 155);
+    --ok-soft: oklch(0.30 0.04 155);
+    --warn: oklch(0.80 0.11 80);
+    --warn-soft: oklch(0.32 0.05 80);
+    --bad: oklch(0.72 0.13 25);
+    --bad-soft: oklch(0.32 0.06 25);
 }
 
 @layer base {

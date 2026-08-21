@@ -93,13 +93,13 @@ export default function ConnectorsPage() {
             </header>
 
             {showRestart && (
-                <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                <div className="mb-4 rounded-lg border border-warn-soft bg-warn-soft px-4 py-3 text-sm text-warn">
                     {t("connectors.restartNote")}
                 </div>
             )}
 
             {error && (
-                <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                <div className="mb-4 rounded-lg border border-bad-soft bg-bad-soft px-4 py-3 text-sm text-bad">
                     {error}
                 </div>
             )}
@@ -147,7 +147,7 @@ export default function ConnectorsPage() {
                                                             )}
                                                         </span>
                                                     ) : (
-                                                        <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[11px] text-amber-700">
+                                                        <span className="rounded bg-warn-soft px-1.5 py-0.5 text-[11px] text-warn">
                                                             {t(
                                                                 "connectors.operatorOnly",
                                                             )}
@@ -173,7 +173,11 @@ export default function ConnectorsPage() {
                                                 onClick={() => onToggle(c)}
                                                 className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
                                                     c.enabled
-                                                        ? "bg-blue-600"
+                                                        // Stan, nie akcja: wlaczony konektor to
+                                                        // skala semantyczna (ok), a nie akcent marki.
+                                                        // Czerwonawy przelacznik w pozycji ON czyta
+                                                        // sie jak alarm.
+                                                        ? "bg-ok"
                                                         : "bg-gray-200"
                                                 } ${
                                                     !c.toggleable

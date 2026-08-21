@@ -561,7 +561,7 @@ export function DocView({
                 )}
                 {error && (
                     <div className="flex h-full items-center justify-center">
-                        <p className="text-sm text-red-500">{error}</p>
+                        <p className="text-sm text-bad">{error}</p>
                     </div>
                 )}
                 <div ref={containerRef} />

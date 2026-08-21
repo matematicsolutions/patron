@@ -170,7 +170,7 @@ export function NewProjectModal({ open, onClose, onCreated }: Props) {
                         </div>
 
                         {error && (
-                            <p className="mt-3 text-sm text-red-500">{error}</p>
+                            <p className="mt-3 text-sm text-bad">{error}</p>
                         )}
                     </div>
 

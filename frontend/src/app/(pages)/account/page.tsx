@@ -197,15 +197,15 @@ export default function AccountPage() {
 
             {/* Danger Zone */}
             <div className="py-6">
-                <h2 className="text-2xl font-medium font-serif mb-1 text-red-600">
+                <h2 className="text-2xl font-medium font-serif mb-1 text-bad">
                     {t("account.dangerZone")}
                 </h2>
                 <p className="text-sm text-gray-500 mb-4">
                     {t("account.dangerZoneNote")}
                 </p>
                 {deleteConfirm ? (
-                    <div className="rounded-lg border border-red-200 bg-red-50 p-4 space-y-3 max-w-sm">
-                        <p className="text-sm font-medium text-red-700">
+                    <div className="rounded-lg border border-bad-soft bg-bad-soft p-4 space-y-3 max-w-sm">
+                        <p className="text-sm font-medium text-bad">
                             {t("account.deleteAccountConfirm")}
                         </p>
                         <div className="flex gap-2">
@@ -220,7 +220,7 @@ export default function AccountPage() {
                             <Button
                                 onClick={handleDeleteAccount}
                                 disabled={isDeleting}
-                                className="text-sm bg-red-600 hover:bg-red-700 text-white"
+                                className="text-sm bg-bad hover:bg-bad text-white"
                             >
                                 {isDeleting
                                     ? t("account.deleting")
@@ -232,7 +232,7 @@ export default function AccountPage() {
                     <Button
                         variant="outline"
                         onClick={() => setDeleteConfirm(true)}
-                        className="w-full sm:w-auto border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                        className="w-full sm:w-auto border-bad-soft text-bad hover:bg-bad-soft hover:text-bad"
                     >
                         {t("account.deleteAccount")}
                     </Button>

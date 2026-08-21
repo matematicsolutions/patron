@@ -155,7 +155,7 @@ function TabularModelDropdown({
                 >
                     <span className="flex items-center gap-2 min-w-0">
                         {!selectedAvailable && (
-                            <AlertCircle className="h-3.5 w-3.5 shrink-0 text-red-500" />
+                            <AlertCircle className="h-3.5 w-3.5 shrink-0 text-bad" />
                         )}
                         <span className="truncate text-gray-900">
                             {selected?.label ?? t("models.selectModel")}
@@ -202,7 +202,7 @@ function TabularModelDropdown({
                                             {m.label}
                                         </span>
                                         {!available && (
-                                            <AlertCircle className="h-3.5 w-3.5 text-red-500 ml-1" />
+                                            <AlertCircle className="h-3.5 w-3.5 text-bad ml-1" />
                                         )}
                                         {m.id === value && available && (
                                             <Check className="h-3.5 w-3.5 text-gray-600 ml-1" />
@@ -268,12 +268,12 @@ function ApiKeyField({
         <div>
             <label className="text-sm text-gray-600 block mb-2">{label}</label>
             {isServerConfigured && (
-                <div className="mb-2 rounded-md border border-blue-100 bg-blue-50 px-3 py-2">
-                    <p className="text-xs text-blue-800">
+                <div className="mb-2 rounded-md border border-bordeaux-soft bg-bordeaux-soft px-3 py-2">
+                    <p className="text-xs text-bordeaux">
                         {t("models.serverKeyConfigured")}
                     </p>
                     {hasSavedKey && (
-                        <p className="mt-1 text-xs text-blue-800">
+                        <p className="mt-1 text-xs text-bordeaux">
                             {t("models.serverKeyWillBeUsed")}
                         </p>
                     )}

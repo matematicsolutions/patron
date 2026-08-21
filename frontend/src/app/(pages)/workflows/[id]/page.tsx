@@ -352,7 +352,7 @@ export default function WorkflowDetailPage({ params }: Props) {
                                                         setSelectedColIndices([]);
                                                         setColActionsOpen(false);
                                                     }}
-                                                    className="w-full px-3 py-1.5 text-left text-xs text-red-600 hover:bg-red-50 transition-colors"
+                                                    className="w-full px-3 py-1.5 text-left text-xs text-bad hover:bg-bad-soft transition-colors"
                                                 >
                                                     {t("common.delete")}
                                                 </button>
@@ -454,7 +454,7 @@ export default function WorkflowDetailPage({ params }: Props) {
                                                             setColumns(next);
                                                             saveColumns(next);
                                                         }}
-                                                        className="p-1 text-gray-300 hover:text-red-500 transition-colors"
+                                                        className="p-1 text-gray-300 hover:text-bad transition-colors"
                                                     >
                                                         <X className="h-3.5 w-3.5" />
                                                     </button>

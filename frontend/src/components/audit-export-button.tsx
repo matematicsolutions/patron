@@ -201,8 +201,8 @@ export function AuditExportButton({ eventId }: AuditExportButtonProps) {
             </Button>
 
             {state.kind === "needs-compute" && (
-                <div className="flex flex-col gap-2 rounded-md border border-amber-200 bg-amber-50 p-3">
-                    <p className="flex items-start gap-1 text-sm text-amber-900">
+                <div className="flex flex-col gap-2 rounded-md border border-warn-soft bg-warn-soft p-3">
+                    <p className="flex items-start gap-1 text-sm text-warn">
                         <AlertCircle className="mt-0.5 h-3 w-3 shrink-0" />
                         <span>
                             Event nie jest jeszcze pokryty przez Merkle root.
@@ -230,7 +230,7 @@ export function AuditExportButton({ eventId }: AuditExportButtonProps) {
             )}
 
             {state.kind === "failed" && (
-                <p className="flex items-start gap-1 text-sm text-red-700">
+                <p className="flex items-start gap-1 text-sm text-bad">
                     <AlertCircle className="mt-0.5 h-3 w-3 shrink-0" />
                     <span>{state.error}</span>
                 </p>

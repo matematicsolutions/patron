@@ -243,7 +243,7 @@ export function DraftRefinePanel({ open, onClose, initialText }: Props) {
                     )}
 
                     {error && (
-                        <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-serif text-red-700">
+                        <div className="rounded-lg border border-bad-soft bg-bad-soft px-3 py-2 text-sm font-serif text-bad">
                             {error}
                         </div>
                     )}
@@ -262,7 +262,7 @@ export function DraftRefinePanel({ open, onClose, initialText }: Props) {
                                         className="inline-flex items-center gap-1 rounded px-2 py-1 text-xs text-gray-500 hover:bg-gray-100 hover:text-gray-700"
                                     >
                                         {copied ? (
-                                            <Check className="h-3.5 w-3.5 text-green-600" />
+                                            <Check className="h-3.5 w-3.5 text-ok" />
                                         ) : (
                                             <Copy className="h-3.5 w-3.5" />
                                         )}
