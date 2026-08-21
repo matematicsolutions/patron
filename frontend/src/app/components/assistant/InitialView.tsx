@@ -50,7 +50,11 @@ export function InitialView({ onSubmit }: InitialViewProps) {
 
     return (
         <div className="flex flex-col h-full w-full px-6">
-            <div className="flex-1 flex flex-col items-center justify-center">
+            {/* Zloty podzial pionu (382:618): kompozycja stoi w punkcie 38,2%
+                wysokosci jak tytul na stronie tytulowej, nie na martwym srodku.
+                Bohaterem ekranu jest pole pytania - powitanie to salutacja. */}
+            <div className="flex-[382]" aria-hidden="true" />
+            <div className="flex flex-col items-center">
                 <div className="flex-col items-center w-full max-w-4xl relative px-0 xl:px-8">
                     <div className="mb-10 relative flex items-center justify-center" style={{ minHeight: "45px" }}>
                         <div
@@ -79,9 +83,12 @@ export function InitialView({ onSubmit }: InitialViewProps) {
                                 maxWidth: "min(600px, calc(100vw - 6rem))",
                             }}
                         >
+                            {/* Inkaust, nie zloto: zloto sie zarabia i zostaje
+                                na znaku. Nagłowek w kolorze pieczeci rozmywal
+                                hierarchie calego ekranu. */}
                             <h1
                                 ref={textRef}
-                                className="text-4xl font-serif font-light text-bordeaux whitespace-nowrap overflow-hidden text-ellipsis tracking-[0.01em]"
+                                className="text-4xl font-serif font-light text-foreground whitespace-nowrap overflow-hidden text-ellipsis tracking-[0.01em]"
                             >
                                 {t("chat.greetingPrefix")}, {username}
                             </h1>
@@ -130,27 +137,31 @@ export function InitialView({ onSubmit }: InitialViewProps) {
                         ))}
                     </div>
 
-                    <div className="text-center">
+                    {/* Drugi rzad: wejscia porzadkowe jako ciche odnosniki,
+                        nie kolejne pudelka - na ekranie zostaje JEDNA ranga
+                        przyciskow (starter-chipy), reszta to tekst. */}
+                    <div className="mt-5 flex items-center justify-center gap-6 text-center">
                         <button
                             onClick={() => setFolderIngestOpen(true)}
-                            className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors"
+                            className="inline-flex items-center gap-1.5 text-xs text-gray-500 underline-offset-4 transition-colors hover:text-foreground hover:underline"
                         >
                             <FolderOpen className="h-3.5 w-3.5" />
                             {t("folderIngest.open")}
                         </button>
                         <button
                             onClick={() => setSkillsOpen(true)}
-                            className="mt-3 ml-2 inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-50 hover:text-gray-800 transition-colors"
+                            className="inline-flex items-center gap-1.5 text-xs text-gray-500 underline-offset-4 transition-colors hover:text-foreground hover:underline"
                         >
                             <Blocks className="h-3.5 w-3.5" />
                             {t("skillLibrary.open")}
                         </button>
-                        <p className="text-xs py-3 mb-3 text-gray-500">
-                            {t("chat.legalDisclaimer")}
-                        </p>
                     </div>
+                    <p className="mt-6 text-center text-xs text-gray-500">
+                        {t("chat.legalDisclaimer")}
+                    </p>
                 </div>
             </div>
+            <div className="flex-[618]" aria-hidden="true" />
 
             <SelectAssistantProjectModal
                 open={projectModalOpen}

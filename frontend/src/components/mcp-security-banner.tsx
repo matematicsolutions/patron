@@ -25,19 +25,22 @@ export function McpSecurityBanner(): ReactElement | null {
     const audit = by_action.audit;
     const humanReview = by_action.human_review;
 
-    let bgClass = "bg-gray-50 border-gray-200 text-gray-900";
-    let icon = <ShieldOff className="h-5 w-5" aria-hidden="true" />;
+    // Adnotacja, nie alarm: kolor niesie WYLACZNIE kreska po lewej i ton
+    // tekstu; tlo zostaje papierem. Powierzchnia zgodnosciowa ma byc stale
+    // obecna jak przypis - nie moze byc najglosniejsza rzecza na ekranie.
+    let toneClass = "border-l-gray-300 text-gray-600";
+    let icon = <ShieldOff className="h-4 w-4 shrink-0" aria-hidden="true" />;
     let message = t("mcpSecurity.disabledMessage");
     let ariaLabel = t("mcpSecurity.disabledAriaLabel");
 
     if (mode === "enforce" && denied > 0) {
-        bgClass = "bg-bad-soft border-bad-soft text-bad";
-        icon = <ShieldAlert className="h-5 w-5" aria-hidden="true" />;
+        toneClass = "border-l-bad text-bad";
+        icon = <ShieldAlert className="h-4 w-4 shrink-0" aria-hidden="true" />;
         message = t("mcpSecurity.blockedMessage").replace("{denied}", String(denied));
         ariaLabel = t("mcpSecurity.blockedAriaLabel").replace("{denied}", String(denied));
     } else if (mode === "enforce") {
-        bgClass = "bg-ok-soft border-ok-soft text-ok";
-        icon = <ShieldCheck className="h-5 w-5" aria-hidden="true" />;
+        toneClass = "border-l-ok text-ok";
+        icon = <ShieldCheck className="h-4 w-4 shrink-0" aria-hidden="true" />;
         message = t("mcpSecurity.activeMessage")
             .replace("{audit}", String(audit))
             .replace("{humanReview}", String(humanReview));
@@ -45,8 +48,8 @@ export function McpSecurityBanner(): ReactElement | null {
             .replace("{audit}", String(audit))
             .replace("{humanReview}", String(humanReview));
     } else if (mode === "audit") {
-        bgClass = "bg-warn-soft border-warn-soft text-warn";
-        icon = <ShieldAlert className="h-5 w-5" aria-hidden="true" />;
+        toneClass = "border-l-warn text-warn";
+        icon = <ShieldAlert className="h-4 w-4 shrink-0" aria-hidden="true" />;
         message = t("mcpSecurity.auditMessage").replace("{total}", String(audit + humanReview + denied));
         ariaLabel = t("mcpSecurity.auditAriaLabel");
     }
@@ -61,11 +64,11 @@ export function McpSecurityBanner(): ReactElement | null {
             aria-live="polite"
             aria-label={ariaLabel}
             data-testid="mcp-security-banner"
-            className={`group flex items-center gap-2 border-b px-4 py-2 text-sm transition-colors hover:brightness-95 ${bgClass}`}
+            className={`group flex items-center gap-2 border-b border-b-border/60 border-l-[3px] bg-transparent px-4 py-1.5 text-[12.5px] leading-tight transition-colors hover:bg-gray-50 ${toneClass}`}
         >
             {icon}
             <span>{message}</span>
-            <span className="ml-auto inline-flex shrink-0 items-center gap-0.5 text-xs font-semibold underline-offset-2 group-hover:underline">
+            <span className="ml-auto inline-flex shrink-0 items-center gap-0.5 text-[11px] font-semibold underline-offset-2 group-hover:underline">
                 {t("mcpSecurity.actionHint")}
                 <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
             </span>

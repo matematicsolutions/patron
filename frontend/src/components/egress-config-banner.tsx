@@ -31,7 +31,8 @@ export function EgressConfigBanner(): ReactElement | null {
 
     // Baner jest AKTYWNY (WM 2026-08-21): zgoda Operatora ma byc nie tylko
     // widoczna, ale odwolywalna jednym ruchem - klik prowadzi tam, gdzie
-    // zmienia sie polityke modelu.
+    // zmienia sie polityke modelu. Forma: adnotacja z kreska (jak przypis),
+    // nie alarm na calym pasie - zgoda ma byc obecna, nie wrzeszczaca.
     return (
         <Link
             href="/account/models"
@@ -39,11 +40,11 @@ export function EgressConfigBanner(): ReactElement | null {
             aria-live="polite"
             aria-label={ariaLabel}
             data-testid="egress-config-banner"
-            className="group flex items-center gap-2 border-b border-warn-soft bg-warn-soft px-4 py-2 text-sm text-warn transition-colors hover:brightness-95"
+            className="group flex items-center gap-2 border-b border-b-border/60 border-l-[3px] border-l-warn bg-transparent px-4 py-1.5 text-[12.5px] leading-tight text-warn transition-colors hover:bg-gray-50"
         >
-            <Cloud className="h-5 w-5" aria-hidden="true" />
+            <Cloud className="h-4 w-4 shrink-0" aria-hidden="true" />
             <span>{message}</span>
-            <span className="ml-auto inline-flex shrink-0 items-center gap-0.5 text-xs font-semibold underline-offset-2 group-hover:underline">
+            <span className="ml-auto inline-flex shrink-0 items-center gap-0.5 text-[11px] font-semibold underline-offset-2 group-hover:underline">
                 {t("egressConfig.actionHint")}
                 <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
             </span>
