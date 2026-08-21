@@ -105,12 +105,31 @@ async function ensureProfileRow(
   db: ReturnType<typeof createServerSupabase>,
   userId: string,
 ) {
-  const { error } = await db
+  // Wczesniej: upsert({user_id}, {ignoreDuplicates:true}). Opcja
+  // `ignoreDuplicates` NIE jest zaimplementowana w warstwie SQLite (zero
+  // wystapien w zrodlach), wiec zapis wchodzil jak insert z samym `user_id`
+  // i lamal NOT NULL na `credits_reset_date` - kazdy PATCH /user/profile
+  // konczyl sie 500 (zmierzone 2026-08-21). Jawny odczyt + insert z kompletem
+  // kolumn wymaganych przez schemat.
+  const { data: istniejacy, error: readError } = await db
     .from("user_profiles")
-    .upsert(
-      { user_id: userId },
-      { onConflict: "user_id", ignoreDuplicates: true },
-    );
+    .select("user_id")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (readError) return readError;
+  if (istniejacy) return null;
+
+  const teraz = new Date();
+  const resetDate = new Date(teraz);
+  resetDate.setDate(resetDate.getDate() + 30);
+  const { error } = await db.from("user_profiles").insert({
+    user_id: userId,
+    tier: "Free",
+    message_credits_used: 0,
+    credits_reset_date: resetDate.toISOString(),
+    created_at: teraz.toISOString(),
+    updated_at: teraz.toISOString(),
+  });
   return error;
 }
 
