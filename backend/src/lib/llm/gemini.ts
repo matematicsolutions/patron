@@ -59,6 +59,13 @@ export async function streamGemini(
 
     const contents: GeminiContent[] = toNativeContents(params.messages);
     let fullText = "";
+    // Zuzycie tokenow (ADR-0067). Gemini zwraca `usageMetadata` w chunkach streamu -
+    // bez odczytu panel kosztu pokazywal 0,00 USD, a bramka cost_cap sumowala zera
+    // (zmierzone 2026-08-21). Sumujemy po WSZYSTKICH iteracjach petli narzedziowej,
+    // bo kazda to osobne wywolanie modelu. `thoughtsTokenCount` liczy sie do wyjscia -
+    // przy gemini-3-flash-preview to gros rachunku (zmierzone: 492 z 564 tokenow).
+    let promptTokens: number | null = null;
+    let completionTokens: number | null = null;
 
     for (let iter = 0; iter < maxIter; iter++) {
         const stream = await ai.models.generateContentStream({
@@ -84,8 +91,26 @@ export async function streamGemini(
         const callParts: GeminiPart[] = [];
         const toolCalls: NormalizedToolCall[] = [];
         let sawThinking = false;
+        let iterPromptTokens: number | null = null;
+        let iterCompletionTokens: number | null = null;
 
         for await (const chunk of stream) {
+            const um = (chunk as {
+                usageMetadata?: {
+                    promptTokenCount?: number;
+                    candidatesTokenCount?: number;
+                    thoughtsTokenCount?: number;
+                };
+            }).usageMetadata;
+            if (um) {
+                // Licznik w chunku jest NARASTAJACY dla biezacego wywolania -
+                // nadpisujemy wartosc iteracji, sumujemy dopiero miedzy iteracjami.
+                if (typeof um.promptTokenCount === "number")
+                    iterPromptTokens = um.promptTokenCount;
+                const wy =
+                    (um.candidatesTokenCount ?? 0) + (um.thoughtsTokenCount ?? 0);
+                if (wy > 0) iterCompletionTokens = wy;
+            }
             const parts =
                 (chunk as { candidates?: { content?: { parts?: GeminiPart[] } }[] })
                     .candidates?.[0]?.content?.parts ?? [];
@@ -116,6 +141,11 @@ export async function streamGemini(
         }
 
         if (sawThinking) callbacks.onReasoningBlockEnd?.();
+
+        if (iterPromptTokens !== null)
+            promptTokens = (promptTokens ?? 0) + iterPromptTokens;
+        if (iterCompletionTokens !== null)
+            completionTokens = (completionTokens ?? 0) + iterCompletionTokens;
 
         fullText += textParts.join("");
 
@@ -149,7 +179,16 @@ export async function streamGemini(
         });
     }
 
-    return { fullText };
+    // costUsd = null: Gemini nie zwraca kosztu, wycena idzie z cennika (pricing.ts).
+    // Gdy model nie odda licznikow, zostaja null - wywolanie ma byc NIEROZLICZONE,
+    // nie zerowe (patrz latka B).
+    return {
+        fullText,
+        usage:
+            promptTokens !== null || completionTokens !== null
+                ? { promptTokens, completionTokens, costUsd: null }
+                : undefined,
+    };
 }
 
 export async function completeGeminiText(params: {
