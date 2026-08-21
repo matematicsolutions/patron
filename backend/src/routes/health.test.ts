@@ -2,7 +2,7 @@
 // rezerwacja po dodaniu supertest (Konstytucja Art. 4 - brak nowych npm).
 
 import { afterEach, describe, expect, it } from "vitest";
-import { readConsents, buildStatusPayload } from "./health";
+import { readConsents, buildStatusPayload, buildHealthPayload } from "./health";
 
 const ENV_KEYS = [
     "PATRON_ALLOW_PRIVILEGED_CLOUD",
@@ -81,5 +81,28 @@ describe("buildStatusPayload", () => {
         const p = buildStatusPayload({ ...base, credits: null });
         expect(p.openrouter.depleted).toBeNull();
         expect(p.openrouter.credits).toBeNull();
+    });
+});
+
+describe("buildHealthPayload", () => {
+    // Kontrakt z powloka desktop (desktop/main.js: waitForOurBackend). Zmierzone
+    // 2026-08-21: okno pokazalo projekt, ktorego NIE MA w bazie tej instalacji,
+    // bo waitForPort sprawdzal tylko "czy ktokolwiek odpowiada na porcie".
+    it("podaje instance_id, gdy backend zna swoja tozsamosc", () => {
+        expect(buildHealthPayload("abc-123")).toEqual({
+            ok: true,
+            instance_id: "abc-123",
+        });
+    });
+
+    it("brak identyfikatora to null, nie undefined - powloka musi odroznic " +
+        "'obcy' od 'niepotwierdzony'", () => {
+        const p = buildHealthPayload(undefined);
+        expect(p.instance_id).toBeNull();
+        expect("instance_id" in p).toBe(true);
+    });
+
+    it("pusty string NIE udaje tozsamosci", () => {
+        expect(buildHealthPayload("").instance_id).toBeNull();
     });
 });

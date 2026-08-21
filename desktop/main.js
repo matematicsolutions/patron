@@ -27,6 +27,17 @@ if (!mamBlokadeInstancji) {
   });
 }
 
+// D2b: waitForPort odpowiada na pytanie "czy KTOKOLWIEK slucha na porcie", a nie
+// "czy to MOJ backend". Blokada instancji wyzej zapobiega drugiemu PATRONowi, ale
+// NIE zapobiega adopcji obcego procesu, ktory juz trzyma 3001 (zapomniany backend
+// z repo, inna aplikacja, pozostalosc po awarii). Zmierzone 2026-08-21: okno
+// pokazalo projekt, ktorego NIE MA w bazie tej instalacji - czyli UI wyswietlilo
+// dane z cudzego backendu. W produkcie objetym tajemnica zawodowa (Konstytucja
+// Art. 1) to nie jest marnotrawstwo pamieci, tylko pokazanie nie tych akt.
+// Dlatego backend musi sie PRZEDSTAWIC: losowy identyfikator per uruchomienie,
+// wstrzykiwany do backendu i sprawdzany w /health przed pokazaniem okna.
+const INSTANCE_ID = crypto.randomUUID();
+
 const BACKEND_PORT = 3001;
 const FRONTEND_PORT = 3000;
 
@@ -183,6 +194,7 @@ function setupAutoUpdate() {
 function backendLocalEnv() {
   const ud = app.getPath('userData');
   const env = {
+    PATRON_INSTANCE_ID: INSTANCE_ID,
     PATRON_DB_BACKEND: 'sqlite',
     PATRON_STORAGE: 'fs',
     PATRON_DB_PATH: path.join(ud, 'patron.db'),
@@ -296,6 +308,61 @@ function waitForPort(port, timeout = 60000) {
       const req = http.get(`http://localhost:${port}`, res => {
         res.destroy();
         resolve();
+      });
+      req.on('error', () => {
+        if (Date.now() - start > timeout) {
+          reject(new Error(`Port ${port} nie odpowiada po ${timeout}ms`));
+        } else {
+          setTimeout(check, 800);
+        }
+      });
+      req.end();
+    }
+    check();
+  });
+}
+
+// ── Czeka az odpowie NASZ backend (nie ktokolwiek) ─────────────────────────
+// Trojstan, jak przy groundingu cytatu: zgodny / obcy / niepotwierdzony.
+// "Niepotwierdzony" NIE awansuje na zgodny w paczce - w trybie dev tylko
+// ostrzegamy, bo tam backend bywa uruchamiany recznie.
+function waitForOurBackend(port, expectedId, timeout = 90000) {
+  return new Promise((resolve, reject) => {
+    const start = Date.now();
+    function check() {
+      const req = http.get(`http://localhost:${port}/health`, res => {
+        let body = '';
+        res.on('data', chunk => { body += chunk; });
+        res.on('end', () => {
+          let id;
+          try { id = JSON.parse(body).instance_id; } catch { id = undefined; }
+
+          if (id === expectedId) return resolve();
+
+          if (typeof id === 'string' && id.length > 0) {
+            // Odpowiada backend, ale NIE nasz. Nie adoptujemy go - okno
+            // pokazaloby akta z cudzej bazy.
+            return reject(new Error(
+              `Na porcie ${port} odpowiada obcy backend PATRONa. ` +
+              `Zamknij poprzednia instancje i uruchom aplikacje ponownie.`,
+            ));
+          }
+
+          // Brak identyfikatora: starszy albo recznie uruchomiony backend.
+          if (isDev) {
+            console.warn(
+              `[PATRON] Backend na ${port} nie podaje instance_id - tozsamosci ` +
+              'NIE potwierdzono (tryb dev, przepuszczam).',
+            );
+            return resolve();
+          }
+          if (Date.now() - start > timeout) {
+            return reject(new Error(
+              `Backend na porcie ${port} nie potwierdzil tozsamosci.`,
+            ));
+          }
+          setTimeout(check, 800);
+        });
       });
       req.on('error', () => {
         if (Date.now() - start > timeout) {
@@ -628,7 +695,7 @@ app.whenReady().then(async () => {
   try {
     // Czekaj na oba serwisy równolegle
     await Promise.all([
-      waitForPort(BACKEND_PORT, 90000),
+      waitForOurBackend(BACKEND_PORT, INSTANCE_ID, 90000),
       waitForPort(FRONTEND_PORT, 90000),
     ]);
 

@@ -21,7 +21,7 @@ import { usageRouter } from "./routes/usage";
 import { skillsRouter } from "./routes/skills";
 import { connectorsRouter } from "./routes/connectors";
 import { approvalsRouter } from "./routes/approvals";
-import { healthRouter } from "./routes/health";
+import { buildHealthPayload, healthRouter } from "./routes/health";
 import { packsRouter } from "./routes/packs";
 import { citationsRouter } from "./routes/citations";
 import { configRouter } from "./routes/config";
@@ -186,7 +186,15 @@ app.use("/api/config", configRouter);
 // Paczki wiedzy - kanal dystrybucji chunkowej (ADR-0140).
 app.use("/api/packs", packsRouter);
 
-app.get("/health", (_req, res) => res.json({ ok: true }));
+// `instance_id` pozwala powloce desktop odroznic "port odpowiada" od "odpowiada
+// MOJ backend". Bez tego okno adoptuje dowolny proces trzymajacy 3001 i moze
+// pokazac akta z cudzej bazy (zmierzone 2026-08-21). Wartosc jest losowa per
+// uruchomienie, wstrzykiwana przez desktop/main.js; brak zmiennej = null, czego
+// powloka NIE traktuje jak potwierdzenia. To nie jest sekret ani uwierzytelnienie
+// - to identyfikator procesu, wiec wystawienie go na /health jest bezpieczne.
+app.get("/health", (_req, res) =>
+  res.json(buildHealthPayload(process.env.PATRON_INSTANCE_ID)),
+);
 
 // ADR-0036: hybrid auto-trigger Merkle audit root. Tick co
 // PATRON_MERKLE_CHECK_INTERVAL_MS (default 1h). Decyzja compute pure

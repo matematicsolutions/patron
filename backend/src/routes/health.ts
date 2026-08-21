@@ -119,3 +119,17 @@ healthRouter.get("/", requireAuth, requireAdmin, async (_req, res) => {
     }),
   );
 });
+
+/**
+ * Tresc `/health`. Wydzielona jako czysta funkcja, bo `instance_id` jest
+ * KONTRAKTEM miedzy backendem a powloka desktop (desktop/main.js:
+ * waitForOurBackend): bez niego okno adoptuje dowolny proces trzymajacy port
+ * i moze pokazac akta z cudzej bazy. Brak zmiennej -> `null`, nigdy pusty
+ * string ani `undefined` - powloka rozroznia "obcy" od "niepotwierdzony".
+ */
+export function buildHealthPayload(instanceId: string | undefined): {
+    ok: true;
+    instance_id: string | null;
+} {
+    return { ok: true, instance_id: instanceId ? instanceId : null };
+}
