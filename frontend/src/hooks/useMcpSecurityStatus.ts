@@ -13,6 +13,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { apiUrl } from "@/lib/apiBase";
 
 export type GatewayMode = "enforce" | "audit" | "off";
 
@@ -40,7 +41,7 @@ export interface UseMcpSecurityStatusResult {
 }
 
 const POLL_INTERVAL_MS = 60_000;
-const ENDPOINT = "/api/security/mcp-status";
+const ENDPOINT = apiUrl("/api/security/mcp-status");
 
 export function useMcpSecurityStatus(): UseMcpSecurityStatusResult {
     const [status, setStatus] = useState<McpStatus | null>(null);

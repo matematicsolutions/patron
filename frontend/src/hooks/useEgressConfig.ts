@@ -11,6 +11,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { apiUrl } from "@/lib/apiBase";
 
 export interface EgressConfig {
     us_providers: { allowed: boolean };
@@ -22,7 +23,7 @@ export interface UseEgressConfigResult {
     config: EgressConfig | null;
 }
 
-const ENDPOINT = "/api/config/egress";
+const ENDPOINT = apiUrl("/api/config/egress");
 
 export function useEgressConfig(): UseEgressConfigResult {
     const [config, setConfig] = useState<EgressConfig | null>(null);

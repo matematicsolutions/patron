@@ -7,6 +7,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { apiUrl } from "@/lib/apiBase";
 
 export type AuditEventType =
     | "all"
@@ -78,9 +79,10 @@ export function useAuditLog(filter: AuditLogFilter): UseAuditLogResult {
                     params.set("cursor", String(cursorOverride));
                 }
 
-                const res = await fetch(`/api/audit/log?${params.toString()}`, {
-                    credentials: "include",
-                });
+                const res = await fetch(
+                    apiUrl(`/api/audit/log?${params.toString()}`),
+                    { credentials: "include" },
+                );
 
                 if (res.status === 403) {
                     setError("Wymagana rola admin (whitelist email env).");

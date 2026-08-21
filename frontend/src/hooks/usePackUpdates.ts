@@ -11,6 +11,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { apiUrl } from "@/lib/apiBase";
 
 export interface PackUpdate {
     file: string;
@@ -23,7 +24,7 @@ export interface PackUpdate {
     packMb: number;
 }
 
-const ENDPOINT = "/api/packs/updates";
+const ENDPOINT = apiUrl("/api/packs/updates");
 
 export function usePackUpdates(): { updates: PackUpdate[] } {
     const [updates, setUpdates] = useState<PackUpdate[]>([]);

@@ -139,8 +139,8 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
         <div
             className={`${
                 isOpen
-                    ? "w-64 h-dvh bg-gray-50 border-r"
-                    : "w-14 md:h-dvh md:bg-gray-50 md:border-r h-auto bg-transparent pointer-events-none md:pointer-events-auto"
+                    ? "w-64 h-full bg-gray-50 border-r"
+                    : "w-14 md:h-full md:bg-gray-50 md:border-r h-auto bg-transparent pointer-events-none md:pointer-events-auto"
             } border-gray-200 flex flex-col transition-all duration-300 absolute md:relative z-[99] overflow-visible`}
         >
             {/* Toggle + Logo */}

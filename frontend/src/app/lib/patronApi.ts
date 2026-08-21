@@ -5,6 +5,7 @@
 
 import { supabase } from "@/lib/supabase";
 import { IS_LOCAL_MODE, LOCAL_TOKEN } from "@/lib/localMode";
+import { API_BASE } from "@/lib/apiBase";
 import type {
     AssistantEvent,
     PATRONChat,
@@ -35,8 +36,7 @@ interface ServerChatDetailOut {
     messages: ServerMessage[];
 }
 
-const API_BASE =
-    process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3001";
+
 
 async function getAuthHeader(): Promise<Record<string, string>> {
     // Tryb local (single-user desktop): statyczny token, backend sqlite bypassuje.
