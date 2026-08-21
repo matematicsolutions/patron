@@ -204,6 +204,11 @@ export const en: DictShape<typeof pl> = {
 
     citations: {
         title: "Citations",
+        ledgerLabel: "Citation control · conversation",
+        ledgerAriaLabel: "Sum of citation-control verdicts in this conversation",
+        ledgerGreen: "verified",
+        ledgerYellow: "not confirmed",
+        ledgerRed: "unsupported",
         documentCitations: "Citations from documents",
         sources: "Sources",
         relatedSources: "Related sources",

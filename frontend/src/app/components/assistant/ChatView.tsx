@@ -5,6 +5,7 @@ import { ArrowDown } from "lucide-react";
 import { UserMessage } from "./UserMessage";
 import { AssistantMessage } from "./AssistantMessage";
 import { ChatInput } from "./ChatInput";
+import { GroundingLedger } from "./GroundingLedger";
 import {
     AssistantSidePanel,
     type AssistantSidePanelTab,
@@ -580,6 +581,7 @@ export function ChatView({
                 >
                     <div className="w-full max-w-4xl xl:max-w-6xl mx-auto px-4 md:px-6">
                         <div className="w-full rounded-t-[20px] bg-white">
+                            <GroundingLedger messages={messages} />
                             <ChatInput
                                 onSubmit={handleChat}
                                 onCancel={cancel}

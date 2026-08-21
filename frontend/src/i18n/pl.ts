@@ -255,6 +255,12 @@ export const pl = {
         verdictGreen: "źródło potwierdza tezę",
         verdictYellow: "źródło potwierdza częściowo - sprawdź",
         verdictRed: "uwaga: źródło NIE potwierdza tezy",
+        // Rejestr kontroli cytatu na poziomie rozmowy (pasek nad polem pytania).
+        ledgerLabel: "Kontrola cytatu · rozmowa",
+        ledgerAriaLabel: "Suma werdyktów kontroli cytatu w tej rozmowie",
+        ledgerGreen: "zgodne",
+        ledgerYellow: "nie potwierdzam",
+        ledgerRed: "bez pokrycia",
         // ADR-0097 (WYMAGA OSĄDU): cytat tekstowo ugruntowany, ale teza nieoceniona
         // semantycznie (sędzia się nie odpalił, np. tajemnica + model chmurowy).
         requiresJudgment: "tekstowo zgodny, ale tezy nie oceniono - sprawdź źródło",
