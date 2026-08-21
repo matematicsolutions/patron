@@ -18,17 +18,17 @@ type IconPalette = {
     innerOpacities: [number, number, number, number];
 };
 
-// Bordo - znak w tej samej rodzinie co naglowek "Witaj, Mecenasie".
-// Szklany rozblysk w glebokim winie; rym wizualny z akcentem nagłówka.
+// Matowe zloto - znak w kolorze pieczeci (ADR-0149: bordo zeszlo z produktu,
+// zloto jest jedynym akcentem marki). Szklany rozblysk w starym zlocie.
 const DEFAULT_PALETTE: IconPalette = {
-    shadowColor: "#4a141c",
-    shadowOpacity: 0.28,
-    fillStops: ["#6e1f29", "#8a2c38", "#581821", "#7a2531"],
+    shadowColor: "#5a4517",
+    shadowOpacity: 0.25,
+    fillStops: ["#8a6d33", "#b08d4c", "#7a5f2b", "#a0813f"],
     fillOpacities: [0.92, 0.84, 0.88, 0.92],
     specularStops: [0.55, 0.24, 0.02, 0],
-    borderStops: ["#f6dee2", "#9a3b46", "#efd0d6"],
+    borderStops: ["#f3e8cf", "#c9a25e", "#efe7d2"],
     borderOpacities: [0.34, 0.14, 0.22],
-    innerStops: ["#ffffff", "#b35a64", "#3a0f16", "#ffffff"],
+    innerStops: ["#ffffff", "#d6b273", "#4a3a15", "#ffffff"],
     innerOpacities: [0, 0.1, 0.06, 0],
 };
 

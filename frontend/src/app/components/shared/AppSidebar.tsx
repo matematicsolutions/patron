@@ -17,6 +17,7 @@ import { useChatHistoryContext } from "@/app/contexts/ChatHistoryContext";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { PATRONIcon } from "@/components/chat/patron-icon";
+import { ThemeToggleCompact } from "@/components/theme-toggle";
 import { SidebarChatItem } from "@/app/components/shared/SidebarChatItem";
 import { listProjects } from "@/app/lib/patronApi";
 import { t } from "@/i18n";
@@ -166,14 +167,23 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                         </Link>
                     </div>
                 )}
-                <button
-                    onClick={onToggle}
-                    className="h-9 w-9 p-2.5 items-center flex hover:bg-gray-100 rounded-md transition-colors focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-gray-400"
-                    title={isOpen ? t("nav.closeSidebar") : t("nav.openSidebar")}
-                    aria-label={isOpen ? t("nav.closeSidebar") : t("nav.openSidebar")}
-                >
-                    <PanelLeft className="h-4 w-4" />
-                </button>
+                <div className="flex items-center">
+                    {/* Symbol motywu w stalej nawigacji (WM 2026-08-21);
+                        pelny przelacznik z etykietami zostaje w Ustawieniach. */}
+                    {isOpen && <ThemeToggleCompact />}
+                    <button
+                        onClick={onToggle}
+                        className="h-9 w-9 p-2.5 items-center flex hover:bg-gray-100 rounded-md transition-colors focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-gray-400"
+                        title={
+                            isOpen ? t("nav.closeSidebar") : t("nav.openSidebar")
+                        }
+                        aria-label={
+                            isOpen ? t("nav.closeSidebar") : t("nav.openSidebar")
+                        }
+                    >
+                        <PanelLeft className="h-4 w-4" />
+                    </button>
+                </div>
             </div>
 
             {/* Nav items */}

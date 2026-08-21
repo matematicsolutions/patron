@@ -5,9 +5,11 @@ PATRON ICO generator - multi-resolution 16/32/48/64/128/256px
 import math, struct, io
 from PIL import Image, ImageDraw, ImageFilter
 
-NAVY  = (14, 24, 37, 255)
-GOLD  = (201, 165, 90, 255)
-GOLD2 = (160, 128, 65, 180)
+# Cocoa Powder zamiast granatu (ADR-0149) - dysk w inkauscie rewersu,
+# zloto matowe z palety pieczeci.
+NAVY  = (34, 27, 21, 255)
+GOLD  = (201, 162, 94, 255)
+GOLD2 = (176, 141, 76, 180)
 
 
 def draw_blade(draw, cx, cy, angle_deg, blade_len, blade_w, color):

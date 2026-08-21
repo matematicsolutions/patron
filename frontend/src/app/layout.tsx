@@ -87,12 +87,13 @@ export default function RootLayout({
             <head>
                 {/* Motyw ustawiany PRZED pierwszym malowaniem - inaczej przy
                     trybie ciemnym mignie biale tlo (FOUC). Skrypt jest maly i
-                    synchroniczny celowo. Brak zapisanego wyboru = motyw systemu. */}
+                    synchroniczny celowo. Brak zapisanego wyboru = motyw JASNY
+                    (awers); za systemem idziemy tylko przy jawnym 'system'. */}
                 <script
                     dangerouslySetInnerHTML={{
                         __html:
                             "(function(){try{var t=localStorage.getItem('patron-theme');" +
-                            "var d=t?t==='dark':window.matchMedia('(prefers-color-scheme: dark)').matches;" +
+                            "var d=t==='dark'||(t==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);" +
                             "if(d)document.documentElement.classList.add('dark');}catch(e){}})()",
                     }}
                 />

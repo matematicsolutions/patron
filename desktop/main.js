@@ -472,7 +472,10 @@ function createWindow() {
     minWidth: 900,
     minHeight: 600,
     title: 'PATRON',
-    backgroundColor: '#0e1825',
+    // Cloud Dancer (ADR-0149) - tlo malowane zanim frontend wstanie; motyw
+    // domyslny jest jasny, wiec ciemna plama przed pierwszym renderem bylaby
+    // migotaniem w zla strone.
+    backgroundColor: '#f1eee5',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -632,7 +635,10 @@ function showSplash() {
     transparent: false,
     resizable: false,
     alwaysOnTop: true,
-    backgroundColor: '#0e1825',
+    // Awers (ADR-0149): splash w papierze Cloud Dancer, inkaust Cocoa Powder,
+    // zloto tylko na znaku autorytetu (litera R i pasek postepu). Granat z
+    // forka zszedl 2026-08-21.
+    backgroundColor: '#f1eee5',
     webPreferences: { nodeIntegration: false },
   });
 
@@ -644,21 +650,21 @@ function showSplash() {
 <style>
   * { margin:0; padding:0; box-sizing:border-box; }
   body {
-    background: #0e1825;
+    background: #f1eee5;
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;
     height: 100vh;
-    font-family: 'Segoe UI', sans-serif;
-    color: #c9a55a;
+    font-family: Georgia, 'Times New Roman', serif;
+    color: #2b2219;
     user-select: none;
   }
-  .logo { font-size: 36px; letter-spacing: 0.18em; font-weight: 300; margin-bottom: 8px; }
-  .logo span { opacity: 0.5; }
-  .sub { font-size: 11px; color: rgba(255,255,255,0.35); letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 36px; }
-  .bar-track { width: 240px; height: 2px; background: rgba(255,255,255,0.08); border-radius: 1px; overflow: hidden; }
-  .bar-fill { height: 100%; background: #c9a55a; border-radius: 1px; animation: load 8s ease-out forwards; }
+  .logo { font-size: 36px; letter-spacing: 0.18em; font-weight: 400; margin-bottom: 8px; }
+  .logo span { color: #7a5f2b; }
+  .sub { font-family: 'Segoe UI', sans-serif; font-size: 11px; color: #6e6459; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 36px; }
+  .bar-track { width: 240px; height: 2px; background: #dcd5c6; border-radius: 1px; overflow: hidden; }
+  .bar-fill { height: 100%; background: #b08d4c; border-radius: 1px; animation: load 8s ease-out forwards; }
   @keyframes load { from{width:0%} to{width:90%} }
-  .status { font-size: 10px; color: rgba(255,255,255,0.25); margin-top: 12px; letter-spacing: 0.06em; }
+  .status { font-family: 'Segoe UI', sans-serif; font-size: 10px; color: #6e6459; margin-top: 12px; letter-spacing: 0.06em; }
 </style>
 </head>
 <body>
@@ -712,11 +718,11 @@ app.whenReady().then(async () => {
     // paczce: przy obcym backendzie na 3001 aplikacja znikala bez slowa.
     // W produkcie, ktorego teza brzmi "nie milcz", cicha smierc przy starcie
     // jest najgorszym mozliwym zachowaniem.
-    const errWin = new BrowserWindow({ width: 560, height: 320, backgroundColor: '#0e1825' });
+    const errWin = new BrowserWindow({ width: 560, height: 320, backgroundColor: '#f1eee5' });
     errWin.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(`
-      <body style="background:#0e1825;color:#ffb4ab;font-family:monospace;padding:32px">
-        <h2 style="color:#c9a55a;margin-bottom:16px">PATRON — błąd uruchomienia</h2>
-        <pre style="font-size:12px;opacity:0.8">${err.message}</pre>
+      <body style="background:#f1eee5;color:#2b2219;font-family:monospace;padding:32px">
+        <h2 style="color:#7a5f2b;margin-bottom:16px">PATRON - błąd uruchomienia</h2>
+        <pre style="font-size:12px;color:#8e2b2b">${err.message}</pre>
         <p style="margin-top:24px;font-size:12px;opacity:0.75">Zamknij PATRONa i uruchom go ponownie.<br>
         Jeżeli błąd wróci, sprawdź, czy aplikacja nie jest już otwarta w innym oknie,<br>
         a następnie prześlij powyższy komunikat na <b>kontakt@matematic.co</b>.</p>
