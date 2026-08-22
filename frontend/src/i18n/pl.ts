@@ -550,6 +550,7 @@ export const pl = {
 
     support: {
         title: "Wsparcie",
+        typeLabel: "Rodzaj zgłoszenia",
         whatHelp: "W czym możemy pomóc?",
         // Typy zgloszenia
         bugLabel: "Zgłoś błąd",
@@ -569,13 +570,14 @@ export const pl = {
         messagePlaceholder:
             "Opisz szczegółowo pytanie, problem lub sugestię…",
         respondTo: "Odpowiemy na adres:",
-        sending: "Wysyłanie…",
-        submit: "Wyślij",
+        sending: "Przygotowuję…",
+        submit: "Przygotuj wiadomość",
         submitFailed: "Nie udało się wysłać zgłoszenia",
         submitFailedDetail:
             "Nie udało się wysłać zgłoszenia. Spróbuj ponownie.",
-        successTitle: "Dziękujemy za pomoc w rozwoju Patrona",
-        successBody: "Skontaktujemy się z Tobą wkrótce mailem.",
+        successTitle: "Zgłoszenie gotowe do wysłania",
+        successBody:
+            "Otworzyliśmy wiadomość w Twoim programie pocztowym - sprawdź ją i wyślij. Treść jest też w schowku.",
         backHome: "Wróć do strony głównej",
     },
 

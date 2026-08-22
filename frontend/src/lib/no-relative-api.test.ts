@@ -33,14 +33,19 @@ const RELATIVE_API = /["'`]\/api\//;
 const naSlashe = (p: string): string => p.split(sep).join("/");
 
 /**
- * Znany, JAWNY dlug - endpoint, ktorego nie ma po ZADNEJ stronie.
- * Formularz wsparcia strzela pod /api/support: nie istnieje ani jako trasa
- * Next (brak katalogu app/api), ani jako router backendu. Wysylka konczy sie
- * bledem zawsze - ale pada GLOSNO, wiec nie jest to cicha awaria. Kanal
- * kontaktu idzie na zewnatrz, czyli jest decyzja biznesowa, nie techniczna:
- * zapisany tutaj z nazwa pliku, zamiast schowany pod dywan.
+ * Lista jest PUSTA i taka ma zostac.
+ *
+ * Byl tu jeden wpis - `app/support/page.tsx`, ktory strzelal POST-em pod
+ * /api/support, nieistniejacy ani jako trasa Next, ani jako router backendu.
+ * Zamiast budowac endpoint (czyli kazac aplikacji objetej tajemnica zawodowa
+ * wysylac tresc na serwer producenta) formularz sklada teraz DRAFT i oddaje go
+ * klientowi pocztowemu mecenasa. Wysyla czlowiek, ze swojej skrzynki.
+ *
+ * Jesli kiedys znowu bedzie tu wpis - to znaczy, ze w produkcie jest kontrolka,
+ * ktora nie ma dokad prowadzic. Wtedy albo ja podepnij, albo usun; wyjatek jest
+ * ostatecznoscia i musi miec powod zapisany obok.
  */
-const ZNANE_MARTWE = ["app/support/page.tsx"];
+const ZNANE_MARTWE: string[] = [];
 
 function zrodla(dir: string, acc: string[] = []): string[] {
     for (const entry of readdirSync(dir)) {

@@ -8,6 +8,10 @@ import { t } from "@/i18n";
 
 type FeedbackType = "bug" | "feature" | "question" | "other";
 
+/** Skrzynka wsparcia MateMatic - jedyny adres, pod ktory idzie zgloszenie. */
+const SUPPORT_EMAIL = "kontakt@matematic.co";
+const NOWA_LINIA = String.fromCharCode(10);
+
 export default function SupportPage() {
     const router = useRouter();
     const { user, isAuthenticated, authLoading } = useAuth();
@@ -58,22 +62,49 @@ export default function SupportPage() {
         setIsSubmitting(true);
 
         try {
-            const response = await fetch("/api/support", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    type: feedbackType,
-                    subject,
-                    message,
-                    email: user?.email,
-                    link,
-                }),
-            });
+            // ZERO-CLOUD: Patron nie wysyla zgloszenia sam.
+            //
+            // Do 2026-08-22 formularz strzelal POST-em pod /api/support, ktory
+            // NIE ISTNIAL ani jako trasa Next, ani jako router backendu - kazde
+            // wyslanie konczylo sie bledem. Zbudowanie takiego endpointu
+            // oznaczaloby, ze aplikacja objeta tajemnica zawodowa sama wysyla
+            // tresc na serwer producenta; to jest dokladnie ten rodzaj egresu,
+            // ktorego ten produkt nie robi bez decyzji czlowieka.
+            //
+            // Dlatego zgloszenie jest DRAFTEM: skladamy wiadomosc i oddajemy ja
+            // klientowi pocztowemu mecenasa. Wysyla czlowiek, swiadomie, ze
+            // swojej skrzynki - tool przygotowuje, nie wykonuje.
+            const naglowek = [
+                `${t("support.typeLabel")}: ${feedbackType}`,
+                link ? `${t("support.linkOptional")}: ${link}` : null,
+                user?.email ? `${t("support.respondTo")} ${user.email}` : null,
+            ]
+                .filter(Boolean)
+                .join(NOWA_LINIA);
 
-            if (!response.ok) {
-                throw new Error(t("support.submitFailed"));
+            const tresc = `${naglowek}
+
+${message}`;
+            const mailto =
+                `mailto:${SUPPORT_EMAIL}` +
+                `?subject=${encodeURIComponent(`[PATRON] ${subject}`)}` +
+                `&body=${encodeURIComponent(tresc)}`;
+
+            // Kopia do schowka jako zapasowa droga - gdy na maszynie nie ma
+            // skonfigurowanego klienta pocztowego, tresc nie przepada.
+            try {
+                await navigator.clipboard.writeText(
+                    `${SUPPORT_EMAIL}
+
+[PATRON] ${subject}
+
+${tresc}`,
+                );
+            } catch {
+                /* brak dostepu do schowka nie moze blokowac wyslania */
             }
 
+            window.location.href = mailto;
             setIsSubmitted(true);
         } catch (err) {
             console.error("Error submitting feedback:", err);

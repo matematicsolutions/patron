@@ -482,6 +482,7 @@ export const en: DictShape<typeof pl> = {
 
     support: {
         title: "Support",
+        typeLabel: "Request type",
         whatHelp: "How can we help?",
         bugLabel: "Report a bug",
         bugDescription: "Report something that is not working.",
@@ -499,13 +500,14 @@ export const en: DictShape<typeof pl> = {
         messagePlaceholder:
             "Describe your question, problem, or suggestion in detail…",
         respondTo: "We will reply to:",
-        sending: "Sending…",
-        submit: "Send",
+        sending: "Preparing…",
+        submit: "Prepare message",
         submitFailed: "Could not send the request",
         submitFailedDetail:
             "Could not send the request. Try again.",
-        successTitle: "Thank you for helping improve Patron",
-        successBody: "We will contact you soon by email.",
+        successTitle: "Your message is ready to send",
+        successBody:
+            "We opened the message in your mail app - review it and hit send. The text is also in your clipboard.",
         backHome: "Back to home",
     },
 
