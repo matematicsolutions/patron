@@ -31,7 +31,14 @@ export function ProjectsOverview() {
     const [projects, setProjects] = useState<PATRONProject[]>([]);
     const [loading, setLoading] = useState(true);
     const [loadError, setLoadError] = useState<string | null>(null);
-    const [modalOpen, setModalOpen] = useState(false);
+    // Wejscie z menu systemowego: "Nowa sprawa" (Ctrl+N) nawiguje pod
+    // /projects?new=1. Stan czytamy w INICJALIZATORZE, nie przez setState
+    // w efekcie - dzieki temu okno jest otwarte juz przy pierwszym renderze
+    // (bez mrugniecia pustej listy) i nie ma kaskady renderow.
+    const [modalOpen, setModalOpen] = useState(() => {
+        if (typeof window === "undefined") return false;
+        return new URLSearchParams(window.location.search).get("new") === "1";
+    });
 
     const [activeTab, setActiveTab] = useState<Tab>("all");
     const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -53,15 +60,12 @@ export function ProjectsOverview() {
         setSortKey(key);
     }
     const router = useRouter();
-    // Wejscie z menu systemowego: "Nowa sprawa" (Ctrl+N) nawiguje pod
-    // /projects?new=1, a tutaj otwiera sie okno zakladania sprawy. Parametr
-    // czyscimy od razu, zeby powrot "wstecz" nie otwieral go po raz drugi.
-    // Czytamy z location zamiast useSearchParams - bez wymogu Suspense.
+    // Parametr sprzatamy po otwarciu okna - inaczej powrot "wstecz" otwieralby
+    // je po raz drugi. Efekt NIE ustawia stanu, tylko czysci adres.
     useEffect(() => {
         if (typeof window === "undefined") return;
         const params = new URLSearchParams(window.location.search);
         if (params.get("new") !== "1") return;
-        setModalOpen(true);
         params.delete("new");
         const qs = params.toString();
         router.replace(qs ? `/projects?${qs}` : "/projects");
