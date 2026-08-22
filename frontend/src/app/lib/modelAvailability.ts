@@ -15,9 +15,9 @@ export function isModelAvailable(
 ): boolean {
     const model = MODELS.find((m) => m.id === modelId);
     if (!model) return false;
-    // Lokalny (Ollama) = lokalnie; OpenRouter = jeden klucz env Operatora.
-    // Nie bramkujemy ich statusem per-provider (claude/gemini/openai).
-    if (model.group === "Lokalny" || model.group === "OpenRouter") return true;
+    // Lokalny (Ollama) dziala bez klucza - model stoi na maszynie mecenasa.
+    // OpenRouter JEST bramkowany jak kazdy inny dostawca (patrz nizej).
+    if (model.group === "Lokalny") return true;
     const provider = getModelProvider(modelId);
     if (!provider) return false;
     return isProviderAvailable(provider, apiKeys);
@@ -27,12 +27,15 @@ export function isProviderAvailable(
     provider: ModelProvider,
     apiKeys: ApiKeyState,
 ): boolean {
-    // OpenRouter (ADR-0092): klucz jest w env backendu (OPENROUTER_API_KEY), nie
-    // per-user w DB jak claude/gemini/openai. Front nie zna stanu env, wiec w v1
-    // traktujemy modele OpenRouter jako wybieralne; faktyczna autoryzacja i
-    // data-residency (egress=us-with-dpa, blok danych uprzywilejowanych) egzekwuje
-    // backend przez decideRoute. Brak klucza env -> czytelny blad po stronie serwera.
-    if (provider === "openrouter") return true;
+    // OpenRouter (ADR-0092) byl tu do 2026-08-22 traktowany jako ZAWSZE dostepny,
+    // bo "front nie zna stanu env". To juz nieprawda: `getUserApiKeyStatus`
+    // raportuje openrouter razem ze zrodlem ("env" gdy klucz Operatora, "user"
+    // gdy mecenas wkleil swoj). Stary wyjatek kosztowal najgorszy mozliwy
+    // pierwszy kontakt z produktem: DOMYSLNYM modelem na czystej instalacji jest
+    // model OpenRouter, wiec bez klucza aplikacja wygladala na gotowa, a pierwsze
+    // pytanie konczylo sie techniczna angielska awaria z backendu zamiast
+    // prosba o klucz. Bramkujemy jak kazdego innego dostawce - modal "Dodaj
+    // klucz" z linkiem do ustawien zapala sie PRZED wyslaniem.
     return !!apiKeys[provider]?.configured;
 }
 
