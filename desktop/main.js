@@ -1,4 +1,4 @@
-const { app, BrowserWindow, shell, Menu, safeStorage, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, shell, Menu, safeStorage, ipcMain, dialog, screen } = require('electron');
 const { spawn } = require('child_process');
 const path = require('path');
 const http = require('http');
@@ -464,11 +464,63 @@ function startFrontend() {
   frontendProc.on('exit', code => console.log(`[frontend] exit ${code}`));
 }
 
+// ── Pamiec okna ────────────────────────────────────────────────────────────
+// Program desktopowy pamieta, jak zostal zostawiony. Web-app w okienku
+// otwiera sie zawsze tak samo i to jest pierwsza rzecz, po ktorej widac, ze
+// "to nie jest prawdziwa aplikacja". Zapisujemy rozmiar, pozycje, maksymalizacje
+// i poziom powiekszenia.
+//
+// Wazne zabezpieczenie: zapisana pozycja moze wskazywac ekran, ktorego juz nie
+// ma (mecenas odlaczyl monitor w kancelarii i pracuje na laptopie). Okno
+// otworzyloby sie wtedy poza widocznym obszarem - czyli "aplikacja nie startuje".
+// Dlatego pozycje przyjmujemy tylko wtedy, gdy miesci sie w ktoryms z AKTUALNIE
+// podlaczonych ekranow.
+const PLIK_STANU_OKNA = () => path.join(app.getPath('userData'), 'window-state.json');
+
+function wczytajStanOkna() {
+  try {
+    const raw = JSON.parse(fs.readFileSync(PLIK_STANU_OKNA(), 'utf8'));
+    if (!raw || typeof raw !== 'object') return null;
+    return raw;
+  } catch {
+    return null;
+  }
+}
+
+function pozycjaWidoczna(x, y, width, height) {
+  if (![x, y, width, height].every((n) => Number.isFinite(n))) return false;
+  return screen.getAllDisplays().some((d) => {
+    const a = d.workArea;
+    // Wystarczy, ze widoczny jest pasek tytulu - inaczej okno da sie zlapac myszka.
+    return x + width > a.x + 60 && x < a.x + a.width - 60
+      && y >= a.y - 8 && y < a.y + a.height - 40;
+  });
+}
+
+function zapiszStanOkna() {
+  if (!win || win.isDestroyed()) return;
+  try {
+    const b = win.isMaximized() || win.isFullScreen() ? win.getNormalBounds() : win.getBounds();
+    const stan = {
+      x: b.x, y: b.y, width: b.width, height: b.height,
+      maximized: win.isMaximized(),
+      zoom: win.webContents.getZoomLevel(),
+    };
+    fs.writeFileSync(PLIK_STANU_OKNA(), JSON.stringify(stan), { mode: 0o600 });
+  } catch {
+    /* brak zapisu stanu nie moze wywrocic zamykania aplikacji */
+  }
+}
+
 // ── Okno główne ────────────────────────────────────────────────────────────
 function createWindow() {
+  const stan = wczytajStanOkna();
+  const przywroc = stan && pozycjaWidoczna(stan.x, stan.y, stan.width, stan.height);
+
   win = new BrowserWindow({
-    width: 1440,
-    height: 900,
+    width: stan?.width ?? 1440,
+    height: stan?.height ?? 900,
+    ...(przywroc ? { x: stan.x, y: stan.y } : {}),
     minWidth: 900,
     minHeight: 600,
     title: 'PATRON',
@@ -521,7 +573,17 @@ function createWindow() {
     }
   });
 
-  win.once('ready-to-show', () => win.show());
+  win.once('ready-to-show', () => {
+    if (stan?.maximized) win.maximize();
+    win.show();
+  });
+  // Powiekszenie przywracamy PO zaladowaniu strony - wczesniej webContents
+  // nadpisalby je wlasnym domyslnym poziomem.
+  win.webContents.once('did-finish-load', () => {
+    if (Number.isFinite(stan?.zoom)) win.webContents.setZoomLevel(stan.zoom);
+  });
+  // Zapis PRZED zamknieciem: w 'closed' okno juz nie ma wymiarow.
+  win.on('close', zapiszStanOkna);
   win.on('closed', () => { win = null; });
 
   // D1: przy pierwszym starcie okno potrafilo pokazac PUSTY prostokat - UI
@@ -553,11 +615,46 @@ function createWindow() {
   }, 15000);
   win.on('closed', () => clearTimeout(wartownik));
 
+  // Jeden kanal z menu do renderera. Zamiast mnozyc zdarzenia per pozycja
+  // (i ryzykowac kolejne martwe klikniecie) menu prosi o NAWIGACJE pod adres,
+  // a renderer wie, co z nim zrobic.
+  const nawiguj = (sciezka) => win?.webContents.send('menu:navigate', sciezka);
+
+  // O programie: pierwsze pytanie przy kazdym zgloszeniu to "jaka masz wersje"
+  // i "gdzie leza dane". Bez tego okna odpowiedz wymaga grzebania w rejestrze.
+  const oProgramie = () => {
+    dialog.showMessageBox(win, {
+      type: 'info',
+      title: 'O programie',
+      message: `PATRON ${app.getVersion()}`,
+      detail: [
+        `Wydanie: ${installLocale() ?? 'pl'}`,
+        `Electron ${process.versions.electron} · Chromium ${process.versions.chrome}`,
+        '',
+        'Twoje dane (sprawy, dokumenty, klucze):',
+        app.getPath('userData'),
+        '',
+        'MateMatic Solutions · kontakt@matematic.co',
+      ].join(String.fromCharCode(10)),
+      buttons: ['Zamknij', 'Otwórz folder danych'],
+      defaultId: 0,
+      cancelId: 0,
+      noLink: true,
+    }).then(({ response }) => {
+      if (response === 1) shell.openPath(app.getPath('userData'));
+    }).catch(() => {});
+  };
+
   // Minimalne menu — bez domyślnych pozycji Electron
   const menu = Menu.buildFromTemplate([
     {
       label: 'PATRON',
       submenu: [
+        { label: 'O programie…', click: oProgramie },
+        { type: 'separator' },
+        { label: 'Ustawienia konta', accelerator: 'CmdOrCtrl+,', click: () => nawiguj('/account') },
+        { label: 'Modele i klucze', click: () => nawiguj('/account/models') },
+        { type: 'separator' },
         { label: 'Pełny ekran', accelerator: 'F11', role: 'togglefullscreen' },
         { type: 'separator' },
         { label: 'Zamknij', accelerator: 'Alt+F4', role: 'quit' },
@@ -582,10 +679,32 @@ function createWindow() {
       ],
     },
     {
+      // Widok: powiekszenie tekstu to nie gadzet, tylko wymog zawodu - mecenas
+      // czyta gesty dokument godzinami, czesto na laptopie 13". Poziom zoomu
+      // jest zapamietywany razem z rozmiarem okna (window-state.json).
+      label: 'Widok',
+      submenu: [
+        { label: 'Powiększ', accelerator: 'CmdOrCtrl+Plus', role: 'zoomIn' },
+        { label: 'Pomniejsz', accelerator: 'CmdOrCtrl+-', role: 'zoomOut' },
+        { label: 'Rozmiar domyślny', accelerator: 'CmdOrCtrl+0', role: 'resetZoom' },
+        { type: 'separator' },
+        { label: 'Odśwież', accelerator: 'CmdOrCtrl+R', role: 'reload' },
+      ],
+    },
+    {
       label: 'Sprawa',
       submenu: [
-        { label: 'Nowa sprawa', accelerator: 'CmdOrCtrl+N', click: () => win?.webContents.send('new-case') },
-        { label: 'Odśwież', accelerator: 'CmdOrCtrl+R', role: 'reload' },
+        // Do 2026-08-22 ta pozycja wysylala zdarzenie 'new-case', ktorego NIKT
+        // nie odbieral - klik i skrot nie robily nic, po cichu. Teraz menu
+        // korzysta z jednego, jawnego kanalu nawigacji (menu:navigate), ktory
+        // renderer obsluguje przez DesktopMenuBridge.
+        { label: 'Nowa sprawa…', accelerator: 'CmdOrCtrl+N', click: () => nawiguj('/projects?new=1') },
+        { label: 'Wszystkie sprawy', accelerator: 'CmdOrCtrl+Shift+S', click: () => nawiguj('/projects') },
+        { type: 'separator' },
+        // Akta i dowody z poziomu menu systemowego: lancuch skrotow, pieczec
+        // Merkle i eksport teczki dowodowej to jedyne funkcje, ktorych nie ma
+        // konkurencja - maja byc osiagalne takze stamtad, nie tylko z paska.
+        { label: 'Akta i dowody', accelerator: 'CmdOrCtrl+Shift+A', click: () => nawiguj('/admin/audit') },
       ],
     },
     ...(isDev ? [{

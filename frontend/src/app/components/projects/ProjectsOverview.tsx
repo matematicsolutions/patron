@@ -32,6 +32,7 @@ export function ProjectsOverview() {
     const [loading, setLoading] = useState(true);
     const [loadError, setLoadError] = useState<string | null>(null);
     const [modalOpen, setModalOpen] = useState(false);
+
     const [activeTab, setActiveTab] = useState<Tab>("all");
     const [renamingId, setRenamingId] = useState<string | null>(null);
     const [renameValue, setRenameValue] = useState("");
@@ -52,6 +53,19 @@ export function ProjectsOverview() {
         setSortKey(key);
     }
     const router = useRouter();
+    // Wejscie z menu systemowego: "Nowa sprawa" (Ctrl+N) nawiguje pod
+    // /projects?new=1, a tutaj otwiera sie okno zakladania sprawy. Parametr
+    // czyscimy od razu, zeby powrot "wstecz" nie otwieral go po raz drugi.
+    // Czytamy z location zamiast useSearchParams - bez wymogu Suspense.
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        const params = new URLSearchParams(window.location.search);
+        if (params.get("new") !== "1") return;
+        setModalOpen(true);
+        params.delete("new");
+        const qs = params.toString();
+        router.replace(qs ? `/projects?${qs}` : "/projects");
+    }, [router]);
     const { user, isAuthenticated, authLoading } = useAuth();
 
     useEffect(() => {

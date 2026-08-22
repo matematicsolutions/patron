@@ -11,6 +11,7 @@ import { McpSecurityBanner } from "@/components/mcp-security-banner";
 import { EgressConfigBanner } from "@/components/egress-config-banner";
 import { PackUpdateBanner } from "@/components/pack-update-banner";
 import { PerimeterBar } from "@/components/perimeter-bar";
+import { DesktopMenuBridge } from "@/components/desktop-menu-bridge";
 import { t } from "@/i18n";
 
 export default function PATRONLayout({
@@ -89,6 +90,7 @@ export default function PATRONLayout({
                     },
                 }}
             >
+                <DesktopMenuBridge />
                 <div className="h-dvh bg-white flex flex-col">
                     <div className="flex-1 flex overflow-hidden">
                         <AppSidebar
