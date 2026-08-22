@@ -20,6 +20,7 @@
 import { useState } from "react";
 import { Download, Loader2, AlertCircle, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { apiUrl } from "@/lib/apiBase";
 
 type State =
     | { kind: "idle" }
@@ -83,7 +84,7 @@ export function AuditExportButton({ eventId }: AuditExportButtonProps) {
         | { kind: "needs-compute"; detail: string }
         | { kind: "error"; detail: string }
     > {
-        const res = await fetch(`/api/audit/export/${eventId}`, {
+        const res = await fetch(apiUrl(`/api/audit/export/${eventId}`), {
             credentials: "include",
         });
         if (res.ok) {
@@ -131,7 +132,7 @@ export function AuditExportButton({ eventId }: AuditExportButtonProps) {
     async function handleForceCompute(): Promise<void> {
         setState({ kind: "computing" });
         try {
-            const res = await fetch(`/api/audit/merkle/compute-now`, {
+            const res = await fetch(apiUrl(`/api/audit/merkle/compute-now`), {
                 method: "POST",
                 credentials: "include",
             });

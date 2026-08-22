@@ -8,6 +8,7 @@
 import { useState } from "react";
 import { ShieldCheck, ShieldAlert, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { apiUrl } from "@/lib/apiBase";
 
 interface ProofBundle {
     event_id: number;
@@ -35,7 +36,7 @@ export function MerkleVerifyButton({ eventId }: MerkleVerifyButtonProps) {
     async function handleVerify(): Promise<void> {
         setState({ kind: "loading" });
         try {
-            const res = await fetch(`/api/audit/merkle/verify/${eventId}`, {
+            const res = await fetch(apiUrl(`/api/audit/merkle/verify/${eventId}`), {
                 credentials: "include",
             });
             if (!res.ok) {
