@@ -7,6 +7,96 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-09-01
+
+Wydanie skupione na **dwoch rzeczach: tym, co widac, i tym, co dziala**. System
+wizualny dostal wlasny jezyk, a przebieg bojowy na zainstalowanej aplikacji
+wyciagnal defekty, ktorych zielone testy nie widzialy - w tym dwa w funkcjach,
+ktore sa naszym jedynym wyroznikiem wobec konkurencji.
+
+### Naprawione - KRYTYCZNE
+
+- **Eksport teczki dowodowej i weryfikacja pieczeci Merkle byly MARTWE w spakowanej
+  aplikacji.** `audit-export-button` i `merkle-verify-button` wolaly backend sciezka
+  wzgledna; front stoi na 3000, backend na 3001, proxy nie ma - kazde klikniecie
+  konczylo sie cichym 404. Dotyczylo WSZYSTKICH dotad opublikowanych instalatorow.
+  Bramka na te regresje istniala od 08-21 i swiecila na zielono, bo skanowala tylko
+  katalog hookow; teraz skanuje caly front i dodatkowo pilnuje wlasnego mianownika.
+- **Domyslny model nie dalo sie uzyc bez klucza, a produkt tego nie mowil.** Modele
+  OpenRouter byly zawsze pokazywane jako dostepne, wiec pierwsze pytanie na nowej
+  maszynie konczylo sie technicznym komunikatem po angielsku zamiast prosba o klucz.
+  Teraz OpenRouter jest bramkowany jak kazdy dostawca: modele bez klucza sa wyszarzone,
+  a proba wyslania otwiera okno "Dodaj klucz" z linkiem do ustawien.
+- **Formularz wsparcia nie wysylal nic** - strzelal POST-em pod `/api/support`, ktory
+  nie istnial ani jako trasa Next, ani jako router backendu. Zamiast budowac endpoint
+  (czyli kazac aplikacji objetej tajemnica zawodowa wysylac tresc na serwer producenta)
+  formularz sklada teraz wiadomosc i oddaje ja klientowi pocztowemu - wysyla czlowiek.
+- **"Nowa sprawa" (Ctrl+N) nie robila nic** - pozycja menu wysylala zdarzenie, ktorego
+  nikt nie odbieral.
+
+### Dodane - warstwa desktopowa
+
+- **Aplikacja pamieta okno**: rozmiar, pozycje, maksymalizacje i poziom powiekszenia.
+  Zapisana pozycja jest przyjmowana tylko wtedy, gdy miesci sie w ktorymkolwiek
+  z AKTUALNIE podlaczonych ekranow - inaczej po odlaczeniu monitora okno otwieraloby
+  sie poza obszarem widocznym.
+- **Powiekszanie tekstu** (Ctrl +/-/0, takze Ctrl+= i klawiatura numeryczna), poziom
+  zapamietywany razem z oknem. Dla zawodu czytajacego gesty dokument godzinami to nie
+  gadzet.
+- **Okno "O programie"** z wersja, edycja jezykowa, wersjami Electron/Chromium, sciezka
+  do danych i przyciskiem otwierajacym ten folder - pierwsze dwa pytania kazdego
+  zgloszenia wsparcia.
+- Menu systemowe: skroty do ustawien konta, modeli i kluczy oraz **Akta i dowody**
+  (Ctrl+Shift+A).
+
+### Zmienione - system wizualny "Awers i rewers"
+
+- **Dwa pigmenty i jedno zloto.** Papier Cloud Dancer, inkaust Cocoa Powder, akcent
+  w matowym zlocie zamiast bordo. Tryb ciemny nie jest osobna paleta, tylko REWERSEM
+  tego samego arkusza: te same pigmenty zamienione rolami. Kontrast inkaust/papier
+  13,4:1 i 14,4:1 (WCAG AAA).
+- **Zloto sie zarabia** - wystepuje wylacznie na znakach autorytetu (pieczec, grzbiet
+  aktywnej sprawy, fokus, odsylacz do zrodla) i NIGDY nie komunikuje stanu; trojstan
+  groundingu zachowuje wlasna triade z etykieta slowna.
+- **Zloty podzial na kazdym ekranie**, wpisany w tokeny i pilnowany bramka. Margines
+  dowodu jest UDZIALEM szerokosci (0,382), nie stala liczba - dzieki temu proporcja
+  trzyma sie przy kazdej szerokosci okna, a nie przy jednej.
+- **Governance przeniesiony z gornych banerow do paska perymetru.** Stan trwaly nalezy
+  do stalego paska, zmiana stanu do banera: kazdy segment perymetru jest linkiem tam,
+  gdzie sie tym faktem zarzadza, a gora zapala sie tylko przy zdarzeniu (faktyczna
+  blokada bramki, wlaczenie zgody na model chmurowy).
+- **Margines dowodu jako trzecia strefa** ekranu pracy: ciagla kreska przez cala
+  rozmowe i przyklejony rejestr werdyktow kontroli cytatu dla calej rozmowy.
+- Kroje w rolach: Brygada 1918 dla tekstu, Lato dla interfejsu, Bona Nova wylacznie
+  ceremonialnie, JetBrains Mono dla dowodow (hashe, sygnatury, liczniki).
+
+### Zmienione - slownik produktu (ADR-0148)
+
+- **"Sprawa" zastepuje "projekt", a czat bez sprawy nazywa sie Warsztat** - we
+  WSZYSTKICH siedmiu edycjach jezykowych, terminami zawodowymi: PL sprawa/Warsztat,
+  EN matter/Workshop, IT pratica/Laboratorio, DE Mandat/Werkstatt, ES asunto/Taller,
+  FR dossier/Atelier, PT caso/Oficina. Zmiana wylacznie w slowniku - klucze, trasy
+  i tabele zostaja przy `project`.
+
+### Dodane - bramki (regula: regula bez bramki nie trzyma)
+
+- `no-relative-api.test.ts` - skanuje CALY front i pilnuje wlasnego mianownika.
+- `golden-ratio.test.ts` - proporcje musza byc udzialem, nie liczba.
+- `slownik-sprawy.test.ts` - zadna edycja nie moze wrocic do starego slownictwa.
+- `desktop-menu-bridge.test.tsx` - menu systemowe musi miec odbiorce.
+- `scripts/przebieg_bojowy.py` - przebieg bojowy jako jedno polecenie: sprawdza
+  DZIALAJACA instalacje, lancuch audytu, pieczec Merkle, eksport teczki i URUCHAMIA
+  weryfikator z paczki. Bez wywolania modelu, wiec nie kosztuje.
+
+### Zweryfikowane na prawdziwym modelu
+
+`smoke:surfaces` 6/6 (upload+index, tabular 8/8 komorek z groundingiem, workflows,
+generowanie DOCX, research z groundingiem MCP, draft/refine z zachowaniem faktow).
+Przebieg bojowy na zainstalowanej aplikacji 10/10. W dwoch niezaleznych przebiegach
+grounding **zlapal cytat, ktorego nie bylo w tekscie zwroconym przez konektor**, mimo
+poprawnej sygnatury orzeczenia - czyli dokladnie to, po co ten produkt istnieje.
+
+
 ### Added
 - **Grounding cytatow z konektorow MCP (ADR-0146)** - cytaty z SAOS / NSA / ISAP / KRS /
   EUREKA / EUR-Lex przechodza teraz te sama kontrole, co cytaty z dokumentow kancelarii:
