@@ -147,12 +147,12 @@ export const pl = {
             "AI może się mylić. Odpowiedzi nie stanowią porady prawnej.",
         // Aria/title dla przyciskow dolnej belki ChatInput
         openWorkflows: "Otwórz workflowy",
-        openProjects: "Otwórz projekty",
+        openProjects: "Otwórz sprawy",
         addDocuments: "Dodaj dokumenty",
         // Breadcrumb pickera dokumentow
-        breadcrumbAssistant: "Asystent",
+        breadcrumbAssistant: "Warsztat",
         breadcrumbAddDocs: "Dodaj dokumenty",
-        breadcrumbStartInProject: "Rozpocznij czat w projekcie",
+        breadcrumbStartInProject: "Rozpocznij rozmowę w sprawie",
         continue: "Kontynuuj",
         // Statusy wyboru modelu (ModelToggle)
         modelChoose: "Wybierz model",
@@ -443,23 +443,23 @@ export const pl = {
     // Projects
     // ---------------------------------------------------------------------
     projects: {
-        title: "Projekty",
-        newProject: "Nowy projekt",
-        newProjectPlaceholder: "Nazwa projektu (np. „Klient X / sprawa Y”)",
-        projectNotFound: "Projekt nie znaleziony",
+        title: "Sprawy",
+        newProject: "Nowa sprawa",
+        newProjectPlaceholder: "Nazwa sprawy (np. „Klient X / sygn. Y”)",
+        projectNotFound: "Sprawa nie znaleziona",
         practiceArea: "Obszar prawa",
         practice: "Obszar",
         cmNumber: "Numer sprawy",
         cmNumberPlaceholder: "Dodaj numer sprawy…",
         peopleWithAccess: "Osoby z dostępem",
         people: "Osoby",
-        openProjects: "Otwórz projekty",
+        openProjects: "Otwórz sprawy",
         addByEmail: "Dodaj przez email…",
         allowEditingByShareRecipients:
             "Pozwól na edycję osobom z dostępem",
         dismissWarning: "Zamknij ostrzeżenie",
         // Lista projektow
-        searchPlaceholder: "Szukaj projektów…",
+        searchPlaceholder: "Szukaj spraw…",
         nameColumn: "Nazwa",
         filesColumn: "Pliki",
         chatsColumn: "Czaty",
@@ -467,10 +467,10 @@ export const pl = {
         createdColumn: "Utworzono",
         cmShort: "Sygnatura",
         cmShortPlaceholder: "Sygn.",
-        noProjects: "Brak projektów. Utwórz pierwszy.",
+        noProjects: "Brak spraw. Załóż pierwszą.",
         // Lista projektow - stany puste i naglowki
-        emptyTitle: "Projekty",
-        emptyBody: "Wczytaj dokumenty do projektów i rozpocznij czaty oraz przeglądy tabelaryczne.",
+        emptyTitle: "Sprawy",
+        emptyBody: "Wczytaj akta do sprawy i zacznij rozmowę albo przegląd tabelaryczny.",
         emptyCta: "+ Utwórz nowy",
         // Zakladki filtrow listy projektow
         tabAll: "Wszystkie",
@@ -480,7 +480,7 @@ export const pl = {
         actions: "Akcje",
         deleteSelected: "Usuń",
         // Stan bledu ladowania listy
-        loadErrorTitle: "Projekty",
+        loadErrorTitle: "Sprawy",
         // Eksplorator dokumentow projektu (foldery + pliki)
         folderNamePlaceholder: "Nazwa folderu",
         renameDocument: "Zmień nazwę dokumentu",
@@ -490,10 +490,10 @@ export const pl = {
         newSubfolderInside: "Nowy podfolder w",
         // Zakladki projektu (Documents / Assistant / Tabular Reviews)
         tabDocuments: "Dokumenty",
-        tabAssistant: "Asystent",
+        tabAssistant: "Rozmowa",
         tabTabularReviews: "Przeglądy tabelaryczne",
         // Breadcrumb pickera dokumentow z poziomu projektu
-        breadcrumbProjects: "Projekty",
+        breadcrumbProjects: "Sprawy",
         breadcrumbAddDocs: "Dodaj dokumenty",
         breadcrumbPeople: "Osoby",
     },
@@ -603,19 +603,19 @@ export const pl = {
         copyLink: "Kopiuj link",
         linkCopied: "Skopiowano",
         // NewProjectModal
-        breadcrumbNewProject: "Nowy projekt",
-        projectNamePlaceholder: "Nazwa projektu",
+        breadcrumbNewProject: "Nowa sprawa",
+        projectNamePlaceholder: "Nazwa sprawy",
         cmNumberPlaceholder: "Dodaj numer sprawy…",
         members: "Osoby",
         cannotShareWithSelf:
-            "Nie możesz udostępnić projektu samemu sobie.",
+            "Nie możesz udostępnić sprawy samemu sobie.",
         addColleagues: "Dodaj współpracowników przez email…",
         selectDocuments: "Wybierz dokumenty",
         noExistingDocuments: "Brak istniejących dokumentów",
         uploadFiles: "Wczytaj pliki",
         creating: "Tworzenie…",
-        createProject: "Utwórz projekt",
-        failedCreateProject: "Nie udało się utworzyć projektu",
+        createProject: "Załóż sprawę",
+        failedCreateProject: "Nie udało się założyć sprawy",
     },
 
     // ---------------------------------------------------------------------
@@ -646,16 +646,16 @@ export const pl = {
         listTitle: "Przeglądy tabelaryczne",
         searchPlaceholder: "Szukaj przeglądów…",
         tabAll: "Wszystkie",
-        tabInProject: "W projektach",
+        tabInProject: "W sprawach",
         tabStandalone: "Samodzielne",
-        filterByProject: "Filtruj po projekcie",
-        allProjects: "Wszystkie projekty",
+        filterByProject: "Filtruj po sprawie",
+        allProjects: "Wszystkie sprawy",
         actions: "Akcje",
         delete: "Usuń",
         nameColumn: "Nazwa",
         columnsColumn: "Kolumny",
         documentsColumn: "Dokumenty",
-        projectColumn: "Projekt",
+        projectColumn: "Sprawa",
         createdColumn: "Utworzono",
         emptyBody: "Wyciągaj dane z dokumentów do tabel za pomocą AI.",
         emptyCta: "+ Utwórz nowy",
@@ -695,7 +695,7 @@ export const pl = {
         emptyDocumentHint:
             "Przeciągnij dokument z eksploratora do asystenta, by go wczytać lub edytować.",
         // Prawy panel - asystent
-        projectAssistant: "Asystent projektu",
+        projectAssistant: "Asystent sprawy",
         // Powitanie - fallback gdy brak imienia
         greetingFallbackHandle: "Mecenasie",
     },
@@ -712,7 +712,7 @@ export const pl = {
         // Akcje (infinitive po "moze")
         actionRenameReview: "zmienić nazwę tego przeglądu",
         actionDeleteReview: "usunąć ten przegląd",
-        actionRenameProject: "zmienić nazwę tego projektu",
+        actionRenameProject: "zmienić nazwę tej sprawy",
         actionDeleteDocument: "usunąć ten dokument",
         actionDeleteChat: "usunąć ten czat",
         actionRenameChat: "zmienić nazwę tego czatu",
@@ -724,7 +724,7 @@ export const pl = {
         actionDeleteChatsBulkSuffix:
             "z zaznaczonych czatów - usunąć czat może tylko jego twórca",
         actionDeleteProjectsBulkSuffix:
-            "z zaznaczonych projektów - usunąć projekt może tylko jego właściciel",
+            "z zaznaczonych spraw - usunąć sprawę może tylko jej właściciel",
         actionDeleteDocumentsMany:
             "usunąć te dokumenty - dokument może usunąć tylko jego twórca",
     },
@@ -755,8 +755,8 @@ export const pl = {
     // ProjectPicker - wybor projektu (np. przy przenoszeniu przegladu)
     // ---------------------------------------------------------------------
     projectPicker: {
-        searchPlaceholder: "Szukaj projektów…",
-        projectsLabel: "Projekty",
+        searchPlaceholder: "Szukaj spraw…",
+        projectsLabel: "Sprawy",
         // noMatches: reuse common.noMatches
         // noProjectsYet: reuse nav.noProjectsYet
     },
