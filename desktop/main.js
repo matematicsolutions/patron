@@ -685,8 +685,16 @@ function createWindow() {
       label: 'Widok',
       submenu: [
         { label: 'Powiększ', accelerator: 'CmdOrCtrl+Plus', role: 'zoomIn' },
+        // Na klawiaturze PC "plus" lezy pod Shift+=, wiec realnie ludzie
+        // naciskaja Ctrl+= albo plusa z klawiatury numerycznej. Jawny
+        // akcelerator wiaze TYLKO siebie, wiec bez tych dwoch ukrytych pozycji
+        // powiekszanie dzialaloby wylacznie z menu - funkcja w polowie.
+        { label: 'Powiększ', accelerator: 'CmdOrCtrl+=', role: 'zoomIn', visible: false },
+        { label: 'Powiększ', accelerator: 'CmdOrCtrl+numadd', role: 'zoomIn', visible: false },
         { label: 'Pomniejsz', accelerator: 'CmdOrCtrl+-', role: 'zoomOut' },
+        { label: 'Pomniejsz', accelerator: 'CmdOrCtrl+numsub', role: 'zoomOut', visible: false },
         { label: 'Rozmiar domyślny', accelerator: 'CmdOrCtrl+0', role: 'resetZoom' },
+        { label: 'Rozmiar domyślny', accelerator: 'CmdOrCtrl+num0', role: 'resetZoom', visible: false },
         { type: 'separator' },
         { label: 'Odśwież', accelerator: 'CmdOrCtrl+R', role: 'reload' },
       ],
