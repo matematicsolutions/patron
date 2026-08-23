@@ -89,6 +89,25 @@ class TrescCommita(unittest.TestCase):
         self.assertFalse(scan_commit_msg(f, cfg_z("kowalsk")))
 
 
+class Diakrytyki(unittest.TestCase):
+    """Konwencja organizacji: tresc commita bez polskich ogonkow. Regula miala
+    pol roku i zadnej bramki - zlamala ja sesja, ktora ja opisywala."""
+
+    def _plik(self, tresc: str) -> Path:
+        p = Path(self.enterContext(__import__("tempfile").TemporaryDirectory())) / "MSG"
+        p.write_text(tresc, encoding="utf-8")
+        return p
+
+    def test_ogonek_w_tresci_jest_trafieniem(self):
+        f = self._plik("test: cos\n\nTest umie paść.\n")
+        kinds = [x.kind for x in scan_commit_msg(f, cfg_z("kowalsk"))]
+        self.assertIn("diakrytyki", kinds)
+
+    def test_tresc_bez_ogonkow_przechodzi(self):
+        f = self._plik("test: cos\n\nTest umie padac.\n")
+        self.assertFalse(scan_commit_msg(f, cfg_z("kowalsk")))
+
+
 class Wyciszenia(unittest.TestCase):
     def test_marker_allow_wycisza_linie(self):
         linia = f"const fixture = '{NAZWISKO}';  // pubgate:allow"

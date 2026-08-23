@@ -173,6 +173,7 @@ class Config:
 # czytelnika repo - NIE przed kims, kto juz zna nazwisko i chce je potwierdzic.
 # Pelna lista otwartym tekstem zyje poza repo: --config .publication-gate.private.json
 MIN_STEM = 4
+DIAKRYTYKI = "ąćęłńóśżźĄĆĘŁŃÓŚŻŹ"
 _TOKEN = re.compile(r"[0-9a-z]+")
 
 
@@ -332,7 +333,16 @@ def scan_commit_msg(path: Path, cfg: Config) -> list[Finding]:
         print(f"nie moge odczytac {path}: {e}", file=sys.stderr)
         return []
     keep = [l for l in text.splitlines() if not l.lstrip().startswith("#")]
-    return scan_text(f"commit-msg:{path.name}", "\n".join(keep), cfg)
+    out = scan_text(f"commit-msg:{path.name}", "\n".join(keep), cfg)
+    # Konwencja organizacji (AGENTS.md): zero polskich diakrytykow w tresci
+    # commita. Regula istniala od dawna i nie trzymala - w tej samej sesji,
+    # w ktorej ja opisywalismy, zlamalismy ja. Regula bez bramki nie trzyma.
+    for ln, line in enumerate(keep, 1):
+        zle = sorted({c for c in line if c in DIAKRYTYKI})
+        if zle:
+            out.append(Finding(HARD, "diakrytyki", f"commit-msg:{path.name}",
+                               ln, "".join(zle)))
+    return out
 
 
 # --------------------------------------------------------------------------- #
