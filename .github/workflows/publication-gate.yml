@@ -23,6 +23,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      # Bramka sprawdzajaca BRAMKE. Mutacja MIN_STEM wywala 5 z 9 testow -
+      # sprawdzone, wiec test nie jest ozdoba.
+      - name: Kontrola pozytywna bramki
+        run: python scripts/publication_gate_selftest.py
+
       - name: Skan trackowanych plikow (PR i push)
         if: github.event_name == 'pull_request' || github.event_name == 'push'
         run: python scripts/publication_gate.py .
