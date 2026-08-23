@@ -12,6 +12,7 @@ import {
     Check,
 } from "lucide-react";
 import { HeaderSearchBtn } from "../shared/HeaderSearchBtn";
+import { t, type TranslationKey } from "@/i18n";
 import {
     listWorkflows,
     deleteWorkflow,
@@ -34,11 +35,13 @@ type Tab = "all" | "builtin" | "custom" | "hidden";
 const CHECK_W = "w-8 shrink-0";
 const NAME_COL_W = "w-[300px] shrink-0";
 
-const TABS: { id: Tab; label: string }[] = [
-    { id: "all", label: "All" },
-    { id: "builtin", label: "Built-in" },
-    { id: "custom", label: "Custom" },
-    { id: "hidden", label: "Hidden" },
+// Etykiety liczone przy renderze, nie przy imporcie modulu: setLocale()
+// wykonuje sie przy bootstrapie, wiec stala modulowa zamrozilaby jezyk.
+const TAB_KEYS: { id: Tab; key: TranslationKey }[] = [
+    { id: "all", key: "workflows.all" },
+    { id: "builtin", key: "workflows.builtIn" },
+    { id: "custom", key: "workflows.custom" },
+    { id: "hidden", key: "workflows.hidden" },
 ];
 
 export function WorkflowList() {
@@ -398,7 +401,7 @@ export function WorkflowList() {
                     <HeaderSearchBtn
                         value={search}
                         onChange={setSearch}
-                        placeholder="Search workflows…"
+                        placeholder={t("workflows.searchPlaceholder")}
                     />
                     <button
                         onClick={() => setNewModalOpen(true)}
@@ -410,7 +413,7 @@ export function WorkflowList() {
             </div>
 
             <ToolbarTabs
-                tabs={TABS}
+                tabs={TAB_KEYS.map((z) => ({ id: z.id, label: t(z.key) }))}
                 active={activeTab}
                 onChange={setActiveTab}
                 actions={toolbarActions}
@@ -436,7 +439,7 @@ export function WorkflowList() {
                         </div>
                         <div className={`sticky left-8 z-[60] ${NAME_COL_W} bg-white pl-2 text-left`}>
                             <SortHeader
-                                label="Name"
+                                label={t("workflows.name")}
                                 columnKey="name"
                                 activeKey={sortKey}
                                 dir={sortDir}
@@ -445,7 +448,7 @@ export function WorkflowList() {
                         </div>
                         <div className="ml-auto w-28 shrink-0">
                             <SortHeader
-                                label="Type"
+                                label={t("workflows.type")}
                                 columnKey="type"
                                 activeKey={sortKey}
                                 dir={sortDir}
@@ -454,7 +457,7 @@ export function WorkflowList() {
                         </div>
                         <div className="w-40 shrink-0">
                             <SortHeader
-                                label="Practice"
+                                label={t("workflows.practice")}
                                 columnKey="practice"
                                 activeKey={sortKey}
                                 dir={sortDir}
@@ -463,7 +466,7 @@ export function WorkflowList() {
                         </div>
                         <div className="w-28 shrink-0">
                             <SortHeader
-                                label="Source"
+                                label={t("workflows.source")}
                                 columnKey="source"
                                 activeKey={sortKey}
                                 dir={sortDir}
