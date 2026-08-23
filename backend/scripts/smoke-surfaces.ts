@@ -8,7 +8,7 @@
 //   npm run smoke:surfaces                  # model z PATRON_SMOKE_MODEL albo gemini-3-flash-preview
 //   PATRON_SMOKE_MODEL=... npm run smoke:surfaces
 //
-// Powod istnienia: 2026-08-18 EY poprosil o demo "calej platformy" (tabular,
+// Powod istnienia: 2026-08-18 klient korporacyjny poprosil o demo "calej platformy" (tabular,
 // workflows, generowanie dokumentow), a przebieg bojowy z 08-17 objal tylko
 // czat + konektory. Bramka jednostkowa (vitest) uzywa fake-LLM, wiec nie
 // odpowiada na pytanie "czy to dziala z prawdziwym modelem na prawdziwym pliku".
@@ -97,7 +97,7 @@ function killTree(pid: number | undefined, kill: () => void) {
   else kill();
 }
 
-// Realistyczne fixtury: dwie umowy najmu (fikcyjne strony, jak w KPRF CEL II).
+// Realistyczne fixtury: dwie umowy najmu (fikcyjne strony).
 const LEASE_A = [
   "UMOWA NAJMU LOKALU UZYTKOWEGO nr 7/2026",
   "zawarta w Warszawie dnia 3 marca 2026 r. pomiedzy Galeria Polnoc sp. z o.o. z siedziba w Warszawie (Wynajmujacy) a Acme Retail sp. z o.o. z siedziba w Krakowie (Najemca).",

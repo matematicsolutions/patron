@@ -5,7 +5,7 @@ import { ChevronDown, ChevronUp, ChevronsUpDown } from "lucide-react";
 export type SortDir = "asc" | "desc";
 
 /**
- * Klikalny naglowek kolumny z sortowaniem A-Z / Z-A (uwaga Piotrka 2026-06-03).
+ * Klikalny naglowek kolumny z sortowaniem A-Z / Z-A.
  * Wspoldzielony przez listy: WorkflowList, tabular-reviews, ProjectsOverview.
  * Klik w kolumne aktywna przelacza kierunek; klik w inna ustawia ja rosnaco.
  */

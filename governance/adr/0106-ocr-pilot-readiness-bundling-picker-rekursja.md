@@ -31,4 +31,4 @@ OCR jest w PATRONie engine-agnostic przez env `PATRON_OCR_CMD` (ADR-0074), a sil
 
 ## Bramki
 
-ADR przed merge do `main`; 2x review WM. Bundling licencyjnie czysty (Tesseract Apache 2.0 - bramka licencji Konstytucji OK). Pelny rebuild+reinstalacja u Beaty przed demo "zdjecia".
+ADR przed merge do `main`; 2x review WM. Bundling licencyjnie czysty (Tesseract Apache 2.0 - bramka licencji Konstytucji OK). Pelny rebuild+reinstalacja u kancelarii pilotazowej przed demo "zdjecia".

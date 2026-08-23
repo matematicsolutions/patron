@@ -2,7 +2,7 @@
 # pilot-smoke.sh - smoke-test pilotazu PATRON na zywej instalacji (desktop).
 #
 # Przebiega WSZYSTKIE kluczowe sciezki na realnych dokumentach i raportuje
-# zielono/czerwono. Uruchamiaj PRZED kazda instalacja u mecenasa (np. Beaty),
+# zielono/czerwono. Uruchamiaj PRZED kazda instalacja u mecenasa,
 # zeby miec pewnosc, ze swiezy build niesie dzialajacy rdzen.
 #
 # Wymagania:

@@ -1,11 +1,14 @@
 {
-  "_comment": "Bramka leak-scan przed publikacja publiczna (Article I konstytucji publikacji). allow_paths wycisza CELOWE syntetyczne fixtury (testy pipeline anonimizacji uzywaja PESEL/NIP/REGON z poprawna suma kontrolna) oraz 2 udokumentowane false-positives (globe.svg = cyfry w path SVG; columnPresets.ts = placeholderowy numer rejestru w przykladzie promptu). deny_paths = sciezki ktore NIE moga trafic do publicznego repo. deny_terms realnych nazw klienta NIE trafiaja tu - mapowanie realne->fikcyjne (obsada Rumpole) trzymane prywatnie poza repo; ewentualny prywatny przebieg: --config <plik poza repo>.",
+  "_comment": "Bramka leak-scan przed publikacja publiczna (Article I konstytucji publikacji). deny_term_hashes = sha256 RDZENIA nazwy (patrz --hash TERM). Nazw NIE trzymamy tu otwartym tekstem, bo plik jest publiczny; hash lapie polska odmiane przez prefiks. To obfuskacja, nie tajemnica - patrz komentarz w publication_gate.py. Pelna lista otwartym tekstem: --config .publication-gate.private.json (poza repo, gitignore). PUSTA lista nazw = bramka BLOKUJE (fail-closed): 2026-08-23 pusta lista przepuscila nazwe kancelarii pilotazowej w 8 plikach i nazwe klienta korporacyjnego w 2. allow_paths wycisza CELOWE syntetyczne fixtury (testy anonimizacji uzywaja PESEL/NIP/REGON z poprawna suma kontrolna) oraz 2 udokumentowane false-positives.",
   "deny_terms": [],
   "deny_paths": [
     "docs/matematic",
     "klienci/",
     "sprawy/",
-    "internal/"
+    "internal/",
+    ".matematic/",
+    ".claude/",
+    ".mcp.json"
   ],
   "allow_paths": [
     "backend/src/lib/pl-entities/",
@@ -18,5 +21,12 @@
     ".test.mjs",
     "frontend/public/globe.svg",
     "frontend/src/app/components/tabular/columnPresets.ts"
-  ]
+  ],
+  "deny_term_hashes": [
+    "f9eeb63bf773f4b0854dae2f22b7c57a8cd129443f1712c46e7344e3b05f1149",
+    "51e00b415c7a12ab6e7ab591b37a5cd1b7435dfd05f24e025fcb2872a418c90d",
+    "161f96d6e80ece2ecd2c30b1bc5e7f79976ecb5fe55904d53f7dd1438efe6136",
+    "2bdd94c004581aa9f0d47b502c1e4e1bb83a7c2cf245b1b3c5d2670d9ae64ec4"
+  ],
+  "_deny_term_hashes_note": "Kandydaci odrzuceni z powodu kolizji: rdzen firmy na 'quanti' jest prefiksem slowa 'Quantization' obecnego w drzewie - falszywe trafienie zjada zaufanie do bramki."
 }

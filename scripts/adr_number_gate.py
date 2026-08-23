@@ -70,6 +70,14 @@ def main() -> int:
         dirs = sorted([d for d in releases.iterdir() if d.is_dir()])
         if dirs:
             readme = dirs[-1] / "README.md"
+    if readme is None:
+        # Katalog `.matematic/` jest PRYWATNY (nie publikujemy warsztatu), wiec w
+        # klonie publicznym i w CI rejestru po prostu nie ma. Kontrola duplikatow
+        # numerow dziala dalej - ta jedna nie. Mowimy to GLOSNO, bo bramka, ktora
+        # po cichu pomija polowe swojego zakresu, jest grozniejsza niz jej brak.
+        print("adr_number_gate: rejestr wolnych numerow NIEDOSTEPNY "
+              "(.matematic/ jest prywatny) - kontrola podbicia licznika POMINIETA; "
+              "kontrola duplikatow numerow wykonana")
     if readme is not None:
         nxt_adr = registry_next(readme, "Nastepny ADR")
         nxt_mig = registry_next(readme, "Nastepna migracja Postgres")

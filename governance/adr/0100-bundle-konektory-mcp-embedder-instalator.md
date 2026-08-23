@@ -60,7 +60,7 @@ Wzorzec spojny z ADR-0091 (oba procesy aplikacji juz tak startuja); ten ADR rozs
 
 ### B. Staging konektorow w instalatorze (`stageMcpConnectors`)
 
-Nowa faza w `desktop/scripts/prepare-resources.cjs`. Z `MCP_REPOS_DIR` (default `..` od repo, realnie `C:/Users/Wieslaw/mcp-*`) dla kazdego z 6 konektorow kopiuje `dist/` + `package.json` + `node_modules/` (+ `data/` dla `eu-compliance`, ktory wozi lokalny korpus regulacji) do `dist-resources/backend/mcp-bundled/<name>/`. Generuje `mcp-servers.json` z `args` WZGLEDNYMI (`mcp-bundled/<name>/dist/index.js`, `enabled:true`) - rozwiazywanymi przez `resolveStdioSpawn` (pkt A). `mustExist` na dist/node_modules/(data) - brak zbudowanego konektora wywala build glosno (fail-loud), nie cicho.
+Nowa faza w `desktop/scripts/prepare-resources.cjs`. Z `MCP_REPOS_DIR` (default `..` od repo, czyli katalog z repozytoriami `mcp-*` obok `patron/`) dla kazdego z 6 konektorow kopiuje `dist/` + `package.json` + `node_modules/` (+ `data/` dla `eu-compliance`, ktory wozi lokalny korpus regulacji) do `dist-resources/backend/mcp-bundled/<name>/`. Generuje `mcp-servers.json` z `args` WZGLEDNYMI (`mcp-bundled/<name>/dist/index.js`, `enabled:true`) - rozwiazywanymi przez `resolveStdioSpawn` (pkt A). `mustExist` na dist/node_modules/(data) - brak zbudowanego konektora wywala build glosno (fail-loud), nie cicho.
 
 Lista `MCP_SERVERS` w skrypcie (`saos, nsa, isap, krs, eu-sparql, eu-compliance`) MUSI byc zsynchronizowana z `APPROVED_PATRON_CONNECTORS` (pkt D) i `mcp-servers.example.json` - trzy miejsca, jedno zrodlo nazw.
 

@@ -1,0 +1,18 @@
+#!/bin/sh
+# Bramka WEJSCIOWA na tresc commita.
+#
+# Powod istnienia: 2026-08-22 na repo publiczne poszly commity nazywajace klienta
+# korporacyjnego wraz z obietnica handlowa ("numer 2.0 zostal obiecany ...") oraz
+# imie osoby trzeciej jako zglaszajacego awarie. Bramka drzewa tego nie widziala,
+# bo tresc commita nie jest plikiem. Tresci commita NIE DA SIE poprawic bez
+# przepisania historii, a force-push i tak nie kasuje - GitHub trzyma osierocone
+# commity pod SHA. Jedyny moment, w ktorym da sie to zatrzymac, jest TU.
+#
+# Wylaczenie awaryjne: git commit --no-verify (swiadoma decyzja, nie nawyk).
+PYTHONUTF8=1 python scripts/publication_gate.py . --commit-msg "$1" || {
+    echo ""
+    echo "Commit zatrzymany: tresc zawiera nazwe z listy zakazanej."
+    echo "Napisz CO naprawiono. Kto zglosil i dla kogo to demo - do ADR/CHANGELOG,"
+    echo "nie do komunikatu commita na linii publicznej."
+    exit 1
+}

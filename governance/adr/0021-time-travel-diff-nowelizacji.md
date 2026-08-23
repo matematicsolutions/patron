@@ -75,7 +75,7 @@ ELI Sejmu rozwiazuje czesc problemu (metadane nowelizacji, teksty jednolite), al
 ## Rozstrzygniecia (delegacja Wieslawa, 2026-05-22)
 1. **Zakres v1 = ustawy** (kryterium: typ aktu, nie publikator - ustawy i rozporzadzenia sa w tym samym Dz.U.). Rozporzadzenia i akty wykonawcze w v1.1 po walidacji. Uzasadnienie: najczestszy use-case kancelarii (KC/KP/KPC/KSH), najlepiej utrzymane teksty jednolite w ELI, maly zakres = szybka walidacja groundingu (grounding-first).
 2. **Diff na poziomie jednostki redakcyjnej** (art./ust./pkt) - parser struktury tekstu jednolitego, z fallbackiem akapitowym + `[DO WERYFIKACJI]` gdy parser zawiedzie. Uzasadnienie: diff redakcyjny to przewaga (Art. 2 - wskazuje KONKRETNY artykul); diff akapitowy bylby szumem nieodroznialnym od grep.
-3. **Narzedzie w konektorze `mcp-isap`** (osobne repo MIT, `C:/Users/Wieslaw/mcp-isap`), nie modul w powloce AGPL. Uzasadnienie: Art. 4 + architektura MCP; konektor MIT = reuzywalny publiczny asset open-source (lead-gen jak pozostale `mcp-*`), moze zyc poza Patronem (analogicznie korean-law-mcp jako npm). Spojne z ADR-0002.
+3. **Narzedzie w konektorze `mcp-isap`** (osobne repo MIT, klonowane obok `patron/`), nie modul w powloce AGPL. Uzasadnienie: Art. 4 + architektura MCP; konektor MIT = reuzywalny publiczny asset open-source (lead-gen jak pozostale `mcp-*`), moze zyc poza Patronem (analogicznie korean-law-mcp jako npm). Spojne z ADR-0002.
 4. **Osobny samodzielny strumien, priorytet sredni** ("quick win" po pilocie). Uzasadnienie: nie blokuje i nie jest blokowany przez otwarte ADR (input-security/tabular); niski blast radius; wysoka wartosc content/demo (BW + LinkedIn temat "diff nowelizacji"), ale niekrytyczny dla pilota kancelarii.
 
 ## Zadania (po decyzjach)

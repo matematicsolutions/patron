@@ -37,3 +37,10 @@ desktop/dist/
 # Added by code-review-graph
 .code-review-graph/
 eval-report/
+
+# Warsztat prywatny - NIE trafia do repo publicznego (Article I konstytucji publikacji).
+# Pliki zostaja na dysku, przestaja byc sledzone.
+.claude/
+.matematic/
+.mcp.json
+.publication-gate.private.json

@@ -26,7 +26,7 @@ Kilka defektow pickera modeli wykrytych na zywo (Rumpole na OpenRouter):
 
 ## Konsekwencje
 
-- (+) 4/4 kafelki samouczka odpowiadaja na domyslnym OpenRouter (test live runda 2). Modele Claude/Gemini przelaczaja sie poprawnie (potwierdzone na ekranie Beaty).
+- (+) 4/4 kafelki samouczka odpowiadaja na domyslnym OpenRouter (test live runda 2). Modele Claude/Gemini przelaczaja sie poprawnie (potwierdzone na ekranie kancelarii pilotazowej).
 - (+) Realny powod bledu widoczny - koniec diagnozy "po omacku".
 - (-) Domyslny model zalezy od klucza OpenRouter w env (`OPENROUTER_API_KEY`) - bez niego picker pokazuje modele, ale czat zwroci czytelny blad. Zgodne z bring-your-own-model (Konstytucja Art. 4).
 

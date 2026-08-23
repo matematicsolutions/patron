@@ -5,7 +5,7 @@
 // zobaczyc. Ten komponent jest brakujacym ogniwem.
 //
 // Wybor trzyma sie w localStorage pod 'patron-theme'; brak zapisu = motyw
-// JASNY (awers, decyzja WM 2026-08-21 - "startowy lepiej byl jasny"), wiec
+// JASNY (awers) - domyslny motyw startowy z decyzji produktowej 2026-08-21, wiec
 // "system" jest zapisywany jawnie. Pierwsze malowanie obsluguje maly skrypt
 // w <head> (app/layout.tsx) - bez niego przy ciemnym motywie mignelo by
 // biale tlo.
@@ -112,7 +112,7 @@ export function ThemeToggle() {
     );
 }
 
-// Wariant symboliczny do stalej nawigacji (WM: "tylko moze jakis symbol?"):
+// Wariant symboliczny do stalej nawigacji (ikona zamiast etykiety tekstowej):
 // jeden przycisk z ikona biezacego motywu, klik przechodzi cyklicznie
 // system -> jasny -> ciemny. Pelna wersja z etykietami zostaje w Ustawieniach.
 const CYKL: Record<Wybor, Wybor> = {

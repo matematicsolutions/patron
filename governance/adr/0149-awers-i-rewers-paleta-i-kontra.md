@@ -1,6 +1,6 @@
 # ADR-0149 - Awers i rewers: paleta dwoch pigmentow ze zlotem, tryb ciemny jako rewers, perymetr w kontrze
 
-- **Status:** Zaakceptowany (WM 2026-08-21, "masz zielone"; wdrozone fale D1+D2)
+- **Status:** Zaakceptowany (Owner, 2026-08-21; wdrozone fale D1+D2)
 - **Data:** 2026-08-21
 - **Galaz:** `feat/design-system-2-0` (kontynuacja ADR-0147)
 - **Zrodlo:** propozycja "Awers i rewers" zatwierdzona przez WM 2026-08-21, zbudowana na

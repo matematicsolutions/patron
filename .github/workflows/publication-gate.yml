@@ -26,6 +26,28 @@ jobs:
       - name: Skan trackowanych plikow (PR i push)
         if: github.event_name == 'pull_request' || github.event_name == 'push'
         run: python scripts/publication_gate.py .
+      # Tresc commitow. Hook `commit-msg` w .githooks lapie to lokalnie, ale hooka
+      # da sie ominac (--no-verify) i nie ma go na swiezym klonie - CI jest
+      # backstopem. Powod: 2026-08-22 nazwa klienta korporacyjnego z obietnica
+      # handlowa i imie osoby trzeciej weszly na repo publiczne wlasnie tedy.
+      - name: Skan tresci commitow
+        if: github.event_name == 'pull_request' || github.event_name == 'push'
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            RANGE="origin/${{ github.base_ref }}..HEAD"
+          elif git rev-parse --quiet --verify "${{ github.event.before }}^{commit}" >/dev/null 2>&1; then
+            RANGE="${{ github.event.before }}..${{ github.sha }}"
+          else
+            RANGE="HEAD~20..HEAD"   # pierwszy push galezi - bierzemy ostatnie 20
+          fi
+          echo "zakres: $RANGE"
+          rc=0
+          for sha in $(git rev-list "$RANGE"); do
+            git log -1 --format=%B "$sha" > /tmp/msg.txt
+            python scripts/publication_gate.py . --commit-msg /tmp/msg.txt || { echo "^ commit $sha"; rc=1; }
+          done
+          exit $rc
+
       # Numeracja ADR / migracji: duplikat prefiksu albo nie podbity rejestr
       # wolnych numerow = fail (kolizje 014/014, 0109/0110, 0141/0142 na
       # rownoleglych galeziach - regula bez bramki nie trzymala).

@@ -304,7 +304,7 @@ describe("applyDocxComments - rozszerzanie istniejacych komentarzy", () => {
 
     it("dokleja obok NATYWNEGO comments.xml (nie-PATRON) bez kolizji id", async () => {
         const base = await makeDocx(`Klauzula: ${ABUSIVE}`);
-        const withNative = await injectNativeComment(base, "Uwaga Beaty.");
+        const withNative = await injectNativeComment(base, "Uwaga recenzenta.");
         const res = await applyDocxComments(withNative, [
             {
                 find: "jednostronnie",
@@ -319,7 +319,7 @@ describe("applyDocxComments - rozszerzanie istniejacych komentarzy", () => {
         const parsed = await parseComments(res.bytes);
         expect(parsed.length).toBe(2);
         const texts = parsed.map((c) => c.text).join(" | ");
-        expect(texts).toContain("Uwaga Beaty.");
+        expect(texts).toContain("Uwaga recenzenta.");
         expect(texts).toContain("Uwaga PATRONa.");
     });
 });

@@ -3,7 +3,7 @@
 - **Status:** Przyjety (wdrozony 2026-08-18, `main`)
 - **Data:** 2026-08-18
 - **Galaz:** `main` (linia publiczna po scaleniu, ADR-0002 dual-license)
-- **Zrodlo:** przebieg bojowy 2026-08-17 przed demo dla EY Polska (pomiar, nie hipoteza)
+- **Zrodlo:** przebieg bojowy 2026-08-17 przed demo dla klienta korporacyjnego (pomiar, nie hipoteza)
 - **Mapuje na:** ADR-0005 (grounding cytatu z dokumentow), ADR-0097 (paraphrase judge, 3 kolory),
   ADR-0102 (kaskada), MCS v0.1 (`structuredContent.citations`)
 

@@ -24,10 +24,12 @@ Exit codes: 0 = clean (or only warnings without --strict), 1 = hard findings,
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import subprocess
 import sys
+import unicodedata
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -134,6 +136,7 @@ ALLOW_MARKER = "pubgate:allow"
 @dataclass
 class Config:
     deny_terms: list[str] = field(default_factory=list)
+    deny_term_hashes: list[str] = field(default_factory=list)
     deny_paths: list[str] = field(default_factory=list)
     allow_paths: list[str] = field(default_factory=list)
 
@@ -148,8 +151,65 @@ class Config:
             print(f"config error in {p}: {e}", file=sys.stderr)
             sys.exit(2)
         return cls(deny_terms=[t for t in raw.get("deny_terms", []) if t],
+                   deny_term_hashes=[h.lower() for h in raw.get("deny_term_hashes", []) if h],
                    deny_paths=raw.get("deny_paths", []),
                    allow_paths=raw.get("allow_paths", []))
+
+
+# --------------------------------------------------------------------------- #
+# Denylist nazw bez wpisywania nazw do repo publicznego
+# --------------------------------------------------------------------------- #
+# Problem, ktory to rozwiazuje: nazwiska klienta i nazwy leadow NIE MOGA stac
+# otwartym tekstem w publicznym `.publication-gate.json` - bramka chroniaca przed
+# wyciekiem sama bylaby wyciekiem. Dlatego przez pol roku `deny_terms` bylo puste,
+# a bramka swiecila na zielono, bo nie miala czego szukac (pomiar 2026-08-23:
+# przepuscila nazwe kancelarii pilotazowej w 8 plikach i nazwe leada w 2).
+#
+# Rozwiazanie: config trzyma sha256 RDZENIA slowa, nie samo slowo. Rdzen (>= 4
+# znaki) lapie polska odmiane: jeden hash pokrywa mianownik, dopelniacz i reszte.
+#
+# UCZCIWA GRANICA: to obfuskacja, nie tajemnica. Sha256 czterech liter zlamie
+# kazdy slownikiem w sekunde. Chroni przed grepem, indeksem wyszukiwarki i okiem
+# czytelnika repo - NIE przed kims, kto juz zna nazwisko i chce je potwierdzic.
+# Pelna lista otwartym tekstem zyje poza repo: --config .publication-gate.private.json
+MIN_STEM = 4
+_TOKEN = re.compile(r"[0-9a-z]+")
+
+
+def _fold(text: str) -> str:
+    """Lowercase + bez ogonkow, zeby 'Kowalskiego' i 'KOWALSKA' zlozyly sie do jednego rdzenia."""
+    low = text.lower().replace("ł", "l")          # l z kreska nie rozklada sie w NFKD
+    nfkd = unicodedata.normalize("NFKD", low)
+    return "".join(c for c in nfkd if not unicodedata.combining(c))
+
+
+def stem_hash(term: str) -> str:
+    """Hash rdzenia do wpisania w `deny_term_hashes`. Uzycie: --hash <slowo>"""
+    return hashlib.sha256(_fold(term).encode("utf-8")).hexdigest()
+
+
+def _hash_hits(line: str, deny_hashes: set[str]) -> list[str]:
+    """Zwraca tokeny z linii, ktorych jakikolwiek prefiks >= MIN_STEM jest na liscie.
+
+    Token krotszy niz MIN_STEM (dwuliterowy akronim firmy) sprawdzamy w calosci,
+    ale TYLKO gdy w oryginalnej linii stoi WERSALIKAMI. Bez tego warunku bramka
+    tonie w szumie: base64 w `package-lock.json` rozpada sie na tokeny i zawiera
+    dwuliterowe ciagi na kazdej dlugosci - zmierzone, 1 falszywe trafienie na
+    597 plikow. Falszywe trafienie kosztuje wiecej niz przeoczone, bo uczy
+    ludzi wylaczac bramke.
+    """
+    hits: list[str] = []
+    for m in _TOKEN.finditer(_fold(line)):
+        tok = m.group(0)
+        if hashlib.sha256(tok.encode("utf-8")).hexdigest() in deny_hashes:
+            if len(tok) >= MIN_STEM or tok.upper() in line:
+                hits.append(tok)
+                continue
+        for n in range(MIN_STEM, len(tok) + 1):
+            if hashlib.sha256(tok[:n].encode("utf-8")).hexdigest() in deny_hashes:
+                hits.append(tok)
+                break
+    return hits
 
 
 def _redact(match: str) -> str:
@@ -163,6 +223,7 @@ def _redact(match: str) -> str:
 def scan_text(path_label: str, text: str, cfg: Config) -> list[Finding]:
     out: list[Finding] = []
     deny_lc = [(t, t.lower()) for t in cfg.deny_terms]
+    deny_hashes = set(cfg.deny_term_hashes)
     for ln, line in enumerate(text.splitlines(), 1):
         if ALLOW_MARKER in line:        # intentional fixture — suppress this line
             continue
@@ -182,6 +243,9 @@ def scan_text(path_label: str, text: str, cfg: Config) -> list[Finding]:
         for term, term_lc in deny_lc:
             if term_lc in low:
                 out.append(Finding(HARD, "denylist", path_label, ln, f"term '{term}'"))
+        for tok in _hash_hits(line, deny_hashes):
+            out.append(Finding(HARD, "denylist_hash", path_label, ln,
+                               f"token '{_redact(tok)}'"))
         for m in _SYGN.finditer(line):
             out.append(Finding(WARN, "court_signature?", path_label, ln, m.group(0)))
     return out
@@ -256,6 +320,21 @@ def iter_history(root: Path, cfg: Config) -> list[Finding]:
     return findings
 
 
+def scan_commit_msg(path: Path, cfg: Config) -> list[Finding]:
+    """Skan TRESCI commita. Powod istnienia: 2026-08-22 nazwa leada i imie osoby
+    trzeciej wyszly na repo publiczne nie plikiem, tylko komunikatem commita -
+    czyli jedynym kanalem, ktorego bramka drzewa z definicji nie widzi. Tresci
+    commita nie da sie potem poprawic bez przepisania historii, wiec to musi byc
+    bramka WEJSCIOWA (hook `commit-msg`), nie kontrola po fakcie."""
+    try:
+        text = path.read_text(encoding="utf-8")
+    except OSError as e:
+        print(f"nie moge odczytac {path}: {e}", file=sys.stderr)
+        return []
+    keep = [l for l in text.splitlines() if not l.lstrip().startswith("#")]
+    return scan_text(f"commit-msg:{path.name}", "\n".join(keep), cfg)
+
+
 # --------------------------------------------------------------------------- #
 # CLI
 # --------------------------------------------------------------------------- #
@@ -267,8 +346,18 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--all-files", action="store_true",
                     help="scan every file, not just git-tracked (default: tracked only in a git repo)")
     ap.add_argument("--strict", action="store_true", help="WARN findings also fail")
+    ap.add_argument("--commit-msg", type=Path, metavar="FILE",
+                    help="skanuj tresc commita zamiast drzewa (hook commit-msg)")
+    ap.add_argument("--hash", metavar="TERM",
+                    help="wypisz sha256 rdzenia TERM do wklejenia w deny_term_hashes i zakoncz")
+    ap.add_argument("--allow-empty-denylist", action="store_true",
+                    help="pozwol przejsc mimo pustej listy nazw (repo bez klientow)")
     ap.add_argument("--json", action="store_true", help="machine-readable output")
     args = ap.parse_args(argv)
+
+    if args.hash:
+        print(stem_hash(args.hash))
+        return 0
 
     root = Path(args.path).resolve()
     if not root.is_dir():
@@ -276,9 +365,22 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     cfg = Config.load(root, args.config)
 
-    findings, scanned = iter_tree(root, cfg, args.all_files)
-    if args.history:
-        findings.extend(iter_history(root, cfg))
+    # Kontrola POZYTYWNA wlasnego mianownika: bramka bez ani jednej nazwy na
+    # liscie przechodzi zawsze i to jest grozniejsze niz jej brak, bo wyglada
+    # jak dowod. Dokladnie tak przepuscilismy nazwy 2026-08-23.
+    if not cfg.deny_terms and not cfg.deny_term_hashes and not args.allow_empty_denylist:
+        print("BLOCK: denylist nazw jest PUSTA - bramka nie ma czego szukac.", file=sys.stderr)
+        print("       Dodaj deny_term_hashes (patrz --hash TERM) w .publication-gate.json", file=sys.stderr)
+        print("       albo swiadomie przepusc: --allow-empty-denylist", file=sys.stderr)
+        return 1
+
+    if args.commit_msg:
+        findings = scan_commit_msg(args.commit_msg, cfg)
+        scanned = 1
+    else:
+        findings, scanned = iter_tree(root, cfg, args.all_files)
+        if args.history:
+            findings.extend(iter_history(root, cfg))
 
     hard = [f for f in findings if f.severity == HARD]
     warn = [f for f in findings if f.severity == WARN]
@@ -288,7 +390,8 @@ def main(argv: list[str] | None = None) -> int:
     else:
         for f in findings:
             print(f"{f.severity:4} {f.kind:18} {f.path}:{f.line}  {f.excerpt}")
-        scope = "all files" if args.all_files else "git-tracked files"
+        scope = ("commit message" if args.commit_msg else
+                 "all files" if args.all_files else "git-tracked files")
         print(f"\n{len(hard)} hard, {len(warn)} warn finding(s) "
               f"over {scanned} scanned {scope}.")
 

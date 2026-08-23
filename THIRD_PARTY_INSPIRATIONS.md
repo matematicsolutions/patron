@@ -646,7 +646,6 @@ prawa - to wartosc, nie wstyd.
 **Cherry-pick w ADR-0077 + ADR-0078**: silnik `applyDocxComments` (emisja `w:commentRangeStart/End` + comments.xml + content-types + rels) + narzedzie `add_comments` w czacie. Implementacja wlasna na naszej maszynerii kotwiczenia (`docxTrackedChanges.ts`), zero linii z ich repo.
 **Czego NIE wzielismy**: ich kodu (klauzula AI-mediated reproduction), modelu Docker Compose + 8GB + brak auth (zla forma dla solo prawnika na laptopie), permisywnej postawy bez governance (brak egress routera, brak sladu audytowego - to nasz wyroznik).
 **Atrybucja w kodzie**: naglowek w `backend/src/lib/docxComments.ts` (ADR-0077 ref) + ADR-0077/0078 + ten plik. Poniewaz wzielismy WZORZEC a nie kod, i robimy to clean-room, nie dziedziczymy obowiazku atrybucji "Powered by Anylegal.ai" - ale dokumentujemy zrodlo inspiracji dla pelnej przejrzystosci (Konstytucja Art. uczciwosc zrodel).
-**Read konkurencyjny**: 3. konkurent obok Kanca OS i Gaius-Lex, ale OSS/devtool-shaped = "PATRON minus governance, minus prawo PL, minus bundling". Komodityzuje sam harness -> potwierdza ze moat PATRONa to zlozenie + prawo PL + audyt + spakowanie dla najmniejszej jednostki, NIE harness.
 
 ## CN111783399B / CN108763483A + LegRAG (judgment parser + clause-boundary chunking)
 

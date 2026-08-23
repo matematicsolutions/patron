@@ -88,10 +88,10 @@ next->next->finish, zero zewnetrznych instalacji. Instalacja osobnych narzedzi -
 - OCR duzych skanow wolny -> async w workerze z paskiem postepu (jak C3 Docxodus), nie blokuje UI.
 - Tabele: pelna struktura przez opendataloader; w MVP placeholder + tekst.
 - Podpisy/pieczatki/wykresy: szczebel 5 drabinki (multimodal vision) - poza OCR tekstu.
-- Walidacja jakosci OCR na realnych skanach sadowych Beaty (content-blind, jak VERDICT-REAL Docxodus).
+- Walidacja jakosci OCR na realnych skanach sadowych kancelarii pilotazowej (content-blind, jak VERDICT-REAL Docxodus).
 
 ## Status weryfikacji (plan)
 
 - `lib/convert/toMarkdown.ts`: czysty routing + detekcja warstwy tekstu + injected runner -> testy bez Chandry.
 - Rozszerzenie ALLOWED_TYPES (+jpg/png/tiff) w ingest + frontend `accept`. Wpiecie skanu w istniejacy gate.
-- tsc clean, testy zielone. Walidacja na realnym skanie = przed instalacja u Beaty.
+- tsc clean, testy zielone. Walidacja na realnym skanie = przed instalacja u kancelarii pilotazowej.

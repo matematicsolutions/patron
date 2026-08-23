@@ -9,7 +9,7 @@ ADR-0054 (RAG - OCR zasila indeks), wizja "Wszystkie formaty, lokalnie, bez grze
 
 ## Kontekst
 
-OCR to powod powstania Patron Desktop (bol Beaty: skany/zdjecia/PDF bez warstwy tekstu). Recon
+OCR to powod powstania Patron Desktop (bol kancelarii pilotazowej: skany/zdjecia/PDF bez warstwy tekstu). Recon
 silnikow (2026-05-29):
 - **Chandra** (datalab): SOTA, ale MODEL na OpenRAIL-M - restrykcja komercyjna + klauzula
   antykonkurencyjna. OK na faze TESTOW (research/personal/maly startup), BLOKER na komercje (ADR-0074).
@@ -26,7 +26,7 @@ GLM-OCR rozwiazuje JEDNOCZESNIE problem licencji (MIT > OpenRAIL-M Chandry), jak
 
 DWA silniki przez engine-agnostic PATRON_OCR_CMD (ADR-0074):
 - **BASELINE = Tesseract `pol` + poppler (pdftoppm), parallelized `-P 6`.** PROVEN: to wasz `ocr.sh`,
-  ktorym zrobiliscie cala sprawe Beaty (2755 skanow / 7.36GB) na TEJ maszynie CPU w kilka minut.
+  ktorym zrobiliscie cala sprawe kancelarii pilotazowej (2755 skanow / 7.36GB) na TEJ maszynie CPU w kilka minut.
   Apache 2.0 (Tesseract) - czysty komercyjnie; CPU, BEZ GPU - dziala na laptopie mecenasa.
   **Walidacja content-blind na realnych skanach Koziatek (2026-05-29):** ~1s/obraz CPU, dobra jakosc
   na stronach tekstowych (alpha/graph 84-90% = czytelny polski, nie krzaki); strony puste/zlozone
@@ -58,9 +58,9 @@ Budujemy WLASNY OCR na tej architekturze w 3 poziomach (swiadomie NIE poziom 3),
 ## Bramki / caveaty (do walidacji przed produkcja)
 
 - **Polski:** GLM-OCR wymienia "8 jezykow", polski NIE potwierdzony nominalnie. TWARDA bramka:
-  content-blind eval jakosci PL na realnych skanach Beaty PRZED uznaniem za kanon. Jesli slaby na PL -
+  content-blind eval jakosci PL na realnych skanach kancelarii pilotazowej PRZED uznaniem za kanon. Jesli slaby na PL -
   poziom 2 (fine-tune) staje sie obowiazkowy, nie opcjonalny.
-- **GPU:** BF16 rekomenduje GPU CUDA; CPU dziala ale wolno (~0.9B). Wplyw na "next-next-finish" u Beaty -
+- **GPU:** BF16 rekomenduje GPU CUDA; CPU dziala ale wolno (~0.9B). Wplyw na "next-next-finish" u kancelarii pilotazowej -
   spina sie z pakietami sprzetowymi z wizji (Start CPU / Pro+Sovereign GPU). Do decyzji przy packagingu.
 - **Faza testow vs komercja:** na pilotaz mozna uzyc Chandry (licencja OK na test) ALBO od razu GLM-OCR
   (MIT, czysto i na test, i na komerce - rekomendacja: od razu GLM-OCR, jeden silnik na obie fazy).
