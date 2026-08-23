@@ -44,3 +44,5 @@ eval-report/
 .matematic/
 .mcp.json
 .publication-gate.private.json
+__pycache__/
+*.pyc
