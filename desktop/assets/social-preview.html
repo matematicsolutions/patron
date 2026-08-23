@@ -1,0 +1,95 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>PATRON - karta podgladu</title>
+<!--
+  Karta podgladu repozytorium (GitHub: Settings -> Social preview, 1280x640).
+  Zrodlo prawdy dla obrazka - regenerowalna, nie jednorazowy plik graficzny.
+
+  Sklad wg ADR-0149 (awers i rewers) i reguly zlotego podzialu: pas tresci
+  zajmuje 61.8% szerokosci, panel znaku 38.2% i renderuje sie W KONTRZE -
+  czyli dokladnie tak, jak pasek perymetru w produkcie. Zloto wystepuje
+  wylacznie na znaku i na pieczeci, nigdy jako dekoracja.
+
+  Regeneracja: otworz w przegladarce w oknie 1280x640 i zrob zrzut, albo
+  `python scripts/social_preview.py` jesli powstanie wariant bez przegladarki.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bona+Nova:wght@400;700&family=Lato:wght@400;700&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --papier: #F1EEE5;        /* Cloud Dancer  */
+    --inkaust: #2B2219;       /* Cocoa Powder  */
+    --rev-papier: #221B15;
+    --rev-inkaust: #EFEBE0;
+    --zloto: #B08D4C;
+    --zloto-rewers: #C9A25E;
+    --pieczec: #7A5F2B;
+    --phi-major: 61.8%;
+    --phi-minor: 38.2%;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    width: 1280px; height: 640px; display: flex;
+    background: var(--papier); color: var(--inkaust);
+    font-family: "Lato", system-ui, sans-serif; overflow: hidden;
+  }
+  .tresc {
+    width: var(--phi-major); padding: 72px 64px;
+    display: flex; flex-direction: column; justify-content: center;
+  }
+  .znak-slowny {
+    font-family: "Bona Nova", Georgia, serif; font-weight: 700;
+    font-size: 104px; letter-spacing: 0.16em; line-height: 1;
+  }
+  .kreska { width: 96px; height: 3px; background: var(--zloto); margin: 28px 0 26px; }
+  .zdanie {
+    font-family: "Bona Nova", Georgia, serif; font-size: 30px;
+    line-height: 1.35; max-width: 20ch;
+  }
+  .fakty {
+    margin-top: 38px; display: flex; gap: 30px;
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 14.5px; letter-spacing: 0.02em; color: #5A4A3A;
+  }
+  .fakty span { white-space: nowrap; }
+  .fakty b { color: var(--pieczec); font-weight: 400; }
+  .panel {
+    width: var(--phi-minor); background: var(--rev-papier); color: var(--rev-inkaust);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 34px; position: relative;
+  }
+  .panel::before {
+    content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+    background: var(--zloto);
+  }
+  .stopka {
+    position: absolute; bottom: 34px;
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 13px; letter-spacing: 0.08em; color: var(--zloto-rewers);
+  }
+  .podpis {
+    font-family: "Lato", sans-serif; font-size: 15px; letter-spacing: 0.24em;
+    text-transform: uppercase; color: #B9AE9D;
+  }
+</style>
+<div class="tresc">
+  <div class="znak-slowny">PATRON</div>
+  <div class="kreska"></div>
+  <div class="zdanie">A local-first AI agent for law firms.</div>
+  <div class="fakty">
+    <span><b>zero-cloud</b> by default</span>
+    <span><b>20</b> law connectors</span>
+    <span><b>AI Act</b> art. 12 audit</span>
+    <span><b>AGPL-3.0</b></span>
+  </div>
+  <div class="podpis" style="margin-top:34px">MateMatic Solutions</div>
+</div>
+<div class="panel">
+  <!-- Znak produktu: TA SAMA ikona, ktora widzi uzytkownik po instalacji
+       (icon.ico, klatka 256). Wizytowka nie moze pokazywac znaku, ktorego
+       nie ma w aplikacji. Tlo ikony to #221B15 = papier rewersu, wiec kolo
+       zlewa sie z panelem i zostaja same ostrza. -->
+  <img src="icon-256.png" width="212" height="212" alt="">
+  <div class="stopka">github.com/matematicsolutions/patron</div>
+</div>
