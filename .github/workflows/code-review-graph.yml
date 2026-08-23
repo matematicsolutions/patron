@@ -16,11 +16,11 @@ jobs:
   review:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # Full history so the diff base (origin/<base_ref>) resolves cleanly.
           fetch-depth: 0
-      - uses: tirth8205/code-review-graph@v2.3.6
+      - uses: tirth8205/code-review-graph@v2.3.7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           # none = report only. Switch to "high" (risk >= 0.70) or "critical"

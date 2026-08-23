@@ -1,18 +1,29 @@
 #!/bin/sh
 # Bramka WEJSCIOWA na tresc commita.
 #
-# Powod istnienia: 2026-08-22 na repo publiczne poszly commity nazywajace klienta
-# korporacyjnego wraz z obietnica handlowa ("numer 2.0 zostal obiecany ...") oraz
-# imie osoby trzeciej jako zglaszajacego awarie. Bramka drzewa tego nie widziala,
-# bo tresc commita nie jest plikiem. Tresci commita NIE DA SIE poprawic bez
-# przepisania historii, a force-push i tak nie kasuje - GitHub trzyma osierocone
-# commity pod SHA. Jedyny moment, w ktorym da sie to zatrzymac, jest TU.
+# Powod istnienia: 2026-08-22 na repo publiczne poszly commity nazywajace
+# klienta wraz z obietnica handlowa oraz imie osoby trzeciej jako zglaszajacego
+# awarie. Bramka drzewa tego nie widziala, bo tresc commita nie jest plikiem.
+# Poprawic jej po fakcie sie nie da - force-push nie kasuje, GitHub trzyma
+# osierocone commity pod SHA. Jedyny moment, w ktorym da sie to zatrzymac,
+# jest TU.
+#
+# Sprawdza dwie rzeczy: nazwy z listy zakazanej ORAZ polskie diakrytyki
+# (konwencja organizacji z AGENTS.md).
 #
 # Wylaczenie awaryjne: git commit --no-verify (swiadoma decyzja, nie nawyk).
-PYTHONUTF8=1 python scripts/publication_gate.py . --commit-msg "$1" || {
+WYNIK=$(PYTHONUTF8=1 python scripts/publication_gate.py . --commit-msg "$1" 2>&1)
+STATUS=$?
+printf '%s\n' "$WYNIK"
+if [ $STATUS -ne 0 ]; then
     echo ""
-    echo "Commit zatrzymany: tresc zawiera nazwe z listy zakazanej."
-    echo "Napisz CO naprawiono. Kto zglosil i dla kogo to demo - do ADR/CHANGELOG,"
-    echo "nie do komunikatu commita na linii publicznej."
+    echo "Commit zatrzymany. Co z tym zrobic:"
+    if printf '%s' "$WYNIK" | grep -q "diakrytyki"; then
+        echo "  - diakrytyki: zamien ogonki (a e l n o s z c) - konwencja organizacji"
+    fi
+    if printf '%s' "$WYNIK" | grep -qE "denylist"; then
+        echo "  - nazwa z listy: napisz CO naprawiono. Kto zglosil i dla kogo jest"
+        echo "    demo idzie do ADR/CHANGELOG, nie do commita na linii publicznej"
+    fi
     exit 1
-}
+fi
