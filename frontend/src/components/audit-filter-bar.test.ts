@@ -7,23 +7,42 @@
 // filtrowania jest defektem merytorycznym: audytor prosi o "od 09:00", dostaje
 // inne okno i nie ma jak tego zauwazyc.
 import { describe, expect, it } from "vitest";
-import { utcNaLokalneDlaInputu } from "./audit-filter-bar";
+import {
+    utcNaLokalneDlaInputu,
+    utcNaLokalneZOffsetem,
+} from "./audit-filter-bar";
 
 describe("filtr audytu - konwersja UTC <-> pole datetime-local", () => {
-    // UWAGA: w strefie UTC stara i nowa implementacja daja TO SAMO, wiec test
-    // porownujacy godzine z litera przechodzilby w CI z niewlasciwego powodu.
-    // Dlatego asercja jest zwiazana z OFFSETEM, nie z konkretna godzina.
-    it("odsuwa wyswietlany czas dokladnie o offset strefy", () => {
+    // Offset podajemy JAWNIE, bo test zwiazany ze strefa maszyny nie ma czego
+    // sprawdzic w CI: pod UTC stary odczyt (`.slice(0, 16)` wprost) i nowy daja
+    // ten sam wynik, wiec asercja przechodzilaby z niewlasciwego powodu.
+    // Konwencja jak w getTimezoneOffset: UTC minus lokalny.
+    it.each([
+        { strefa: "Warszawa latem (UTC+2)", offsetMin: -120, oczekiwane: "2026-08-22T18:30" },
+        { strefa: "Warszawa zima (UTC+1)", offsetMin: -60, oczekiwane: "2026-08-22T17:30" },
+        { strefa: "Nowy Jork (UTC-5)", offsetMin: 300, oczekiwane: "2026-08-22T11:30" },
+        { strefa: "UTC", offsetMin: 0, oczekiwane: "2026-08-22T16:30" },
+    ])("$strefa: 16:30 UTC pokazuje sie jako $oczekiwane", ({ offsetMin, oczekiwane }) => {
+        expect(utcNaLokalneZOffsetem("2026-08-22T16:30:00.000Z", offsetMin)).toBe(
+            oczekiwane,
+        );
+    });
+
+    // Kontrola na ZNANYM-ZLYM: tak liczyl odczyt przed poprawka. Poza UTC musi
+    // dawac inny wynik niz poprawna konwersja, inaczej test niczego nie pilnuje.
+    it("stary odczyt (surowy UTC) rozni sie od poprawnego wszedzie poza UTC", () => {
         const utc = "2026-08-22T16:30:00.000Z";
-        const wynik = utcNaLokalneDlaInputu(utc);
-        const surowyUtc = utc.slice(0, 16);
-        const offsetMin = -new Date(utc).getTimezoneOffset();
-        const roznicaMin =
-            (new Date(`${wynik}:00.000Z`).getTime() -
-                new Date(`${surowyUtc}:00.000Z`).getTime()) /
-            60000;
-        expect(roznicaMin).toBe(offsetMin);
-        if (offsetMin !== 0) expect(wynik).not.toBe(surowyUtc);
+        const staryOdczyt = utc.slice(0, 16);
+        expect(utcNaLokalneZOffsetem(utc, -120)).not.toBe(staryOdczyt);
+        expect(utcNaLokalneZOffsetem(utc, 300)).not.toBe(staryOdczyt);
+        expect(utcNaLokalneZOffsetem(utc, 0)).toBe(staryOdczyt);
+    });
+
+    it("uzywa offsetu maszyny, gdy nie podano go wprost", () => {
+        const utc = "2026-08-22T16:30:00.000Z";
+        expect(utcNaLokalneDlaInputu(utc)).toBe(
+            utcNaLokalneZOffsetem(utc, new Date(utc).getTimezoneOffset()),
+        );
     });
 
     it("obieg tam i z powrotem wraca do tej samej chwili", () => {
