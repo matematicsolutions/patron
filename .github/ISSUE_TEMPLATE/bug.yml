@@ -8,6 +8,20 @@ body:
         Thanks for the report. **Before submitting**: search existing issues
         and check `SECURITY.md` for the responsible disclosure flow if this
         is a security vulnerability.
+
+        ## Do not paste client material
+
+        This tracker is public and Patron's users are bound by professional
+        secrecy. No case files, no real case signatures, no names, no
+        PESEL/NIP, no screenshots of a real matter - not even redacted, not
+        even "only to reproduce it". Reproduce with a synthetic document.
+
+        Logs deserve the same care: they can carry document fragments, file
+        paths and matter names. Read what you paste.
+
+        If the bug shows up only on real material, do not open a public issue.
+        Write to **security@matematic.co** and we will arrange a private
+        channel.
   - type: textarea
     id: what-happened
     attributes:

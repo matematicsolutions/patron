@@ -1,15 +1,15 @@
 # Patron
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](./LICENSE)
-[![Tests](https://img.shields.io/badge/tests-1444_passing-brightgreen)](./backend)
+[![Tests](https://img.shields.io/badge/tests-1471_backend_%2B_86_frontend-brightgreen)](./backend)
 [![AI Act](https://img.shields.io/badge/AI_Act-Art._12_record--keeping-orange)](./governance/CONSTITUTION.md)
 [![RODO](https://img.shields.io/badge/RODO-art._5%2F25%2F30%2F32-orange)](./governance/CONSTITUTION.md)
 [![Stack](https://img.shields.io/badge/stack-zero--cloud-success)](./governance/CONSTITUTION.md)
-[![MCP](https://img.shields.io/badge/MCP-7_connectors-blue)](https://github.com/matematicsolutions)
+[![MCP](https://img.shields.io/badge/MCP-20_connectors-blue)](https://github.com/matematicsolutions)
 [![Node](https://img.shields.io/badge/Node-20%2B-brightgreen)](https://nodejs.org)
 
 > **A local-first, self-hosted AI agent for a law firm.** A zero-cloud, single-user desktop
-> application (Electron): local SQLite by default ([ADR-0053](./governance/adr/0053-sqlite-single-user-zero-cloud.md)), 7 connectors to Polish and EU law
+> application (Electron): local SQLite by default ([ADR-0053](./governance/adr/0053-sqlite-single-user-zero-cloud.md)), 20 bundled connectors to Polish, EU and national law
 > (SAOS / NSA / ISAP / KRS / EUREKA / EUR-Lex / EU-Compliance), a hash-chained audit trail (AI Act art. 12),
 > bring-your-own-model (Gemini / Claude / local Ollama / OpenRouter). A server mode (Postgres + MinIO) remains available as an alternative.
 
@@ -21,15 +21,17 @@ requirements a law firm needs. The full rules live in
 
 ## What Patron does
 
-Everything below ran end-to-end on 2026-08-18 against a real model on synthetic contract fixtures
+Everything below ran end-to-end on 2026-08-23 against a real model on synthetic contract fixtures
 (`npm run smoke:surfaces`, `smoke:desktop`, packaged app `e2e:smoke`); nothing here is a roadmap item.
 
 - **Chat over the case files** with a colour badge next to every citation from your own documents:
   green (verbatim), yellow (paraphrase), red (the source does not support the claim). A local
   paraphrase judge, never a cloud call, decides the colour.
-- **Case law, legislation and tax practice while answering** - 7 MCP connectors (SAOS, NSA, ISAP,
-  KRS, EUREKA, EUR-Lex/CJEU) queried live, plus an offline EU compliance corpus (GDPR, AI Act, DORA,
-  NIS2, eIDAS 2.0, CRA) that works without internet. Connector answers carry source, signature or
+- **Case law, legislation and tax practice while answering** - 20 MCP connectors ship in the
+  installer: 7 for Polish and EU sources (SAOS, NSA, ISAP, KRS, EUREKA, EUR-Lex/CJEU) queried live,
+  plus 13 national ELI connectors (DE, FR, IT, ES, NL, SE, AT, FI, IE, LU, BR, GB, US) that follow
+  the European Legislation Identifier. On top of that an offline EU compliance corpus (GDPR, AI Act,
+  DORA, NIS2, eIDAS 2.0, CRA) that works without internet. Connector answers carry source, signature or
   identifier, date and URL (measured on SAOS and EUREKA; the same MCS contract applies to the rest).
 - **A table from a batch of contracts** (Tabular Review): you define the columns as questions,
   Patron fills one cell per document with the answer, a quote from the source page and a

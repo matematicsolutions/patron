@@ -4,6 +4,14 @@ Thanks for helping improve **Patron** - a local AI agent for Polish law firms.
 This document covers contribution norms, the dual-license setup, and how to
 submit a pull request that has a chance of being merged.
 
+Participation is governed by our [Code of Conduct](./CODE_OF_CONDUCT.md). One
+rule there is not boilerplate and applies to every contribution: **no client
+material in this repository** - not in issues, not in pull requests, not in
+commit messages. Patron's users are bound by professional secrecy, and so is
+its tracker. Use synthetic examples; a mechanical gate
+(`python scripts/publication_gate.py .`) checks the tree and every commit
+message before it lands.
+
 ## License model (read this first)
 
 Patron is a **dual-license stack**. Pick the right repo for your contribution:
