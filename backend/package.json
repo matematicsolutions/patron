@@ -59,5 +59,10 @@
     "typescript": "^5.8.3",
     "vitest": "^4.1.7"
   },
-  "license": "AGPL-3.0-only"
+  "license": "AGPL-3.0-only",
+  "overrides": {
+    "sharp": "^0.35.3",
+    "adm-zip": "^0.6.0",
+    "esbuild": "^0.28.2"
+  }
 }

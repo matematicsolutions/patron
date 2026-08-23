@@ -15,6 +15,16 @@ updates:
         patterns: ["@aws-sdk/*"]
       typescript-tooling:
         patterns: ["typescript", "tsx", "@types/*"]
+    ignore:
+      # TypeScript 6 usuwa moduleResolution=node10, ktorego uzywa nasz backend.
+      # Migracja na node16 to nie zmiana configu: pod node16 dynamiczne import()
+      # zostaje ESM-em i wymaga jawnych rozszerzen - 50 miejsc w kodzie ORAZ
+      # zmiana semantyki emisji. Zmierzone 2026-08-23. Taka zmiana potrafi
+      # przejsc testy i wywrocic SPAKOWANA aplikacje, wiec nie wchodzi przed
+      # freezem. Zdejmij te blokade po freezie i zrob migracje jako wlasna
+      # galaz z przebiegiem bojowym na zainstalowanej paczce.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: npm
     directory: "/frontend"
