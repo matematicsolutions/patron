@@ -20,7 +20,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0   # pelna historia dla cotygodniowego --history
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.12"
       # Bramka sprawdzajaca BRAMKE. Mutacja MIN_STEM wywala 5 z 9 testow -
