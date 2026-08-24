@@ -1144,16 +1144,30 @@ function MarkdownContent({
                                     ? ` [${t("citations.requiresJudgment")}]`
                                     : "";
                                 const tooltipText = `${formatCitationPage(annotation)}: "${displayCitationQuote(annotation)}"${groundingLabel ? ` (${groundingLabel})` : ""}${provenanceLabel ? ` [${provenanceLabel}]` : ""}${judgmentNote}`;
+                                // Backend zostawia `document_id` niezdefiniowane, gdy model
+                                // zacytowal dokument spoza indeksu tury (resolveDoc nie trafia).
+                                // Taki przypis nie ma czego otworzyc w panelu - wiec NIE udaje
+                                // przycisku (martwy przycisk jest gorszy niz jego brak), a powod
+                                // stoi w tooltipie zamiast w ciszy.
+                                const canOpen =
+                                    typeof annotation.document_id === "string" &&
+                                    annotation.document_id.length > 0;
+                                const pillClass = `mx-0.5 inline-flex items-center justify-center rounded-full w-4 h-4 text-[10px] font-medium transition-colors align-super ${groundingClass}${judgmentRing}`;
+                                if (!canOpen) {
+                                    // Bez stanu hover - nic sie nie otworzy.
+                                    return (
+                                        <span
+                                            className={`${pillClass.replace(/hover:\S+/g, "")} cursor-default opacity-80`}
+                                            title={`${tooltipText} [${t("citations.sourceMissing")}]`}
+                                        >
+                                            {idx + 1}
+                                        </span>
+                                    );
+                                }
                                 return (
                                     <button
-                                        onClick={() => {
-                                            console.log(
-                                                "[AssistantMessage] citation clicked",
-                                                annotation,
-                                            );
-                                            onCitationClick?.(annotation);
-                                        }}
-                                        className={`mx-0.5 inline-flex items-center justify-center rounded-full w-4 h-4 text-[10px] font-medium transition-colors align-super ${groundingClass}${judgmentRing}`}
+                                        onClick={() => onCitationClick?.(annotation)}
+                                        className={pillClass}
                                         title={tooltipText}
                                     >
                                         {idx + 1}

@@ -223,6 +223,9 @@ export const en: DictShape<typeof pl> = {
         pages: "Pages",
         openSource: "Open source",
         noCitations: "No citations for this response.",
+        // Cytat, ktorego document_id nie rozwiazalo sie na backendzie
+        // (model przywolal dokument spoza indeksu tury) - przypis nie jest klikalny.
+        sourceMissing: "Citation with no linked document - there is nothing to open",
         saos: "Judgments from SAOS (common courts, Supreme Court, Constitutional Tribunal, National Appeals Chamber)",
         nsa: "Judgments from CBOSA (Supreme Administrative Court / regional administrative courts)",
         isap: "Polish legislation (Journal of Laws / Monitor Polski - Sejm ELI)",

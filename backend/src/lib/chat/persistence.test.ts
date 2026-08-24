@@ -34,6 +34,25 @@ describe("extractAnnotations", () => {
         });
     });
 
+    // Zrodlo "karty widma" w panelu bocznym: model przywoluje doc_id, ktorego
+    // nie ma w indeksie tury (halucynacja albo dokument z innej rozmowy).
+    // `resolveDoc` nie trafia, wiec adnotacja idzie do bazy BEZ document_id,
+    // a nazwa pliku spada do surowego doc_id. Frontend musi to zniesc: cytat
+    // bez dokumentu nie jest klikalny i nie otwiera karty (patrz
+    // frontend/src/app/components/assistant/sidePanelTabs.ts).
+    it("cytat do doc_id spoza indeksu tury nie dostaje document_id", () => {
+        const text = `Cos tam [1].
+<CITATIONS>
+[{"ref":1,"doc_id":"doc-99","page":2,"quote":"X"}]
+</CITATIONS>`;
+        const out = extractAnnotations(text, docIndex) as Array<
+            Record<string, unknown>
+        >;
+        expect(out).toHaveLength(1);
+        expect(out[0].document_id).toBeUndefined();
+        expect(out[0].filename).toBe("doc-99");
+    });
+
     it("ADR-0005: dolacza werdykt grounding (decision + status) do citation_data po ref", () => {
         const text = `A [1]. B [2].\n<CITATIONS>\n[{"ref":1,"doc_id":"doc-0","page":1,"quote":"X"},{"ref":2,"doc_id":"doc-0","page":1,"quote":"Y"}]\n</CITATIONS>`;
         const grounding = {

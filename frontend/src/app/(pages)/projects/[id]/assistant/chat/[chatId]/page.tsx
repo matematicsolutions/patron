@@ -428,6 +428,12 @@ export default function ProjectAssistantChatPage({ params }: Props) {
         quotes?: CitationQuote[],
         versionId?: string | null,
     ) {
+        // Karta JEST dokumentem, ktory pokazuje. Cytat, ktorego `document_id`
+        // nie rozwiazalo sie na backendzie (doc_id spoza indeksu tury), nie ma
+        // czego otworzyc - i nie wolno mu wejsc do listy z pustym kluczem
+        // (`key={tab.documentId}` w pasku kart nizej). Ten sam korzen co
+        // frontend/src/app/components/assistant/sidePanelTabs.ts.
+        if (!docId) return;
         setTabs((prev) => {
             const existing = prev.find((t) => t.documentId === docId);
             if (existing) {

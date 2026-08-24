@@ -241,6 +241,9 @@ export const pl = {
         trackedChange: "\u015aledzona zmiana",
         openSource: "Otwórz źródło",
         noCitations: "Brak cytatów dla tej odpowiedzi.",
+        // Cytat, ktorego document_id nie rozwiazalo sie na backendzie
+        // (model przywolal dokument spoza indeksu tury) - przypis nie jest klikalny.
+        sourceMissing: "Cytat bez powiązanego dokumentu - nie ma czego otworzyć",
         // MCP server labels - odpowiadaja `mcpServerLabel` z AssistantMessage.tsx
         saos: "Orzeczenia z SAOS (sądy powszechne, SN, TK, KIO)",
         nsa: "Orzeczenia z CBOSA (NSA / WSA - sądy administracyjne)",

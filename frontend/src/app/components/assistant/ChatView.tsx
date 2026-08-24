@@ -14,6 +14,10 @@ import {
     type AssistantSidePanelTab,
 } from "./AssistantSidePanel";
 import { AssistantWorkflowModal } from "./AssistantWorkflowModal";
+import {
+    upsertTabState,
+    type SidePanelTabRequest,
+} from "./sidePanelTabs";
 import { t } from "@/i18n";
 import type {
     PATRONCitationAnnotation,
@@ -99,36 +103,22 @@ export function ChatView({
     );
 
     /**
-     * One tab per document. If a tab for `tab.documentId` already exists,
-     * the panel stays mounted and only the header-relevant fields swap
-     * (kind, citation/edit, version, filename). Per-tab UI state — the
-     * dismissable warning and the saved scroll position — is preserved
-     * so switching headers doesn't blow away viewer state. If no tab
-     * exists for the document, a new one is appended.
+     * One tab per document. The tab's identity is DERIVED from the document
+     * (`upsertTabState` in ./sidePanelTabs), never supplied by the caller —
+     * the active id and the list therefore cannot drift apart. A request for
+     * a document we do not have (a citation whose `document_id` did not
+     * resolve on the backend) opens nothing instead of parking an id-less
+     * tab in the list.
      */
     const upsertTab = useCallback(
-        (tab: AssistantSidePanelTab) => {
-            setTabs((prev) => {
-                const idx = prev.findIndex(
-                    (t) => t.documentId === tab.documentId,
-                );
-                if (idx >= 0) {
-                    const existing = prev[idx];
-                    const copy = prev.slice();
-                    copy[idx] = {
-                        ...tab,
-                        id: existing.id,
-                        warning: existing.warning,
-                        initialScrollTop: existing.initialScrollTop,
-                    };
-                    return copy;
-                }
-                return [...prev, tab];
-            });
-            setActiveTabId(tab.id);
+        (request: SidePanelTabRequest) => {
+            const result = upsertTabState(tabs, request);
+            if (result.activeTabId === null) return;
+            setTabs(result.tabs);
+            setActiveTabId(result.activeTabId);
             showPanel();
         },
-        [showPanel],
+        [tabs, showPanel],
     );
 
     /**
@@ -139,7 +129,6 @@ export function ChatView({
         (citation: PATRONCitationAnnotation) => {
             upsertTab({
                 kind: "citation",
-                id: citation.document_id,
                 documentId: citation.document_id,
                 filename: citation.filename,
                 versionId: citation.version_id ?? null,
@@ -158,7 +147,6 @@ export function ChatView({
         (ann: PATRONEditAnnotation, filename: string) => {
             upsertTab({
                 kind: "edit",
-                id: ann.document_id,
                 documentId: ann.document_id,
                 filename,
                 versionId: ann.version_id ?? null,
@@ -182,7 +170,6 @@ export function ChatView({
         }) => {
             upsertTab({
                 kind: "document",
-                id: args.documentId,
                 documentId: args.documentId,
                 filename: args.filename,
                 versionId: args.versionId,
