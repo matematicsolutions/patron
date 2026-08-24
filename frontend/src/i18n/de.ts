@@ -222,6 +222,7 @@ export const de: DictShape<typeof pl> = {
         pages: "Seiten",
         openSource: "Quelle öffnen",
         noCitations: "Keine Zitate für diese Antwort.",
+        sourceMissing: "Zitat ohne verknüpftes Dokument - es gibt nichts zu öffnen",
         saos: "Entscheidungen aus SAOS - polnische Rechtsprechung (ordentliche Gerichte, Oberstes Gericht, Verfassungsgerichtshof, Vergabekammer KIO)",
         nsa: "Entscheidungen aus CBOSA (NSA / WSA - polnische Verwaltungsgerichte)",
         isap: "Polnische Rechtsakte (Gesetzblatt Dz.U. / M.P. - Sejm ELI)",

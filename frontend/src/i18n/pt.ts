@@ -230,6 +230,7 @@ export const pt: DictShape<typeof pl> = {
         pages: "Páginas",
         openSource: "Abrir fonte",
         noCitations: "Nenhuma citação para esta resposta.",
+        sourceMissing: "Citação sem documento vinculado - não há nada para abrir",
         saos: "Decisões do SAOS (tribunais comuns, Supremo Tribunal, Tribunal Constitucional, Camara de Recursos)",
         nsa: "Decisões do CBOSA (Supremo Tribunal Administrativo / tribunais administrativos regionais)",
         isap: "Legislação polonesa (Diario Oficial / Monitor Polski - Sejm ELI)",

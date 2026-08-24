@@ -7,6 +7,22 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ## [Unreleased]
 
+### Naprawione
+
+- **Przypis do dokumentu, ktorego nie ma, otwieral karte widma w panelu bocznym.**
+  Gdy model przywolal `doc_id` spoza indeksu tury, adnotacja szla do bazy bez
+  `document_id` (`resolveDoc` nie trafia), a przypis mimo to byl klikalny - panel
+  dostawal karte bez identyfikatora. Teraz taki przypis nie udaje przycisku
+  (powod w podpowiedzi, we wszystkich dziewieciu edycjach jezykowych), a zadanie
+  bez dokumentu nie tworzy karty. Ta sama bramka na obu powierzchniach cytatow.
+- **Tozsamosc karty panelu bocznego brana byla od wolajacego, nie z dokumentu.**
+  Przy trafieniu w istniejaca karte lista zostawala przy starym identyfikatorze,
+  a aktywny ustawiano na identyfikator obiektu, ktory do listy nie trafil - defekt
+  utajony, bo wszystkie trzy sciezki otwarcia wpisywaly przypadkiem to samo.
+  Identyfikator jest teraz WYPROWADZANY z dokumentu, wiec rozjazd nie ma jak powstac.
+- **Klikniecie przypisu zrzucalo tresc cytatu do konsoli przegladarki** (`console.log`
+  z etapu prac). Usuniete.
+
 ## [1.3.0] - 2026-08-24
 
 Wydanie o jednym zdaniu: **produkt przestaje udawac, ze czyta jezyk, ktorego nie zaladowano**.
