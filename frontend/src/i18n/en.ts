@@ -448,6 +448,12 @@ export const en: DictShape<typeof pl> = {
         breadcrumbPeople: "People",
     },
 
+    audit: {
+        title: "Audit log",
+        subtitle: "Ledger events with a Merkle proof for every event. The payload is masked server-side (professional secrecy, GDPR).",
+        loading: "Loading...",
+        loadedEvents: "{count} events loaded",
+    },
     workflows: {
         title: "Workflows",
         addWorkflow: "Add workflow",

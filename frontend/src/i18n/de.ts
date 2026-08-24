@@ -428,6 +428,12 @@ export const de: DictShape<typeof pl> = {
         breadcrumbPeople: "Personen",
     },
 
+    audit: {
+        title: "Audit-Protokoll",
+        subtitle: "Ereignisse des Protokolls mit Merkle-Nachweis für jedes Ereignis. Die Nutzlast wird serverseitig maskiert (Berufsgeheimnis, DSGVO).",
+        loading: "Wird geladen...",
+        loadedEvents: "{count} Ereignisse geladen",
+    },
     workflows: {
         title: "Workflows",
         addWorkflow: "Workflow hinzufügen",

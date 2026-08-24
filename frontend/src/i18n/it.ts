@@ -423,6 +423,12 @@ export const it: DictShape<typeof pl> = {
         breadcrumbPeople: "Persone",
     },
 
+    audit: {
+        title: "Registro di audit",
+        subtitle: "Eventi del registro, con una prova di Merkle per ogni evento. Il payload è mascherato lato server (segreto professionale, GDPR).",
+        loading: "Caricamento...",
+        loadedEvents: "{count} eventi caricati",
+    },
     workflows: {
         title: "Workflow",
         addWorkflow: "Aggiungi workflow",

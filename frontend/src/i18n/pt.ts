@@ -436,6 +436,12 @@ export const pt: DictShape<typeof pl> = {
         breadcrumbPeople: "Pessoas",
     },
 
+    audit: {
+        title: "Registro de auditoria",
+        subtitle: "Eventos do registro, com prova de Merkle para cada evento. O conteúdo é mascarado no servidor (sigilo profissional, LGPD e RGPD).",
+        loading: "Carregando...",
+        loadedEvents: "{count} eventos carregados",
+    },
     workflows: {
         title: "Fluxos de trabalho",
         addWorkflow: "Adicionar fluxo de trabalho",

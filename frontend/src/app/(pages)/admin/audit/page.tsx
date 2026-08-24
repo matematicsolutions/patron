@@ -11,6 +11,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { t } from "@/i18n";
 import { AuditFilterBar } from "@/components/audit-filter-bar";
 import { AuditEventsList } from "@/components/audit-events-list";
 import { AuditEventDetail } from "@/components/audit-event-detail";
@@ -50,15 +51,16 @@ export default function AdminAuditPage() {
             <header className="flex items-baseline justify-between gap-4">
                 <div>
                     <h1 className="text-xl font-semibold text-gray-900">
-                        Audit log audytora
+                        {t("audit.title")}
                     </h1>
                     <p className="mt-1 text-sm text-gray-600">
-                        Przeglad zdarzen audit_log z weryfikacja Merkle proof per event.
-                        Payload zamaskowany server-side (tajemnica zawodowa, RODO).
+                        {t("audit.subtitle")}
                     </p>
                 </div>
                 <div className="text-sm text-gray-500">
-                    {loading ? "Wczytuje..." : `Zaladowano ${eventCount} zdarzen`}
+                    {loading
+                        ? t("audit.loading")
+                        : t("audit.loadedEvents").replace("{count}", String(eventCount))}
                 </div>
             </header>
 

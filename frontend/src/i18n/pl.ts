@@ -512,6 +512,12 @@ export const pl = {
     // ---------------------------------------------------------------------
     // Workflows
     // ---------------------------------------------------------------------
+    audit: {
+        title: "Dziennik audytu",
+        subtitle: "Przegląd zdarzeń z dziennika, z dowodem Merkle dla każdego zdarzenia. Ładunek jest maskowany po stronie serwera (tajemnica zawodowa, RODO).",
+        loading: "Wczytuję...",
+        loadedEvents: "Załadowano {count} zdarzeń",
+    },
     workflows: {
         title: "Workflowy",
         addWorkflow: "Dodaj workflow",

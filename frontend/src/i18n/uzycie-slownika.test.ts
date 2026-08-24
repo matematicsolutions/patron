@@ -22,6 +22,11 @@ const PILNOWANE = [
     "app/components/shared/DocPanel.tsx",
     "app/components/shared/types.ts",
     "app/components/workflows/WorkflowList.tsx",
+    // Ekran audytu: jedyna powierzchnia, ktorej nie ma konkurencja, a do
+    // 2026-08-24 nie mial ANI JEDNEGO wywolania t(). Napisy byly polskie, ale
+    // BEZ OGONKOW - styl tresci commita, ktory wyciekl do interfejsu - wiec
+    // lista ZAKAZANE (angielskie napisy) nie miala jak ich zobaczyc.
+    "app/(pages)/admin/audit/page.tsx",
 ];
 
 // Napisy interfejsu, ktore juz maja swoj klucz w pl.ts. Lista jest jawna,
@@ -34,6 +39,12 @@ const ZAKAZANE: Array<{ wzor: RegExp; opis: string }> = [
     { wzor: /label="(Name|Type|Practice|Source)"/, opis: 'naglowek kolumny na sztywno zamiast t("workflows.*")' },
     { wzor: /label:\s*"(All|Built-in|Custom|Hidden)"/, opis: 'etykieta zakladki na sztywno zamiast t("workflows.*")' },
     { wzor: /placeholder="Search workflows/, opis: 'placeholder na sztywno zamiast t("workflows.searchPlaceholder")' },
+    // Ekran audytu. Napis polski, ale bez ogonkow, jest tak samo obcy dla
+    // mecenasa jak angielski - a "Audit log audytora" to na dodatek tautologia.
+    { wzor: />\s*Audit log audytora\s*</, opis: '">Audit log audytora<" zamiast t("audit.title")' },
+    { wzor: /Przeglad zdarzen audit_log/, opis: 'podtytul audytu na sztywno zamiast t("audit.subtitle")' },
+    { wzor: /"Wczytuje\.\.\."/, opis: '"Wczytuje..." zamiast t("audit.loading")' },
+    { wzor: /`Zaladowano \$\{/, opis: '"Zaladowano ${...} zdarzen" zamiast t("audit.loadedEvents")' },
 ];
 
 describe("i18n - widoki uzywaja slownika, nie napisow na sztywno", () => {
