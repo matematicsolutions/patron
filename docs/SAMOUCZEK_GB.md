@@ -19,7 +19,7 @@ Matches the June 2026 installer. No technical setup required. If you can work wi
 10. [Step 7: choosing the AI model](#10-step-7-choosing-the-model)
 11. [Skills library](#11-skills-library)
 12. [FAQ and troubleshooting](#12-faq)
-13. [Quick reference: ready-made prompts](#13-quick-reference-prompts)
+13. [Quick reference: ready-made prompts](#13-quick-reference-ready-made-prompts)
 
 ---
 

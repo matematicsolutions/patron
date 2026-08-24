@@ -14,12 +14,12 @@ Entspricht dem Installer von Juni 2026. Sie benötigen keinerlei technische Vork
 5. [Schritt 2: Chat mit den Aktenunterlagen](#5-schritt-2-chat-mit-den-aktenunterlagen)
 6. [Schritt 3: Rechtsprechung und Gesetzgebung durchsuchen](#6-schritt-3-rechtsprechung-und-gesetzgebung)
 7. [Schritt 4: Mit Dokumenten arbeiten und sie BEARBEITEN](#7-schritt-4-dokumente-bearbeiten)
-8. [Schritt 5: Eine Tabelle aus einer Reihe von Verträgen (Tabellarische Prüfung)](#8-schritt-5-eine-tabelle-aus-vertraegen)
+8. [Schritt 5: Eine Tabelle aus einer Reihe von Verträgen (Tabellarische Prüfung)](#8-schritt-5-eine-tabelle-aus-verträgen)
 9. [Schritt 6: Workflows (wiederkehrende Aufgaben)](#9-schritt-6-workflows)
-10. [Schritt 7: Ein KI-Modell wählen](#10-schritt-7-ein-modell-waehlen)
+10. [Schritt 7: Ein KI-Modell wählen](#10-schritt-7-ein-modell-wählen)
 11. [Skill-Bibliothek](#11-skill-bibliothek)
 12. [Häufige Fragen und Probleme](#12-faq)
-13. [Spickzettel: fertige Prompts](#13-spickzettel)
+13. [Spickzettel: fertige Prompts](#13-spickzettel-fertige-prompts)
 
 ---
 
@@ -39,7 +39,7 @@ Patron trifft keine rechtlichen Entscheidungen und ersetzt nicht Ihr eigenes Urt
 ## 2. Erster Start
 
 1. Starten Sie **PATRON** (das Symbol auf dem Desktop oder das Startmenü). Sie sehen einen Ladebildschirm und nach etwa einem Dutzend Sekunden das Hauptfenster. Es ist kein Konto und keine Anmeldung nötig. Patron ist einbenutzerfähig und lokal, sodass die Aktenunterlagen, die Datenbanken und der Chatverlauf auf Ihrem Rechner bleiben.
-2. **Fügen Sie einen Schlüssel für ein KI-Modell hinzu.** Das ist der eine Schritt, ohne den der Assistent nicht antwortet. Öffnen Sie **Konto → Modelle und API-Schlüssel** und fügen Sie den Schlüssel Ihres Anbieters ein (zum Beispiel Anthropic/Claude oder Google/Gemini, OpenAI). Speichern Sie ihn. Ab diesem Moment funktionieren Chat, Dokumentbearbeitung und Tabellen. Einzelheiten: [Schritt 7](#10-schritt-7-ein-modell-waehlen).
+2. **Fügen Sie einen Schlüssel für ein KI-Modell hinzu.** Das ist der eine Schritt, ohne den der Assistent nicht antwortet. Öffnen Sie **Konto → Modelle und API-Schlüssel** und fügen Sie den Schlüssel Ihres Anbieters ein (zum Beispiel Anthropic/Claude oder Google/Gemini, OpenAI). Speichern Sie ihn. Ab diesem Moment funktionieren Chat, Dokumentbearbeitung und Tabellen. Einzelheiten: [Schritt 7](#10-schritt-7-ein-modell-wählen).
 3. **Internet und Dateikonvertierung.** Ein Cloud-Modell und die Live-Recherche in der Rechtsprechung und der Gesetzgebung (NeuRIS) benötigen eine Internetverbindung. Die Suche in Ihren eigenen Dokumenten funktioniert auch offline. Wenn beim Hochladen älterer `.doc`-Dateien ein Konvertierungsfehler erscheint, bitten Sie Ihren Administrator, LibreOffice zu installieren (es ist kostenlos).
 
 > **Tipp:** Patron spricht Sie mit "Frau Kollegin" bzw. "Herr Kollege" an. Es spricht mit Ihnen auf Deutsch und verfasst die Schriftsätze auf Deutsch, weil sie bei deutschen Gerichten eingereicht werden. Sie wissen nicht, wo Sie anfangen sollen? Fragen Sie es direkt im Chat: **"Was können Sie?"** oder **"Wie fange ich an?"**, und es stellt Ihnen seine Funktionen Schritt für Schritt vor. Wenn Sie etwas nicht sehen, klappen Sie das linke Panel aus (**Explorer**).

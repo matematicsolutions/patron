@@ -59,6 +59,14 @@ jobs:
       - name: Bramka numeracji ADR i migracji
         if: github.event_name == 'pull_request' || github.event_name == 'push'
         run: python scripts/adr_number_gate.py .
+      # Spis tresci samouczka: link `[Krok 3](#6-...)` wyglada poprawnie i nic
+      # nie zglasza, gdy naglowek ma inny slug - klikniecie po prostu nie robi
+      # nic. Zmierzone 2026-08-24: 32 zepsute kotwice w 8 z 9 samouczkow, w tym
+      # francuskie od poczatku (GitHub zachowuje akcenty w slugu: Etape != Étape).
+      # Samouczek jedzie w instalatorze, wiec zepsuty spis dociera do mecenasa.
+      - name: Bramka kotwic w samouczkach
+        if: github.event_name == 'pull_request' || github.event_name == 'push'
+        run: python scripts/samouczek_kotwice.py
       - name: Skan calej historii git (cotygodniowo)
         if: github.event_name == 'schedule'
         run: python scripts/publication_gate.py . --history

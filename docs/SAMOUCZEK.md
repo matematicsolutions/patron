@@ -10,16 +10,16 @@ Wersja zgodna z instalatorem z czerwca 2026. Nie musisz znać się na technologi
 1. [Czym jest Patron (w jednym akapicie)](#1-czym-jest-patron)
 2. [Pierwsze uruchomienie](#2-pierwsze-uruchomienie)
 3. [Mapa ekranu — trzy panele](#3-mapa-ekranu)
-4. [Krok 1 — Załóż sprawę i wgraj akta](#4-krok-1--zaloz-sprawe-i-wgraj-akta)
-5. [Krok 2 — Rozmawiaj z aktami sprawy](#5-krok-2--rozmawiaj-z-aktami)
-6. [Krok 3 — Szukaj orzecznictwa i przepisów](#6-krok-3--orzecznictwo-i-przepisy)
-7. [Krok 4 — Praca z dokumentami i ICH EDYCJA](#7-krok-4--edycja-dokumentow) ⭐
-8. [Krok 5 — Tabela z pakietu umów (Przegląd tabelaryczny)](#8-krok-5--tabela-z-umow)
-9. [Krok 6 — Workflowy (powtarzalne zadania)](#9-krok-6--workflowy)
-10. [Krok 7 — Wybór modelu AI](#10-krok-7--wybor-modelu)
-11. [Biblioteka umiejętności](#11-biblioteka-umiejetnosci)
+4. [Krok 1 — Załóż sprawę i wgraj akta](#4-krok-1-załóż-sprawę-i-wgraj-akta)
+5. [Krok 2 — Rozmawiaj z aktami sprawy](#5-krok-2-rozmawiaj-z-aktami)
+6. [Krok 3 — Szukaj orzecznictwa i przepisów](#6-krok-3-orzecznictwo-i-przepisy)
+7. [Krok 4 — Praca z dokumentami i ICH EDYCJA](#7-krok-4-edycja-dokumentów) ⭐
+8. [Krok 5 — Tabela z pakietu umów (Przegląd tabelaryczny)](#8-krok-5-tabela-z-pakietu-umów)
+9. [Krok 6 — Workflowy (powtarzalne zadania)](#9-krok-6-workflowy)
+10. [Krok 7 — Wybór modelu AI](#10-krok-7-wybór-modelu)
+11. [Biblioteka umiejętności](#11-biblioteka-umiejętności)
 12. [Najczęstsze pytania i problemy](#12-faq)
-13. [Ściąga — gotowe polecenia](#13-sciaga)
+13. [Ściąga — gotowe polecenia](#13-ściąga-gotowe-polecenia)
 
 ---
 
@@ -39,7 +39,7 @@ Patron nie podejmuje decyzji prawnych i nie zastępuje Twojej oceny. Jest narzę
 ## 2. Pierwsze uruchomienie
 
 1. Uruchom **PATRON** (ikona na pulpicie / w menu Start). Zobaczysz ekran ładowania „Warsztat pracy prawnika", a po kilkunastu sekundach główne okno. Konto ani logowanie nie są potrzebne — Patron jest jednoosobowy i lokalny; akta, baza i historia czatu zostają na komputerze.
-2. **Dodaj klucz modelu AI** — to jeden krok, bez którego asystent nie odpowie. Otwórz **Konto → Modele i klucze API** i wklej klucz swojego dostawcy (np. Libra/Anthropic — główne narzędzie prawników w PL, albo Gemini/OpenAI). Zapisz. Od tej chwili czat, edycja pism i tabele działają. Szczegóły: [Krok 7](#10-krok-7--wybor-modelu).
+2. **Dodaj klucz modelu AI** — to jeden krok, bez którego asystent nie odpowie. Otwórz **Konto → Modele i klucze API** i wklej klucz swojego dostawcy (np. Libra/Anthropic — główne narzędzie prawników w PL, albo Gemini/OpenAI). Zapisz. Od tej chwili czat, edycja pism i tabele działają. Szczegóły: [Krok 7](#10-krok-7-wybór-modelu).
 3. **Internet i konwersja plików.** Do modelu w chmurze i wyszukiwania orzecznictwa na żywo (SAOS, NSA, ISAP, KRS, EUR-Lex) potrzebny jest internet; baza prawa UE i wyszukiwanie w Twoich dokumentach działają też offline. Jeśli przy wgrywaniu starszych plików `.doc` zobaczysz błąd konwersji — poproś administratora o doinstalowanie LibreOffice (bezpłatny).
 
 > **Wskazówka:** Patron mówi do Ciebie „Mecenasie" i prowadzi po polsku. Nie wiesz, od czego zacząć? Zapytaj go wprost w czacie: **„Co potrafisz?"** albo **„Jak zacząć?"** — opowie o swoich funkcjach i poprowadzi krok po kroku. Jeśli czegoś nie widzisz, rozwiń lewy panel (**Eksplorator**).

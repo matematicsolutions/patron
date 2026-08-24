@@ -14,12 +14,12 @@ Matches the June 2026 installer. You do not need any technical background. If yo
 5. [Step 2: Chat with the case files](#5-step-2-chat-with-the-case-files)
 6. [Step 3: Search case law and legislation](#6-step-3-case-law-and-legislation)
 7. [Step 4: Working with documents and EDITING them](#7-step-4-editing-documents)
-8. [Step 5: A table from a batch of contracts (Tabular review)](#8-step-5-a-table-from-contracts)
+8. [Step 5: A table from a batch of contracts (Tabular review)](#8-step-5-a-table-from-a-batch-of-contracts)
 9. [Step 6: Workflows (repeatable tasks)](#9-step-6-workflows)
 10. [Step 7: Choosing an AI model](#10-step-7-choosing-a-model)
 11. [Skill library](#11-skill-library)
 12. [Common questions and problems](#12-faq)
-13. [Cheat sheet: ready-made prompts](#13-cheat-sheet)
+13. [Cheat sheet: ready-made prompts](#13-cheat-sheet-ready-made-prompts)
 
 ---
 

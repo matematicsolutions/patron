@@ -9,17 +9,17 @@ Correspond à l'installateur de juin 2026. Aucune compétence technique n'est re
 
 1. [Ce qu'est Patron (en un paragraphe)](#1-ce-quest-patron)
 2. [Premier lancement](#2-premier-lancement)
-3. [Carte de l'écran : trois panneaux](#3-carte-de-lecran)
-4. [Étape 1 : créer un dossier et charger les fichiers](#4-etape-1-creer-un-dossier-et-charger-les-fichiers)
-5. [Étape 2 : dialoguer avec les pièces du dossier](#5-etape-2-dialoguer-avec-les-pieces-du-dossier)
-6. [Étape 3 : rechercher la jurisprudence et la législation](#6-etape-3-jurisprudence-et-legislation)
-7. [Étape 4 : travailler sur les documents et les MODIFIER](#7-etape-4-modifier-les-documents)
-8. [Étape 5 : un tableau à partir d'une série de contrats (Revue tabulaire)](#8-etape-5-un-tableau-a-partir-des-contrats)
-9. [Étape 6 : les workflows (tâches répétables)](#9-etape-6-les-workflows)
-10. [Étape 7 : choisir un modèle IA](#10-etape-7-choisir-un-modele)
-11. [Bibliothèque de compétences](#11-bibliotheque-de-competences)
+3. [Carte de l'écran : trois panneaux](#3-carte-de-lécran)
+4. [Étape 1 : créer un dossier et charger les fichiers](#4-étape-1-créer-un-dossier-et-charger-les-fichiers)
+5. [Étape 2 : dialoguer avec les pièces du dossier](#5-étape-2-dialoguer-avec-les-pièces-du-dossier)
+6. [Étape 3 : rechercher la jurisprudence et la législation](#6-étape-3-jurisprudence-et-législation)
+7. [Étape 4 : travailler sur les documents et les MODIFIER](#7-étape-4-modifier-les-documents)
+8. [Étape 5 : un tableau à partir d'une série de contrats (Revue tabulaire)](#8-étape-5-un-tableau-à-partir-des-contrats)
+9. [Étape 6 : les workflows (tâches répétables)](#9-étape-6-les-workflows)
+10. [Étape 7 : choisir un modèle IA](#10-étape-7-choisir-un-modèle)
+11. [Bibliothèque de compétences](#11-bibliothèque-de-compétences)
 12. [Questions et problèmes courants](#12-faq)
-13. [Aide-mémoire : instructions prêtes à l'emploi](#13-aide-memoire)
+13. [Aide-mémoire : instructions prêtes à l'emploi](#13-aide-mémoire-instructions-prêtes-à-lemploi)
 
 ---
 
@@ -39,7 +39,7 @@ Patron ne prend pas de décisions juridiques et ne remplace pas votre jugement. 
 ## 2. Premier lancement
 
 1. Lancez **PATRON** (l'icône sur le bureau ou le menu Démarrer). Un écran de chargement apparaît, puis, après une dizaine de secondes, la fenêtre principale. Aucun compte ni connexion n'est nécessaire. Patron est mono-utilisateur et local : les pièces du dossier, les bases de données et l'historique des conversations restent sur votre ordinateur.
-2. **Ajoutez la clé d'un modèle IA.** C'est la seule étape sans laquelle l'assistant ne répondra pas. Ouvrez **Compte → Modèles et clés API** et collez la clé de votre fournisseur (par exemple Libra/Anthropic, ou Gemini/OpenAI). Enregistrez. À partir de ce moment, la conversation, la modification des documents et les tableaux fonctionnent. Détails : [Étape 7](#10-etape-7-choisir-un-modele).
+2. **Ajoutez la clé d'un modèle IA.** C'est la seule étape sans laquelle l'assistant ne répondra pas. Ouvrez **Compte → Modèles et clés API** et collez la clé de votre fournisseur (par exemple Libra/Anthropic, ou Gemini/OpenAI). Enregistrez. À partir de ce moment, la conversation, la modification des documents et les tableaux fonctionnent. Détails : [Étape 7](#10-étape-7-choisir-un-modèle).
 3. **Internet et conversion des fichiers.** Un modèle cloud et la recherche en direct de jurisprudence et de législation (Legifrance via PISTE) nécessitent une connexion internet. La recherche dans vos propres documents fonctionne aussi hors ligne. Si une erreur de conversion apparaît au chargement de vieux fichiers `.doc`, demandez à votre administrateur d'installer LibreOffice (il est gratuit).
 
 > **Astuce :** Patron s'adresse à vous en disant « Maître ». Il vous parle en français et rédige les actes en français, car ils sont destinés aux juridictions françaises. Vous ne savez pas par où commencer ? Demandez-lui directement dans la conversation : **« Que savez-vous faire ? »** ou **« Par où commencer ? »**, et il vous présentera ses fonctions pas à pas. Si vous ne voyez pas quelque chose, développez le panneau de gauche (**Explorateur**).
