@@ -7,7 +7,53 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ## [Unreleased]
 
-## [1.2.0] - 2026-09-01
+## [1.3.0] - 2026-08-24
+
+Wydanie o jednym zdaniu: **produkt przestaje udawac, ze czyta jezyk, ktorego nie zaladowano**.
+Trzy poprawki lezaly na `main` od 24 sierpnia; do mecenasa docieraja dopiero tym instalatorem.
+
+### Naprawione - KRYTYCZNE
+
+- **Wszystkie dziewiec edycji rozpoznawalo skany POLSKIM modelem OCR.** `desktop/main.js`
+  budowal komende na sztywno z `-l pol`, a `prepare-resources.cjs` wkladal do paczki
+  wylacznie `pol.traineddata`. Mecenas w Monachium skanowal niemiecka umowe i dostawal
+  tekst, ktory wyglada na wynik i nim nie jest - a potem szedl on do indeksu, do cytatu
+  i do odpowiedzi. Zmierzone na renderowanych zdaniach umownych (udzial poprawnie
+  rozpoznanych slow, model wlasny wobec polskiego): DE 100% / 47%, BR 100% / 50%,
+  IT 100% / 71%, FR 100% / 62%, ES 100% / 67%. Teraz jezyk wynika z edycji instalatora,
+  a brak pakietu jezykowego WYLACZA OCR zamiast rozpoznawac w zlym jezyku - jawny brak
+  jest lepszy od cichego przeklamania. [ADR-0151](./governance/adr/0151-jezyk-ocr-wg-edycji-i-glosny-build.md).
+- **Staging OCR byl best-effort i przepuszczal niekompletny instalator.** Brak Tesseractu
+  albo pakietu jezykowego logowal ostrzezenie, a build konczyl sie sukcesem; skany byly
+  odrzucane dopiero u odbiorcy. Teraz build pada glosno, a `e2e:smoke` sprawdza na
+  spakowanej aplikacji obecnosc silnika i pakietu jezykowego TEJ edycji.
+- **Brazylijski interfejs pisal bez znakow diakrytycznych.** Slownik `pt` niosl
+  "Configuracoes", "Nova revisao", "Atencao" zamiast poprawnych form - 178 wierszy
+  poprawionych. Samouczki BR i ES dogonily polski, a 32 zepsute kotwice spisu tresci
+  zaczely prowadzic tam, gdzie obiecuja.
+
+### Dodane
+
+- **Pakiet dowodowy calego pisma** (`GET /api/audit/bundle/:messageId`, przycisk
+  "Pakiet dowodowy" przy odpowiedzi). W archiwum tresc, werdykt kazdego cytatu wraz z tymi
+  ze zrodel MCP, wyciag z lancucha skrotow i uzyte modele - odpowiedz na pytanie klienta
+  "jak powstala ta analiza". Dotad eksport odpowiadal na pytanie AUDYTORA o pojedyncze
+  zdarzenie; ten odpowiada na pytanie KLIENTA o cale pismo, wiec nie jest admin-only:
+  granica jest sprawa, a pakiet wynosi autor pisma. Brak dostepu zwraca 404, nie 403, bo
+  samo istnienie cudzej wiadomosci jest juz informacja o sprawie. Zapis do lancucha jest
+  fail-closed - gdy audyt nie zapisze, eksport sie nie odbywa.
+  [ADR-0152](./governance/adr/0152-wpiecie-pakietu-dowodowego-deliverable.md).
+- **Bramka konektorow per edycja.** Instalator kazdej edycji jest zderzany z RECZNIE
+  spisana tabela oczekiwan (`desktop/scripts/connectors-expected.cjs`): czy wiezie te
+  konektory, ktore ma wiezc, i czy jada WLACZONE. Powod: nazwa niezsynchronizowana
+  z lustrem `JURISDICTION` wysylala konektor w instalatorze jako `enabled=false` przy
+  zielonym buildzie i kompletnej paczce (zmierzone 2026-08-17 na `eureka`). Bramka biegnie
+  na ARTEFAKCIE w `npm run build:<locale>` i w `npm run e2e:smoke`; pusty manifest, edycja
+  spoza tabeli i nadmiarowy konektor blokuja tak samo jak brak. Tabela jest przepisana
+  recznie i zmierzona na dziewieciu wydanych instalatorach - bramka liczaca oczekiwanie
+  tym samym kodem, ktory produkuje manifest, zdawalaby wlasny egzamin.
+
+## [1.2.0] - 2026-08-23
 
 Wydanie skupione na **dwoch rzeczach: tym, co widac, i tym, co dziala**. System
 wizualny dostal wlasny jezyk, a przebieg bojowy na zainstalowanej aplikacji
@@ -1112,5 +1158,8 @@ First public release as **Patron** (re-branded fork of
 
 ---
 
-[Unreleased]: https://github.com/matematicsolutions/patron/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/matematicsolutions/patron/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/matematicsolutions/patron/releases/tag/v1.3.0
+[1.2.0]: https://github.com/matematicsolutions/patron/releases/tag/v1.2.0
+[1.1.0]: https://github.com/matematicsolutions/patron/releases/tag/v1.1.0
 [1.0.0]: https://github.com/matematicsolutions/patron/releases/tag/v1.0.0
