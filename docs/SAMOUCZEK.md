@@ -52,7 +52,7 @@ Ekran asystenta dzieli się na **trzy pionowe panele**:
 
 | Panel | Nazwa | Do czego służy |
 |---|---|---|
-| **lewy** | **Eksplorator** | lista spraw (projektów) i dokumentów; tu wgrywasz pliki |
+| **lewy** | **Eksplorator** | lista spraw i dokumentów; tu wgrywasz pliki |
 | **środkowy** | **Podgląd dokumentu** | treść klikniętego dokumentu; tu widać tracked changes |
 | **prawy** | **Asystent** | czat — tu zadajesz pytania i wydajesz polecenia |
 
@@ -62,10 +62,10 @@ Lewy panel możesz zwinąć („Zwiń eksplorator") i rozwinąć, gdy potrzebuje
 
 ## 4. Krok 1 — Załóż sprawę i wgraj akta
 
-**Zasada nr 1: jedna sprawa = jeden projekt.** Nie mieszaj akt różnych spraw — Patron przeszukuje wszystkie dokumenty projektu przy każdym pytaniu.
+**Zasada nr 1: jedna sprawa = jedna teczka w Patronie.** Nie mieszaj akt różnych spraw - Patron przeszukuje wszystkie dokumenty sprawy przy każdym pytaniu.
 
-### 4.1. Utwórz projekt
-1. W lewym panelu kliknij **+ Nowy projekt** (lub „Nowa sprawa", skrót **Ctrl+N**).
+### 4.1. Załóż sprawę
+1. W lewym panelu kliknij **+ Nowa sprawa** (ta sama pozycja jest w menu aplikacji, skrót **Ctrl+N**).
 2. Nadaj mówiącą nazwę, np. `Kowalski v. Nowak-Bud — roszczenie 2026`.
 
 ### 4.2. Wgraj dokumenty — trzy sposoby
@@ -179,7 +179,7 @@ Jeśli wolisz pracować w Wordzie:
 
 ### 7D. Wersje i pobieranie
 - Każda zaakceptowana zmiana = nowa wersja (historia zachowana).
-- Pojedynczy plik pobierzesz ikoną pobierania; cały projekt możesz pobrać jako ZIP.
+- Pojedynczy plik pobierzesz ikoną pobierania; całą sprawę możesz pobrać jako ZIP.
 
 ---
 

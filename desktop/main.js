@@ -253,6 +253,16 @@ function backendLocalEnv() {
   return env;
 }
 
+// Jezyk OCR = jezyk edycji instalatora (ADR-0139). Do 2026-08-24 bylo tu wpisane
+// na sztywno 'pol', wiec kazda z dziewieciu edycji rozpoznawala skany po polsku.
+const OCR_LANG = {
+  pl: 'pol', en: 'eng', gb: 'eng', us: 'eng',
+  pt: 'por', it: 'ita', de: 'deu', es: 'spa', fr: 'fra',
+};
+function ocrLang() {
+  return OCR_LANG[installLocale() || 'pl'] || 'pol';
+}
+
 // Rezolucja lokalnego silnika OCR (Tesseract). Zwraca {cmd, tessdata?} albo null.
 // stdout-mode: silnik pisze rozpoznany tekst na stdout (patrz ocrRunner.ts).
 function resolveOcr() {
@@ -261,14 +271,25 @@ function resolveOcr() {
   if (process.env.PATRON_OCR_CMD && process.env.PATRON_OCR_CMD.trim()) return null;
 
   const exe = process.platform === 'win32' ? 'tesseract.exe' : 'tesseract';
+  const lang = ocrLang();
 
   // 2) Bundlowany w instalatorze (ADR-0075). Staging w prepare-resources.cjs.
   const bundledExe = path.join(RES(), 'backend', 'ocr', 'tesseract', exe);
   const bundledTessdata = path.join(RES(), 'backend', 'ocr', 'tessdata');
   if (fs.existsSync(bundledExe)) {
+    // Brak pakietu jezykowego edycji = OCR WYLACZONY, nie OCR w zlym jezyku.
+    // Rozpoznanie niemieckiej umowy polskim modelem daje tekst, ktory wyglada
+    // na wynik i nim nie jest - gorzej niz jawny brak OCR.
+    if (!fs.existsSync(path.join(bundledTessdata, `${lang}.traineddata`))) {
+      console.error(
+        `[PATRON] Brak ${lang}.traineddata w paczce OCR - OCR wylaczony dla tej edycji. ` +
+          'Skany nie beda rozpoznawane (zamiast rozpoznania w zlym jezyku).',
+      );
+      return null;
+    }
     return {
-      cmd: `"${bundledExe}" {input} stdout -l pol --psm 1`,
-      tessdata: fs.existsSync(bundledTessdata) ? bundledTessdata : undefined,
+      cmd: `"${bundledExe}" {input} stdout -l ${lang} --psm 1`,
+      tessdata: bundledTessdata,
     };
   }
 
@@ -286,10 +307,11 @@ function resolveOcr() {
     const p = path.join(dir, exe);
     if (fs.existsSync(p)) {
       const td = path.join(dir, 'tessdata');
-      const hasPol = fs.existsSync(path.join(td, 'pol.traineddata'));
+      // Ta sama zasada co wyzej: bez pakietu jezykowego edycji nie zgadujemy.
+      if (!fs.existsSync(path.join(td, `${lang}.traineddata`))) continue;
       return {
-        cmd: `"${p}" {input} stdout -l pol --psm 1`,
-        tessdata: hasPol ? td : undefined,
+        cmd: `"${p}" {input} stdout -l ${lang} --psm 1`,
+        tessdata: td,
       };
     }
   }

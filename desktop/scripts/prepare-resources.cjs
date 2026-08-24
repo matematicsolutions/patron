@@ -187,6 +187,12 @@ const TESSDATA_SRC = process.env.PATRON_TESSDATA_DIR
   ? path.resolve(process.env.PATRON_TESSDATA_DIR)
   : path.join(process.env.USERPROFILE || process.env.HOME || "", "tessdata");
 const SKIP_OCR = process.env.SKIP_OCR === "1";
+// Jezyk OCR idzie za edycja instalatora (ADR-0139), nie jest wpisany na sztywno.
+// Do 2026-08-24 kazda z dziewieciu edycji rozpoznawala skany modelem POLSKIM.
+const OCR_LANG = {
+  pl: "pol", en: "eng", gb: "eng", us: "eng",
+  pt: "por", it: "ita", de: "deu", es: "spa", fr: "fra",
+};
 
 function log(msg) {
   console.log(`[prepare-resources] ${msg}`);
@@ -609,31 +615,34 @@ function stageDocs() {
   }
 }
 
-// ── 3e. Staging silnika OCR (Tesseract + tessdata pol) ───────────────────────
-// Best-effort jak embedder: gdy brak zrodla, instalator buduje sie BEZ wbudowanego
-// OCR (main.js spadnie na recznie zainstalowany Tesseract / PATRON_OCR_CMD), wiec
-// nie wywalamy buildu - logujemy ostrzezenie. SKIP_OCR=1 pomija calkowicie.
+// ── 3e. Staging silnika OCR (Tesseract + tessdata wg edycji) ─────────────────
+// NIE jest best-effort. Brak silnika albo pakietu jezykowego WYWALA build:
+// do 2026-08-24 ostrzezenie tylko szlo do logu, build konczyl sie sukcesem, a
+// instalator wychodzil bez OCR - skany byly odrzucane dopiero u odbiorcy.
+// To ten sam wzorzec cichej niekompletnosci co node_modules w extraResources.
+// Swiadome pominiecie OCR jest nadal mozliwe, ale musi byc jawne: SKIP_OCR=1.
 function stageOcrEngine() {
   if (SKIP_OCR) {
-    log("SKIP_OCR=1 - pomijam bundlowanie silnika OCR.");
+    log("SKIP_OCR=1 - pomijam bundlowanie silnika OCR (swiadoma decyzja operatora buildu).");
     return;
   }
+  const lang = OCR_LANG[LOCALE] || "pol";
   const exe = IS_WIN ? "tesseract.exe" : "tesseract";
   const srcExe = path.join(TESSERACT_DIR, exe);
-  const srcPol = path.join(TESSDATA_SRC, "pol.traineddata");
+  const srcLang = path.join(TESSDATA_SRC, `${lang}.traineddata`);
   if (!fs.existsSync(srcExe)) {
-    log(
-      `UWAGA: brak Tesseract w ${TESSERACT_DIR} - instalator BEZ wbudowanego OCR ` +
-        `(skany odrzucane do czasu recznej instalacji silnika). Ustaw PATRON_TESSERACT_DIR by wbudowac.`,
+    throw new Error(
+      `Brak Tesseract w ${TESSERACT_DIR}. Instalator bez OCR odrzuca skany u odbiorcy, ` +
+        `wiec build sie nie konczy. Ustaw PATRON_TESSERACT_DIR na katalog z ${exe}, ` +
+        `albo swiadomie pomin OCR przez SKIP_OCR=1.`,
     );
-    return;
   }
-  if (!fs.existsSync(srcPol)) {
-    log(
-      `UWAGA: brak pol.traineddata w ${TESSDATA_SRC} - polski OCR nie zadziala. ` +
-        `Ustaw PATRON_TESSDATA_DIR. Pomijam bundling OCR.`,
+  if (!fs.existsSync(srcLang)) {
+    throw new Error(
+      `Edycja "${LOCALE}" wymaga pakietu jezykowego OCR "${lang}.traineddata", a nie ma go ` +
+        `w ${TESSDATA_SRC}. Bez niego skany tej edycji byly rozpoznawane w zlym jezyku. ` +
+        `Poloz plik w tym katalogu (albo ustaw PATRON_TESSDATA_DIR), lub pomin OCR przez SKIP_OCR=1.`,
     );
-    return;
   }
   log(`Bundlowanie silnika OCR (Tesseract z ${TESSERACT_DIR})...`);
   const ocrRoot = path.join(OUT_BACKEND, "ocr");
@@ -651,10 +660,10 @@ function stageOcrEngine() {
     else fs.copyFileSync(from, to);
   }
 
-  // tessdata: pol (wymagane) + osd (potrzebne dla --psm 1 z orientacja strony).
+  // tessdata: jezyk edycji (wymagany) + osd (potrzebne dla --psm 1 z orientacja strony).
   const tessdataOut = path.join(ocrRoot, "tessdata");
   fs.mkdirSync(tessdataOut, { recursive: true });
-  fs.copyFileSync(srcPol, path.join(tessdataOut, "pol.traineddata"));
+  fs.copyFileSync(srcLang, path.join(tessdataOut, `${lang}.traineddata`));
   for (const osdSrc of [
     path.join(TESSDATA_SRC, "osd.traineddata"),
     path.join(TESSERACT_DIR, "tessdata", "osd.traineddata"),

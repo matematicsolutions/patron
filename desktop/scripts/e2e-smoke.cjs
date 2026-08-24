@@ -93,6 +93,43 @@ async function main() {
             process.exit(2);
         }
     }
+    // Kompletnosc OCR: silnik + pakiet jezykowy TEJ edycji. Do 2026-08-24 staging
+    // OCR byl best-effort (ostrzezenie w logu, build exit 0), a jezyk byl wpisany
+    // na sztywno jako 'pol' dla wszystkich dziewieciu edycji. Ta asercja pilnuje
+    // obu rzeczy naraz - inaczej brak OCR albo OCR w zlym jezyku wychodzi dopiero
+    // u mecenasa, ktory wrzuca skan.
+    if (process.env.SKIP_OCR !== "1") {
+        const OCR_LANG = {
+            pl: "pol", en: "eng", gb: "eng", us: "eng",
+            pt: "por", it: "ita", de: "deu", es: "spa", fr: "fra",
+        };
+        let locale = "pl";
+        try {
+            const raw = fs.readFileSync(
+                path.join(RESOURCES, "backend", "patron-locale.json"), "utf8");
+            const parsed = JSON.parse(raw);
+            if (parsed && typeof parsed.locale === "string") locale = parsed.locale;
+        } catch { /* brak pliku = edycja PL (domyslna) */ }
+        const lang = OCR_LANG[locale] || "pol";
+        const tessExe = path.join(RESOURCES, "backend", "ocr", "tesseract", "tesseract.exe");
+        const langData = path.join(RESOURCES, "backend", "ocr", "tessdata", `${lang}.traineddata`);
+        if (!fs.existsSync(tessExe)) {
+            console.error(
+                "Paczka NIEKOMPLETNA: brak silnika OCR (resources/backend/ocr/tesseract). " +
+                    "Skany beda odrzucane u odbiorcy. SKIP_OCR=1 pomija ta kontrole swiadomie.",
+            );
+            process.exit(2);
+        }
+        if (!fs.existsSync(langData)) {
+            console.error(
+                `Paczka NIEKOMPLETNA: edycja "${locale}" nie ma pakietu jezykowego OCR ` +
+                    `${lang}.traineddata. Bez niego skany byly rozpoznawane w zlym jezyku.`,
+            );
+            process.exit(2);
+        }
+        console.log(`OCR: silnik + ${lang}.traineddata obecne (edycja ${locale}).`);
+    }
+
     if ((await portInUse(BACKEND_PORT)) || (await portInUse(FRONTEND_PORT))) {
         console.error(
             `Port ${BACKEND_PORT} lub ${FRONTEND_PORT} zajety - dziala inny PATRON? ` +
