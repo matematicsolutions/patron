@@ -66,7 +66,7 @@ Lewy panel możesz zwinąć („Zwiń eksplorator") i rozwinąć, gdy potrzebuje
 
 ### 4.1. Załóż sprawę
 1. W lewym panelu kliknij **+ Nowa sprawa** (ta sama pozycja jest w menu aplikacji, skrót **Ctrl+N**).
-2. Nadaj mówiącą nazwę, np. `Kowalski v. Nowak-Bud — roszczenie 2026`.
+2. Nadaj mówiącą nazwę, np. `Kowalski v. Nowak-Bud - roszczenie 2026`, i wpisz **Sygnaturę** - widać ją potem jako osobną kolumnę na liście spraw.
 
 ### 4.2. Wgraj dokumenty — trzy sposoby
 
@@ -209,7 +209,7 @@ Powtarzalne zadania (np. „Analiza umowy najmu", „Przegląd due diligence") z
 
 ## 10. Krok 7 — Wybór modelu
 
-Patron jest **neutralny wobec dostawców** — model wybierasz Ty. To jedna wartość w **Konto → Modele i klucze API**, zmiana nie wymaga reinstalacji.
+Patron jest **neutralny wobec dostawców** — model wybierasz Ty, w **Konto → Modele i klucze API**; zmiana nie wymaga reinstalacji. Są tam **dwa** ustawienia: model rozmowy oraz osobny **Model przeglądów tabelarycznych**. Tabelom zwykle daje się model tańszy, bo pracy jest dużo, a każde pole krótkie.
 
 - **Model w chmurze (np. Libra / Claude, Gemini)** — najwyższa jakość redakcji i rozumowania. To świadomy, normalny wybór kancelarii. Treść zapytania trafia wtedy do wybranego dostawcy.
 - **Model lokalny (Ollama)** — działa bez internetu, koszt 0. Wymaga jednorazowej instalacji Ollamy i pobrania modelu na komputer.
