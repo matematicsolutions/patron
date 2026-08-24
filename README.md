@@ -54,10 +54,23 @@ Everything below ran end-to-end on 2026-08-23 against a real model on synthetic 
 - **9 installer editions** from one code line: PL, EN (EU-first), US, GB, BR, IT, DE, ES, FR - each
   with its home jurisdiction connector on by default. Downloads: [matematicsolutions.com/pobierz](https://matematicsolutions.com/pobierz).
 
-Two limits we say out loud. Citations returned by MCP connectors are shown with their source but
-do not pass through the colour badge verification that citations from your own documents get; treat
-them as unverified until you open the source. The Windows installer is not code-signed, so SmartScreen
-warns on first run.
+Two limits we say out loud. The memory and the knowledge graph work underneath: there is no screen
+yet where you can review or correct what Patron has remembered - you ask for it in the chat. The
+Windows installer is not code-signed, so SmartScreen warns on first run.
+
+## Documentation
+
+Written for the lawyer who has just downloaded the installer, not for the person reading this file.
+Kept in one place and linked from here rather than copied, so the two cannot drift apart:
+
+- **[What Patron can do](https://matematicsolutions.com/en/patron/capabilities)** - every capability
+  with the problem it answers and a link to the architecture decision behind it.
+- **[Step-by-step manual](https://matematicsolutions.com/en/patron/instructions)** - installation,
+  connecting a model, your first matter, and the pitfalls that actually occur.
+- **[Audit trail documentation](https://matematicsolutions.com/en/patron/audit-trail)** - how the
+  hash chain and the Merkle tree work, and what the trail does *not* prove.
+- [`docs/SAMOUCZEK_EN.md`](./docs/SAMOUCZEK_EN.md) - the same manual as markdown. Each installer
+  edition ships the tutorial for its own language; this repository holds all nine.
 
 ## Contents
 

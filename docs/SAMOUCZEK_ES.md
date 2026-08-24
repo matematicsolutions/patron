@@ -66,7 +66,7 @@ Puede contraer el panel de la izquierda ("Contraer el explorador") y volver a ex
 
 ### 4.1. Crear un proyecto
 1. En el panel de la izquierda, pulse **Nuevo proyecto** (o "Nuevo expediente", atajo **Ctrl+N**).
-2. Dele un nombre descriptivo, por ejemplo `Garcia c. Construcciones Bianchi S.L., demanda 2026`.
+2. Dele un nombre descriptivo, por ejemplo `Garcia c. Construcciones Bianchi S.L., demanda 2026`, y rellene la **Referencia** - aparece despues como columna propia en la lista de casos.
 
 ### 4.2. Subir documentos: tres formas
 
@@ -205,7 +205,7 @@ Guarde una vez una tarea repetible (por ejemplo "Analisis de arrendamientos", "R
 
 ## 10. Paso 7: elegir un modelo
 
-Patron es **neutral respecto a los proveedores**, de modo que el modelo lo elige usted. Es un solo ajuste en **Cuenta → Modelos y claves API**, y cambiarlo no requiere ninguna reinstalacion.
+Patron es **neutral respecto a los proveedores**, de modo que el modelo lo elige usted. Son **dos** ajustes en **Cuenta → Modelos y claves API**: el modelo de la conversacion y un **Modelo para revisiones tabulares** aparte. A las tablas se les suele dar un modelo mas barato - el trabajo es mucho y cada campo es corto. Cambiar cualquiera de los dos no requiere ninguna reinstalacion.
 
 - **Un modelo en la nube (por ejemplo Libra / Claude, Gemini)** ofrece la mejor calidad de redaccion y de razonamiento. Es la eleccion ordinaria de trabajo para un despacho. El contenido de su consulta va entonces al proveedor que ha elegido.
 - **Un modelo local (Ollama)** funciona sin internet, a coste cero. Requiere una instalacion unica de Ollama y la descarga del modelo a su ordenador.

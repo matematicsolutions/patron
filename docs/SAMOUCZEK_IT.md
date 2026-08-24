@@ -66,7 +66,7 @@ Può comprimere il pannello di sinistra ("Comprimi l'esploratore") ed espanderlo
 
 ### 4.1. Creare un progetto
 1. Nel pannello di sinistra, clicchi **Nuovo progetto** (o "Nuovo fascicolo", scorciatoia **Ctrl+N**).
-2. Gli dia un nome parlante, per esempio `Rossi c. Bianchi Costruzioni, causa 2026`.
+2. Gli dia un nome parlante, per esempio `Rossi c. Bianchi Costruzioni, causa 2026`, e compili il **Rif. fascicolo** - compare poi come colonna propria nell'elenco dei casi.
 
 ### 4.2. Caricare i documenti: tre modi
 
@@ -206,7 +206,7 @@ Salvi una volta un'attività ripetibile (per esempio "Analisi di locazioni", "Re
 
 ## 10. Passo 7: scegliere il modello
 
-Patron è **neutrale rispetto ai fornitori**, quindi il modello lo sceglie Lei. È una sola impostazione in **Account → Modelli e chiavi API**, e cambiarla non richiede alcuna reinstallazione.
+Patron è **neutrale rispetto ai fornitori**, quindi il modello lo sceglie Lei. Sono **due** impostazioni in **Account → Modelli e chiavi API**: il modello della conversazione e un **Modello per le revisioni tabellari** separato. Alle tabelle si assegna di solito un modello più economico - il lavoro è molto e ogni campo è breve. Cambiarle non richiede alcuna reinstallazione.
 
 - **Un modello cloud (per esempio Libra / Claude, Gemini)** offre la migliore qualità di redazione e di ragionamento. È la scelta ordinaria di lavoro per uno studio. Il contenuto della Sua richiesta va allora al provider che ha scelto.
 - **Un modello locale (Ollama)** funziona senza internet, a costo zero. Richiede un'installazione una tantum di Ollama e il download del modello sul Suo computer.

@@ -66,7 +66,7 @@ You can collapse the left panel ("Collapse explorer") and expand it again when y
 
 ### 4.1. Create a project
 1. In the left panel, click **New project** (or "New case", shortcut **Ctrl+N**).
-2. Give it a clear name, e.g. `Smith v. Jones Construction, 2026 claim`.
+2. Give it a clear name, e.g. `Smith v. Jones Construction, 2026 claim`, and fill in the **Case ref.** - it appears later as its own column in the matter list.
 
 ### 4.2. Uploading documents: three ways
 
@@ -209,7 +209,7 @@ Save a repeatable task once (e.g. "Lease review", "Due diligence review") as a *
 
 ## 10. Step 7: choosing the model
 
-Patron is **provider-neutral**, so you choose the model. It's a single setting in **Account -> Models and API keys**, and changing it never requires reinstalling.
+Patron is **provider-neutral**, so you choose the model. There are **two** settings in **Account -> Models and API keys**: the model for the conversation and a separate **Tabular review model**. Tables usually get a cheaper model - there's a lot of work and every field is short. Changing either never requires reinstalling.
 
 - **A cloud model (e.g. Libra/Claude, Gemini)** gives the strongest drafting and reasoning quality. It is the ordinary working choice for a firm. The content of your request then goes to the provider you chose.
 - **A local model (Ollama)** works without internet, at zero cost. It requires a one-off install of Ollama and downloading the model onto your computer.

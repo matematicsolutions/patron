@@ -66,7 +66,7 @@ Voce pode recolher o painel esquerdo ("Recolher o explorador") e expandi-lo de n
 
 ### 4.1. Criar um projeto
 1. No painel esquerdo, clique em **Novo projeto** (ou "Novo processo", atalho **Ctrl+N**).
-2. De um nome claro, por exemplo `Silva x Construtora ACME, processo 2026`.
+2. De um nome claro, por exemplo `Silva x Construtora ACME, processo 2026`, e preencha a **Referencia** - ela aparece depois como coluna propria na lista de casos.
 
 ### 4.2. Enviar os documentos: tres formas
 
@@ -206,7 +206,7 @@ Salve uma vez uma tarefa repetivel (por exemplo "Analise de locacoes", "Revisao 
 
 ## 10. Passo 7: escolher o modelo
 
-O Patron e **neutro em relacao a fornecedores**, entao o modelo e escolhido por voce. E uma unica configuracao em **Conta -> Modelos e chaves de API**, e muda-la nao exige reinstalacao.
+O Patron e **neutro em relacao a fornecedores**, entao o modelo e escolhido por voce. Sao **duas** configuracoes em **Conta -> Modelos e chaves de API**: o modelo da conversa e um **Modelo de revisoes tabulares** separado. As tabelas costumam receber um modelo mais barato - o trabalho e muito e cada campo e curto. Mudar qualquer uma delas nao exige reinstalacao.
 
 - **Um modelo em nuvem (por exemplo Libra / Claude, Gemini)** oferece a melhor qualidade de redacao e raciocinio. E a escolha normal de trabalho para um escritorio. O conteudo da sua solicitacao vai entao para o provedor escolhido.
 - **Um modelo local (Ollama)** funciona sem internet, sem custo por uso. Exige uma instalacao unica do Ollama e o download do modelo no seu computador.

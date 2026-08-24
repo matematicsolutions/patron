@@ -66,7 +66,7 @@ Sie können das linke Panel einklappen ("Explorer einklappen") und wieder auskla
 
 ### 4.1. Ein Projekt anlegen
 1. Klicken Sie im linken Panel auf **Neues Projekt** (oder "Neue Akte", Tastenkürzel **Strg+N**).
-2. Geben Sie ihm einen sprechenden Namen, z. B. `Mueller ./. Bauer GmbH, Klage 2026`.
+2. Geben Sie ihm einen sprechenden Namen, z. B. `Mueller ./. Bauer GmbH, Klage 2026`, und tragen Sie das **Az.** ein - es erscheint spaeter als eigene Spalte in der Fallliste.
 
 ### 4.2. Dokumente hochladen: drei Wege
 
@@ -205,7 +205,7 @@ Speichern Sie eine wiederkehrende Aufgabe (z. B. "Mietvertragsanalyse", "Due-Dil
 
 ## 10. Schritt 7: Ein Modell wählen
 
-Patron ist **anbieterneutral**, also wählen Sie das Modell. Es ist eine einzige Einstellung unter **Konto → Modelle und API-Schlüssel**, und ihre Änderung erfordert keine Neuinstallation.
+Patron ist **anbieterneutral**, also wählen Sie das Modell. Es sind **zwei** Einstellungen unter **Konto → Modelle und API-Schlüssel**: das Modell für das Gespräch und ein separates **Modell für tabellarische Prüfungen**. Tabellen bekommen meist ein günstigeres Modell - es ist viel Arbeit und jedes Feld ist kurz. Eine Änderung erfordert in beiden Fällen keine Neuinstallation.
 
 - **Ein Cloud-Modell (z. B. Claude, Gemini)** bietet die stärkste Ausarbeitung und Argumentation. Das ist die gewöhnliche Arbeitswahl für eine Kanzlei. Der Inhalt Ihrer Anfrage geht dann an den Anbieter, den Sie gewählt haben.
 - **Ein lokales Modell (Ollama)** funktioniert ohne Internet, zu Nullkosten. Es erfordert eine einmalige Installation von Ollama und das Herunterladen des Modells auf Ihren Rechner.

@@ -66,7 +66,7 @@ Vous pouvez réduire le panneau de gauche (« Réduire l'explorateur ») et le d
 
 ### 4.1. Créer un projet
 1. Dans le panneau de gauche, cliquez sur **Nouveau projet** (ou « Nouveau dossier », raccourci **Ctrl+N**).
-2. Donnez-lui un nom parlant, par exemple `Martin c/ Bianchi Construction SARL, action 2026`.
+2. Donnez-lui un nom parlant, par exemple `Martin c/ Bianchi Construction SARL, action 2026`, et renseignez la **Référence** - elle apparaît ensuite comme colonne propre dans la liste des dossiers.
 
 ### 4.2. Charger les documents : trois façons
 
@@ -213,7 +213,7 @@ Enregistrez une fois une tâche répétable (par exemple « Analyse de baux », 
 
 ## 10. Étape 7 : choisir un modèle
 
-Patron est **neutre vis-à-vis des fournisseurs** : c'est donc vous qui choisissez le modèle. C'est un seul réglage dans **Compte → Modèles et clés API**, et le modifier ne nécessite aucune réinstallation.
+Patron est **neutre vis-à-vis des fournisseurs** : c'est donc vous qui choisissez le modèle. Ce sont **deux** réglages dans **Compte → Modèles et clés API** : le modèle de la conversation et un **Modèle des revues tabulaires** distinct. On donne en général aux tableaux un modèle moins cher - le travail est important et chaque champ est court. Modifier l'un ou l'autre ne nécessite aucune réinstallation.
 
 - **Un modèle cloud (par exemple Libra / Claude, Gemini)** offre la meilleure qualité de rédaction et de raisonnement. C'est le choix de travail ordinaire d'un cabinet. Le contenu de votre requête est alors transmis au fournisseur que vous avez choisi.
 - **Un modèle local (Ollama)** fonctionne sans internet, à coût nul. Il nécessite une installation ponctuelle d'Ollama et le téléchargement du modèle sur votre ordinateur.
