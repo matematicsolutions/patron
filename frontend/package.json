@@ -67,7 +67,7 @@
         "@types/react-dom": "^19",
         "@vitejs/plugin-react": "^6.0.3",
         "babel-plugin-react-compiler": "1.0.0",
-        "baseline-browser-mapping": "^2.9.11",
+        "baseline-browser-mapping": "^2.11.16",
         "eslint": "^9",
         "eslint-config-next": "^16.2.6",
         "jsdom": "^29.1.1",
