@@ -30,7 +30,11 @@ beforeAll(async () => {
   ingest = await import("./documentIngest");
   const supa = await import("./supabase");
   db = supa.createServerSupabase();
-});
+  // Hook laduje SQLite, warstwe ingestu i klienta storage - pod pelnym biegiem
+  // (109 plikow testowych rownolegle) domyslne 10 s bywa za krotkie i plik pada
+  // TIMEOUTEM, nie asercja. W izolacji ten sam hook konczy sie w ok. 2 s.
+  // Czerwone z powodu obciazenia maszyny uczy ignorowac czerwone.
+}, 60_000);
 
 afterAll(() => {
   conn.closeDb();
