@@ -99,10 +99,7 @@ async function main() {
     // obu rzeczy naraz - inaczej brak OCR albo OCR w zlym jezyku wychodzi dopiero
     // u mecenasa, ktory wrzuca skan.
     if (process.env.SKIP_OCR !== "1") {
-        const OCR_LANG = {
-            pl: "pol", en: "eng", gb: "eng", us: "eng",
-            pt: "por", it: "ita", de: "deu", es: "spa", fr: "fra",
-        };
+        const { ocrLangFor } = require("./ocr-lang.cjs");
         let locale = "pl";
         try {
             const raw = fs.readFileSync(
@@ -110,7 +107,7 @@ async function main() {
             const parsed = JSON.parse(raw);
             if (parsed && typeof parsed.locale === "string") locale = parsed.locale;
         } catch { /* brak pliku = edycja PL (domyslna) */ }
-        const lang = OCR_LANG[locale] || "pol";
+        const lang = ocrLangFor(locale);
         const tessExe = path.join(RESOURCES, "backend", "ocr", "tesseract", "tesseract.exe");
         const langData = path.join(RESOURCES, "backend", "ocr", "tessdata", `${lang}.traineddata`);
         if (!fs.existsSync(tessExe)) {

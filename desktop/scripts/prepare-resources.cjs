@@ -189,10 +189,9 @@ const TESSDATA_SRC = process.env.PATRON_TESSDATA_DIR
 const SKIP_OCR = process.env.SKIP_OCR === "1";
 // Jezyk OCR idzie za edycja instalatora (ADR-0139), nie jest wpisany na sztywno.
 // Do 2026-08-24 kazda z dziewieciu edycji rozpoznawala skany modelem POLSKIM.
-const OCR_LANG = {
-  pl: "pol", en: "eng", gb: "eng", us: "eng",
-  pt: "por", it: "ita", de: "deu", es: "spa", fr: "fra",
-};
+// Mapa ma jeden dom: scripts/ocr-lang.cjs (main.js trzyma swiadoma kopie -
+// patrz komentarz tam i bramka dryftu w ocr-lang-gate.test.cjs).
+const { ocrLangFor } = require("./ocr-lang.cjs");
 
 function log(msg) {
   console.log(`[prepare-resources] ${msg}`);
@@ -626,7 +625,7 @@ function stageOcrEngine() {
     log("SKIP_OCR=1 - pomijam bundlowanie silnika OCR (swiadoma decyzja operatora buildu).");
     return;
   }
-  const lang = OCR_LANG[LOCALE] || "pol";
+  const lang = ocrLangFor(LOCALE);
   const exe = IS_WIN ? "tesseract.exe" : "tesseract";
   const srcExe = path.join(TESSERACT_DIR, exe);
   const srcLang = path.join(TESSDATA_SRC, `${lang}.traineddata`);
