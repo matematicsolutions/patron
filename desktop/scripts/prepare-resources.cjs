@@ -684,7 +684,7 @@ function stageOcrEngine() {
   mustExist(ocrLicSrc, "desktop/licenses/THIRD-PARTY-OCR-LICENSES.txt (noty bibliotek OCR)");
   fs.copyFileSync(ocrLicSrc, path.join(ocrRoot, "THIRD-PARTY-OCR-LICENSES.txt"));
 
-  log("Silnik OCR (Tesseract + pol + noty licencyjne) gotowy.");
+  log(`Silnik OCR (Tesseract + ${lang} + noty licencyjne) gotowy.`);
 }
 
 // ── 4. Staging frontendu standalone ──────────────────────────────────────────
