@@ -260,6 +260,11 @@ export const pl = {
         verdictRed: "uwaga: źródło NIE potwierdza tezy",
         // Rejestr kontroli cytatu na poziomie rozmowy (pasek nad polem pytania).
         ledgerLabel: "Kontrola cytatu · rozmowa",
+        // ADR-0152: pakiet dowodowy dla pojedynczej odpowiedzi.
+        bundleExport: "Pakiet dowodowy",
+        bundleHint: "Pobierz archiwum: ta odpowiedz, werdykt kazdego cytatu, fragment lancucha audytowego i uzyty model - razem z weryfikatorami, ktore dzialaja bez Patrona.",
+        bundleAria: "Pobierz pakiet dowodowy tej odpowiedzi",
+        bundleFailed: "Nie udalo sie zlozyc pakietu - sprobuj ponownie",
         ledgerAriaLabel: "Suma werdyktów kontroli cytatu w tej rozmowie",
         ledgerGreen: "zgodne",
         ledgerYellow: "nie potwierdzam",

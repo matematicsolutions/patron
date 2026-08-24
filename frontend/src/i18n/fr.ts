@@ -203,6 +203,16 @@ export const fr: DictShape<typeof pl> = {
     },
 
     citations: {
+
+        // ADR-0152: pakiet dowodowy dla pojedynczej odpowiedzi.
+
+        bundleExport: "Dossier de preuve",
+
+        bundleHint: "Telechargez une archive : cette reponse, le verdict de chaque citation, l'extrait de la chaine d'audit et le modele utilise - avec des verificateurs qui fonctionnent sans PATRON.",
+
+        bundleAria: "Telecharger le dossier de preuve de cette reponse",
+
+        bundleFailed: "Impossible de creer le dossier - reessayez",
         title: "Citations",
         documentCitations: "Citations tirées des documents",
         sources: "Sources",

@@ -204,6 +204,16 @@ export const de: DictShape<typeof pl> = {
     },
 
     citations: {
+
+        // ADR-0152: pakiet dowodowy dla pojedynczej odpowiedzi.
+
+        bundleExport: "Nachweispaket",
+
+        bundleHint: "Archiv herunterladen: diese Antwort, das Urteil zu jedem Zitat, der Auszug aus der Audit-Kette und das verwendete Modell - samt Prufwerkzeugen, die ohne PATRON laufen.",
+
+        bundleAria: "Nachweispaket dieser Antwort herunterladen",
+
+        bundleFailed: "Paket konnte nicht erstellt werden - erneut versuchen",
         title: "Zitate",
         documentCitations: "Zitate aus Dokumenten",
         sources: "Quellen",

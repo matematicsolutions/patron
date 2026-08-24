@@ -117,6 +117,9 @@ export const EVENT_TYPES = [
     // kontroli kosztu). Wymaga migracji 010 ALTER CHECK. Lustro: schema.sqlite.ts,
     // schema.sql, migrations/010. Patrz lib/routing/budget.ts + auditCostCap.ts.
     "cost_cap",
+    // ADR-0152: eksport pakietu dowodowego deliverable (audit-bundle).
+    // Wyniesienie tresci z kancelarii = akt, ktory musi zostawic slad.
+    "deliverable.bundle_export",
 ] as const;
 
 /** Union literal lustrzany dla CHECK constraint w audit_log. */

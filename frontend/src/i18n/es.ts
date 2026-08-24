@@ -204,6 +204,16 @@ export const es: DictShape<typeof pl> = {
     },
 
     citations: {
+
+        // ADR-0152: pakiet dowodowy dla pojedynczej odpowiedzi.
+
+        bundleExport: "Paquete probatorio",
+
+        bundleHint: "Descarga un archivo: esta respuesta, el veredicto de cada cita, el extracto de la cadena de auditoria y el modelo utilizado - con verificadores que funcionan sin PATRON.",
+
+        bundleAria: "Descargar el paquete probatorio de esta respuesta",
+
+        bundleFailed: "No se pudo crear el paquete - intentalo de nuevo",
         title: "Citas",
         documentCitations: "Citas de documentos",
         sources: "Fuentes",

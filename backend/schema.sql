@@ -489,7 +489,8 @@ create table if not exists public.audit_log (
     'project.cloud_consent',
     'connector.toggle',
     'mutation.approval.decision',
-    'cost_cap'
+    'cost_cap',
+    'deliverable.bundle_export'
   ))
 );
 

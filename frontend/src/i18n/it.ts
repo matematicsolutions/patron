@@ -199,6 +199,16 @@ export const it: DictShape<typeof pl> = {
     },
 
     citations: {
+
+        // ADR-0152: pakiet dowodowy dla pojedynczej odpowiedzi.
+
+        bundleExport: "Pacchetto di prova",
+
+        bundleHint: "Scarica un archivio: questa risposta, il verdetto su ogni citazione, l'estratto della catena di audit e il modello usato - con verificatori che funzionano senza PATRON.",
+
+        bundleAria: "Scarica il pacchetto di prova di questa risposta",
+
+        bundleFailed: "Impossibile creare il pacchetto - riprova",
         title: "Citazioni",
         documentCitations: "Citazioni dai documenti",
         sources: "Fonti",

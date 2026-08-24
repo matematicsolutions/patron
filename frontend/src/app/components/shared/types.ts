@@ -186,6 +186,13 @@ export type AssistantEvent =
   | { type: "content"; text: string; isStreaming?: boolean };
 
 export interface PATRONMessage {
+  /**
+   * Identyfikator z bazy. Backend zwraca go przy wczytaniu czatu
+   * (select "*"), ale wiadomosc tworzona optymistycznie w trakcie
+   * streamingu jeszcze go NIE ma - dlatego opcjonalny. Eksport pakietu
+   * dowodowego (ADR-0152) wymaga wiadomosci JUZ ZAPISANEJ.
+   */
+  id?: string;
   role: "user" | "assistant";
   content: string;
   files?: { filename: string; document_id?: string }[];

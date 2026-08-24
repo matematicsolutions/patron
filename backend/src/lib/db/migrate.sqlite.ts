@@ -379,6 +379,55 @@ ${list}
     `);
 }
 
+/**
+ * v6: dodaje `deliverable.bundle_export` (ADR-0152 - eksport pakietu dowodowego
+ * deliverable). Jak v5: pelna lista, nie "ostatnia dodana", i rebuild
+ * Z ZACHOWANIEM wierszy - hash-chain i korzenie Merkle musza przezyc.
+ *
+ * Dodajac kolejny event_type: NOWY krok v7 z pelna lista (nie edytuj tej).
+ */
+export const AUDIT_EVENT_TYPES_V6 = [
+    ...AUDIT_EVENT_TYPES_V5,
+    "deliverable.bundle_export",
+] as const;
+
+function rebuildAuditLogAddDeliverableBundleExport(db: Database.Database): void {
+    const row = db
+        .prepare(
+            "select sql from sqlite_master where type = 'table' and name = 'audit_log'",
+        )
+        .get() as { sql?: string } | undefined;
+    if (!row?.sql) return;
+    const missing = AUDIT_EVENT_TYPES_V6.filter((t) => !row.sql!.includes(`'${t}'`));
+    if (missing.length === 0) return;
+
+    const list = AUDIT_EVENT_TYPES_V6.map((t) => `          '${t}'`).join(",\n");
+    db.exec(`
+      create table audit_log_new (
+        id integer primary key autoincrement,
+        ts text not null,
+        actor_user_id text,
+        event_type text not null check (event_type in (
+${list}
+        )),
+        chat_id text,
+        document_id text,
+        payload text not null,
+        prev_hash text not null,
+        hash text not null unique
+      );
+      insert into audit_log_new
+        (id, ts, actor_user_id, event_type, chat_id, document_id, payload, prev_hash, hash)
+        select id, ts, actor_user_id, event_type, chat_id, document_id, payload, prev_hash, hash
+        from audit_log;
+      drop table audit_log;
+      alter table audit_log_new rename to audit_log;
+      create index if not exists idx_audit_log_chat on audit_log(chat_id, ts);
+      create index if not exists idx_audit_log_actor on audit_log(actor_user_id, ts);
+      create index if not exists idx_audit_log_event_type on audit_log(event_type, ts);
+    `);
+}
+
 /** Lista migracji SQLite (kolejnosc = version rosnaco). */
 export const SQLITE_MIGRATIONS: ReadonlyArray<SqliteMigration> = [
     {
@@ -405,6 +454,11 @@ export const SQLITE_MIGRATIONS: ReadonlyArray<SqliteMigration> = [
         version: 5,
         name: "audit_log_event_type_parity_cost_cap",
         up: rebuildAuditLogEventTypeParityV5,
+    },
+    {
+        version: 6,
+        name: "audit_log_add_deliverable_bundle_export_event_type",
+        up: rebuildAuditLogAddDeliverableBundleExport,
     },
 ];
 

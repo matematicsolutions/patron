@@ -315,7 +315,8 @@ create table if not exists audit_log (
     'project.cloud_consent',
     'connector.toggle',
     'mutation.approval.decision',
-    'cost_cap'
+    'cost_cap',
+    'deliverable.bundle_export'
   )),
   chat_id text,
   document_id text,

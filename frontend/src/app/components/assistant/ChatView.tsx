@@ -6,6 +6,9 @@ import { UserMessage } from "./UserMessage";
 import { AssistantMessage } from "./AssistantMessage";
 import { ChatInput } from "./ChatInput";
 import { GroundingLedger } from "./GroundingLedger";
+// ADR-0152: pakiet dowodowy stoi przy aparacie cytowan - obok werdyktow,
+// ktore sam wywozi do odbiorcy.
+import { DeliverableBundleButton } from "./DeliverableBundleButton";
 import {
     AssistantSidePanel,
     type AssistantSidePanelTab,
@@ -477,11 +480,22 @@ export function ChatView({
                             className="pointer-events-none absolute bottom-0 right-6 top-0 hidden w-[calc((100%-4rem-var(--rail-gap))*var(--rail-ratio))] border-l border-gray-200 md:right-8 xl:block"
                         />
                         <div className="absolute right-6 top-4 hidden w-[calc((100%-4rem-var(--rail-gap))*var(--rail-ratio))] pl-4 md:right-8 md:top-6 xl:block">
-                            <div className="sticky top-0">
+                            <div className="sticky top-0 flex flex-col gap-2">
                                 <GroundingLedger
                                     messages={messages}
                                     variant="margin"
                                 />
+                                {(() => {
+                                    // Ostatnia odpowiedz asystenta, ktora JUZ jest
+                                    // w bazie. Wiadomosc w trakcie streamingu nie ma
+                                    // id i nie ma z czego zlozyc dowodu.
+                                    const zapisana = [...messages]
+                                        .reverse()
+                                        .find((m) => m.role === "assistant" && m.id);
+                                    return zapisana?.id ? (
+                                        <DeliverableBundleButton messageId={zapisana.id} />
+                                    ) : null;
+                                })()}
                             </div>
                         </div>
                         {!messagesVisible && (

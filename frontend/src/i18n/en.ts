@@ -205,6 +205,11 @@ export const en: DictShape<typeof pl> = {
     citations: {
         title: "Citations",
         ledgerLabel: "Citation control · conversation",
+        // ADR-0152: pakiet dowodowy dla pojedynczej odpowiedzi.
+        bundleExport: "Evidence pack",
+        bundleHint: "Download an archive: this answer, the verdict on every citation, the audit-chain excerpt and the model used - together with verifiers that run without PATRON.",
+        bundleAria: "Download the evidence pack for this answer",
+        bundleFailed: "Could not build the pack - try again",
         ledgerAriaLabel: "Sum of citation-control verdicts in this conversation",
         ledgerGreen: "verified",
         ledgerYellow: "not confirmed",
