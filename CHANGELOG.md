@@ -9,6 +9,17 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ### Naprawione
 
+- **Pasek perymetru opisywal model chmurowy jako lokalny.** Plakietka `(lokalny)` przy
+  nazwie modelu zapalala sie od `PATRON_LOCAL_MODEL` z konfiguracji, czyli od tego, ze
+  gdziekolwiek ustawiono model lokalny - a nie od tego, ktory model jest wybrany. Przy
+  domyslnym modelu chmurowym pasek pisal doslownie `MODEL
+  openrouter/google/gemini-3-flash-preview (lokalny)` obok zielonego `Dane nie opuszczaja
+  urzadzenia`. Plakietka zalezy teraz wylacznie od wyswietlanego modelu, a zielone
+  zapewnienie o danych wymaga zamknietej polityki egresu ORAZ lokalnego modelu w uzyciu;
+  zamknieta polityka przy modelu chmurowym ma wlasny napis `Chmura zablokowana - wybrany
+  model nie jest lokalny` w barwie ostrzezenia. Najglosniejszy sygnal zaufania produktu
+  przestaje wystawiac twierdzenie, ktorego nie sprawdza.
+  [ADR-0147](./governance/adr/0147-system-wizualny-2-0-i-perymetr.md), sekcja 3a.
 - **Przypis do dokumentu, ktorego nie ma, otwieral karte widma w panelu bocznym.**
   Gdy model przywolal `doc_id` spoza indeksu tury, adnotacja szla do bazy bez
   `document_id` (`resolveDoc` nie trafia), a przypis mimo to byl klikalny - panel

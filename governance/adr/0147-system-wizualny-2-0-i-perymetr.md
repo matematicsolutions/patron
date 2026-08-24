@@ -81,6 +81,37 @@ postawa egress, model, gateway MCP, decyzje z 24 h, liczba zablokowanych. Trojst
 cytacie — **brak odpowiedzi z `/api/config/egress` daje `unknown`, nie `local`**. Pasywny:
 czyta stan, nie loguje wejscia i niczego nie zmienia.
 
+**3a. Korekta 2026-08-24: postawa i plakietka opisuja STAN W UZYCIU, nie zawartosc env.**
+Pierwsza wersja paska liczyla postawe wylacznie z flag egresu, a plakietke `(lokalny)` wieszala
+na `local_model_configured` z `/api/config/egress`. To pole znaczy "gdzies w konfiguracji
+ustawiono `PATRON_LOCAL_MODEL`", a NIE "model widoczny obok jest lokalny". Zmierzony efekt na
+profilu demo: `Dane nie opuszczaja urzadzenia | MODEL openrouter/google/gemini-3-flash-preview
+(lokalny)` — nazwa modelu chmurowego z USA opisana jako lokalna, obok zielonego zapewnienia
+o danych. To ten sam mechanizm co przy OCR w ADR-0151: powierzchnia konczy sukcesem, a tresc
+jest nieprawdziwa.
+
+Obowiazuje od tej korekty:
+
+- plakietka `(lokalny)` zalezy WYLACZNIE od wyswietlanego modelu (prefiks `ollama/`,
+  `frontend/src/lib/modelEgress.ts` — lustro `backend/src/lib/routing/egress.ts`, pilnowane
+  bramka o picker modeli). Fail-closed: model nierozpoznany nie jest lokalny;
+- zielone `Dane nie opuszczaja urzadzenia` jest KONIUNKCJA: polityka egresu zamknieta **oraz**
+  model w uzyciu lokalny. Zamknieta polityka przy modelu chmurowym to nowy stan
+  `cloud-blocked` z wlasnym napisem (`perimeter.cloudBlocked`, "Chmura zablokowana - wybrany
+  model nie jest lokalny") w barwie ostrzezenia — router zablokuje wyjscie, ale o danych nie
+  obiecujemy niczego, czego nie widac. Cisza jest tu gorsza od ostrzezenia;
+- otwarta flaga egresu daje `cloud` takze wtedy, gdy model glowny jest lokalny: model glowny
+  to nie caly ruch (tytul czatu i przeglad tabelaryczny ida na `DEFAULT_TITLE_MODEL`).
+
+Nowy klucz `perimeter.cloudBlocked` wchodzi do 7 slownikow z tym samym zastrzezeniem, co reszta
+`perimeter.*` (patrz Koszty i ryzyka): tlumaczenie autora, do przeczytania przez prawnika rynku.
+
+**Nierozstrzygniete (poza zakresem korekty).** Pasek stoi w `(pages)/layout`, czyli nie zna
+sprawy, a `projects.cloud_consent` (ADR-0128) zdejmuje blokade chmury per sprawa niezaleznie od
+flag env. W sprawie ze zgoda per-sprawa `local` moze wiec nadal byc zbyt mocnym zdaniem dla
+ruchu pomocniczego. Wymaga osobnej decyzji: albo pasek staje sie swiadomy sprawy, albo
+`/api/config/egress` przestaje byc jedynym zrodlem postawy.
+
 `EgressConfigBanner` **zostaje**. Czesciowo dubluje pasek, ale to powierzchnia zgodnosciowa
 (ADR-0101) i jej zdjecie ma byc osobna decyzja, nie efektem ubocznym refaktoru designu.
 

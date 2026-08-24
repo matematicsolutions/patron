@@ -23,10 +23,16 @@ import type { ReactElement, ReactNode } from "react";
 import { useEgressConfig } from "@/hooks/useEgressConfig";
 import { useMcpSecurityStatus } from "@/hooks/useMcpSecurityStatus";
 import { useSelectedModel } from "@/app/hooks/useSelectedModel";
+import { isLocalModel } from "@/lib/modelEgress";
 import Link from "next/link";
 import { t } from "@/i18n";
 
-type Posture = "local" | "cloud" | "unknown";
+// "cloud-blocked" = polityka egresu zamknieta, ale wybrany model jest chmurowy.
+// Router zablokuje wyjscie, wiec stan jest ochronny - ale zdanie "dane nie
+// opuszczaja urzadzenia" bylo w nim FALSZYWE, bo nic o tych danych nie mowi
+// polityka, ktora dopiero ma cos zablokowac. Osobny stan zamiast milczenia:
+// ostrzezenie jest tu lepsze niz zielono.
+type Posture = "local" | "cloud-blocked" | "cloud" | "unknown";
 
 /** Segment paska: klikalny, prowadzi tam, gdzie zarzadza sie tym faktem. */
 function Segment({
@@ -63,13 +69,30 @@ export function PerimeterBar(): ReactElement {
     const { status } = useMcpSecurityStatus();
     const [model] = useSelectedModel();
 
+    // Czy model WIDOCZNY obok jest lokalny. Do 2026-08-24 pasek czytal w tym
+    // miejscu `config.local_model_configured`, czyli "gdzies w env ustawiono
+    // PATRON_LOCAL_MODEL" - co jest zupelnie innym zdaniem niz "ten model jest
+    // lokalny". Zmierzony efekt na profilu demo: "MODEL
+    // openrouter/google/gemini-3-flash-preview (lokalny)".
+    const modelIsLocal = isLocalModel(model);
+
+    // Postawa to KONIUNKCJA polityki i modelu w uzyciu:
+    //   - zielone "dane nie opuszczaja urzadzenia" wymaga zamknietej polityki
+    //     ORAZ lokalnego modelu - jest ZAROBIONE, nie domyslne;
+    //   - zamknieta polityka + model chmurowy = "cloud-blocked" (router zablokuje,
+    //     ale o danych nic nie obiecujemy);
+    //   - otwarta flaga egresu = "cloud" nawet przy lokalnym modelu glownym, bo
+    //     model glowny to nie caly ruch: tytul czatu i przeglad tabelaryczny ida
+    //     na DEFAULT_TITLE_MODEL (chmura) niezaleznie od wyboru w pickerze.
     // fail-closed: brak konfiguracji nie awansuje na zielony
     const posture: Posture =
         config === null
             ? "unknown"
             : config.privileged_cloud.allowed || config.us_providers.allowed
               ? "cloud"
-              : "local";
+              : modelIsLocal
+                ? "local"
+                : "cloud-blocked";
 
     const tone = posture === "local" ? "text-rev-ok" : "text-rev-warn";
     const dot = posture === "local" ? "bg-rev-ok" : "bg-rev-warn";
@@ -79,9 +102,11 @@ export function PerimeterBar(): ReactElement {
             ? t("perimeter.local")
             : posture === "unknown"
               ? t("perimeter.unknown")
-              : config?.privileged_cloud.allowed
-                ? t("perimeter.cloudPrivileged")
-                : t("perimeter.cloudUs");
+              : posture === "cloud-blocked"
+                ? t("perimeter.cloudBlocked")
+                : config?.privileged_cloud.allowed
+                  ? t("perimeter.cloudPrivileged")
+                  : t("perimeter.cloudUs");
 
     const blocked = status?.audit_summary_24h.by_action.denied ?? 0;
 
@@ -121,8 +146,14 @@ export function PerimeterBar(): ReactElement {
             >
                 <span className="uppercase tracking-[0.08em]">{t("perimeter.model")}</span>
                 <span className="font-mono text-rev-foreground">{model}</span>
-                {config?.local_model_configured ? (
-                    <span className="text-rev-ok">({t("perimeter.localModel")})</span>
+                {/* Plakietka opisuje MODEL OBOK, nie zawartosc env. */}
+                {modelIsLocal ? (
+                    <span
+                        className="text-rev-ok"
+                        data-testid="perimeter-local-badge"
+                    >
+                        ({t("perimeter.localModel")})
+                    </span>
                 ) : null}
             </Segment>
 

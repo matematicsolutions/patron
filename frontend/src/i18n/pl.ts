@@ -982,6 +982,7 @@ export const pl = {
         cloudPrivileged: "Model chmurowy dopuszczony dla spraw objętych tajemnicą",
         cloudUs: "Dostawcy z USA dopuszczeni",
         unknown: "Nie potwierdzam — brak odpowiedzi o konfiguracji",
+        cloudBlocked: "Chmura zablokowana - wybrany model nie jest lokalny",
         model: "Model",
         localModel: "lokalny",
         gateway: "Bramka MCP",

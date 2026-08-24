@@ -23,9 +23,21 @@ vi.mock("@/hooks/useEgressConfig", () => ({
 vi.mock("@/hooks/useMcpSecurityStatus", () => ({
     useMcpSecurityStatus: () => ({ visible: true, status: mcp.status, error: null }),
 }));
+// Wybrany model jest ZMIENNA testu, nie stala: plakietka "(lokalny)" i zielone
+// zapewnienie o danych zaleza wlasnie od niego. Do 2026-08-24 mock byl przybity
+// na sztywno do modelu chmurowego, wiec przypadek "postawa lokalna" mierzyl
+// konfiguracje, ktora w produkcie NIE JEST lokalna - i dlatego siatka przepuscila
+// pasek piszacy "openrouter/google/gemini-3-flash-preview (lokalny)".
+const selected = vi.hoisted(() => ({ model: "" }));
+
 vi.mock("@/app/hooks/useSelectedModel", () => ({
-    useSelectedModel: () => ["gemini-2.5-pro", vi.fn()],
+    useSelectedModel: () => [selected.model, vi.fn()],
 }));
+
+/** DEFAULT_MODEL_ID z ModelToggle - na tym startuje swieza instalacja. */
+const CLOUD_MODEL = "openrouter/google/gemini-3-flash-preview";
+/** Jedyna pozycja grupy "Lokalny" w pickerze modeli. */
+const LOCAL_MODEL = "ollama/SpeakLeash/bielik-11b-v2.3-instruct:Q4_K_M";
 
 import { PerimeterBar } from "./perimeter-bar";
 
@@ -52,6 +64,10 @@ function bar(): HTMLElement {
     return screen.getByTestId("perimeter-bar");
 }
 
+beforeEach(() => {
+    selected.model = CLOUD_MODEL;
+});
+
 describe("PerimeterBar - postawa perymetru", () => {
     beforeEach(() => {
         egress.config = null;
@@ -68,6 +84,9 @@ describe("PerimeterBar - postawa perymetru", () => {
 
     it("tryb czysto lokalny raportuje, ze dane nie opuszczaja urzadzenia", () => {
         egress.config = config();
+        // Postawa lokalna to KONIUNKCJA: polityka zamknieta ORAZ wybrany model
+        // lokalny. Sam zamkniety egress przy modelu chmurowym to "cloud-blocked".
+        selected.model = LOCAL_MODEL;
         render(<PerimeterBar />);
         expect(bar().getAttribute("data-posture")).toBe("local");
         expect(screen.getByText(t("perimeter.local"))).toBeTruthy();
@@ -109,6 +128,87 @@ describe("PerimeterBar - postawa perymetru", () => {
         mcp.status = status(0);
         render(<PerimeterBar />);
         expect(bar().textContent).not.toContain(t("perimeter.blocked"));
+    });
+});
+
+// ZMIERZONE 2026-08-24 na profilu demo: przy PATRON_LOCAL_MODEL=ollama/llama3:latest
+// i domyslnie wybranym modelu chmurowym pasek pisal doslownie
+//   "Dane nie opuszczaja urzadzenia | MODEL openrouter/google/gemini-3-flash-preview (lokalny)"
+// czyli nazwe modelu z USA opisana jako lokalny, obok zielonego zapewnienia o danych.
+// Zrodlo: plakietka wisiala na `local_model_configured`, ktore znaczy "gdzies w env
+// ustawiono model lokalny", a NIE "model widoczny obok jest lokalny".
+describe("PerimeterBar - plakietka (lokalny) opisuje WYSWIETLANY model", () => {
+    function badge(): HTMLElement | null {
+        return screen.queryByText(`(${t("perimeter.localModel")})`);
+    }
+
+    beforeEach(() => {
+        mcp.status = null;
+    });
+
+    it("model chmurowy + PATRON_LOCAL_MODEL ustawiony: plakietka NIE pada", () => {
+        egress.config = config({ local_model_configured: true });
+        selected.model = CLOUD_MODEL;
+        render(<PerimeterBar />);
+        expect(
+            screen.getByTestId("perimeter-model-link").textContent,
+        ).toContain(CLOUD_MODEL);
+        expect(badge()).toBeNull();
+    });
+
+    // Kontrola pozytywna: bramka wyzej moze byc zielona dlatego, ze nie ma na czym
+    // zadzialac. Ten przypadek dowodzi, ze plakietka w ogole potrafi sie pojawic.
+    it("model ollama/ dostaje plakietke - bramka ma mianownik", () => {
+        egress.config = config({ local_model_configured: true });
+        selected.model = LOCAL_MODEL;
+        render(<PerimeterBar />);
+        expect(badge()).not.toBeNull();
+    });
+
+    it("model ollama/ jest lokalny takze bez PATRON_LOCAL_MODEL w env", () => {
+        egress.config = config({ local_model_configured: false });
+        selected.model = LOCAL_MODEL;
+        render(<PerimeterBar />);
+        expect(badge()).not.toBeNull();
+    });
+});
+
+// Zielone "Dane nie opuszczaja urzadzenia" jest ZAROBIONE, nie domyslne: wymaga
+// zamknietej polityki egresu ORAZ lokalnego modelu w uzyciu. Sama zamknieta
+// polityka mowi tylko tyle, ze router zablokuje wyjscie - to jest inne zdanie
+// i musi byc inaczej napisane (cisza gorsza niz ostrzezenie).
+describe("PerimeterBar - zapewnienie o danych jest koniunkcja polityki i modelu", () => {
+    beforeEach(() => {
+        mcp.status = null;
+    });
+
+    it("polityka zamknieta, ale model chmurowy: 'chmura zablokowana', NIE 'dane nie opuszczaja urzadzenia'", () => {
+        egress.config = config({ local_model_configured: true });
+        selected.model = CLOUD_MODEL;
+        render(<PerimeterBar />);
+        expect(bar().getAttribute("data-posture")).toBe("cloud-blocked");
+        expect(screen.queryByText(t("perimeter.local"))).toBeNull();
+        expect(screen.getByText(t("perimeter.cloudBlocked"))).toBeTruthy();
+    });
+
+    it("polityka zamknieta ORAZ model lokalny: zapewnienie zarobione", () => {
+        egress.config = config();
+        selected.model = LOCAL_MODEL;
+        render(<PerimeterBar />);
+        expect(bar().getAttribute("data-posture")).toBe("local");
+        expect(screen.getByText(t("perimeter.local"))).toBeTruthy();
+    });
+
+    // Asymetria celowa: otwarta flaga egresu NIE awansuje na zielono nawet przy
+    // lokalnym modelu glownym, bo model glowny to nie caly ruch - tytul czatu i
+    // przeglad tabelaryczny ida na DEFAULT_TITLE_MODEL (chmura) niezaleznie od
+    // wyboru w pickerze.
+    it("otwarta flaga egresu nie awansuje na zielono nawet przy modelu lokalnym", () => {
+        egress.config = config({ us_providers: { allowed: true } });
+        selected.model = LOCAL_MODEL;
+        render(<PerimeterBar />);
+        expect(bar().getAttribute("data-posture")).toBe("cloud");
+        expect(screen.queryByText(t("perimeter.local"))).toBeNull();
     });
 });
 

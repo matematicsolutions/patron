@@ -802,6 +802,7 @@ export const es: DictShape<typeof pl> = {
         cloudPrivileged: "Modelo en la nube permitido para asuntos sujetos a secreto profesional",
         cloudUs: "Proveedores de EE. UU. permitidos",
         unknown: "No confirmado: sin respuesta sobre la configuración",
+        cloudBlocked: "Nube bloqueada - el modelo seleccionado no es local",
         model: "Modelo",
         localModel: "local",
         gateway: "Pasarela MCP",
