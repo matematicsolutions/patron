@@ -1,3 +1,5 @@
+import { t } from "@/i18n";
+
 // Shared TypeScript types for PATRON AI legal assistant
 
 export interface PATRONFolder {
@@ -407,8 +409,9 @@ export function expandCitationToEntries(
 
 /** Format the page(s) of a citation for display, e.g. "Page 3" or "Page 41-42". */
 export function formatCitationPage(a: PATRONCitationAnnotation): string {
-  if (typeof a.page === "string") return `Page ${a.page}`;
-  return `Page ${a.page}`;
+  // Numer strony jest tym samym napisem dla string i number - warunek,
+  // ktory tu stal, mial obie galezie identyczne.
+  return `${t("citations.page")} ${a.page}`;
 }
 
 /** Produce a reader-friendly version of the quote (replaces [[PAGE_BREAK]] with "..."). */

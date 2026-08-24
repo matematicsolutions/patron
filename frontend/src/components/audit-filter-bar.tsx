@@ -9,6 +9,26 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { AuditEventType, AuditLogFilter } from "@/hooks/useAuditLog";
 
+// Pola <input type="datetime-local"> mowia CZASEM LOKALNYM, a filtr trzyma UTC
+// (toISOString). Samo `.slice(0, 16)` na UTC pokazuje instant przesuniety o offset
+// strefy - audytor prosi o "od 09:00", a dostaje inne okno i nie ma jak tego zauwazyc.
+// Zapis (local -> UTC) byl poprawny od poczatku; niesymetryczny byl odczyt.
+// Rdzen wydzielony z jawnym offsetem (konwencja getTimezoneOffset: UTC minus lokalny,
+// czyli Warszawa latem = -120). Bez tego szwu test moglby sprawdzac konwersje tylko
+// w strefie maszyny, a CI chodzi w UTC - tam stary i nowy odczyt daja to samo.
+export function utcNaLokalneZOffsetem(iso: string, offsetMin: number): string {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime()) || Number.isNaN(offsetMin)) return "";
+    const przesuniety = new Date(d.getTime() - offsetMin * 60000);
+    return przesuniety.toISOString().slice(0, 16);
+}
+
+export function utcNaLokalneDlaInputu(iso: string): string {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "";
+    return utcNaLokalneZOffsetem(iso, d.getTimezoneOffset());
+}
+
 const EVENT_TYPE_OPTIONS: Array<{ value: AuditEventType; label: string }> = [
     { value: "all", label: "Wszystkie" },
     { value: "chat.message.user", label: "Wiadomosc uzytkownika" },
@@ -82,7 +102,7 @@ export function AuditFilterBar({
                 <span className="text-gray-700">Od</span>
                 <Input
                     type="datetime-local"
-                    value={filter.since.slice(0, 16)}
+                    value={utcNaLokalneDlaInputu(filter.since)}
                     onChange={(e) =>
                         setFilter((f) => ({
                             ...f,
@@ -96,7 +116,7 @@ export function AuditFilterBar({
                 <span className="text-gray-700">Do</span>
                 <Input
                     type="datetime-local"
-                    value={filter.until.slice(0, 16)}
+                    value={utcNaLokalneDlaInputu(filter.until)}
                     onChange={(e) =>
                         setFilter((f) => ({
                             ...f,

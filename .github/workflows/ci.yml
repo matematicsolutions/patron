@@ -26,7 +26,13 @@ jobs:
           cache: npm
           cache-dependency-path: backend/package-lock.json
 
-      - run: npm ci
+      # Instalacja zalezy od SIECI poza cache npm: onnxruntime-node (ciagniety przez
+      # @huggingface/transformers) dociaga binaria w postinstall przy kazdym biegu.
+      # Zmierzone 2026-08-23: 1 porazka na 30 przebiegow, ETIMEDOUT w trakcie pobierania.
+      # Druga proba jest bezpieczna - npm ci czysci node_modules na starcie. Ostrzezenie
+      # zostaje widoczne w logu, a druga porazka nadal konczy sie czerwono.
+      - name: npm ci (z jednym ponowieniem przy awarii sieci)
+        run: npm ci || { echo "::warning::npm ci padl za pierwszym razem - ponawiam"; npm ci; }
 
       - name: TypeScript check
         run: npx tsc --noEmit
@@ -56,7 +62,8 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
 
-      - run: npm ci
+      - name: npm ci (z jednym ponowieniem przy awarii sieci)
+        run: npm ci || { echo "::warning::npm ci padl za pierwszym razem - ponawiam"; npm ci; }
 
       - name: TypeScript check
         run: npx tsc --noEmit
@@ -87,6 +94,7 @@ jobs:
           node-version: 20.x
           cache: npm
           cache-dependency-path: backend/package-lock.json
-      - run: npm ci
+      - name: npm ci (z jednym ponowieniem przy awarii sieci)
+        run: npm ci || { echo "::warning::npm ci padl za pierwszym razem - ponawiam"; npm ci; }
       - name: Run audit chain attack scenarios (4 included)
         run: npx vitest run src/lib/audit.test.ts

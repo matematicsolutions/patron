@@ -236,6 +236,9 @@ export const pl = {
         relatedSources: "Powiązane źródła",
         page: "Strona",
         pages: "Strony",
+        // Etykieta karty pojedynczego cytatu w panelu dokumentu.
+        cardLabel: "Cytat",
+        trackedChange: "\u015aledzona zmiana",
         openSource: "Otwórz źródło",
         noCitations: "Brak cytatów dla tej odpowiedzi.",
         // MCP server labels - odpowiadaja `mcpServerLabel` z AssistantMessage.tsx
@@ -515,6 +518,13 @@ export const pl = {
         searchPlaceholder: "Szukaj workflowów…",
         noWorkflowsFound: "Brak workflowów asystenta",
         builtIn: "Wbudowany",
+        // Zakladki i naglowki kolumn listy workflowow (/workflows).
+        all: "Wszystkie",
+        hidden: "Ukryte",
+        name: "Nazwa",
+        type: "Typ",
+        practice: "Praktyka",
+        source: "\u0179r\u00f3d\u0142o",
         custom: "Niestandardowy",
         // Detal workflow (strona /workflows/[id])
         notFound: "Nie znaleziono workflow.",
