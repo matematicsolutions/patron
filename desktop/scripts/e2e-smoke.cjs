@@ -127,6 +127,30 @@ async function main() {
         console.log(`OCR: silnik + ${lang}.traineddata obecne (edycja ${locale}).`);
     }
 
+    // Konektory MCP wg edycji: czy paczka wiezie NASZE konektory we wlasciwym
+    // zestawie i WLACZONE. Do 2026-08-24 nikt tego nie sprawdzal mechanicznie.
+    // To inny ksztalt bledu niz dwie asercje wyzej: paczka jest KOMPLETNA,
+    // apka wstaje, wszystkie liczniki sie zgadzaja - a konektor jedzie jako
+    // enabled=false i mecenas nie ma zrodla w czacie (zmierzone 2026-08-17 na
+    // eureka: nazwa niezsynchronizowana z lustrem JURISDICTION).
+    // Oczekiwanie: scripts/connectors-expected.cjs (przepisane recznie, NIE
+    // liczone kodem, ktory produkuje manifest).
+    if (process.env.SKIP_CONNECTORS !== "1") {
+        const { sprawdzKonektory } = require("./connectors-gate.cjs");
+        const wynik = sprawdzKonektory(RESOURCES);
+        if (!wynik.ok) {
+            console.error(`Paczka NIEZGODNA: ${wynik.podsumowanie}`);
+            for (const problem of wynik.problemy) console.error(`  - ${problem}`);
+            process.exit(2);
+        }
+        console.log(`Konektory: ${wynik.podsumowanie}`);
+    } else {
+        console.warn(
+            "UWAGA: SKIP_CONNECTORS=1 - manifest konektorow NIE sprawdzony. " +
+                "Paczka w tym stanie nie nadaje sie do wydania.",
+        );
+    }
+
     if ((await portInUse(BACKEND_PORT)) || (await portInUse(FRONTEND_PORT))) {
         console.error(
             `Port ${BACKEND_PORT} lub ${FRONTEND_PORT} zajety - dziala inny PATRON? ` +

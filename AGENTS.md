@@ -32,12 +32,15 @@ node scripts/bundle-mcp.cjs
 # Bundling the Node MCP connectors + the embedder model into the DESKTOP installer
 # (Electron) happens in prepare-resources.cjs (stageMcpConnectors + stageEmbedModel);
 # it needs the built mcp-* repos next to patron/ (MCP_REPOS_DIR, default `..`).
-# See ADR-0100. When you add a NODE connector, sync its name in FIVE places:
+# See ADR-0100. When you add a NODE connector, sync its name in SIX places:
 # backend/src/lib/mcp-security/pipeline.ts (APPROVED_PATRON_CONNECTORS),
 # backend/src/lib/mcp/connectors.ts (JURISDICTION_BY_CONNECTOR - otherwise the picker
 # files it under "OTHER"), desktop/scripts/prepare-resources.cjs (MCP_SERVERS AND the
 # local JURISDICTION mirror + ORDER_PL/ORDER_EN - without the mirror entry the connector
-# ships in the installer as enabled=false, measured 2026-08-17 on eureka) and
+# ships in the installer as enabled=false, measured 2026-08-17 on eureka),
+# desktop/scripts/connectors-expected.cjs (the per-edition gate's expectation - it is
+# hand-written ON PURPOSE and does NOT import prepare-resources.cjs, so a gate that
+# computed the expectation from the code under test would pass its own exam) and
 # mcp-servers.example.json; for docker mode additionally scripts/bundle-mcp.cjs.
 # A name mismatch = the typosquat gate + ring policy block OUR OWN connector (ADR-0027/0028).
 # State on 2026-08-17: 7 Node connectors (6 + eureka); the eureka repo lives in
@@ -46,8 +49,9 @@ node scripts/bundle-mcp.cjs
 # PYTHON connectors (national ELI connectors, Option C - ADR-0136): NOT frozen per
 # connector; ONE bundled standalone CPython + `uv pip install` of all of them into its
 # site-packages at build time (stageBundledPython in prepare-resources.cjs). The eli
-# repos live in ~/Projects (MCP_PY_REPOS_DIR, not next to patron). 3-way name sync:
-# pipeline.ts APPROVED + prepare-resources.cjs MCP_SERVERS_PYTHON + mcp-servers.example.json.
+# repos live in ~/Projects (MCP_PY_REPOS_DIR, not next to patron). 4-way name sync:
+# pipeline.ts APPROVED + prepare-resources.cjs MCP_SERVERS_PYTHON + mcp-servers.example.json
+# + desktop/scripts/connectors-expected.cjs (per-edition expectation, see above).
 # Spawn: py-runtime/python.exe -s -E -c "from <module>.server import main; main()".
 # Build locale (ADR-0132/0139): NEXT_PUBLIC_PATRON_LOCALE in {pl,en,it,de,es,fr,pt,gb,us}
 # (source of truth: SUPPORTED_LOCALES in frontend/src/i18n/index.ts; gb and us reuse the
@@ -64,7 +68,7 @@ cp .env.docker.example .env.docker
 docker compose --env-file .env.docker up -d
 ```
 
-Tests: backend vitest 1467 pass / 0 fail / 5 todo, frontend vitest 43 pass, on 2026-08-18. TSC clean (backend + frontend). **Do not commit if tests fail** - the quality gate from [CONTRIBUTING.md](./CONTRIBUTING.md) (`npm test --prefix backend` must stay green). Before a release, additionally run `npm run smoke:surfaces` (backend, real model: tabular / workflows / DOCX / research + MCP grounding / draft-refine) and `npm run build:dir && npm run e2e:smoke` (desktop, packaged app on a clean profile) - the build tooling exits 0 even when the package is incomplete; only the e2e catches that.
+Tests: backend vitest 1467 pass / 0 fail / 5 todo, frontend vitest 43 pass, on 2026-08-18. TSC clean (backend + frontend). **Do not commit if tests fail** - the quality gate from [CONTRIBUTING.md](./CONTRIBUTING.md) (`npm test --prefix backend` must stay green). Before a release, additionally run `npm run smoke:surfaces` (backend, real model: tabular / workflows / DOCX / research + MCP grounding / draft-refine) and `npm run build:dir && npm run e2e:smoke` (desktop, packaged app on a clean profile) - the build tooling exits 0 even when the package is incomplete; only the e2e catches that. It now asserts three kinds of incompleteness before booting the app: empty `resources/{backend,frontend}/node_modules` (electron-builder 26 strips them), a missing OCR engine or the language pack of THIS edition, and an MCP connector manifest that does not match the edition (`desktop/scripts/connectors-gate.cjs`). The connector check also runs on the artifact inside `npm run build:<locale>`, so a wrong manifest stops the build before the installer is renamed and checksummed.
 
 ## Code rules
 

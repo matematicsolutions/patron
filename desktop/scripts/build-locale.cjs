@@ -67,6 +67,12 @@ function run(cmd, args) {
   }
 }
 
+// 0. Bramki dryftu PRZED buildem. build-locale wola prepare-resources.cjs
+// BEZPOSREDNIO, wiec omijalo skrypt npm `prepare:resources`, w ktorym te dwa
+// testy wisza - czyli `npm run build:pl` szedl bez nich. Sekunda kazdy.
+run("node", ["scripts/ocr-lang-gate.test.cjs"]);
+run("node", ["scripts/connectors-gate.test.cjs"]);
+
 // 1+2. Zasoby + build z jezykiem NSIS per rynek. --publish=never na sztywno:
 // upload assets do GitHub Releases to akt ludzki WM (bramka "push publiczny").
 run("node", ["scripts/prepare-resources.cjs"]);
@@ -78,6 +84,12 @@ run("npx", [
   `--config.nsis.installerLanguages=${cfg.nsisLang}`,
   `--config.nsis.language=${cfg.lcid}`,
 ]);
+
+// 2b. Kontrola ARTEFAKTU, nie logu: czy paczka wiezie konektory TEJ edycji we
+// wlasciwym zestawie i wlaczone. electron-builder konczy exit 0 takze wtedy,
+// gdy manifest jest nie ten - a to wyszloby dopiero u mecenasa. Sprawdzamy tu,
+// zeby nie renamowac i nie liczyc sumy kontrolnej z paczki, ktora i tak odpada.
+run("node", ["scripts/connectors-gate.cjs"]);
 
 // 3. Rename na kanoniczna nazwe releasowa (najnowszy .exe z dist/).
 const exes = fs
