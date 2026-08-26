@@ -4,23 +4,28 @@ import type { Provider } from "./types";
 // Canonical model IDs
 // ---------------------------------------------------------------------------
 // Main-chat tier (top-end) — user picks one of these per message.
-export const CLAUDE_MAIN_MODELS = ["claude-opus-4-8", "claude-sonnet-4-6"] as const;
+export const CLAUDE_MAIN_MODELS = ["claude-opus-5", "claude-sonnet-5"] as const;
 export const GEMINI_MAIN_MODELS = [
     "gemini-3.1-pro-preview",
+    "gemini-3.7-flash",
+    // 3-flash-preview zostaje mimo nowszego 3.7: jest tanszy w cenniku Google
+    // (0.5/3 vs 0.75/3.75, a od 2027-01-01 stawka 3.7 sie podwaja).
     "gemini-3-flash-preview",
 ] as const;
-export const OPENAI_MAIN_MODELS = ["gpt-5.5", "gpt-5.4-mini"] as const;
+// Rodzina 5.6: Sol (frontier), Terra (balans), Luna (budzet). Wszystkie 1.05M
+// kontekstu. Sol jest tanszy od wycofanego gpt-5.5 (4/20 vs 5/30).
+export const OPENAI_MAIN_MODELS = ["gpt-5.6-sol", "gpt-5.6-terra"] as const;
 
 // Mid-tier (used for tabular review) — user picks one in account settings.
-export const CLAUDE_MID_MODELS = ["claude-sonnet-4-6"] as const;
+export const CLAUDE_MID_MODELS = ["claude-sonnet-5"] as const;
 export const GEMINI_MID_MODELS = ["gemini-3-flash-preview"] as const;
-export const OPENAI_MID_MODELS = ["gpt-5.4-mini"] as const;
+export const OPENAI_MID_MODELS = ["gpt-5.6-luna"] as const;
 
 // Low-tier (used for title generation, lightweight extractions) — user picks
 // one in account settings.
 export const CLAUDE_LOW_MODELS = ["claude-haiku-4-5"] as const;
 export const GEMINI_LOW_MODELS = ["gemini-3.1-flash-lite-preview"] as const;
-export const OPENAI_LOW_MODELS = ["gpt-5.4-nano"] as const;
+export const OPENAI_LOW_MODELS = ["gpt-5.6-luna"] as const;
 
 // Domyslne modele dla WSZYSTKICH zadan pomocniczych (glowny fallback, generowanie
 // tytulu czatu, przeglad tabelaryczny). Celowo OpenRouter, nie chmura-direct:
@@ -29,9 +34,11 @@ export const OPENAI_LOW_MODELS = ["gpt-5.4-nano"] as const;
 // to modele Gemini-direct (wlasny klucz Google) - bez tego klucza tytuly i tabela
 // cicho padaly, mimo ze czat na OpenRouterze dzialal ("wybieram model, a czesc
 // rzeczy nie dziala"). OpenRouter Gemini Flash = tani i szybki do zadan pomocniczych.
-export const DEFAULT_MAIN_MODEL = "openrouter/google/gemini-3-flash-preview";
-export const DEFAULT_TITLE_MODEL = "openrouter/google/gemini-3-flash-preview";
-export const DEFAULT_TABULAR_MODEL = "openrouter/google/gemini-3-flash-preview";
+// Od 2026-08-26 to 3.7 Flash: na OpenRouterze jest JEDNOCZESNIE nowszy i tanszy od
+// 3-flash-preview (0.375/1.875 vs 0.5/3), wiec zmiana nie kosztuje kancelarii nic.
+export const DEFAULT_MAIN_MODEL = "openrouter/google/gemini-3.7-flash";
+export const DEFAULT_TITLE_MODEL = "openrouter/google/gemini-3.7-flash";
+export const DEFAULT_TABULAR_MODEL = "openrouter/google/gemini-3.7-flash";
 
 const ALL_MODELS = new Set<string>([
     ...CLAUDE_MAIN_MODELS,
@@ -89,8 +96,32 @@ export function providerForModel(model: string): Provider {
     throw new Error(`Unknown model id: ${model}`);
 }
 
+// Modele wycofane z pickera (Anthropic 4.x: ta sama stawka co 5.x, slabszy model).
+// Bez tej mapy zapisany `tabular_model` mecenasa spadlby cicho na DEFAULT, czyli
+// na zupelnie innego dostawce. Cennik w pricing.ts ZOSTAJE - stare zdarzenia
+// llm_route musza sie dalej wyceniac w panelu kosztow.
+const LEGACY_MODEL_ALIASES: Readonly<Record<string, string>> = {
+    "claude-opus-4-8": "claude-opus-5",
+    "claude-opus-4-7": "claude-opus-5",
+    "claude-opus-4-6": "claude-opus-5",
+    "claude-sonnet-4-6": "claude-sonnet-5",
+    "openrouter/anthropic/claude-opus-4.8": "openrouter/anthropic/claude-opus-5",
+    "openrouter/anthropic/claude-opus-4.7": "openrouter/anthropic/claude-opus-5",
+    "openrouter/anthropic/claude-sonnet-4.6": "openrouter/anthropic/claude-sonnet-5",
+    // OpenAI 5.4/5.5 -> rodzina 5.6 wg roli (flagowiec / budzet).
+    "gpt-5.5": "gpt-5.6-sol",
+    "gpt-5.4": "gpt-5.6-terra",
+    "gpt-5.4-mini": "gpt-5.6-luna",
+    "gpt-5.4-nano": "gpt-5.6-luna",
+    "openrouter/openai/gpt-5.5": "openrouter/openai/gpt-5.6-sol",
+    "openrouter/openai/gpt-5.4-mini": "openrouter/openai/gpt-5.6-luna",
+    "openrouter/openai/gpt-5.4-nano": "openrouter/openai/gpt-5.6-luna",
+};
+
 export function resolveModel(id: string | null | undefined, fallback: string): string {
-    if (id && (ALL_MODELS.has(id) || isOpenRouterModel(id) || isOllamaModel(id)))
-        return id;
+    if (!id) return fallback;
+    const aliased = LEGACY_MODEL_ALIASES[id];
+    if (aliased) return aliased;
+    if (ALL_MODELS.has(id) || isOpenRouterModel(id) || isOllamaModel(id)) return id;
     return fallback;
 }

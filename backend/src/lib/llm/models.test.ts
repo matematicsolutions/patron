@@ -48,3 +48,23 @@ describe("routing modeli lokalnych (Ollama)", () => {
         expect(() => providerForModel("ollama/llama3.2:3b")).toThrow();
     });
 });
+
+describe("models.resolveModel - aliasy modeli wycofanych", () => {
+    it("zapisany wybor Anthropic 4.x wchodzi na nastepce 5.x, nie na DEFAULT", () => {
+        expect(resolveModel("claude-opus-4-8", DEFAULT_MAIN_MODEL)).toBe("claude-opus-5");
+        expect(resolveModel("claude-sonnet-4-6", DEFAULT_MAIN_MODEL)).toBe("claude-sonnet-5");
+        expect(
+            resolveModel("openrouter/anthropic/claude-sonnet-4.6", DEFAULT_MAIN_MODEL),
+        ).toBe("openrouter/anthropic/claude-sonnet-5");
+    });
+
+    it("model wycofany NIE spada cicho na innego dostawce", () => {
+        expect(resolveModel("claude-opus-4-8", DEFAULT_MAIN_MODEL)).not.toBe(
+            DEFAULT_MAIN_MODEL,
+        );
+    });
+
+    it("nieznane id dalej spada na fallback", () => {
+        expect(resolveModel("claude-opus-3", DEFAULT_MAIN_MODEL)).toBe(DEFAULT_MAIN_MODEL);
+    });
+});
