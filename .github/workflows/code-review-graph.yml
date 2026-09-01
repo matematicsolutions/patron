@@ -20,7 +20,7 @@ jobs:
         with:
           # Full history so the diff base (origin/<base_ref>) resolves cleanly.
           fetch-depth: 0
-      - uses: tirth8205/code-review-graph@v2.3.7
+      - uses: tirth8205/code-review-graph@v2.3.8
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           # none = report only. Switch to "high" (risk >= 0.70) or "critical"
