@@ -12,7 +12,7 @@
 ## Kontekst
 
 Kancelaria nie zamyka narzedzia na noc. To nie jest hipoteza o uzytkowniku - to zmierzony
-tryb pracy: instancja Operatora chodzila od 2026-09-07 12:23 przez dwa dni. W tym czasie
+tryb pracy: instancja Operatora chodzila od 2026-09-07, godz. 12:23, przez dwa dni. W tym czasie
 laczny commit szesciu procesow doszedl do 18 050 MB, a `pagefile.sys` do 41 GB przy
 31,7 GB RAM. Po zamknieciu i ponownym uruchomieniu: 385 MB lacznie.
 
