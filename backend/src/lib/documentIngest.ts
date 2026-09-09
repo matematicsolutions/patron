@@ -18,7 +18,7 @@ import path from "path";
 import { uploadFile, storageKey } from "./storage";
 import { docxToPdf, convertedPdfKey } from "./convert";
 import { extractDocxBodyText } from "./docxTrackedChanges";
-import { extractPdfText } from "./chat/pdf";
+import { extractPdfDocument, type PdfExtraction } from "./chat/pdf";
 import { scheduleIndexing } from "./retrieval/index-queue";
 import { appendAuditEvent } from "./audit";
 import {
@@ -138,12 +138,23 @@ export async function ingestDocument(
     // warstwy tekstu i obrazy ida przez OCR (Chandra, lokalnie). Best-effort:
     // blad konwersji/OCR nie wywala ingestu (dokument utrwalony, detektory binarne
     // dzialaja na buforze niezaleznie).
+    // ADR-0156: PDF otwierany JEDEN raz. Liczba stron i zakladki pochodza z tego
+    // samego `PDFDocumentProxy` co tekst; wczesniej byly dwa dodatkowe pelne
+    // `getDocument()` na tym samym buforze. Wynik lapiemy w punkcie wstrzykniecia,
+    // zeby przetrwal wyjatek z galezi OCR (skan bez warstwy tekstu ma strony,
+    // choc konwersja moze sie nie udac).
     let scanText = "";
+    // Uchwyt, nie `let` - przypisanie z domkniecia ponizej; TS nie sledzi zapisow
+    // przez domkniecie i zawezilby zmienna do `null`.
+    const pdfMeta: { meta: PdfExtraction | null } = { meta: null };
     try {
       const conv = await convertToMarkdown(
         { buffer: content, filename },
         {
-          extractPdfText,
+          extractPdf: async (b) => {
+            pdfMeta.meta = await extractPdfDocument(b);
+            return pdfMeta.meta;
+          },
           extractDocxText: extractDocxBodyText,
           ocr: runOcr,
         },
@@ -193,8 +204,8 @@ export async function ingestDocument(
 
     await uploadFile(key, rawBuf, contentType);
 
-    const tree = await extractStructureTree(rawBuf, suffix, filename);
-    const pageCount = suffix === "pdf" ? await countPdfPages(rawBuf) : null;
+    const tree = buildStructureTree(suffix, pdfMeta.meta, scanText);
+    const pageCount = pdfMeta.meta?.pageCount ?? null;
 
     // Convert DOCX/DOC → PDF for display. PDFs are their own rendition.
     let pdfStoragePath: string | null = null;
@@ -257,13 +268,15 @@ export async function ingestDocument(
 
     // ADR-0054: indeksacja do hybrid retrieval + graf cytowan. Tylko gdy skan
     // bezpieczenstwa dopuscil (outcome.allowIndex) - quarantined/human_review
-    // NIE trafiaja do indeksu. Best-effort w tle: embedding trwa kilka sekund,
-    // nie blokujemy odpowiedzi (dokument jest juz 'ready' i utrwalony).
+    // NIE trafiaja do indeksu.
     //
-    // ADR-0154: przez kolejke, nie `void indexDocument(...)` wprost. Wolajacy
-    // dalej nie czeka (scheduleIndexing wraca natychmiast), ale przy imporcie
-    // folderu zadania czekaja na swoja kolej zamiast ruszac wszystkie naraz -
-    // liczba rownoczesnych indekserow przestaje byc rowna liczbie plikow.
+    // ADR-0156 + ADR-0154: przez kolejke, nie przez `void indexDocument(...)`.
+    // `void` nie odsuwal niczego - przy wylaczonej warstwie wektorowej
+    // indeksacja nie ma punktu oddania sterowania i wykonywala sie w calosci
+    // PRZED odpowiedzia HTTP. Kolejka startuje zadanie dopiero w nastepnej
+    // fazie petli zdarzen (`setImmediate`) i pilnuje gornej granicy liczby
+    // rownoczesnych indekserow, ktora wczesniej byla rowna liczbie plikow
+    // w importowanym folderze.
     if (outcome.allowIndex && scanText.trim()) {
       scheduleIndexing(docId, scanText);
     }
@@ -385,77 +398,56 @@ export async function ingestFolder(
   return results;
 }
 
-async function countPdfPages(buf: ArrayBuffer): Promise<number | null> {
-  try {
-    const pdfjsLib = await import("pdfjs-dist/legacy/build/pdf.mjs" as string);
-    const pdf = await (
-      pdfjsLib as unknown as {
-        getDocument: (opts: unknown) => {
-          promise: Promise<{ numPages: number }>;
-        };
-      }
-    ).getDocument({ data: new Uint8Array(buf) }).promise;
-    return pdf.numPages;
-  } catch {
-    return null;
-  }
-}
-
-async function extractStructureTree(
-  content: ArrayBuffer,
+/**
+ * Buduje drzewo struktury dokumentu z JUZ posiadanych danych - bez ponownego
+ * otwierania pliku (ADR-0156).
+ *
+ * PDF: z zakladek, a gdy ich nie ma - lista stron. Dokumenty do 5 stron nie
+ * dostaja drzewa (spis tresci dla trzech stron to szum, nie nawigacja).
+ * DOCX/DOC: pierwsze 30 niepustych linii tekstu, ktory ekstrakcja juz zwrocila.
+ * Obrazy/skany: brak drzewa - tak jak dotad. Wczesniej wychodzilo to przypadkiem
+ * (mammoth rzucal na JPEG-u, `catch` dawal null); teraz jest napisane wprost, zeby
+ * ta zmiana nie przemycila nowego elementu do UI.
+ *
+ * Czysta funkcja: zero I/O, zero pdfjs, deterministyczna.
+ */
+export function buildStructureTree(
   fileType: string,
-  _filename: string,
-): Promise<unknown[] | null> {
-  try {
-    if (fileType === "pdf") {
-      const pdfjsLib = await import(
-        "pdfjs-dist/legacy/build/pdf.mjs" as string
-      );
-      const pdf = await (
-        pdfjsLib as unknown as {
-          getDocument: (opts: unknown) => {
-            promise: Promise<{
-              numPages: number;
-              getOutline: () => Promise<{ title?: string }[]>;
-            }>;
-          };
-        }
-      ).getDocument({ data: new Uint8Array(content) }).promise;
-      if (pdf.numPages <= 5) return null;
-      const outline = await pdf.getOutline();
-      if (outline?.length)
-        return outline.map((item, i) => ({
-          id: `h1-${i}`,
-          title: item.title ?? `Item ${i + 1}`,
-          level: 1,
-          page_number: null,
-          children: [],
-        }));
-      return Array.from({ length: pdf.numPages }, (_, i) => ({
-        id: `page-${i + 1}`,
-        title: `Page ${i + 1}`,
+  pdf: PdfExtraction | null,
+  text: string,
+): unknown[] | null {
+  if (fileType === "pdf") {
+    if (!pdf?.pageCount || pdf.pageCount <= 5) return null;
+    if (pdf.outline?.length) {
+      return pdf.outline.map((item, i) => ({
+        id: `h1-${i}`,
+        title: item.title ?? `Item ${i + 1}`,
         level: 1,
-        page_number: i + 1,
+        page_number: null,
         children: [],
       }));
-    } else {
-      const mammoth = await import("mammoth");
-      const result = await mammoth.extractRawText({
-        buffer: Buffer.from(content),
-      });
-      const lines = result.value.split("\n").filter((l) => l.trim());
-      const nodes = lines
-        .slice(0, 30)
-        .map((line, i) => ({
-          id: `h1-${i}`,
-          title: line.slice(0, 100),
-          level: 1,
-          page_number: null,
-          children: [],
-        }));
-      return nodes.length ? nodes : null;
     }
-  } catch {
-    return null;
+    return Array.from({ length: pdf.pageCount }, (_, i) => ({
+      id: `page-${i + 1}`,
+      title: `Page ${i + 1}`,
+      level: 1,
+      page_number: i + 1,
+      children: [],
+    }));
   }
+
+  if (fileType !== "docx" && fileType !== "doc") return null;
+
+  const nodes = text
+    .split("\n")
+    .filter((l) => l.trim())
+    .slice(0, 30)
+    .map((line, i) => ({
+      id: `h1-${i}`,
+      title: line.slice(0, 100),
+      level: 1,
+      page_number: null,
+      children: [],
+    }));
+  return nodes.length ? nodes : null;
 }

@@ -117,7 +117,7 @@ describe("import folderu a rownoleglosc indeksacji (ADR-0154)", () => {
     // Odpowiedz wrocila - indeksacja moze jeszcze trwac (kontrakt ADR-0056).
     // Czekamy az KAZDY dokument przejdzie przez indekser, zeby czerwien tego
     // testu mowila o rownoleglosci, a nie o tym, ze pomiar sie urwal za wczesnie.
-    await kolejka.awaitIndexQueueIdle();
+    await kolejka.flushIndexQueue();
     for (let i = 0; i < 200 && stan.zrobione.length < ILE; i++) {
       await new Promise((r) => setTimeout(r, 25));
     }

@@ -1,7 +1,8 @@
 # ADR-0154 - Kolejka indeksacji w tle: rownoleglosc jako wielkosc projektowana, nie wypadkowa
 
-- **Status:** Proponowany (wdrozony na galezi `claude/bold-jennings-9d003b` 2026-09-09;
-  review tresci: runda 1 marko-PL wykonana, runda 2 PENDING - AGENTS.md wymaga dwoch)
+- **Status:** Proponowany, **w czesci mechanizmu zastapiony przez ADR-0156** (scalenie
+  2026-09-09). W mocy zostaje pomiar i wartosc limitu; sama kolejka opisana jest w ADR-0156.
+  Review tresci: runda 1 marko-PL wykonana, runda 2 PENDING - AGENTS.md wymaga dwoch.
 - **Data:** 2026-09-09
 - **Galaz:** linia release 2.0.0
 - **Zrodlo:** obserwacja zapisana w ADR-0153 ("Czego ten ADR NIE mowi") - `void indexDocument()`
@@ -17,9 +18,14 @@
 void indexDocument(docId, scanText).catch(...)
 ```
 
-To bylo i pozostaje sluszne: embedding trwa dziesiatki sekund, a dokument jest juz utrwalony
-i `ready`, wiec odpowiedz HTTP nie ma na co czekac (ADR-0056). Wada nie lezy w braku `await`,
-tylko w tym, ze **nikt nie ograniczal liczby takich zgloszen naraz**. `ingestFolder` (Folder
+Intencja byla sluszna - embedding trwa dziesiatki sekund, a dokument jest juz utrwalony
+i `ready`, wiec odpowiedz HTTP nie ma na co czekac (ADR-0056). **Ale ten zapis intencji nie
+realizowal, i pierwsza wersja tego ADR-a myslila inaczej.** ADR-0156 zmierzyl, ze `void`
+nie odsuwa niczego, gdy warstwa wektorowa jest wylaczona: `indexDocument` nie ma wtedy ani
+jednego punktu oddania sterowania, wiec wykonuje sie w calosci przed odpowiedzia. Sprawdzone
+przy scalaniu na obu implementacjach - semafor sam tego nie naprawia, dopiero `setImmediate`.
+Mechanizm nalezy wiec do ADR-0156. Ten ADR odpowiada za druga wade: **nikt nie ograniczal
+liczby takich zgloszen naraz**. `ingestFolder` (Folder
 Sprawy, ADR-0056) idzie rekurencyjnie po wszystkich plikach katalogu i dla kazdego wola
 `ingestDocument`, wiec liczba rownoczesnych indekserow byla rowna liczbie plikow w folderze.
 
@@ -134,10 +140,11 @@ bo zaden wniosek uzyty w decyzji nie zalezy od roznicy rzedu kilku procent.
 nie-embeddingowych indeksacji (chunking, encje, graf, zapisy SQLite). Przy limicie 2
 koszt to +6% czasu importu i +4% czasu odpowiedzi, a szczyt pamieci jest ten sam.
 
-**2. Wolajacy dalej nie czeka.** `scheduleIndexing(docId, text)` wraca natychmiast, tak jak
-`void indexDocument(...)`. Zmienia sie tylko moment startu zadania, nie to, czy
-blokuje odpowiedz. Kontrakt ADR-0056 (szybka odpowiedz HTTP na upload) zostaje nietkniety
-i jest pilnowany osobnym przypadkiem w bramce.
+**2. Wolajacy dalej nie czeka - i po scaleniu naprawde nie czeka.**
+`scheduleIndexing(docId, text)` wraca natychmiast, a praca rusza dopiero w nastepnej fazie
+petli zdarzen (`setImmediate`, ADR-0156). Pierwsza wersja tego ADR-a twierdzila, ze sam
+brak `await` wystarcza; nie wystarczal. Kontrakt ADR-0056 jest teraz pilnowany bramka, ktora
+sprawdza kolejnosc, a nie tylko to, czy funkcja wrocila.
 
 **3. Limit siedzi w kolejce, nie w `ingestFolder`.** Z tego samego powodu, dla ktorego
 ADR-0153 polozyl limit paczki w `embed()`, a nie w indekserze: dzis jedynym wolajacym "w tle"

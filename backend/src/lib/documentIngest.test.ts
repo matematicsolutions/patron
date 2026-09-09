@@ -8,6 +8,7 @@ import path from "path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 let ingest: typeof import("./documentIngest");
+let queue: typeof import("./retrieval/index-queue");
 let conn: typeof import("./db/sqlite-connection");
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let db: any;
@@ -28,6 +29,7 @@ beforeAll(async () => {
   conn = await import("./db/sqlite-connection");
   conn.getDb();
   ingest = await import("./documentIngest");
+  queue = await import("./retrieval/index-queue");
   const supa = await import("./supabase");
   db = supa.createServerSupabase();
   // Hook laduje SQLite, warstwe ingestu i klienta storage - pod pelnym biegiem
@@ -36,7 +38,10 @@ beforeAll(async () => {
   // Czerwone z powodu obciazenia maszyny uczy ignorowac czerwone.
 }, 60_000);
 
-afterAll(() => {
+afterAll(async () => {
+  // ADR-0156: indeksacja idzie szeregiem PO odpowiedzi, wiec zamkniecie SQLite
+  // bez opróznienia szeregu przerwaloby trwajace zadanie.
+  await queue.flushIndexQueue();
   conn.closeDb();
   for (const f of [tmpDb, `${tmpDb}-wal`, `${tmpDb}-shm`]) {
     try {

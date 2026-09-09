@@ -1,5 +1,8 @@
-// Bramka ADR-0154: kolejka indeksacji ogranicza LICZBE ROWNOCZESNIE
-// PRACUJACYCH INDEKSEROW.
+// Bramka kolejki indeksacji. Pilnuje DWOCH wlasnosci, kazda z innego ADR-a:
+//   ADR-0156 - zadanie startuje poza biezaca faza petli zdarzen, wiec nie
+//              wchodzi przed sciezke odpowiedzi (nawet gdy jest CPU-bound);
+//   ADR-0154 - liczba rownoczesnie pracujacych indekserow ma gorna granice
+//              i nie zalezy od liczby plikow w importowanym folderze.
 //
 // Testujemy przyczyne (rownoleglosc), nie skutek (zuzycie pamieci) - z tego
 // samego powodu, dla ktorego ADR-0153 nie postawil progu pamieciowego w CI:
@@ -37,8 +40,11 @@ function odroczoneZadanie() {
 }
 
 async function przemiel(): Promise<void> {
-  // Kilka obrotow mikro-kolejki - wystarczy, by zwolnione sloty ruszyly.
-  for (let i = 0; i < 5; i++) await Promise.resolve();
+  // Zadania startuja przez `setImmediate` (ADR-0156), wiec samo przemielenie
+  // mikro-kolejki juz nie wystarcza - trzeba przepuscic faze check.
+  for (let i = 0; i < 3; i++) {
+    await new Promise<void>((res) => setImmediate(res));
+  }
 }
 
 async function zaladujKolejke(concurrency?: string) {
@@ -48,7 +54,7 @@ async function zaladujKolejke(concurrency?: string) {
   return import("./index-queue");
 }
 
-describe("kolejka indeksacji (ADR-0154)", () => {
+describe("kolejka indeksacji (ADR-0156 + ADR-0154)", () => {
   beforeEach(() => {
     indexDocumentMock.mockReset();
   });
@@ -149,6 +155,37 @@ describe("kolejka indeksacji (ADR-0154)", () => {
     expect(q.indexQueueStats()).toEqual({ running: 0, pending: 0 });
   });
 
+  it("zadanie NIE wchodzi przed sciezke odpowiedzi, nawet gdy jest CPU-bound", async () => {
+    // Sedno ADR-0156. Semafor sam tego nie zapewnia: `await` na spelnionej
+    // obietnicy to mikro-zadanie, ktore wykona sie PRZED faza I/O. Bez
+    // `setImmediate` w kolejce ten test widzi ["praca", "odpowiedz"].
+    //
+    // Zadanie jest celowo synchroniczne (zero `await`) - tak zachowuje sie
+    // indexDocument przy wylaczonej warstwie wektorowej: nie ma tam ani jednego
+    // punktu oddania sterowania.
+    const q = await zaladujKolejke();
+    const kroki: string[] = [];
+    indexDocumentMock.mockImplementation(() => {
+      kroki.push("praca");
+      return Promise.resolve();
+    });
+
+    q.scheduleIndexing("doc-cpu-1", "tresc");
+    q.scheduleIndexing("doc-cpu-2", "tresc");
+    // Marker fazy check zaplanowany TUZ PO zgloszeniu - w serwerze w tym
+    // miejscu odpowiedz idzie do gniazda.
+    await new Promise<void>((res) =>
+      setImmediate(() => {
+        kroki.push("odpowiedz");
+        res();
+      }),
+    );
+    await q.flushIndexQueue();
+
+    expect(kroki[0]).toBe("odpowiedz");
+    expect(kroki).toEqual(["odpowiedz", "praca", "praca"]);
+  });
+
   it("scheduleIndexing wraca natychmiast i NIE wola indeksera synchronicznie", async () => {
     const q = await zaladujKolejke();
     let skonczony = false;
@@ -163,7 +200,7 @@ describe("kolejka indeksacji (ADR-0154)", () => {
     expect(indexDocumentMock).not.toHaveBeenCalled(); // nawet nie ruszyl jeszcze
     expect(skonczony).toBe(false);
 
-    await q.awaitIndexQueueIdle();
+    await q.flushIndexQueue();
     expect(indexDocumentMock).toHaveBeenCalledWith("doc-1", "tresc");
     expect(skonczony).toBe(true);
   });
@@ -174,7 +211,7 @@ describe("kolejka indeksacji (ADR-0154)", () => {
     indexDocumentMock.mockRejectedValue(new Error("model niedostepny"));
 
     expect(() => q.scheduleIndexing("doc-2", "tresc")).not.toThrow();
-    await q.awaitIndexQueueIdle();
+    await q.flushIndexQueue();
     // Kolejka melduje bezczynnosc, gdy slot jest zwolniony; wlasny `.catch`
     // zadania to kolejne mikro-zadanie, stad przemielenie przed asercja.
     await przemiel();
@@ -184,7 +221,7 @@ describe("kolejka indeksacji (ADR-0154)", () => {
     blad.mockRestore();
   });
 
-  it("awaitIndexQueueIdle czeka na CALA kolejke, nie na pierwsze zadanie", async () => {
+  it("flushIndexQueue czeka na CALA kolejke, nie na pierwsze zadanie", async () => {
     const q = await zaladujKolejke();
     const zrobione: string[] = [];
     indexDocumentMock.mockImplementation(async (id: string) => {
@@ -195,7 +232,7 @@ describe("kolejka indeksacji (ADR-0154)", () => {
     for (const id of ["a", "b", "c", "d", "e", "f"]) q.scheduleIndexing(id, "tresc");
     expect(q.indexQueueStats()).toEqual({ running: 2, pending: 4 });
 
-    await q.awaitIndexQueueIdle();
+    await q.flushIndexQueue();
     expect(zrobione.length).toBe(6);
     expect([...zrobione].sort()).toEqual(["a", "b", "c", "d", "e", "f"]);
   });

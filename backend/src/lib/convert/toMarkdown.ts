@@ -10,6 +10,7 @@
 // subprocess) wstrzykuje sie w punkcie wpiecia (documentIngest).
 
 import { postProcessOcr, type OcrFlag } from "./postprocess";
+import type { PdfExtraction } from "../chat/pdf";
 
 export type ConvertEngine = "docx" | "pdf-text" | "ocr";
 
@@ -23,11 +24,17 @@ export interface ConvertResult {
     /** ADR-0075: flagi post-processingu OCR (podejrzane daty, niska jakosc) -
      * mecenas widzi gdzie zweryfikowac. Pusta/undefined dla pdf-text/docx. */
     flags?: OcrFlag[];
+    /** ADR-0156: liczba stron + zakladki z TEGO SAMEGO otwarcia dokumentu, co
+     * tekst. Ustawione dla kazdego PDF-a, ktory udalo sie otworzyc - takze gdy
+     * tresc poszla potem przez OCR (skan ma strony, choc nie ma warstwy tekstu).
+     * Undefined dla docx/obrazow. */
+    pdf?: PdfExtraction;
 }
 
 /** Zaleznosci ekstrakcji - produkcyjnie pdfjs/mammoth/Chandra, w testach fake. */
 export interface ConvertDeps {
-    extractPdfText: (buf: ArrayBuffer) => Promise<string>;
+    /** ADR-0156: jedno otwarcie PDF-a oddaje tekst, liczbe stron i zakladki. */
+    extractPdf: (buf: ArrayBuffer) => Promise<PdfExtraction>;
     extractDocxText: (buf: Buffer) => Promise<string>;
     /** OCR lokalny (Chandra) dla obrazu lub skanu-PDF. Zwraca tekst/Markdown. */
     ocr: (buf: Buffer, kind: "image" | "pdf", filename: string) => Promise<string>;
@@ -80,7 +87,7 @@ function toArrayBuffer(buf: Buffer): ArrayBuffer {
 /**
  * Konwertuje dokument na tekst/Markdown. Routing:
  *   DOCX/DOC                         -> mammoth (deps.extractDocxText)
- *   PDF z warstwa tekstu             -> pdfjs (deps.extractPdfText)
+ *   PDF z warstwa tekstu             -> pdfjs (deps.extractPdf)
  *   PDF-skan (brak/malo tekstu)      -> OCR (deps.ocr ..., "pdf")
  *   obraz (jpg/png/tiff/...)         -> OCR (deps.ocr ..., "image")
  * Rzuca dla nieobslugiwanego formatu (wywolujacy decyduje o komunikacie).
@@ -103,14 +110,22 @@ export async function convertToMarkdown(
     }
 
     if (suffix === "pdf") {
-        const text = await deps.extractPdfText(toArrayBuffer(input.buffer));
-        if (hasEnoughText(text)) {
-            return { markdown: text, engine: "pdf-text", ocrUsed: false };
+        const pdf = await deps.extractPdf(toArrayBuffer(input.buffer));
+        if (hasEnoughText(pdf.text)) {
+            return { markdown: pdf.text, engine: "pdf-text", ocrUsed: false, pdf };
         }
-        // Skan bez warstwy tekstu -> OCR lokalny.
+        // Skan bez warstwy tekstu -> OCR lokalny. Metadane dokumentu (strony,
+        // zakladki) pochodza z juz wykonanego otwarcia - PDF nie jest otwierany
+        // po raz drugi tylko po to, zeby policzyc strony.
         const raw = await deps.ocr(input.buffer, "pdf", input.filename);
         const pp = postProcessOcr(raw);
-        return { markdown: pp.markdown, engine: "ocr", ocrUsed: true, flags: pp.flags };
+        return {
+            markdown: pp.markdown,
+            engine: "ocr",
+            ocrUsed: true,
+            flags: pp.flags,
+            pdf,
+        };
     }
 
     throw new Error(`Nieobslugiwany format konwersji: ${suffix || "(brak)"}`);

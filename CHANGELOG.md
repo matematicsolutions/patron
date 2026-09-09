@@ -9,12 +9,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ### Zmienione
 
-- **Import Folderu Sprawy indeksuje dokumenty przez kolejke o stalym limicie rownoleglosci**
-  (domyslnie 2, `PATRON_INDEX_CONCURRENCY`) zamiast wypuszczac jeden indekser na kazdy plik
-  w katalogu. Odpowiedz na upload nadal nie czeka na embedder. Dla Operatora zmienia sie
-  tyle, ze import 30 akt po 50 stron trwa o 6% dluzej; zuzycie pamieci jest takie samo.
-  **Nie jest to naprawa wycieku pamieci** - pomiar zadnego nie znalazl, szczyt to ~1,40 GB
-  niezaleznie od liczby plikow. Powod, dla ktorego mimo to warto, oraz pelne dane pomiarowe:
+- **Liczba rownoczesnych indeksacji ma gorna granice** (domyslnie 2,
+  `PATRON_INDEX_CONCURRENCY`) - wczesniej import Folderu Sprawy wypuszczal jeden indekser
+  na kazdy plik w katalogu, bez ograniczenia. Dla Operatora import 30 akt po 50 stron trwa
+  o 6% dluzej; zuzycie pamieci jest takie samo. **Nie jest to naprawa wycieku pamieci** -
+  pomiar zadnego nie znalazl, szczyt to ~1,40 GB niezaleznie od liczby plikow i od liczby
+  indekserow. Limit 1 odrzucony pomiarem (+32% czasu importu). Powod, dla ktorego mimo to
+  warto, oraz pelne dane:
   [ADR-0154](./governance/adr/0154-kolejka-indeksacji-w-tle-rownoleglosc.md).
 
 ### Naprawione
@@ -32,6 +33,24 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
   1 405 MB po niej - i przy okazji o 44% szybciej. Kancelaria moze trzymac PATRON otwartego
   przez tydzien. Jakosc retrievalu bez zmian, re-index niepotrzebny.
   [ADR-0153](./governance/adr/0153-limit-paczki-embeddera-pamiec-procesu.md).
+- **Indeksacja dokumentu tylko udawala, ze leci w tle.** `void indexDocument(...)`
+  nie odsuwal niczego: funkcja `async` bez punktu oddania sterowania wykonuje sie
+  synchronicznie do konca, wiec cala indeksacja (chunkowanie, graf encji, embedding)
+  siedziala w sciezce odpowiedzi HTTP - zmierzone 100% czasu przed oddaniem sterowania,
+  dla 1000 / 1595 / 4000 chunkow. Zablokowana petla zdarzen nie obsluguje nikogo, wiec
+  rownolegle zadania konczyly sie bledem polaczenia. Indeksacja idzie teraz kolejka,
+  ktora startuje zadanie dopiero po wyslaniu odpowiedzi. Dokument wraca jako `ready`, gdy
+  indeks moze byc jeszcze niegotowy. Gorna granica liczby rownoczesnych indeksacji -
+  osobna sprawa, ponizej w "Zmienione".
+  [ADR-0156](./governance/adr/0156-jedno-otwarcie-pdf-i-realne-odsuniecie-indeksacji.md).
+- **Ten sam PDF byl otwierany trzy razy w jednym ingescie** (tekst, drzewo struktury,
+  liczba stron) - trzy kopie wiedzy "jak otworzyc ten dokument", kazda z wlasnym
+  `catch`. Liczba stron i zakladki pochodza teraz z tego samego otwarcia co tekst;
+  DOCX przestal byc przy okazji parsowany drugi raz. Bramka liczy otwarcia dokumentu,
+  nie sekundy. Pomiar przy okazji obalil hipoteze, ze to te trzy przebiegi kosztowaly
+  minuty: dwa z nich sa plaskie wzgledem liczby stron, bo `getDocument()` czyta katalog
+  dokumentu, a tresci stron nie dotyka.
+  [ADR-0156](./governance/adr/0156-jedno-otwarcie-pdf-i-realne-odsuniecie-indeksacji.md).
 - **Pasek perymetru opisywal model chmurowy jako lokalny.** Plakietka `(lokalny)` przy
   nazwie modelu zapalala sie od `PATRON_LOCAL_MODEL` z konfiguracji, czyli od tego, ze
   gdziekolwiek ustawiono model lokalny - a nie od tego, ktory model jest wybrany. Przy
