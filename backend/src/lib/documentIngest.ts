@@ -19,7 +19,7 @@ import { uploadFile, storageKey } from "./storage";
 import { docxToPdf, convertedPdfKey } from "./convert";
 import { extractDocxBodyText } from "./docxTrackedChanges";
 import { extractPdfText } from "./chat/pdf";
-import { indexDocument } from "./retrieval/indexer";
+import { scheduleIndexing } from "./retrieval/index-queue";
 import { appendAuditEvent } from "./audit";
 import {
   analyzeInput,
@@ -259,10 +259,13 @@ export async function ingestDocument(
     // bezpieczenstwa dopuscil (outcome.allowIndex) - quarantined/human_review
     // NIE trafiaja do indeksu. Best-effort w tle: embedding trwa kilka sekund,
     // nie blokujemy odpowiedzi (dokument jest juz 'ready' i utrwalony).
+    //
+    // ADR-0154: przez kolejke, nie `void indexDocument(...)` wprost. Wolajacy
+    // dalej nie czeka (scheduleIndexing wraca natychmiast), ale przy imporcie
+    // folderu zadania czekaja na swoja kolej zamiast ruszac wszystkie naraz -
+    // liczba rownoczesnych indekserow przestaje byc rowna liczbie plikow.
     if (outcome.allowIndex && scanText.trim()) {
-      void indexDocument(docId, scanText).catch((err) => {
-        console.error(`[ingest] RAG index failed for ${docId}:`, err);
-      });
+      scheduleIndexing(docId, scanText);
     }
 
     const { data: updated } = await db

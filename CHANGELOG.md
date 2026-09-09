@@ -7,6 +7,16 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ## [Unreleased]
 
+### Zmienione
+
+- **Import Folderu Sprawy indeksuje dokumenty przez kolejke o stalym limicie rownoleglosci**
+  (domyslnie 2, `PATRON_INDEX_CONCURRENCY`) zamiast wypuszczac jeden indekser na kazdy plik
+  w katalogu. Odpowiedz na upload nadal nie czeka na embedder. Dla Operatora zmienia sie
+  tyle, ze import 30 akt po 50 stron trwa o 6% dluzej; zuzycie pamieci jest takie samo.
+  **Nie jest to naprawa wycieku pamieci** - pomiar zadnego nie znalazl, szczyt to ~1,40 GB
+  niezaleznie od liczby plikow. Powod, dla ktorego mimo to warto, oraz pelne dane pomiarowe:
+  [ADR-0154](./governance/adr/0154-kolejka-indeksacji-w-tle-rownoleglosc.md).
+
 ### Naprawione
 
 - **Aplikacja zostawiona otwarta na dwa dni zajmowala 17,6 GB pamieci.** Indekser RAG
