@@ -70,6 +70,8 @@ Kept in one place and linked from here rather than copied, so the two cannot dri
   with the problem it answers and a link to the architecture decision behind it.
 - **[Step-by-step manual](https://matematicsolutions.com/en/patron/instructions)** - installation,
   connecting a model, your first matter, and the pitfalls that actually occur.
+- **[Audit trail verifier on Hugging Face](https://huggingface.co/spaces/matematicsolutions/patron-audit-verifier)** - the
+  verifier that ships with every export, runnable in the browser on a sample intact and tampered export.
 - **[Audit trail documentation](https://matematicsolutions.com/en/patron/audit-trail)** - how the
   hash chain and the Merkle tree work, and what the trail does *not* prove.
 - [`docs/SAMOUCZEK_EN.md`](./docs/SAMOUCZEK_EN.md) - the same manual as markdown. Each installer
