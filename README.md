@@ -2,16 +2,16 @@
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](./LICENSE)
 [![Tests](https://img.shields.io/badge/tests-1471_backend_%2B_86_frontend-brightgreen)](./backend)
-[![AI Act](https://img.shields.io/badge/AI_Act-Art._12_record--keeping-orange)](./governance/CONSTITUTION.md)
+[![Audit trail](https://img.shields.io/badge/audit_trail-hash--chained-orange)](https://matematicsolutions.com/en/patron/audit-trail)
 [![RODO](https://img.shields.io/badge/RODO-art._5%2F25%2F30%2F32-orange)](./governance/CONSTITUTION.md)
-[![Stack](https://img.shields.io/badge/stack-zero--cloud-success)](./governance/CONSTITUTION.md)
+[![Local-first](https://img.shields.io/badge/storage-local--first-success)](https://matematicsolutions.com/en/where-your-data-is)
 [![MCP](https://img.shields.io/badge/MCP-20_connectors-blue)](https://github.com/matematicsolutions)
 [![Node](https://img.shields.io/badge/Node-20%2B-brightgreen)](https://nodejs.org)
 
-> **A local-first, self-hosted AI agent for a law firm.** A zero-cloud, single-user desktop
-> application (Electron): local SQLite by default ([ADR-0053](./governance/adr/0053-sqlite-single-user-zero-cloud.md)), 20 bundled connectors to Polish, EU and national law
-> (SAOS / NSA / ISAP / KRS / EUREKA / EUR-Lex / EU-Compliance), a hash-chained audit trail (AI Act art. 12),
-> bring-your-own-model (Gemini / Claude / local Ollama / OpenRouter). A server mode (Postgres + MinIO) remains available as an alternative.
+> **A local-first, self-hosted AI workspace for a law firm.** A single-user desktop
+> application (Electron) that keeps case files on the machine it runs on: local SQLite by default ([ADR-0053](./governance/adr/0053-sqlite-single-user-zero-cloud.md)), 20 bundled connectors to Polish, EU and national law
+> (SAOS / NSA / ISAP / KRS / EUREKA / EUR-Lex / EU-Compliance), a hash-chained audit trail,
+> bring-your-own-model (a local Ollama model, or Gemini / Claude / OpenRouter with your own key). A server mode (Postgres + MinIO) remains available as an alternative.
 
 Patron is a fork of [Mike](https://github.com/willchen96/mike) (a document-centric
 legal assistant, **AGPL-3.0**). The Patron shell inherits AGPL-3.0 as a derivative
@@ -44,13 +44,16 @@ Everything below ran end-to-end on 2026-08-23 against a real model on synthetic 
 - **Workflows** - saved prompts and column sets you reuse across cases.
 - **Human-in-the-loop for agent writes** (optional, ADR-0137): edits and generated files can be
   staged as approval cards; nothing is written until a human approves.
-- **An audit trail you can hand to a regulator** - every model interaction hash-chained (AI Act
-  art. 12) with a Merkle root, exportable as a ZIP that ships its own verifier (a browser page and a
+- **An audit trail a third party can verify** - every model interaction hash-chained with a Merkle
+  root, built for record-keeping duties such as AI Act art. 12 where they apply; exportable as a ZIP that ships its own verifier (a browser page and a
   Python script), so a court, the DPA or the client can check it without this repository (ADR-0142).
 - **PII does not leave the machine by accident** - names, companies, PESEL/NIP/REGON are masked before
-  any cloud model; a per-case cloud consent and an egress guard sit in front of every outbound call.
-- **Bring your own model** - Gemini, Claude, OpenRouter, or a local Ollama model, chosen in
-  settings or per conversation.
+  any cloud model, and an egress guard checks every outbound call against the case's classification.
+- **Bring your own model** - a local Ollama model, or Gemini, Claude or OpenRouter with your own key,
+  chosen in settings or per conversation. With a local model the conversation stays on the machine.
+  With a cloud model the request goes to that provider with names and identifiers masked; in the
+  desktop app, choosing a cloud model is the operator's consent, and each such call is recorded in
+  the audit trail (ADR-0101).
 - **9 installer editions** from one code line: PL, EN (EU-first), US, GB, BR, IT, DE, ES, FR - each
   with its home jurisdiction connector on by default. Downloads: [matematicsolutions.com/pobierz](https://matematicsolutions.com/pobierz).
 
@@ -95,44 +98,9 @@ Kept in one place and linked from here rather than copied, so the two cannot dri
 | [`mcp-eu-sparql`](https://github.com/matematicsolutions/mcp-eu-sparql) | EU law (EUR-Lex + CJEU, live SPARQL) | search_by_celex / search_by_date_range / search_cjeu |
 | [`mcp-eu-compliance`](https://github.com/matematicsolutions/mcp-eu-compliance) | offline EU compliance (GDPR, AI Act, DORA, NIS2, eIDAS 2.0, CRA) | eu_search / eu_article / eu_compare / eu_check_applicability / eu_evidence |
 
-## The whole fleet: 44 open connectors
+## Beyond the installer
 
-The seven connectors above ship inside the desktop installer. They are part of a larger fleet: 44 open MCP connectors under [github.com/matematicsolutions](https://github.com/matematicsolutions), one repo per source, each reading an official government API or gazette. Language editions of Patron pair the same AGPL shell with the connectors for that jurisdiction. The full catalog with install commands lives at [MateMatic Boutique](https://matematicsolutions.com/en/boutique/connectors).
-
-**Poland** (MIT / Apache-2.0):
-
-| Connector | Reads |
-|---|---|
-| [`mcp-saos`](https://github.com/matematicsolutions/mcp-saos) | common and Supreme Court case law via the SAOS API |
-| [`mcp-nsa`](https://github.com/matematicsolutions/mcp-nsa) | administrative court rulings (NSA + 16 WSA) via CBOSA |
-| [`mcp-isap`](https://github.com/matematicsolutions/mcp-isap) | legislation (Dziennik Ustaw + Monitor Polski) via the Sejm ELI API, 96k+ acts since 1918 |
-| [`mcp-krs`](https://github.com/matematicsolutions/mcp-krs) | the National Court Register (KRS) via the official Ministry of Justice API |
-| [`mcp-eureka`](https://github.com/matematicsolutions/mcp-eureka) | tax interpretations (KIS / Ministry of Finance) via EUREKA, 550k+ documents |
-| [`kio-orzeczenia-mcp`](https://github.com/matematicsolutions/kio-orzeczenia-mcp) | public-procurement case law (National Appeals Chamber, KIO) |
-
-**European Union** (TypeScript, MIT):
-
-| Connector | Reads |
-|---|---|
-| [`mcp-eu-sparql`](https://github.com/matematicsolutions/mcp-eu-sparql) | EU legislation and 57k+ CJEU rulings via the EUR-Lex SPARQL endpoint |
-| [`mcp-eu-compliance`](https://github.com/matematicsolutions/mcp-eu-compliance) | an offline corpus of EU compliance law (GDPR, AI Act, DORA, NIS2, eIDAS 2.0, CRA) |
-
-**France, offline** (JavaScript, MIT):
-
-| Connector | Reads |
-|---|---|
-| [`mcp-fr-legal`](https://github.com/matematicsolutions/mcp-fr-legal) | an offline full-text corpus of French codes and case law |
-
-**National legislation, 33 jurisdictions** (Python, Apache-2.0) - the `xx-eli-mcp` family, each reading the official national source with ELI-style citable references:
-
-[Austria](https://github.com/matematicsolutions/at-eli-mcp) · [Australia](https://github.com/matematicsolutions/au-eli-mcp) · [Belgium](https://github.com/matematicsolutions/be-eli-mcp) · [Brazil](https://github.com/matematicsolutions/br-eli-mcp) · [Canada](https://github.com/matematicsolutions/ca-eli-mcp) · [Chile](https://github.com/matematicsolutions/cl-eli-mcp) · [Colombia](https://github.com/matematicsolutions/co-eli-mcp) · [Croatia](https://github.com/matematicsolutions/hr-eli-mcp) · [Czechia](https://github.com/matematicsolutions/cz-eli-mcp) · [Denmark](https://github.com/matematicsolutions/dk-eli-mcp) · [Finland](https://github.com/matematicsolutions/fi-eli-mcp) · [France](https://github.com/matematicsolutions/fr-eli-mcp) · [Germany](https://github.com/matematicsolutions/de-eli-mcp) · [Hungary](https://github.com/matematicsolutions/hu-eli-mcp) · [Ireland](https://github.com/matematicsolutions/ie-eli-mcp) · [Israel](https://github.com/matematicsolutions/il-eli-mcp) · [Italy](https://github.com/matematicsolutions/it-eli-mcp) · [Japan](https://github.com/matematicsolutions/jp-eli-mcp) · [Lithuania](https://github.com/matematicsolutions/lt-eli-mcp) · [Luxembourg](https://github.com/matematicsolutions/lu-eli-mcp) · [Malaysia](https://github.com/matematicsolutions/my-eli-mcp) · [Malta](https://github.com/matematicsolutions/mt-eli-mcp) · [Netherlands](https://github.com/matematicsolutions/nl-eli-mcp) · [Pakistan](https://github.com/matematicsolutions/pk-eli-mcp) · [Romania](https://github.com/matematicsolutions/ro-eli-mcp) · [Singapore](https://github.com/matematicsolutions/sg-eli-mcp) · [Slovakia](https://github.com/matematicsolutions/sk-eli-mcp) · [Spain](https://github.com/matematicsolutions/es-eli-mcp) · [Sweden](https://github.com/matematicsolutions/se-eli-mcp) · [Switzerland](https://github.com/matematicsolutions/ch-eli-mcp) · [Turkey](https://github.com/matematicsolutions/tr-eli-mcp) · [United Kingdom](https://github.com/matematicsolutions/gb-eli-mcp) · [United States](https://github.com/matematicsolutions/us-eli-mcp)
-
-**Cross-jurisdiction** (Python, Apache-2.0):
-
-| Connector | Reads |
-|---|---|
-| [`legalize-mcp`](https://github.com/matematicsolutions/legalize-mcp) | the legalize-dev law-as-git corpus: 32 jurisdictions, Git-versioned, ELI citable |
-| [`boutique-mcp`](https://github.com/matematicsolutions/boutique-mcp) | the Boutique catalog itself, so the agent can find and install the right connector |
+The seven Polish and EU connectors above are part of a larger set of open MCP connectors, one repository per source, listed on the [organization page](https://github.com/matematicsolutions) with install commands in [Boutique](https://matematicsolutions.com/en/boutique/connectors). Language editions of PATRON pair the same AGPL shell with the connectors for their jurisdiction.
 
 ## Production deployment
 
@@ -324,3 +292,7 @@ npm run build --prefix backend
 npm run build --prefix frontend
 npm run lint --prefix frontend
 ```
+
+---
+
+Part of [MateMatic](https://github.com/matematicsolutions): [Repertorium](https://github.com/matematicsolutions/repertorium) · legal knowledge · **PATRON** · legal workspace · [Boutique](https://matematicsolutions.com/en/boutique) · connectors and skills
