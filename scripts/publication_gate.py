@@ -107,6 +107,13 @@ def valid_regon(d: str) -> bool:
 # 9-11 digit runs (allowing spaces/dashes) -> normalize -> checksum-validate.
 _DIGIT_RUN = re.compile(r"(?<!\d)(\d[\d \-]{7,16}\d)(?!\d)")
 _ISO_DATE = re.compile(r"(?:19|20)\d\d-[01]\d-[0-3]\d(?:\D|$)")
+
+
+def _placeholder(d: str) -> bool:
+    """Kolejne cyfry ("0123456789", "0000123456") to przyklad, nie numer."""
+    return d in "01234567890123456789" or "123456789".startswith(d.lstrip("0"))
+
+
 # Polish court signature heuristic, e.g. "I C 123/24", "II AKa 45/23", "III CZP 1/22".
 _SYGN = re.compile(r"\b[IVXLC]{1,4} [A-Z][A-Za-z]{0,3} \d{1,5}/\d{2,4}\b")
 _KRS = re.compile(r"\bKRS[:\s-]*?(\d{10})\b", re.IGNORECASE)
@@ -233,13 +240,15 @@ def scan_text(path_label: str, text: str, cfg: Config) -> list[Finding]:
             if _ISO_DATE.match(run.group(1)):
                 continue  # "2026-09-07 12:23" sklada sie w 10 cyfr z poprawna suma NIP
             digits = re.sub(r"[ \-]", "", run.group(1))
+            if _placeholder(digits):
+                continue
             kind = ("pesel" if valid_pesel(digits) else
                     "nip" if valid_nip(digits) else
                     "regon" if valid_regon(digits) else None)
             if kind:
                 out.append(Finding(HARD, kind, path_label, ln, _redact(run.group(1))))
         for m in _KRS.finditer(line):
-            if "123456789".startswith(m.group(1).lstrip("0")):
+            if _placeholder(m.group(1)):
                 continue  # placeholder w rodzaju "KRS 0000123456", nie numer podmiotu
             out.append(Finding(HARD, "krs", path_label, ln, _redact(m.group(0))))
         for name, rx in _SECRETS:
