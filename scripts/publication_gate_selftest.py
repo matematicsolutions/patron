@@ -153,6 +153,10 @@ class SkanHistorii(unittest.TestCase):
         self.assertFalse(scan_text("x.md", "przykladowy KRS 0000123456", Config()))
         self.assertTrue(scan_text("x.md", "KRS 0000512346", Config()))  # pubgate:allow
 
+    def test_ciag_kolejnych_cyfr_to_nie_nip(self):
+        # hex fixture "0123456789abcdef" w tescie innej bramki - "0123456789" ma sume NIP
+        self.assertFalse(scan_text("t.py", '"0123456789abcdef0123456789"', Config()))
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
