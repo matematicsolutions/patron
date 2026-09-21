@@ -370,6 +370,42 @@ def scan_commit_msg(path: Path, cfg: Config) -> list[Finding]:
 # --------------------------------------------------------------------------- #
 # CLI
 # --------------------------------------------------------------------------- #
+# Lista znanych trafien w historii: commity sprzed czyszczenia, ktorych nie
+# przepisujemy (decyzja WM 2026-09-21, wariant A). Kluczem jest SHA commita,
+# wiec lista nie wycisza niczego, co powstanie pozniej. Bez nazw - sama lista
+# jest publiczna.
+BASELINE_FILE = ".publication-gate-history-baseline.txt"
+
+
+def load_baseline(root: Path) -> set[tuple[str, str, str]]:
+    """Linie `sha7 kind path`; `#` i puste pomijane."""
+    p = root / BASELINE_FILE
+    if not p.exists():
+        return set()
+    out: set[tuple[str, str, str]] = set()
+    for line in p.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if line and not line.startswith("#"):
+            sha, kind, path = line.split(" ", 2)
+            out.add((sha, kind, path))
+    return out
+
+
+def split_baseline(findings: list[Finding], baseline: set[tuple[str, str, str]]
+                   ) -> tuple[list[Finding], list[Finding]]:
+    """(zywe, uznane). Dotyczy tylko trafien z historii (`history@sha:path`)."""
+    live: list[Finding] = []
+    known: list[Finding] = []
+    for f in findings:
+        if f.path.startswith("history@") and ":" in f.path:
+            sha, path = f.path[len("history@"):].split(":", 1)
+            if (sha, f.kind, path) in baseline:
+                known.append(f)
+                continue
+        live.append(f)
+    return live, known
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="MateMatic pre-publication leak scanner")
     ap.add_argument("path", nargs="?", default=".", help="repo root (default: .)")
@@ -413,6 +449,7 @@ def main(argv: list[str] | None = None) -> int:
         findings, scanned = iter_tree(root, cfg, args.all_files)
         if args.history:
             findings.extend(iter_history(root, cfg))
+    findings, known = split_baseline(findings, load_baseline(root))
 
     hard = [f for f in findings if f.severity == HARD]
     warn = [f for f in findings if f.severity == WARN]
@@ -426,6 +463,8 @@ def main(argv: list[str] | None = None) -> int:
                  "all files" if args.all_files else "git-tracked files")
         print(f"\n{len(hard)} hard, {len(warn)} warn finding(s) "
               f"over {scanned} scanned {scope}.")
+        if known:   # mianownik: wyciszone liczymy jawnie, nie znikaja
+            print(f"{len(known)} known historical finding(s) acknowledged in {BASELINE_FILE}.")
 
     failed = bool(hard) or (args.strict and bool(warn))
     if not args.json:

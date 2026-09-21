@@ -1,0 +1,34 @@
+# Znane trafienia w historii git - commity sprzed czyszczenia z 2026-06 i 2026-08-23.
+# Decyzja 2026-09-21: historii nie przepisujemy (zmiana SHA, tagow i wydan, a GitHub
+# i tak trzyma stare commity pod ich SHA). Bramka --history wycisza TYLKO te pary
+# commit+plik i podaje ich liczbe; kazdy nowy commit z nazwa z listy blokuje.
+# Format: sha7 rodzaj sciezka. Nazw tu nie ma - lista jest publiczna.
+0b49fcf denylist_hash backend/src/lib/documentIngest.ts
+0b49fcf denylist_hash backend/src/lib/input-security/ingest.ts
+0b49fcf denylist_hash desktop/main.js
+0b49fcf denylist_hash desktop/preload.js
+0b49fcf denylist_hash governance/adr/0106-ocr-pilot-readiness-bundling-picker-rekursja.md
+0b49fcf denylist_hash governance/adr/0107-pilot01-picker-modeli-slug-defaulty-bledy.md
+229ef49 denylist_hash backend/scripts/smoke-surfaces.ts
+3e0b21b denylist_hash governance/adr/0074-silnik-konwersji-dokumentow-ocr-wejscie.md
+5445fcb denylist_hash governance/adr/0104-pilot01-menu-edytuj-bielik-lokalny.md
+578be76 denylist_hash scripts/pilot-smoke.sh
+596abe7 denylist_hash governance/adr/0109-audyt-patron-fixes-p1-p3-migration-runner.md
+5d2f691 denylist_hash frontend/src/app/components/shared/SortHeader.tsx
+5d2f691 denylist_hash governance/CONSTITUTION.md
+5d2f691 denylist_hash governance/adr/0074-silnik-konwersji-dokumentow-ocr-wejscie.md
+5d2f691 denylist_hash governance/adr/0075-patron-ocr-na-bazie-glm-ocr.md
+5d2f691 denylist_hash governance/adr/0104-pilot01-menu-edytuj-bielik-lokalny.md
+5d2f691 denylist_hash governance/adr/0106-ocr-pilot-readiness-bundling-picker-rekursja.md
+5d2f691 denylist_hash governance/adr/0107-pilot01-picker-modeli-slug-defaulty-bledy.md
+5d2f691 denylist_hash scripts/pilot-smoke.sh
+6fb6db4 denylist_hash governance/adr/0075-patron-ocr-na-bazie-glm-ocr.md
+79e63c7 denylist_hash frontend/src/app/components/shared/SortHeader.tsx
+9cb43c6 denylist_hash governance/adr/0075-patron-ocr-na-bazie-glm-ocr.md
+a2fcaad denylist_hash governance/CONSTITUTION.md
+a9904a4 denylist_hash governance/adr/0101-zgoda-operatora-chmura-tajemnica.md
+c28fb5a denylist_hash governance/adr/0146-grounding-cytatow-mcp.md
+c51e563 denylist_hash backend/scripts/smoke-desktop.ts
+d4e004f denylist_hash governance/adr/0062-frontend-tryb-local-single-user.md
+e23aed1 denylist_hash backend/src/lib/docxRoundtrip.ts
+e23aed1 denylist_hash governance/adr/0060-word-import-roundtrip.md

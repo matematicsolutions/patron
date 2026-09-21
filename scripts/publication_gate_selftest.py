@@ -26,7 +26,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from publication_gate import (  # noqa: E402
-    Config, _fold, _hash_hits, iter_history, scan_commit_msg, scan_text, stem_hash,
+    BASELINE_FILE, HARD, Config, Finding, _fold, _hash_hits, iter_history,
+    load_baseline, scan_commit_msg, scan_text, split_baseline, stem_hash,
 )
 
 NAZWISKO = "Kowalska"          # zastepnik realnej nazwy - test nie potrzebuje prawdziwej
@@ -156,6 +157,34 @@ class SkanHistorii(unittest.TestCase):
     def test_ciag_kolejnych_cyfr_to_nie_nip(self):
         # hex fixture "0123456789abcdef" w tescie innej bramki - "0123456789" ma sume NIP
         self.assertFalse(scan_text("t.py", '"0123456789abcdef0123456789"', Config()))
+
+
+class ListaZnanychTrafien(unittest.TestCase):
+    """2026-09-21, decyzja WM (wariant A): trafienia sprzed czyszczenia zostaja
+    w publicznej historii i sa spisane z nazwy commita. Lista ma wyciszac TYLKO
+    te commity - kazdy nowy commit z ta sama nazwa w tym samym pliku blokuje."""
+
+    def _f(self, path: str) -> Finding:
+        return Finding(HARD, "denylist_hash", path, 1, "token 'xx'")
+
+    def test_znany_commit_jest_wyciszony_a_nowy_nie(self):
+        znane = {("abc1234", "denylist_hash", "docs/adr.md")}
+        stare = self._f("history@abc1234:docs/adr.md")
+        nowe = self._f("history@def5678:docs/adr.md")
+        zywe, uznane = split_baseline([stare, nowe], znane)
+        self.assertEqual(zywe, [nowe])
+        self.assertEqual(uznane, [stare])
+
+    def test_lista_nie_dotyczy_drzewa(self):
+        znane = {("abc1234", "denylist_hash", "docs/adr.md")}
+        zywe, _ = split_baseline([self._f("docs/adr.md")], znane)
+        self.assertEqual(len(zywe), 1)
+
+    def test_wczytanie_pomija_komentarze(self):
+        d = Path(self.enterContext(__import__("tempfile").TemporaryDirectory()))
+        (d / BASELINE_FILE).write_text("# komentarz\n\nabc1234 denylist_hash docs/a b.md\n",
+                                       encoding="utf-8")
+        self.assertEqual(load_baseline(d), {("abc1234", "denylist_hash", "docs/a b.md")})
 
 
 if __name__ == "__main__":
