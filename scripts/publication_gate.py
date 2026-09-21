@@ -106,6 +106,7 @@ def valid_regon(d: str) -> bool:
 # --------------------------------------------------------------------------- #
 # 9-11 digit runs (allowing spaces/dashes) -> normalize -> checksum-validate.
 _DIGIT_RUN = re.compile(r"(?<!\d)(\d[\d \-]{7,16}\d)(?!\d)")
+_ISO_DATE = re.compile(r"(?:19|20)\d\d-[01]\d-[0-3]\d(?:\D|$)")
 # Polish court signature heuristic, e.g. "I C 123/24", "II AKa 45/23", "III CZP 1/22".
 _SYGN = re.compile(r"\b[IVXLC]{1,4} [A-Z][A-Za-z]{0,3} \d{1,5}/\d{2,4}\b")
 _KRS = re.compile(r"\bKRS[:\s-]*?(\d{10})\b", re.IGNORECASE)
@@ -229,6 +230,8 @@ def scan_text(path_label: str, text: str, cfg: Config) -> list[Finding]:
         if ALLOW_MARKER in line:        # intentional fixture — suppress this line
             continue
         for run in _DIGIT_RUN.finditer(line):
+            if _ISO_DATE.match(run.group(1)):
+                continue  # "2026-09-07 12:23" sklada sie w 10 cyfr z poprawna suma NIP
             digits = re.sub(r"[ \-]", "", run.group(1))
             kind = ("pesel" if valid_pesel(digits) else
                     "nip" if valid_nip(digits) else
@@ -236,6 +239,8 @@ def scan_text(path_label: str, text: str, cfg: Config) -> list[Finding]:
             if kind:
                 out.append(Finding(HARD, kind, path_label, ln, _redact(run.group(1))))
         for m in _KRS.finditer(line):
+            if "123456789".startswith(m.group(1).lstrip("0")):
+                continue  # placeholder w rodzaju "KRS 0000123456", nie numer podmiotu
             out.append(Finding(HARD, "krs", path_label, ln, _redact(m.group(0))))
         for name, rx in _SECRETS:
             for m in rx.finditer(line):
@@ -312,12 +317,20 @@ def iter_history(root: Path, cfg: Config) -> list[Finding]:
         print(f"history scan unavailable: {e}", file=sys.stderr)
         return []
     findings: list[Finding] = []
-    commit = "?"
+    commit, cur_path, skip = "?", "", False
     for raw in diff.splitlines():
         if raw.startswith("commit:"):
             commit = raw[7:14]
-        elif raw.startswith("+") and not raw.startswith("+++"):
-            findings.extend(scan_text(f"history@{commit}", raw[1:], cfg))
+        elif raw.startswith("+++ "):
+            # Ta sama polityka co iter_tree. Bez sciezki allow_paths nie dzialalo
+            # w historii: 236 z 285 trafien 2026-09-21 to syntetyczne fixtury.
+            cur_path = raw[6:] if raw.startswith("+++ b/") else ""
+            parts = Path(cur_path).parts
+            skip = (any(p in SKIP_DIRS for p in parts)
+                    or Path(cur_path).suffix.lower() in SKIP_EXT
+                    or any(a in cur_path for a in cfg.allow_paths))
+        elif raw.startswith("+") and not skip:
+            findings.extend(scan_text(f"history@{commit}:{cur_path}", raw[1:], cfg))
     return findings
 
 
