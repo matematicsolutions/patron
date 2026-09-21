@@ -9,6 +9,19 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ### Naprawione
 
+- **Aplikacja zostawiona otwarta na dwa dni zajmowala 17,6 GB pamieci.** Indekser RAG
+  oddawal embedderowi caly dokument w JEDNEJ paczce, wiec rozmiar wsadu do modelu byl
+  rowny liczbie fragmentow dokumentu - bez zadnej gornej granicy. onnxruntime alokuje
+  aktywacje pod najwieksza widziana paczke i tej pamieci nie oddaje, wiec jedne duze akta
+  na stale zajmowaly pamiec proporcjonalna do swojej objetosci (zmierzone: 100 fragmentow
+  -> 1,8 GB, 800 -> 8,8 GB, ~10 MB na fragment; akta na 300-400 stron -> 17,6 GB).
+  Pamiec byla zimna, wiec Windows wypychal ja do pliku wymiany - stad obraz gigantycznego
+  procesu bez okna i `pagefile.sys` rosnacy do 41 GB. `embed()` tnie teraz wsad na paczki
+  po 16 (`PATRON_EMBED_BATCH`), a arena onnxruntime jest wylaczona. Szczyt pamieci przestal
+  zalezec od wielkosci dokumentu: na tym samym PDF 200 stron 9 791 MB przed poprawka wobec
+  1 405 MB po niej - i przy okazji o 44% szybciej. Kancelaria moze trzymac PATRON otwartego
+  przez tydzien. Jakosc retrievalu bez zmian, re-index niepotrzebny.
+  [ADR-0153](./governance/adr/0153-limit-paczki-embeddera-pamiec-procesu.md).
 - **Pasek perymetru opisywal model chmurowy jako lokalny.** Plakietka `(lokalny)` przy
   nazwie modelu zapalala sie od `PATRON_LOCAL_MODEL` z konfiguracji, czyli od tego, ze
   gdziekolwiek ustawiono model lokalny - a nie od tego, ktory model jest wybrany. Przy
