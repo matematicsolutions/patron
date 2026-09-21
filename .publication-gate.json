@@ -20,6 +20,7 @@
     ".test.ts",
     ".test.mjs",
     "frontend/public/globe.svg",
+    "package-lock.json",
     "frontend/src/app/components/tabular/columnPresets.ts"
   ],
   "deny_term_hashes": [
