@@ -42,7 +42,9 @@ describe("routing modeli OpenRouter", () => {
     expect(resolveModel("openrouter/meta-llama/llama-3.3-70b", "fb")).toBe(
       "openrouter/meta-llama/llama-3.3-70b",
     );
-    expect(resolveModel("gpt-5.5", "fb")).toBe("gpt-5.5");
+    // Aktualne id natywne przechodzi bez zmian. ("gpt-5.5" juz sie do tego nie
+    // nadaje - jest wycofany i mapuje sie na nastepce, patrz models.test.ts.)
+    expect(resolveModel("gpt-5.6-sol", "fb")).toBe("gpt-5.6-sol");
     expect(resolveModel("nieznany-model", "fb")).toBe("fb");
     expect(resolveModel(null, "fb")).toBe("fb");
   });
