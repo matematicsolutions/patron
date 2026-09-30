@@ -7,6 +7,20 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ## [Unreleased]
 
+### Dodane
+
+- **"Sprawdz powolania" w oknie pisma (ADR-0157).** PATRON wyciaga z pisma sygnatury i
+  przepisy LOKALNIE (kopia jawnego ekstraktora Repertorium, test dryfu sha256) i wysyla do
+  narzedzia `verify_citations` wylacznie ich liste - bez tresci pisma. Wynik wraca przy
+  wlasciwych miejscach tekstu (podswietlenie po offsetach, ktore zna tylko PATRON), z nota,
+  ze "brak w korpusie" nie dowodzi nieistnienia orzeczenia. Prawnik widzi dokladnie, co
+  wyszlo, i pobiera raport HTML skladany na swoim komputerze.
+- **Operator moze zatwierdzic werdykt `human_review` bramy MCP (ADR-0158).** Dotad
+  `human_review` blokowal konektor bez sciezki decyzji. Teraz Operator wpisuje w
+  `mcp-servers.json` `gatewayApproval.hash` konkretnej definicji narzedzi (hash podaje log
+  startu); kazda zmiana narzedzi - takze schematu wejscia - wraca do przegladu, a `denied`
+  zostaje blokada bez wyjatkow. Decyzja trafia do zdarzenia `mcp_security.gateway`.
+
 ### Naprawione
 
 - **Pasek perymetru opisywal model chmurowy jako lokalny.** Plakietka `(lokalny)` przy

@@ -17,3 +17,10 @@ export { typosquatDetector, levenshtein } from "./detectors/typosquat";
 export { driftDetector, computeDefinitionHash } from "./detectors/drift";
 export { hiddenInstructionsDetector } from "./detectors/hidden-instructions";
 export { toolPoisoningDetector } from "./detectors/tool-poisoning";
+export {
+    computeApprovalHash,
+    resolveOperatorApproval,
+    type GatewayApproval,
+    type OperatorApprovalDecision,
+    type OperatorApprovalStatus,
+} from "./operator-approval";

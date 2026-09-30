@@ -13,7 +13,11 @@
 
 import { appendAuditEvent } from "../audit";
 import { createServerSupabase } from "../supabase";
-import type { McpAction, McpFinding } from "../mcp-security";
+import type {
+    McpAction,
+    McpFinding,
+    OperatorApprovalStatus,
+} from "../mcp-security";
 import type { RingDecision } from "./ring-policy";
 
 export const MCP_SECURITY_EVENT_TYPE = "mcp_security.gateway" as const;
@@ -24,6 +28,18 @@ export interface RecordMcpSecurityEventArgs {
     action: McpAction;
     riskScore: number;
     findings: ReadonlyArray<McpFinding>;
+    /**
+     * ADR-0158: decyzja Operatora przy werdykcie `human_review` / `denied`.
+     * `gatewayAction` to werdykt skanera; `action` wyzej to skutek (konektor
+     * zatwierdzony = "audit"). Brak pola = werdykt nie wymagal decyzji.
+     */
+    operatorApproval?: {
+        status: Exclude<OperatorApprovalStatus, "not_needed">;
+        gatewayAction: McpAction;
+        approvalHash: string;
+        approvedAt?: string;
+        approvedBy?: string;
+    };
 }
 
 export interface RecordMcpSecurityEventResult {
@@ -79,6 +95,19 @@ export async function recordMcpSecurityEvent(
             risk_score: args.riskScore,
             findings_count: args.findings.length,
             findings: findingsForAudit,
+            ...(args.operatorApproval && {
+                operator_approval: {
+                    status: args.operatorApproval.status,
+                    gateway_action: args.operatorApproval.gatewayAction,
+                    approval_hash: args.operatorApproval.approvalHash,
+                    ...(args.operatorApproval.approvedAt && {
+                        approved_at: args.operatorApproval.approvedAt,
+                    }),
+                    ...(args.operatorApproval.approvedBy && {
+                        approved_by: args.operatorApproval.approvedBy,
+                    }),
+                },
+            }),
         },
     });
 

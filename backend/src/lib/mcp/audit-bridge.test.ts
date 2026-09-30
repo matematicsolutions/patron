@@ -106,6 +106,45 @@ describe("recordMcpSecurityEvent", () => {
         });
     });
 
+    it("ADR-0158: zatwierdzenie Operatora laduje w payload - werdykt skanera i skutek osobno", async () => {
+        const { db, handles } = mockDb();
+        await recordMcpSecurityEvent(
+            {
+                serverName: "repertorium",
+                action: "audit",
+                riskScore: 18,
+                findings: [sampleFinding],
+                operatorApproval: {
+                    status: "approved",
+                    gatewayAction: "human_review",
+                    approvalHash: "a".repeat(64),
+                    approvedAt: "2026-09-30",
+                    approvedBy: "operator",
+                },
+            },
+            () => db as ReturnType<SupabaseFactory>,
+        );
+        const row = handles.insertFn.mock.calls[0]?.[0] as { payload: Record<string, unknown> };
+        expect(row.payload.action).toBe("audit");
+        expect(row.payload.operator_approval).toEqual({
+            status: "approved",
+            gateway_action: "human_review",
+            approval_hash: "a".repeat(64),
+            approved_at: "2026-09-30",
+            approved_by: "operator",
+        });
+    });
+
+    it("bez decyzji Operatora payload nie ma pola operator_approval (ksztalt sprzed ADR-0158)", async () => {
+        const { db, handles } = mockDb();
+        await recordMcpSecurityEvent(
+            { serverName: "saos", action: "audit", riskScore: 2, findings: [sampleFinding] },
+            () => db as ReturnType<SupabaseFactory>,
+        );
+        const row = handles.insertFn.mock.calls[0]?.[0] as { payload: Record<string, unknown> };
+        expect("operator_approval" in row.payload).toBe(false);
+    });
+
     it("decyzja 'denied' tez tworzy event audit (path BLOCKED ADR-0028)", async () => {
         const { db, handles } = mockDb();
         const result = await recordMcpSecurityEvent(
