@@ -19,6 +19,7 @@ import type {
     TabularReview,
     TabularReviewDetailOut,
 } from "@/app/components/shared/types";
+import type { CitationCheckResponse } from "@/lib/citationCheck";
 
 // Server-side shape before mapping
 interface ServerMessage {
@@ -392,6 +393,22 @@ export async function verifyCitations(
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ project_id: projectId, citations }),
+    });
+}
+
+// ADR-0157: "Sprawdź powołania". Backend (lokalny) czyta tekst pisma, wyciąga
+// powołania i wysyła do weryfikatora samą ich listę; tekst wraca tylko tutaj.
+export async function checkDocumentCitations(
+    documentId: string,
+    asOf?: string | null,
+): Promise<CitationCheckResponse> {
+    return apiRequest<CitationCheckResponse>(`/api/citations/check-document`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            document_id: documentId,
+            ...(asOf ? { as_of: asOf } : {}),
+        }),
     });
 }
 

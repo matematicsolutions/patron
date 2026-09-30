@@ -565,16 +565,19 @@ export async function runMcpTool(
         }
 
         // 2. Wyluskaj structured citations (opcjonalne).
-        const citations = extractMcpCitations(
-            (result as { structuredContent?: unknown }).structuredContent,
-            serverName,
-            toolName,
-        );
+        const structured = (result as { structuredContent?: unknown })
+            .structuredContent;
+        const citations = extractMcpCitations(structured, serverName, toolName);
 
         const isError =
             (result as { isError?: boolean }).isError === true || undefined;
 
-        return { text, citations, isError };
+        return {
+            text,
+            citations,
+            isError,
+            ...(structured !== undefined && { structured }),
+        };
     } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         return {

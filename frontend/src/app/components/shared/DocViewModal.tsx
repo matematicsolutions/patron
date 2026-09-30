@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Download, Trash2, X } from "lucide-react";
+import { Download, ListChecks, Trash2, X } from "lucide-react";
 import { DocView } from "./DocView";
+import { CitationCheckView } from "./CitationCheckView";
+import { t } from "@/i18n";
 import { getDocumentUrl } from "@/app/lib/patronApi";
 import type { PATRONDocument } from "./types";
 
@@ -26,6 +28,11 @@ export function DocViewModal({
 }: Props) {
     const [mounted, setMounted] = useState(false);
     useEffect(() => setMounted(true), []);
+    // ADR-0157: widok "Sprawdź powołania" zamiast podglądu pisma. Klucz pisma
+    // zamiast flagi - inne pismo albo wersja w tym samym oknie wraca do podglądu.
+    const docKey = `${doc?.id ?? ""}|${versionId ?? ""}`;
+    const [checkingKey, setCheckingKey] = useState<string | null>(null);
+    const checking = checkingKey === docKey;
 
     if (!doc || !mounted) return null;
 
@@ -58,6 +65,18 @@ export function DocViewModal({
                         )}
                     </span>
                     <div className="flex items-center gap-1 shrink-0">
+                        {/* Sprawdzenie czyta BIEŻĄCĄ wersję pisma - przy podglądzie
+                            starszej wersji przycisk sprawdziłby inny tekst niż ten na ekranie. */}
+                        {!versionId && !checking && (
+                            <button
+                                onClick={() => setCheckingKey(docKey)}
+                                aria-label={t("citationCheck.buttonAria")}
+                                className="flex items-center gap-1 rounded px-2 h-6 text-xs text-gray-500 hover:bg-gray-100 hover:text-gray-800 transition-colors"
+                            >
+                                <ListChecks className="h-4 w-4" />
+                                {t("citationCheck.button")}
+                            </button>
+                        )}
                         <button
                             onClick={handleDownload}
                             className="flex items-center justify-center w-6 h-6 rounded hover:bg-gray-100 text-gray-400 hover:text-gray-700 transition-colors"
@@ -85,6 +104,14 @@ export function DocViewModal({
                     docx-preview internally if the active version has no
                     PDF rendition. Passing no versionId tells the backend
                     to resolve the latest tracked-changes version. */}
+                {checking ? (
+                    <div className="flex flex-col flex-1 min-h-0 overflow-hidden pb-3">
+                        <CitationCheckView
+                            documentId={doc.id}
+                            onBack={() => setCheckingKey(null)}
+                        />
+                    </div>
+                ) : (
                 <div className="flex flex-col flex-1 overflow-hidden px-3 pb-3">
                     <DocView
                         key={versionId ?? "current"}
@@ -94,6 +121,7 @@ export function DocViewModal({
                         }}
                     />
                 </div>
+                )}
             </div>
         </div>,
         document.body,
