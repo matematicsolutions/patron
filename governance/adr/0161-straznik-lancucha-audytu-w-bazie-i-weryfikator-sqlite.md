@@ -180,6 +180,10 @@ z ADR-0137). Nastepny krok: przycisk na ekranie audytu, ktory wola te sama logik
 - Nowe testy: `audit-chain-verify.test.ts` (18), `db/audit-chain-guard.test.ts` (13),
   `audit.test.ts` (+2: blad odczytu nie zaczyna nowego lancucha; wyczerpanie prob);
   test parytetu `event_type` podniesiony do v7.
+- `test/audit-chain-scripts.test.ts` (9): oba skrypty uruchamiane jako osobne procesy na
+  syntetycznej bazie - kody wyjscia trojstanu, prog z pliku, odmowy, zapis przez
+  `appendAuditEvent`, brak pustego pliku pod zla sciezka. Mutanty `readonly`/`fileMustExist`
+  wylaczone i odmowa bez straznika wylaczona - po jednym tescie czerwonym.
 - Kontrola pozytywna widziana na czerwono, trzy mutanty, kazdy uruchomiony osobno:
   `ensureAuditChainGuard` jako no-op - 7 z 12 testow straznika czerwonych;
   `AUDIT_APPEND_MAX_ATTEMPTS = 1` - test dwoch polaczen czerwony (zapis przepada);
