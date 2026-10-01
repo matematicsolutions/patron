@@ -273,7 +273,7 @@ export const en: DictShape<typeof pl> = {
         rerun: "Check again",
         asOfLabel: "Law as of (optional)",
         asOfHint: "Date of the event or judgment. Without a date we check as of today. A date you enter is sent together with the citation list.",
-        privacyNote: "The document text never left this computer. Only the list of citations ({n}) was sent to {server} - case numbers, the dates next to them, acts and article numbers.",
+        privacyNote: "The document text never left this computer. Only the list of citations ({n}) was sent to the verifier ({server}) - case numbers, the dates next to them, acts and article numbers.",
         privacyShowSent: "Show exactly what was sent",
         privacyHideSent: "Hide the sent list",
         notInCorpusNote: "“Not in corpus” does not prove that a judgment does not exist - the corpus is not complete. Check it in another source before treating the citation as wrong.",

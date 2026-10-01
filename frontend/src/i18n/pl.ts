@@ -314,7 +314,7 @@ export const pl = {
         rerun: "Sprawdź ponownie",
         asOfLabel: "Stan prawny na dzień (opcjonalnie)",
         asOfHint: "Data zdarzenia albo wyroku. Bez daty sprawdzamy na dziś. Podana data jest wysyłana razem z listą powołań.",
-        privacyNote: "Treść pisma nie opuściła komputera. Do {server} wysłano wyłącznie listę powołań ({n}) - sygnatury, daty przy nich, akty i numery artykułów.",
+        privacyNote: "Treść pisma nie opuściła komputera. Do weryfikatora ({server}) wysłano wyłącznie listę powołań ({n}) - sygnatury, daty przy nich, akty i numery artykułów.",
         privacyShowSent: "Pokaż dokładnie, co wysłano",
         privacyHideSent: "Ukryj wysłaną listę",
         notInCorpusNote: "„Brak w korpusie” nie dowodzi, że orzeczenie nie istnieje - korpus nie jest pełny. Sprawdź je w innym źródle, zanim uznasz powołanie za błędne.",
