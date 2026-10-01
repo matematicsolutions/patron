@@ -229,6 +229,26 @@ def _redact(match: str) -> str:
     return m[:2] + "*" * (len(m) - 4) + m[-2:]
 
 
+_HEX_TOKEN = re.compile(r"[0-9a-fA-F]{7,}")
+
+
+def _w_hashu(line: str, start: int, end: int) -> bool:
+    """Ciag cyfr jest czescia hasha (git SHA, sha256): token z samych znakow
+    0-9a-f, co najmniej 7 znakow, z choc jedna litera a-f.
+
+    Zmierzone 2026-10-01: syntetyczny commit scalenia PR na GitHubie ("Merge
+    2deba096f6410451136b... into ...") zawieral 10 kolejnych cyfr z poprawna
+    suma NIP - i bramka zablokowala PR. Gola liczba (bez liter wokol)
+    dalej jest identyfikatorem do sprawdzenia.
+    """
+    while start > 0 and line[start - 1].isalnum():
+        start -= 1
+    while end < len(line) and line[end].isalnum():
+        end += 1
+    tok = line[start:end]
+    return bool(_HEX_TOKEN.fullmatch(tok)) and any(c in "abcdefABCDEF" for c in tok)
+
+
 def scan_text(path_label: str, text: str, cfg: Config) -> list[Finding]:
     out: list[Finding] = []
     deny_lc = [(t, t.lower()) for t in cfg.deny_terms]
@@ -242,6 +262,8 @@ def scan_text(path_label: str, text: str, cfg: Config) -> list[Finding]:
             digits = re.sub(r"[ \-]", "", run.group(1))
             if _placeholder(digits):
                 continue
+            if _w_hashu(line, run.start(1), run.end(1)):
+                continue  # cyfry wewnatrz hasha gita, nie numer osoby ani firmy
             kind = ("pesel" if valid_pesel(digits) else
                     "nip" if valid_nip(digits) else
                     "regon" if valid_regon(digits) else None)
