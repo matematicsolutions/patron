@@ -20,7 +20,8 @@ const mcp = vi.hoisted(() => ({ status: null as McpStatus | null }));
 vi.mock("@/hooks/useEgressConfig", () => ({
     useEgressConfig: () => ({ config: egress.config }),
 }));
-vi.mock("@/hooks/useMcpSecurityStatus", () => ({
+vi.mock("@/hooks/useMcpSecurityStatus", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("@/hooks/useMcpSecurityStatus")>()),
     useMcpSecurityStatus: () => ({ visible: true, status: mcp.status, error: null }),
 }));
 // Wybrany model jest ZMIENNA testu, nie stala: plakietka "(lokalny)" i zielone
@@ -50,12 +51,12 @@ function config(over: Partial<EgressConfig> = {}): EgressConfig {
     };
 }
 
-function status(denied: number): McpStatus {
+function status(denied: number, humanReview = 0): McpStatus {
     return {
         gateway: { mode: "enforce", active: true, last_startup_scan: null } as McpStatus["gateway"],
         audit_summary_24h: {
             decisions_total: 12,
-            by_action: { audit: 12 - denied, human_review: 0, denied },
+            by_action: { audit: 12 - denied - humanReview, human_review: humanReview, denied },
         },
     };
 }
@@ -120,6 +121,14 @@ describe("PerimeterBar - postawa perymetru", () => {
         mcp.status = status(3);
         render(<PerimeterBar />);
         expect(bar().textContent).toContain("3");
+        expect(bar().textContent).toContain(t("perimeter.blocked"));
+    });
+
+    it("human_review bez zatwierdzenia to tez blokada (dryf, podmiana plikow konektora)", () => {
+        egress.config = config();
+        mcp.status = status(0, 2);
+        render(<PerimeterBar />);
+        expect(bar().textContent).toContain("2");
         expect(bar().textContent).toContain(t("perimeter.blocked"));
     });
 

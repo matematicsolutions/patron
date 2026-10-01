@@ -942,14 +942,8 @@ export const pl = {
     // MCP Security Banner (ADR-0042)
     // ---------------------------------------------------------------------
     mcpSecurity: {
-        disabledMessage: "MCP Security: Wyłączony. Zalecane włączenie w env MCP_SECURITY_GATEWAY_MODE.",
-        disabledAriaLabel: "MCP Security Gateway wyłączony",
-        blockedMessage: "MCP Security: ZABLOKOWANO {denied} narzędzi w ostatnich 24h. Sprawdź audit_log.",
-        blockedAriaLabel: "MCP Security Gateway zablokował {denied} narzędzi w 24h",
-        activeMessage: "MCP Security: aktywny (enforce). 24h: {audit} audit, {humanReview} human_review.",
-        activeAriaLabel: "MCP Security Gateway aktywny w trybie enforce, {audit} audit {humanReview} human review w 24h",
-        auditMessage: "MCP Security: audit-only. {total} zdarzeń w 24h. Narzędzia NIE są blokowane.",
-        auditAriaLabel: "MCP Security Gateway w trybie audit-only, narzędzia nie są blokowane",
+        blockedMessage: "MCP Security: blokady konektorów w ostatnich 24h: {blocked}. Sprawdź akta audytu.",
+        blockedAriaLabel: "MCP Security Gateway: blokady konektorów w ostatnich 24h: {blocked}",
         actionHint: "Zobacz akta i decyzje",
     },
 

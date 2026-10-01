@@ -691,14 +691,8 @@ export const pt: DictShape<typeof pl> = {
     },
 
     mcpSecurity: {
-        disabledMessage: "Seguranca MCP: Desativada. Recomenda-se ativar via env MCP_SECURITY_GATEWAY_MODE.",
-        disabledAriaLabel: "Gateway de seguranca MCP desativado",
-        blockedMessage: "Seguranca MCP: BLOQUEOU {denied} ferramentas nas ultimas 24h. Verifique o audit_log.",
-        blockedAriaLabel: "Gateway de seguranca MCP bloqueou {denied} ferramentas em 24h",
-        activeMessage: "Seguranca MCP: ativa (enforce). 24h: {audit} audit, {humanReview} human_review.",
-        activeAriaLabel: "Gateway de seguranca MCP ativo no modo enforce, {audit} audit {humanReview} human review em 24h",
-        auditMessage: "Seguranca MCP: somente auditoria. {total} eventos em 24h. As ferramentas NÃO são bloqueadas.",
-        auditAriaLabel: "Gateway de seguranca MCP no modo somente auditoria, as ferramentas não são bloqueadas",
+        blockedMessage: "Seguranca MCP: bloqueios de conectores nas ultimas 24h: {blocked}. Verifique o registro de auditoria.",
+        blockedAriaLabel: "Gateway de seguranca MCP: bloqueios de conectores nas ultimas 24h: {blocked}",
     },
 
     egressConfig: {

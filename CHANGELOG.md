@@ -15,6 +15,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
   przelacznikami pickera. Ustawienia Operatora zyja teraz w nakladce
   `~/.patron/mcp-servers.operator.json`, ktora aktualizacje przezywa. Konektorom z
   instalatora nakladka moze zmienic tylko `enabled` i `gatewayApproval`.
+- **Baner MCP Security i pasek perymetru nie widzialy blokady `human_review`.** Liczyly tylko
+  decyzje `denied`, wiec konektor zablokowany przez dryf albo podmiane plikow (`human_review`
+  bez zatwierdzenia Operatora) nie zapalal banera i nie trafial do licznika blokad. Oba licza
+  teraz `denied` + `human_review`. Komunikat mowi o blokadach konektorow (dawniej "narzedzi"),
+  a nieosiagalne komunikaty o trybach `off` i `audit` zniknely ze slownikow.
+  [ADR-0160](./governance/adr/0160-baner-mcp-security-pokazuje-tryb-egzekwowany.md), uzupelnienie.
 
 ### Dodane
 

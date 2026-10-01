@@ -37,6 +37,12 @@ i `audit` w slownikach sa od teraz nieosiagalne z tego backendu. Usuniecie ich i
 licznika blokad (dzis "ZABLOKOWANO" liczy tylko `denied`, choc `human_review` bez zatwierdzenia
 tez blokuje) to porzadek na pozniej.
 
+*Uzupelnienie 2026-10-01:* zrobione. Baner i pasek perymetru licza blokady jedna funkcja
+`blockedGatewayDecisions` (`denied` + `human_review`; zatwierdzony `human_review` ma w audycie
+akcje `audit`). Bez tego blokada dryfu i podmiany plikow konektora (ADR-0159/0162) nie zapalala
+banera. Nieosiagalne komunikaty `off` / `audit` / `active` usuniete z siedmiu slownikow, a
+komunikat blokady liczy decyzje bramy wobec konektorow, nie "narzedzia".
+
 ## Weryfikacja
 
 - `security.test.ts`: `readGatewayMode` zwraca `enforce`, a `active` jest `true` dla braku

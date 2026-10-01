@@ -21,7 +21,7 @@
 
 import type { ReactElement, ReactNode } from "react";
 import { useEgressConfig } from "@/hooks/useEgressConfig";
-import { useMcpSecurityStatus } from "@/hooks/useMcpSecurityStatus";
+import { blockedGatewayDecisions, useMcpSecurityStatus } from "@/hooks/useMcpSecurityStatus";
 import { useSelectedModel } from "@/app/hooks/useSelectedModel";
 import { isLocalModel } from "@/lib/modelEgress";
 import Link from "next/link";
@@ -108,7 +108,7 @@ export function PerimeterBar(): ReactElement {
                   ? t("perimeter.cloudPrivileged")
                   : t("perimeter.cloudUs");
 
-    const blocked = status?.audit_summary_24h.by_action.denied ?? 0;
+    const blocked = blockedGatewayDecisions(status);
 
     return (
         <footer

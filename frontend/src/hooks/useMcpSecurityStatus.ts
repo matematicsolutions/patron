@@ -7,8 +7,8 @@
 // Strategia error handling:
 //   403 (non-admin) -> visible: false, banner sie nie renderuje
 //   5xx / network -> visible: false + error, banner sie nie renderuje (fail-closed)
-//   200 + mode "off" -> visible: true, banner pokazuje wylaczony (kolor szary)
-//   200 + mode "enforce"/"audit" -> visible: true, banner pokazuje aktywny
+//   200 -> visible: true; baner i perymetr pokazuja BLOKADY (blockedGatewayDecisions).
+//   Tryb bramy jest zawsze "enforce" (ADR-0160) - backend nie zglasza innego.
 
 "use client";
 
@@ -32,6 +32,18 @@ export interface McpStatus {
         decisions_total: number;
         by_action: { audit: number; human_review: number; denied: number };
     };
+}
+
+/**
+ * Decyzje bramy z ostatnich 24h, ktore BLOKUJA konektor: `denied` oraz
+ * `human_review` bez zatwierdzenia Operatora (zatwierdzony ma w audycie akcje
+ * `audit`, ADR-0158). Liczenie samego `denied` przemilczalo blokade dryfu i
+ * podmiany plikow konektora (ADR-0159/0162), ktore koncza sie `human_review`.
+ */
+export function blockedGatewayDecisions(status: McpStatus | null): number {
+    if (!status) return 0;
+    const { denied, human_review } = status.audit_summary_24h.by_action;
+    return denied + human_review;
 }
 
 export interface UseMcpSecurityStatusResult {

@@ -15,7 +15,10 @@ const mcp = vi.hoisted(() => ({
     status: null as McpStatus | null,
 }));
 
-vi.mock("@/hooks/useMcpSecurityStatus", () => ({
+// Podmieniamy TYLKO hook; blockedGatewayDecisions zostaje prawdziwe - test ma
+// mierzyc te sama regule liczenia blokad co produkcja.
+vi.mock("@/hooks/useMcpSecurityStatus", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("@/hooks/useMcpSecurityStatus")>()),
     useMcpSecurityStatus: () => ({
         visible: mcp.visible,
         status: mcp.status,
@@ -25,19 +28,16 @@ vi.mock("@/hooks/useMcpSecurityStatus", () => ({
 
 import { McpSecurityBanner } from "./mcp-security-banner";
 
-function status(
-    mode: "disabled" | "audit" | "enforce",
-    denied: number,
-): McpStatus {
+function status(denied: number, humanReview = 0): McpStatus {
     return {
         gateway: {
-            mode,
-            active: mode === "enforce",
+            mode: "enforce",
+            active: true,
             last_startup_scan: null,
         } as McpStatus["gateway"],
         audit_summary_24h: {
             decisions_total: 12,
-            by_action: { audit: 12 - denied, human_review: 0, denied },
+            by_action: { audit: 12 - denied - humanReview, human_review: humanReview, denied },
         },
     };
 }
@@ -48,30 +48,36 @@ describe("McpSecurityBanner - stan trwaly do perymetru, zdarzenie na gore", () =
         mcp.status = null;
     });
 
-    it("wylaczona bramka NIE zajmuje gory ekranu - to konfiguracja, nie zdarzenie", () => {
-        mcp.status = status("disabled", 0);
+    it("bramka bez blokad nie zajmuje gory ekranu - to stan, nie zdarzenie", () => {
+        mcp.status = status(0);
         render(<McpSecurityBanner />);
         expect(screen.queryByTestId("mcp-security-banner")).toBeNull();
     });
 
-    it("bramka w trybie audit tez nie krzyczy z gory", () => {
-        mcp.status = status("audit", 0);
-        render(<McpSecurityBanner />);
-        expect(screen.queryByTestId("mcp-security-banner")).toBeNull();
-    });
-
-    it("bramka aktywna i czysta nie zajmuje gory", () => {
-        mcp.status = status("enforce", 0);
-        render(<McpSecurityBanner />);
-        expect(screen.queryByTestId("mcp-security-banner")).toBeNull();
-    });
-
-    it("FAKTYCZNA BLOKADA jest zdarzeniem - wraca na gore z liczba", () => {
-        mcp.status = status("enforce", 3);
+    it("FAKTYCZNA BLOKADA (denied) jest zdarzeniem - wraca na gore z liczba", () => {
+        mcp.status = status(3);
         render(<McpSecurityBanner />);
         const banner = screen.getByTestId("mcp-security-banner");
         expect(banner.textContent).toContain("3");
         expect(banner.getAttribute("href")).toBe("/admin/audit");
+    });
+
+    it("human_review bez zatwierdzenia to tez blokada - dryf i podmiana plikow konektora (ADR-0159/0162)", () => {
+        mcp.status = status(0, 2);
+        render(<McpSecurityBanner />);
+        expect(screen.getByTestId("mcp-security-banner").textContent).toContain("2");
+    });
+
+    it("liczba to suma denied i human_review", () => {
+        mcp.status = status(1, 2);
+        render(<McpSecurityBanner />);
+        expect(screen.getByTestId("mcp-security-banner").textContent).toContain("3");
+    });
+
+    it("komunikat nie zostawia surowego placeholdera", () => {
+        mcp.status = status(1);
+        render(<McpSecurityBanner />);
+        expect(screen.getByTestId("mcp-security-banner").textContent).not.toContain("{");
     });
 
     it("brak danych o bramce nie zmysla banera", () => {
