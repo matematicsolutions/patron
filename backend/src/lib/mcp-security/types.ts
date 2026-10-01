@@ -89,6 +89,13 @@ export interface McpScanContext {
      * Wpis `v2:<hex>` albo goly hex v1 sprzed ADR-0159 (migrowany przy starcie).
      */
     driftBaseline: ReadonlyMap<string, string>;
+    /**
+     * ADR-0162: serverName -> hash definicji (formula v2) zapisany przy buildzie
+     * instalatora dla konektorow, ktore instalator wozi (bundled-definitions.json).
+     * Definicja zgodna z manifestem jest zaufana (pochodzi z naszego wydania);
+     * niezgodna = podmiana plikow po instalacji. Brak wpisu = zwykly dryf.
+     */
+    bundledDefinitions?: ReadonlyMap<string, string>;
 }
 
 /**

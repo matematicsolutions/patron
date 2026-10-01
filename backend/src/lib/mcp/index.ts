@@ -16,6 +16,7 @@ import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js"
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import type { OpenAIToolSchema } from "../llm/types";
 import {
+    APPROVED_PATRON_CONNECTORS,
     buildScanContext,
     resolveOperatorApproval,
     scanMcpRegistry,
@@ -351,6 +352,39 @@ export function saveBaseline(baseline: ReadonlyMap<string, string>): void {
     }
 }
 
+// ADR-0162: manifest definicji konektorow wozonych przez instalator, zapisany
+// przy buildzie (desktop/scripts/definition-manifest.cjs) obok mcp-servers.json.
+// Brak pliku (dev, tryb serwerowy) albo plik uszkodzony = pusta mapa, czyli
+// zwykly dryf - brak manifestu nigdy nie poszerza zaufania.
+function bundledDefinitionsPath(): string {
+    const override = process.env.PATRON_MCP_BUNDLED_DEFINITIONS_PATH;
+    if (override && override.length > 0) return override;
+    return path.join(BACKEND_ROOT, "bundled-definitions.json");
+}
+
+export function loadBundledDefinitions(): Map<string, string> {
+    const p = bundledDefinitionsPath();
+    if (!fs.existsSync(p)) return new Map();
+    try {
+        const parsed = JSON.parse(fs.readFileSync(p, "utf-8")) as {
+            version?: unknown;
+            definitions?: unknown;
+        };
+        if (parsed?.version !== 1 || !parsed.definitions || typeof parsed.definitions !== "object") {
+            console.warn(`[MCP-SECURITY] Manifest definicji ${p} ma nieznany format - ignoruje (zwykly dryf).`);
+            return new Map();
+        }
+        const out = new Map<string, string>();
+        for (const [name, hash] of Object.entries(parsed.definitions as Record<string, unknown>)) {
+            if (typeof hash === "string" && /^[0-9a-f]{64}$/.test(hash)) out.set(name, hash);
+        }
+        return out;
+    } catch (err) {
+        console.warn(`[MCP-SECURITY] Nie udalo sie odczytac manifestu definicji ${p} - ignoruje (zwykly dryf):`, err);
+        return new Map();
+    }
+}
+
 function toMcpServerDefinition(d: DiscoveredServer): McpServerDefinition {
     const toolDefs: McpToolDefinition[] = d.tools.map((t) => ({
         name: t.name,
@@ -409,7 +443,7 @@ export async function getMcpTools(): Promise<OpenAIToolSchema[]> {
     // Faza 2: scan przez MCP Security Gateway
     const definitions = ok.map(toMcpServerDefinition);
     const baseline = loadBaseline();
-    const context = buildScanContext(baseline);
+    const context = buildScanContext(baseline, APPROVED_PATRON_CONNECTORS, loadBundledDefinitions());
     const report = scanMcpRegistry(definitions, context);
 
     // Faza 3: register / skip per server

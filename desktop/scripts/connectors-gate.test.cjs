@@ -34,7 +34,7 @@ const korzen = fs.mkdtempSync(path.join(os.tmpdir(), "konektory-gate-"));
 let licznik = 0;
 
 /** Buduje syntetyczne resources/ i zwraca wynik bramki. */
-function paczka({ locale, wpisy, bezManifestu = false, bezLocale = false, surowy = null }) {
+function paczka({ locale, wpisy, bezManifestu = false, bezLocale = false, surowy = null, definicje }) {
     const dir = path.join(korzen, `p${licznik++}`);
     const backend = path.join(dir, "backend");
     fs.mkdirSync(backend, { recursive: true });
@@ -46,6 +46,21 @@ function paczka({ locale, wpisy, bezManifestu = false, bezLocale = false, surowy
             path.join(backend, "mcp-servers.json"),
             surowy !== null ? surowy : JSON.stringify(wpisy, null, 2),
         );
+    }
+    // ADR-0162: domyslnie poprawny manifest definicji dla wpisow; null = brak
+    // pliku, string = surowa tresc, obiekt = wlasne definitions.
+    if (definicje !== null) {
+        let tresc;
+        if (typeof definicje === "string") tresc = definicje;
+        else {
+            const defs = definicje ?? Object.fromEntries(
+                (Array.isArray(wpisy) ? wpisy : [])
+                    .filter((e) => e && typeof e.name === "string")
+                    .map((e) => [e.name, "a".repeat(64)]),
+            );
+            tresc = JSON.stringify({ version: 1, definitions: defs });
+        }
+        fs.writeFileSync(path.join(backend, "bundled-definitions.json"), tresc);
     }
     return sprawdzKonektory(dir);
 }
@@ -164,6 +179,30 @@ console.log("Znane-zle - manifest pusty / brak / zly ksztalt:");
     test("  i bramka mowi powtorzone", mowiO(w, "powtorzone"), w.problemy.join(" | "));
 }
 
+// ── 6b. Znane-zle: manifest definicji (ADR-0162) ─────────────────────────────
+console.log("Znane-zle - manifest definicji konektorow:");
+{
+    const w = paczka({ locale: "pl", wpisy: poprawny("pl"), definicje: null });
+    test("CZERWONO gdy paczka nie wiezie bundled-definitions.json", !w.ok);
+    test("  i bramka mowi bundled-definitions.json", mowiO(w, "bundled-definitions.json"), w.problemy.join(" | "));
+}
+{
+    const defs = Object.fromEntries(poprawny("pl").filter((e) => e.name !== "eureka").map((e) => [e.name, "a".repeat(64)]));
+    const w = paczka({ locale: "pl", wpisy: poprawny("pl"), definicje: defs });
+    test("CZERWONO gdy w manifescie definicji brakuje eureka", !w.ok);
+    test("  i bramka nazywa eureka", mowiO(w, "eureka"), w.problemy.join(" | "));
+}
+{
+    const defs = Object.fromEntries([...poprawny("us").map((e) => [e.name, "a".repeat(64)]), ["obcy", "b".repeat(64)]]);
+    const w = paczka({ locale: "us", wpisy: poprawny("us"), definicje: defs });
+    test("CZERWONO gdy manifest definicji ma wpis spoza mcp-servers.json", !w.ok);
+    test("  i bramka nazywa obcy", mowiO(w, "obcy"), w.problemy.join(" | "));
+}
+{
+    const w = paczka({ locale: "us", wpisy: poprawny("us"), definicje: JSON.stringify({ definitions: {} }) });
+    test("CZERWONO gdy manifest definicji ma nieznany format", !w.ok);
+}
+
 // ── 7. Znane-zle: edycja spoza tabeli ────────────────────────────────────────
 console.log("Znane-zle - edycja, ktorej tabela nie zna:");
 {
@@ -180,5 +219,5 @@ if (bledy) {
     process.exit(1);
 }
 console.log(
-    "\nBramka konektorow: rozroznia paczke zgodna od dziewieciu rodzajow niezgodnej.",
+    "\nBramka konektorow: rozroznia paczke zgodna od trzynastu rodzajow niezgodnej.",
 );

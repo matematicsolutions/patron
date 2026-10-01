@@ -101,6 +101,32 @@ export const driftDetector: McpDetector = {
         const current = computeDefinitionHash(server);
         const baseline = context.driftBaseline.get(server.name);
 
+        // ADR-0162: konektor wozony przez instalator ma oczekiwany hash definicji
+        // z manifestu wydania. Zgodny = definicja z naszego buildu, wiec zmiana
+        // wzgledem baseline (np. po aktualizacji) nie wymaga decyzji Operatora.
+        // Niezgodny = ktos zmienil pliki konektora po instalacji - high, bez
+        // wzgledu na baseline.
+        const shipped = context.bundledDefinitions?.get(server.name);
+        if (shipped !== undefined) {
+            if (shipped !== current) {
+                return [driftHigh(
+                    server,
+                    `Definicja konektora '${server.name}' nie zgadza sie z manifestem instalatora (ADR-0162) - pliki konektora mogly zostac zmienione po instalacji. Wymaga decyzji Operatora.`,
+                    `manifest=${shipped.slice(0, 12)}... curr=${current.slice(0, 12)}...`,
+                )];
+            }
+            const prev = baseline === undefined ? undefined : parseBaselineEntry(baseline);
+            if (prev?.version === "v2" && prev.hash === current) return [];
+            return [{
+                detector: "drift",
+                category: "drift",
+                severity: "low",
+                serverName: server.name,
+                message: `Definicja konektora '${server.name}' zgodna z manifestem instalatora (ADR-0162) - baseline ustawiony na definicje z biezacego wydania (informational).`,
+                sample: `hash=${current.slice(0, 16)}...`,
+            }];
+        }
+
         if (baseline === undefined) {
             return [{
                 detector: "drift",

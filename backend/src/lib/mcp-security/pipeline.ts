@@ -123,9 +123,11 @@ export function scanMcpRegistry(
 export function buildScanContext(
     driftBaseline: ReadonlyMap<string, string> = new Map(),
     approvedNames: ReadonlyArray<string> = APPROVED_PATRON_CONNECTORS,
+    bundledDefinitions: ReadonlyMap<string, string> = new Map(),
 ): McpScanContext {
     return {
         approvedNames: new Set(approvedNames),
         driftBaseline,
+        bundledDefinitions,
     };
 }

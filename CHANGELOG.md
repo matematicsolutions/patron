@@ -23,6 +23,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ### Naprawione
 
+- **Aktualizacja instalatora blokowalaby konektory, ktore sam instalator wozi.** Brama MCP
+  porownywala definicje narzedzi z poprzednim startem, wiec pierwsze wydanie zmieniajace opis
+  albo schemat narzedzia bundlowanego konektora dawaloby kazdemu uzytkownikowi `human_review`.
+  Build zapisuje teraz manifest definicji wozonych konektorow (`bundled-definitions.json`);
+  definicja zgodna z manifestem przechodzi, a niezgodna - pliki zmienione po instalacji -
+  blokuje. Bramka paczki wymaga manifestu, ktory pokrywa wszystkie konektory edycji.
+  [ADR-0162](./governance/adr/0162-manifest-definicji-bundlowanych-konektorow.md).
 - **Baner MCP Security mowil adminowi, ze brama jest wylaczona, gdy dzialala.** Tryb na
   banerze pochodzil ze zmiennej `MCP_SECURITY_GATEWAY_MODE` (domyslnie `off`), ktora nie
   sterowala brama: konektory z decyzja `denied` albo `human_review` byly blokowane zawsze, a

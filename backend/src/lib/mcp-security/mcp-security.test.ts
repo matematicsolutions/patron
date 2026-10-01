@@ -350,3 +350,59 @@ describe("drift: schemat wejscia i migracja baseline (ADR-0159)", () => {
         expect(parseBaselineEntry(`v2:${h}x`)).toEqual({ version: "unknown" });
     });
 });
+
+describe("drift: manifest definicji bundlowanych konektorow (ADR-0162)", () => {
+    const SAOS: McpServerDefinition = {
+        name: "saos",
+        transport: "stdio",
+        tools: [{ name: "search", description: "Szuka orzeczen", inputSchema: { type: "object" } }],
+    };
+    const PO_AKTUALIZACJI: McpServerDefinition = {
+        ...SAOS,
+        tools: [{ name: "search", description: "Szuka orzeczen SN i NSA", inputSchema: { type: "object" } }],
+    };
+    const manifest = (srv: McpServerDefinition) => new Map([[srv.name, computeDefinitionHash(srv)]]);
+    const drift = (r: ReturnType<typeof scanMcpServer>) => r.findings.filter((f) => f.detector === "drift");
+
+    it("aktualizacja instalatora: baseline z poprzedniego wydania + definicja zgodna z manifestem -> low, nie blokada", () => {
+        const ctx = buildScanContext(new Map([["saos", baselineFor(SAOS)]]), undefined, manifest(PO_AKTUALIZACJI));
+        const r = scanMcpServer(PO_AKTUALIZACJI, ctx);
+        expect(drift(r)).toHaveLength(1);
+        expect(drift(r)[0].severity).toBe("low");
+        expect(drift(r)[0].message).toContain("zgodna z manifestem instalatora");
+        expect(r.action).toBe("audit");
+        expect(r.currentHash).toBe(baselineFor(PO_AKTUALIZACJI));
+    });
+
+    it("bez manifestu ta sama zmiana to drift/high (kontrola: manifest jest jedynym powodem zaufania)", () => {
+        const ctx = buildScanContext(new Map([["saos", baselineFor(SAOS)]]));
+        expect(drift(scanMcpServer(PO_AKTUALIZACJI, ctx))[0].severity).toBe("high");
+    });
+
+    it("pliki konektora zmienione po instalacji (definicja != manifest) -> high, nawet gdy baseline sie zgadza", () => {
+        const ctx = buildScanContext(new Map([["saos", baselineFor(PO_AKTUALIZACJI)]]), undefined, manifest(SAOS));
+        const r = scanMcpServer(PO_AKTUALIZACJI, ctx);
+        expect(drift(r)[0].severity).toBe("high");
+        expect(drift(r)[0].message).toContain("nie zgadza sie z manifestem instalatora");
+        expect(r.action).toBe("human_review");
+    });
+
+    it("manifest zgodny i baseline v2 juz aktualny -> cisza", () => {
+        const ctx = buildScanContext(new Map([["saos", baselineFor(SAOS)]]), undefined, manifest(SAOS));
+        expect(drift(scanMcpServer(SAOS, ctx))).toHaveLength(0);
+    });
+
+    it("manifest zgodny przy baseline v1 albo pierwszym starcie -> low i zapis v2", () => {
+        for (const baseline of [new Map([["saos", computeLegacyDefinitionHash(SAOS)]]), new Map<string, string>()]) {
+            const r = scanMcpServer(SAOS, buildScanContext(baseline, undefined, manifest(SAOS)));
+            expect(drift(r).map((f) => f.severity)).toEqual(["low"]);
+            expect(r.currentHash).toBe(baselineFor(SAOS));
+        }
+    });
+
+    it("manifest nie dotyczy konektora spoza manifestu (zwykly dryf)", () => {
+        const inny = { ...PO_AKTUALIZACJI, name: "krs" };
+        const ctx = buildScanContext(new Map([["krs", baselineFor({ ...SAOS, name: "krs" })]]), undefined, manifest(SAOS));
+        expect(drift(scanMcpServer(inny, ctx))[0].severity).toBe("high");
+    });
+});

@@ -146,6 +146,45 @@ function sprawdzKonektory(resourcesDir) {
         );
     }
 
+    // 7. Manifest definicji (ADR-0162): pokrywa w OBIE strony dokladnie
+    //    konektory z mcp-servers.json. Bez niego runtime po cichu wraca do
+    //    zwyklego dryfu - paczka "dziala", ale kazda aktualizacja, ktora zmienia
+    //    opis albo schemat narzedzia, blokuje konektor wszystkim uzytkownikom.
+    const plikDefinicji = path.join(backend, "bundled-definitions.json");
+    let definicje = null;
+    try {
+        const parsed = JSON.parse(fs.readFileSync(plikDefinicji, "utf8"));
+        if (parsed && parsed.version === 1 && parsed.definitions && typeof parsed.definitions === "object") {
+            definicje = parsed.definitions;
+        } else {
+            problemy.push("bundled-definitions.json ma nieznany format (oczekiwano version 1 + definitions).");
+        }
+    } catch (err) {
+        problemy.push(
+            `brak albo nieczytelny bundled-definitions.json (${err.message}). Bez manifestu ` +
+                "definicji kazda aktualizacja zmieniajaca narzedzia blokuje konektory dryfem (ADR-0162).",
+        );
+    }
+    if (definicje) {
+        const zHashem = new Set(
+            Object.keys(definicje).filter((n) => /^[0-9a-f]{64}$/.test(String(definicje[n]))),
+        );
+        const bezDefinicji = roznica(sa, zHashem);
+        const obceDefinicje = roznica(new Set(Object.keys(definicje)), sa);
+        if (bezDefinicji.length) {
+            problemy.push(
+                `manifest definicji nie ma poprawnego hasha dla (${bezDefinicji.length}): ` +
+                    `${bezDefinicji.join(", ")}.`,
+            );
+        }
+        if (obceDefinicje.length) {
+            problemy.push(
+                `manifest definicji ma wpisy spoza mcp-servers.json (${obceDefinicje.length}): ` +
+                    `${obceDefinicje.join(", ")}.`,
+            );
+        }
+    }
+
     const podsumowanie =
         `edycja ${locale}${localeZPliku ? "" : " (domyslna - brak patron-locale.json)"}: ` +
         `${manifest.length} konektorow, ${wlaczone.size} ON ` +

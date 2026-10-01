@@ -1,5 +1,7 @@
 node_modules
 backend/mcp-servers.json
+# ADR-0162: generowany przy buildzie instalatora (desktop/scripts/definition-manifest.cjs)
+backend/bundled-definitions.json
 backend/mcp-servers.docker.json
 backend/mcp-bundled/
 .next
