@@ -1,0 +1,12 @@
+#!/bin/sh
+# Bramka PRZED pushem na linie publiczna (scripts/pre_push_gate.py).
+#
+# Powod istnienia: bramka publikacji w CI repo publicznego przy zwyklym pushu
+# dziala dopiero po fakcie, kiedy tresc jest juz publiczna. Ten hook puszcza
+# te sama bramke na tym, co push doklada, i odmawia pushu, jesli cos znajdzie.
+# Push na prywatny origin przechodzi bez zmian. Brak pythona = blokada
+# (exec sie nie uda, a git traktuje to jako odmowe).
+#
+# Obejscie tylko swiadome: PUSH_MIMO_BRAMKI=tak-wiem-co-robie git push ...
+export PYTHONUTF8=1
+exec python scripts/pre_push_gate.py "$1" "$2"
