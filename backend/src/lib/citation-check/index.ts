@@ -60,11 +60,18 @@ export type VerifyItem =
  * nie tnie na koncu wiersza (PDF lamie "Prawa\n\nbankowego"), wiec "art. 481 § 1
  * k.c.\nSad Najwyzszy..." podswietlalby dwa kolejne zdania. Tniemy tylko na
  * nowym wierszu, po ktorym stoi WIELKA litera - poczatek nastepnego zdania albo
- * akapitu. Identyfikator (akt, artykul) pochodzi z ekstraktora i sie nie zmienia.
+ * akapitu, a potem na skrocie kodeksu. Identyfikator (akt, artykul) pochodzi z
+ * ekstraktora i sie nie zmienia - to tylko zakres zaznaczenia w pismie.
  */
 function zakresPodswietlenia(fragment: string): string {
     const m = /\n\s*[A-ZĄĆĘŁŃÓŚŹŻ]/.exec(fragment);
-    return (m ? fragment.slice(0, m.index) : fragment).trimEnd();
+    const zdanie = (m ? fragment.slice(0, m.index) : fragment).trimEnd();
+    // Skrot kodeksu zamyka powolanie: "art. 471 k.c., klauzula z" -> "art. 471 k.c."
+    // (zmierzone 2026-10-01 na zywym przebiegu - okno konczy sie dopiero na
+    // nastepnym "art."). Adresy Dz.U. i nazwy ustaw zostaja w calym oknie zdania.
+    const skrot =
+        /\bk\.(?:\s?[a-ząćęłńóśźż]{1,2}\.){1,3}|\bk(?:pc|pk|pa|sh|ro|kw|ks|c|k|p)\b/.exec(zdanie);
+    return skrot ? zdanie.slice(0, skrot.index + skrot[0].length) : zdanie;
 }
 
 /** Klucz deduplikacji - ten sam co w ekstraktorze (typ + identyfikator). */

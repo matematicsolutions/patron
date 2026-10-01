@@ -43,7 +43,9 @@ offsetach w TYM tekscie, ktory wyciagnela ta sama sciezka co grounding
 (`getDocumentTextForGrounding`: biezaca wersja, PDF/DOCX, bramka input-security, odwrot do
 OCR dla skanow). Dlatego widok pokazuje tekst wyciagniety przez PATRON, a nie render PDF -
 offsety w renderze bylyby zgadywaniem. Zakres podswietlenia przepisu konczy sie na nowym
-wierszu z wielka litera (okno ekstraktora ma do 160 znakow i celowo nie tnie na koncu linii).
+wierszu z wielka litera, a potem na skrocie kodeksu ("art. 471 k.c., klauzula z" -> "art. 471
+k.c.", zmierzone na zywym przebiegu 2026-10-01); okno ekstraktora ma do 160 znakow i celowo
+nie tnie na koncu linii.
 
 **4. Wysylka jest widoczna.** Odpowiedz trasy niesie `sent` - dokladnie te tablice, ktore
 poszly do konektora - a widok pokazuje je na zadanie i w raporcie. Obietnica "pismo nie

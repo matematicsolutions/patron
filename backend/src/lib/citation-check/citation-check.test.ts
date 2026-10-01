@@ -105,6 +105,14 @@ describe("extractLocalCitations - lokalnie, z offsetami", () => {
         expect(art730.excerpt).toBe("art. 730 § 1 k.p.c.");
     });
 
+    it("podswietlenie konczy sie na skrocie kodeksu, nie na nastepnym artykule (przypadek z zywego E2E)", () => {
+        const t = "Odpowiedzialnosc z art. 471 k.c., klauzula z art. 385 1 § 1 k.c.";
+        const r = extractLocalCitations(t).citations;
+        expect(r.map((c) => c.excerpt)).toEqual(["art. 471 k.c.", "art. 385 1 § 1 k.c."]);
+        expect(r.map((c) => c.article)).toEqual(["471", "385^1"]);
+        expect(extractLocalCitations("Zob. art. 7 kpa i dalej.").citations[0].excerpt).toBe("art. 7 kpa");
+    });
+
     it("ref jest nieprzezroczysty i unikalny", () => {
         const refs = citations.map((c) => c.ref);
         expect(new Set(refs).size).toBe(refs.length);
