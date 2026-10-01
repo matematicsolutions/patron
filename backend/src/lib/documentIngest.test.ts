@@ -87,7 +87,10 @@ describe("ingestDocument (headless)", () => {
       .prepare("select count(*) c from document_versions where document_id = ?")
       .get(r.documentId) as { c: number };
     expect(ver.c).toBe(1);
-  });
+    // Limit wiekszy niz domyslne 5 s: w izolacji test trwa ~0,4 s (pierwszy, leniwy import
+    // mammoth), ale w pelnej suicie (pool forks, rownolegle procesy) przekraczal 5 s - zmierzone
+    // 2026-10-01. 30 s nadal lapie zawieszenie.
+  }, 30_000);
 
   it("niewspierany typ -> 400", async () => {
     const r = await ingest.ingestDocument({

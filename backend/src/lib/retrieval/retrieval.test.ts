@@ -266,7 +266,10 @@ describe("narzedzie search_corpus (dispatch, bez LLM)", () => {
         (r) => r.document_id === "doc-A" || /CZP/i.test(r.text),
       ),
     ).toBe(true);
-  });
+    // Limit wiekszy niz domyslne 5 s: test sam importuje graf tool-dispatch; w izolacji trwa
+    // ~1 s, w pelnej suicie (pool forks, rownolegle procesy) przekraczal 5 s - zmierzone
+    // 2026-10-01. 30 s nadal lapie zawieszenie.
+  }, 30_000);
 });
 
 describe("wpiecie dual-similarity w retrieve() (ADR-0087)", () => {
