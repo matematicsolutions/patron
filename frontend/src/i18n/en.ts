@@ -821,14 +821,8 @@ export const en: DictShape<typeof pl> = {
     },
 
     mcpSecurity: {
-        disabledMessage: "MCP Security: Disabled. Enabling recommended via env MCP_SECURITY_GATEWAY_MODE.",
-        disabledAriaLabel: "MCP Security Gateway disabled",
-        blockedMessage: "MCP Security: BLOCKED {denied} tools in the last 24h. Check audit_log.",
-        blockedAriaLabel: "MCP Security Gateway blocked {denied} tools in 24h",
-        activeMessage: "MCP Security: active (enforce). 24h: {audit} audit, {humanReview} human_review.",
-        activeAriaLabel: "MCP Security Gateway active in enforce mode, {audit} audit {humanReview} human review in 24h",
-        auditMessage: "MCP Security: audit-only. {total} events in 24h. Tools are NOT blocked.",
-        auditAriaLabel: "MCP Security Gateway in audit-only mode, tools are not blocked",
+        blockedMessage: "MCP Security: connector blocks in the last 24h: {blocked}. Check the audit records.",
+        blockedAriaLabel: "MCP Security Gateway: connector blocks in the last 24h: {blocked}",
         actionHint: "View records and decisions",
     },
 

@@ -7,6 +7,15 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ## [Unreleased]
 
+### Naprawione
+
+- **Baner MCP Security i pasek perymetru nie widzialy blokady `human_review`.** Liczyly tylko
+  decyzje `denied`, wiec konektor zablokowany przez dryf albo podmiane plikow (`human_review`
+  bez zatwierdzenia Operatora) nie zapalal banera i nie trafial do licznika blokad. Oba licza
+  teraz `denied` + `human_review`. Komunikat mowi o blokadach konektorow (dawniej "narzedzi"),
+  a nieosiagalne komunikaty o trybach `off` i `audit` zniknely ze slownikow.
+  [ADR-0160](./governance/adr/0160-baner-mcp-security-pokazuje-tryb-egzekwowany.md), uzupelnienie.
+
 ### Dodane
 
 - **Spojnosc lancucha audytu widoczna w aplikacji (ADR-0165).** Ekran audytu pokazuje, czy

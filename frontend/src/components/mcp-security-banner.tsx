@@ -9,9 +9,9 @@
 "use client";
 
 import type { ReactElement } from "react";
-import { ChevronRight, ShieldCheck, ShieldAlert, ShieldOff } from "lucide-react";
+import { ChevronRight, ShieldAlert } from "lucide-react";
 import Link from "next/link";
-import { useMcpSecurityStatus } from "@/hooks/useMcpSecurityStatus";
+import { blockedGatewayDecisions, useMcpSecurityStatus } from "@/hooks/useMcpSecurityStatus";
 import { t } from "@/i18n";
 
 export function McpSecurityBanner(): ReactElement | null {
@@ -19,54 +19,22 @@ export function McpSecurityBanner(): ReactElement | null {
 
     if (!visible || !status) return null;
 
-    const { mode } = status.gateway;
-    const { by_action } = status.audit_summary_24h;
-    const denied = by_action.denied;
-    const audit = by_action.audit;
-    const humanReview = by_action.human_review;
+    const blocked = blockedGatewayDecisions(status);
 
     // ADR-0149 (korekta WM 2026-08-21): STAN TRWALY nalezy do perymetru, gora
-    // jest zarezerwowana na ZDARZENIE. Tryb bramki (disabled / audit / enforce
-    // bez blokad) to konfiguracja srodowiska - mecenas nie zareaguje na nia w
-    // trakcie pracy, a ostrzezenie, ktore jest ZAWSZE, przestaje byc
-    // ostrzezeniem i uczy ignorowania takze tego jednego waznego.
-    //
-    // To NIE tworzy ciszy: pasek perymetru pokazuje stan bramki stale i
-    // klikalnie. Gora zapala sie wylacznie wtedy, gdy bramka FAKTYCZNIE cos
-    // zablokowala - bo to jest zdarzenie, nie ustawienie.
-    if (denied === 0) return null;
+    // jest zarezerwowana na ZDARZENIE. Gora zapala sie wylacznie wtedy, gdy
+    // bramka FAKTYCZNIE cos zablokowala - `denied` albo `human_review` bez
+    // zatwierdzenia Operatora (dryf, podmiana plikow konektora). Tryb bramy jest
+    // zawsze "enforce" (ADR-0160), wiec innych stanow baner nie rozroznia.
+    if (blocked === 0) return null;
 
     // Adnotacja, nie alarm: kolor niesie WYLACZNIE kreska po lewej i ton
-    // tekstu; tlo zostaje papierem. Powierzchnia zgodnosciowa ma byc stale
-    // obecna jak przypis - nie moze byc najglosniejsza rzecza na ekranie.
-    let toneClass = "border-l-gray-300 text-gray-600";
-    let icon = <ShieldOff className="h-4 w-4 shrink-0" aria-hidden="true" />;
-    let message = t("mcpSecurity.disabledMessage");
-    let ariaLabel = t("mcpSecurity.disabledAriaLabel");
-
-    if (mode === "enforce" && denied > 0) {
-        toneClass = "border-l-bad text-bad";
-        icon = <ShieldAlert className="h-4 w-4 shrink-0" aria-hidden="true" />;
-        message = t("mcpSecurity.blockedMessage").replace("{denied}", String(denied));
-        ariaLabel = t("mcpSecurity.blockedAriaLabel").replace("{denied}", String(denied));
-    } else if (mode === "enforce") {
-        toneClass = "border-l-ok text-ok";
-        icon = <ShieldCheck className="h-4 w-4 shrink-0" aria-hidden="true" />;
-        message = t("mcpSecurity.activeMessage")
-            .replace("{audit}", String(audit))
-            .replace("{humanReview}", String(humanReview));
-        ariaLabel = t("mcpSecurity.activeAriaLabel")
-            .replace("{audit}", String(audit))
-            .replace("{humanReview}", String(humanReview));
-    } else if (mode === "audit") {
-        toneClass = "border-l-warn text-warn";
-        icon = <ShieldAlert className="h-4 w-4 shrink-0" aria-hidden="true" />;
-        message = t("mcpSecurity.auditMessage").replace("{total}", String(audit + humanReview + denied));
-        ariaLabel = t("mcpSecurity.auditAriaLabel");
-    }
+    // tekstu; tlo zostaje papierem.
+    const message = t("mcpSecurity.blockedMessage").replace("{blocked}", String(blocked));
+    const ariaLabel = t("mcpSecurity.blockedAriaLabel").replace("{blocked}", String(blocked));
 
     // Baner jest AKTYWNY (WM 2026-08-21): klik prowadzi do akt audytu, gdzie
-    // widac decyzje bramki i instrukcje wlaczenia. Informacja bez wyjscia
+    // widac decyzje bramki i sciezke zatwierdzenia (ADR-0158). Informacja bez wyjscia
     // do akcji zamienia governance w tapete.
     return (
         <Link
@@ -75,9 +43,9 @@ export function McpSecurityBanner(): ReactElement | null {
             aria-live="polite"
             aria-label={ariaLabel}
             data-testid="mcp-security-banner"
-            className={`group flex items-center gap-2 border-b border-b-border/60 border-l-[3px] bg-transparent px-4 py-1.5 text-[12.5px] leading-tight transition-colors hover:bg-gray-50 ${toneClass}`}
+            className="group flex items-center gap-2 border-b border-b-border/60 border-l-[3px] border-l-bad bg-transparent px-4 py-1.5 text-[12.5px] leading-tight text-bad transition-colors hover:bg-gray-50"
         >
-            {icon}
+            <ShieldAlert className="h-4 w-4 shrink-0" aria-hidden="true" />
             <span>{message}</span>
             <span className="ml-auto inline-flex shrink-0 items-center gap-0.5 text-[11px] font-semibold underline-offset-2 group-hover:underline">
                 {t("mcpSecurity.actionHint")}
