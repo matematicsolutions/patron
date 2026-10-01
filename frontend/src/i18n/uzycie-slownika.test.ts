@@ -27,6 +27,8 @@ const PILNOWANE = [
     // BEZ OGONKOW - styl tresci commita, ktory wyciekl do interfejsu - wiec
     // lista ZAKAZANE (angielskie napisy) nie miala jak ich zobaczyc.
     "app/(pages)/admin/audit/page.tsx",
+    // ADR-0165: panel spojnosci lancucha na tym samym ekranie.
+    "components/audit-chain-panel.tsx",
 ];
 
 // Napisy interfejsu, ktore juz maja swoj klucz w pl.ts. Lista jest jawna,

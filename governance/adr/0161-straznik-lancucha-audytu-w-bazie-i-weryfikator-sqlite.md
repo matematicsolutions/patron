@@ -155,7 +155,8 @@ daje BLOKADE `ack_missing`. Nieczytelny payload deklaracji daje BLOKADE `ack_inv
 zainstalowanego desktopu. Instalacje u klientow z rozwidleniami beda pokazywac UWAGI, dopoki
 potwierdzenia nie da sie wykonac z ekranu audytu (akt czlowieka, jak karta zatwierdzenia
 z ADR-0137). Nastepny krok: przycisk na ekranie audytu, ktory wola te sama logike
-(`buildForkAcknowledgement` + `appendAuditEvent`).
+(`buildForkAcknowledgement` + `appendAuditEvent`). Zrealizowane w
+[ADR-0165](./0165-stan-lancucha-audytu-i-potwierdzanie-rozwidlen-w-aplikacji.md).
 
 ## Rozwazone alternatywy
 

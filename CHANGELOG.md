@@ -9,6 +9,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ### Dodane
 
+- **Spojnosc lancucha audytu widoczna w aplikacji (ADR-0165).** Ekran audytu pokazuje, czy
+  zaden wpis dziennika nie zostal zmieniony, usuniety ani dopisany wstecz (OK / UWAGI /
+  BLOKADA, same numery wpisow, bez tresci). Rozwidlenia z wczesniejszych wersji Operator
+  potwierdza tam w dwoch krokach; zapis przechodzi tylko wtedy, gdy stan lancucha jest taki
+  sam jak w podgladzie. Dotad sprawdzenie i potwierdzenie istnialy tylko jako komendy
+  `npm run`, niedostepne w zainstalowanym programie.
+  [ADR-0165](./governance/adr/0165-stan-lancucha-audytu-i-potwierdzanie-rozwidlen-w-aplikacji.md).
 - **"Sprawdz powolania" w oknie pisma (ADR-0157).** PATRON wyciaga z pisma sygnatury i
   przepisy LOKALNIE (kopia jawnego ekstraktora Repertorium, test dryfu sha256) i wysyla do
   narzedzia `verify_citations` wylacznie ich liste - bez tresci pisma. Wynik wraca przy
