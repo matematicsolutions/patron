@@ -23,6 +23,36 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ### Naprawione
 
+- **Aktualizacja instalatora blokowalaby konektory, ktore sam instalator wozi.** Brama MCP
+  porownywala definicje narzedzi z poprzednim startem, wiec pierwsze wydanie zmieniajace opis
+  albo schemat narzedzia bundlowanego konektora dawaloby kazdemu uzytkownikowi `human_review`.
+  Build zapisuje teraz manifest definicji wozonych konektorow (`bundled-definitions.json`);
+  definicja zgodna z manifestem przechodzi, a niezgodna - pliki zmienione po instalacji -
+  blokuje. Bramka paczki wymaga manifestu, ktory pokrywa wszystkie konektory edycji.
+  [ADR-0162](./governance/adr/0162-manifest-definicji-bundlowanych-konektorow.md).
+- **Baner MCP Security mowil adminowi, ze brama jest wylaczona, gdy dzialala.** Tryb na
+  banerze pochodzil ze zmiennej `MCP_SECURITY_GATEWAY_MODE` (domyslnie `off`), ktora nie
+  sterowala brama: konektory z decyzja `denied` albo `human_review` byly blokowane zawsze, a
+  baner pisal "Wylaczony. Zalecane wlaczenie w env" albo, przy `audit`, "Narzedzia NIE sa
+  blokowane". Baner pokazuje teraz tryb, ktory kod egzekwuje; zmienna jest ignorowana, a jej
+  opis w `.env.docker.example` poprawiony.
+  [ADR-0160](./governance/adr/0160-baner-mcp-security-pokazuje-tryb-egzekwowany.md).
+- **Rownolegle zapisy rozwidlaly lancuch audytu.** Zdarzenia zapisywane jednoczesnie - brama
+  MCP dla kazdego konektora przy starcie, rownolegle wywolania narzedzi w ring-policy - czytaly
+  ten sam ostatni hash i dostawaly wspolnego poprzednika. Zabezpieczenie przez `hash unique`
+  nie dzialalo, bo hash obejmuje czas i tresc zdarzenia, wiec rozwidlone ogniwa nigdy nie
+  kolidowaly. Zapisy audytu w obrebie procesu ida teraz po kolei. Rozwidlenia juz zapisane w
+  istniejacych bazach zostaja bez zmian - ich ocena to osobna decyzja.
+  [ADR-0159](./governance/adr/0159-detektor-dryfu-obejmuje-schemat-wejscia.md), sekcja
+  "Znalezione przy weryfikacji".
+- **Detektor dryfu bramy MCP nie widzial zmian schematu wejscia narzedzi.** Hash baseline
+  obejmowal nazwy i opisy, wiec konektor - takze bundlowany - mogl dopisac narzedziu
+  parametr (np. `token`) bez zadnego sygnalu. Hash obejmuje teraz `inputSchema` (ta sama
+  formula co hash zatwierdzenia Operatora). Wpisy baseline sa wersjonowane: stary wpis
+  migruje sie przy pierwszym starcie tylko wtedy, gdy nazwy i opisy sie nie zmienily (slad
+  w audycie), a prawdziwy dryf z okna aktualizacji dalej blokuje konektor. Aktualizacja nie
+  zamienia wiec kazdego konektora w `human_review`.
+  [ADR-0159](./governance/adr/0159-detektor-dryfu-obejmuje-schemat-wejscia.md).
 - **Pasek perymetru opisywal model chmurowy jako lokalny.** Plakietka `(lokalny)` przy
   nazwie modelu zapalala sie od `PATRON_LOCAL_MODEL` z konfiguracji, czyli od tego, ze
   gdziekolwiek ustawiono model lokalny - a nie od tego, ktory model jest wybrany. Przy

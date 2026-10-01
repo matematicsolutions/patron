@@ -13,7 +13,7 @@ import type {
     McpServerScanResult,
 } from "./types";
 import { typosquatDetector } from "./detectors/typosquat";
-import { driftDetector, computeDefinitionHash } from "./detectors/drift";
+import { driftDetector, computeDefinitionHash, formatBaselineEntry } from "./detectors/drift";
 import { hiddenInstructionsDetector } from "./detectors/hidden-instructions";
 import { toolPoisoningDetector } from "./detectors/tool-poisoning";
 import { calculateRiskScore, decideAction, toThreatLevel } from "./scorer";
@@ -94,7 +94,8 @@ export function scanMcpServer(
     const riskScore = calculateRiskScore(findings);
     const threatLevel = toThreatLevel(findings);
     const action = decideAction(findings);
-    const currentHash = computeDefinitionHash(server);
+    // ADR-0159: do baseline trafia wpis wersjonowany (`v2:<hex>`).
+    const currentHash = formatBaselineEntry(computeDefinitionHash(server));
     return {
         serverName: server.name,
         findings,
@@ -122,9 +123,11 @@ export function scanMcpRegistry(
 export function buildScanContext(
     driftBaseline: ReadonlyMap<string, string> = new Map(),
     approvedNames: ReadonlyArray<string> = APPROVED_PATRON_CONNECTORS,
+    bundledDefinitions: ReadonlyMap<string, string> = new Map(),
 ): McpScanContext {
     return {
         approvedNames: new Set(approvedNames),
         driftBaseline,
+        bundledDefinitions,
     };
 }

@@ -226,18 +226,32 @@ async function getLastHash(
     return row?.hash ?? GENESIS_HASH;
 }
 
+// Kolejka zapisow audytu w obrebie procesu (patrz appendAuditEvent).
+let appendQueue: Promise<unknown> = Promise.resolve();
+
 /**
  * Dopisuje pojedyncze zdarzenie do audit_log z poprawnym hash-chainem.
  * Nigdy nie rzuca - bledy logowane do konsoli (audit trail nie moze
  * blokowac sciezki produktowej).
  *
- * UWAGA: w wielowątkowym scenariuszu (wiele rownoleglych zdarzen tego
- * samego czatu) wystarczy ze pomiedzy `getLastHash` a `insert` wbiegnie
- * inne zdarzenie - to bedzie kolizja na `hash unique`. Akceptujemy:
- * insert retry-uje raz pobierajac swiezy prev_hash. Wykrycie kolizji
- * przez unique constraint zapewnia ze lancuch zawsze pozostanie spojny.
+ * Zapisy w obrebie procesu ida po kolei (kolejka ponizej). Bez niej rownolegle
+ * wywolania - np. fire-and-forget bramy MCP dla kazdego konektora przy starcie -
+ * czytaly ten sam `prev_hash` i lancuch sie rozwidlal. `hash unique` tego NIE
+ * lapie: hash obejmuje `ts` i payload, wiec dwa ogniwa o wspolnym poprzedniku
+ * maja rozne hashe (zmierzone 2026-10-01: 7 zdarzen startu, 6 zlych ogniw).
+ * Retry na 23505 zostaje dla zapisow z innego procesu (tryb serwerowy) - tam
+ * kolejka w pamieci nie siega.
  */
-export async function appendAuditEvent(
+export function appendAuditEvent(
+    db: ReturnType<typeof createServerSupabase>,
+    event: AuditEventInput,
+): Promise<{ ok: boolean; row?: PreparedAuditRow; error?: string }> {
+    const run = appendQueue.then(() => appendAuditEventNow(db, event));
+    appendQueue = run.catch(() => undefined);
+    return run;
+}
+
+async function appendAuditEventNow(
     db: ReturnType<typeof createServerSupabase>,
     event: AuditEventInput,
 ): Promise<{ ok: boolean; row?: PreparedAuditRow; error?: string }> {

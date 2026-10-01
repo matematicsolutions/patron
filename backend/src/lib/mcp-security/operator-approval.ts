@@ -9,16 +9,16 @@
 //   - `denied` (poziom krytyczny) NIE jest do zatwierdzenia;
 //   - `allowed` / `audit` zatwierdzenia nie potrzebuja i go nie czytaja.
 //
-// 🔴 Hash zatwierdzenia to NIE `computeDefinitionHash` z detektora dryfu: tamten
-// pomija `inputSchema`, wiec serwer moglby po zatwierdzeniu dopisac narzedziu
-// parametr wejscia (np. `token`) i zatwierdzenie by to przepuscilo. Tu liczymy
-// z nazwy serwera i pelnych definicji narzedzi (nazwa, opis, schemat wejscia),
-// jedna kanonikalizacja projektu (ADR-0142). Adres konektora (moze niesc klucz
-// dostepu) do hasha nie wchodzi.
+// Hash zatwierdzenia obejmuje nazwe serwera i pelne definicje narzedzi (nazwa,
+// opis, schemat wejscia) - inaczej serwer moglby po zatwierdzeniu dopisac
+// narzedziu parametr wejscia (np. `token`) i zatwierdzenie by to przepuscilo.
+// To ta sama formula co hash detektora dryfu v2 (ADR-0159), wiec liczymy ja w
+// JEDNYM miejscu: zatwierdzenie i baseline dryfu pokazuja ten sam hash. Adres
+// konektora (moze niesc klucz dostepu) do hasha nie wchodzi.
 //
 // Modul jest czysty - bez IO, bez logowania.
 
-import { canonicalSha256 } from "../audit-pack";
+import { computeDefinitionHash } from "./detectors/drift";
 import type { McpAction, McpServerDefinition } from "./types";
 
 export interface GatewayApproval {
@@ -50,14 +50,7 @@ export interface OperatorApprovalDecision {
 }
 
 export function computeApprovalHash(server: McpServerDefinition): string {
-    const tools = [...server.tools]
-        .map((t) => ({
-            name: t.name,
-            description: t.description ?? "",
-            inputSchema: t.inputSchema ?? null,
-        }))
-        .sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0));
-    return canonicalSha256({ server: server.name, tools });
+    return computeDefinitionHash(server);
 }
 
 function isValidApproval(a: unknown): a is GatewayApproval {

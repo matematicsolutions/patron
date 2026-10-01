@@ -36,10 +36,12 @@ biezacej definicji i gotowy fragment do wpisania po przegladzie findings.
 
 **2. Hash zatwierdzenia obejmuje schematy wejscia.** `computeApprovalHash` liczy
 `canonicalSha256` (ADR-0142) z nazwy serwera i pelnych definicji narzedzi: nazwa, opis,
-`inputSchema`; narzedzia sortowane po nazwie. NIE uzywamy `computeDefinitionHash` z detektora
-dryfu - on pomija `inputSchema`, wiec serwer moglby po zatwierdzeniu dopisac narzedziu parametr
-(np. `token`) i zatwierdzenie by go przepuscilo (test pokazuje oba hashe obok siebie). Adres
-konektora do hasha nie wchodzi - moze niesc klucz dostepu.
+`inputSchema`; narzedzia sortowane po nazwie. Bez schematu serwer moglby po zatwierdzeniu
+dopisac narzedziu parametr (np. `token`) i zatwierdzenie by go przepuscilo. Pierwotnie byla to
+osobna formula, bo hash detektora dryfu pomijal `inputSchema`; od
+[ADR-0159](./0159-detektor-dryfu-obejmuje-schemat-wejscia.md) dryf liczy te sama formule, a
+`computeApprovalHash` deleguje do `computeDefinitionHash` (wartosci hashy bez zmian - test
+przypina je). Adres konektora do hasha nie wchodzi - moze niesc klucz dostepu.
 
 **3. `denied` nie jest do zatwierdzenia.** Poziom krytyczny zostaje blokada bez wyjatkow, nawet
 gdy w pliku wpisano poprawny hash. `allowed` i `audit` zatwierdzenia nie czytaja.
@@ -77,7 +79,9 @@ z werdyktem `human_review` potrzebuje obu.
 ## Poza zakresem (znalezione przy okazji)
 
 - **Detektor dryfu nie widzi zmian `inputSchema`** (`computeDefinitionHash` hashuje tylko
-  nazwy i opisy). Dotyczy tez konektorow Ring 1 - osobna zmiana.
+  nazwy i opisy). Dotyczy tez konektorow Ring 1 - osobna zmiana. Zalatwione w
+  [ADR-0159](./0159-detektor-dryfu-obejmuje-schemat-wejscia.md).
 - **Tryb bramy w banerze to nie tryb bramy w kodzie:** `MCP_SECURITY_GATEWAY_MODE` (domyslnie
-  `off`) czyta tylko `routes/security.ts` do banera; `getMcpTools` egzekwuje zawsze.
+  `off`) czyta tylko `routes/security.ts` do banera; `getMcpTools` egzekwuje zawsze. Zalatwione w
+  [ADR-0160](./0160-baner-mcp-security-pokazuje-tryb-egzekwowany.md).
 - **Detektor "schema mismatch" nie zna `outputSchema`** - opcja B z ADR-0157, porzadek na pozniej.

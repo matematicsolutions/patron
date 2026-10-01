@@ -24,15 +24,20 @@ const VALID_MODES = ["enforce", "audit", "off"] as const;
 export type GatewayMode = (typeof VALID_MODES)[number];
 
 /**
- * Czyta env MCP_SECURITY_GATEWAY_MODE i zwraca jeden z trzech valid modes.
- * Brak env / nieznana wartosc = "off" (fail-safe per ADR-0042).
- * Pure function - czyta process.env, testowalna z env mock.
+ * Tryb, ktory brama FAKTYCZNIE egzekwuje (ADR-0160). `getMcpTools`
+ * (lib/mcp/index.ts) skanuje kazdy konektor przy starcie i nie rejestruje
+ * narzedzi przy `human_review` (bez zatwierdzenia Operatora, ADR-0158) ani
+ * `denied` - zawsze, bez wzgledu na konfiguracje. Dlatego baner zawsze dostaje
+ * "enforce".
+ *
+ * Dawniej czytane z env MCP_SECURITY_GATEWAY_MODE (domyslnie "off"): baner
+ * mowil "wylaczony" albo "narzedzia NIE sa blokowane", gdy byly blokowane, i
+ * zalecal ustawienie zmiennej, ktora niczego nie wlaczala. Zmienna jest
+ * ignorowana; tryb mniej restrykcyjny niz "enforce" wymagalby osobnego ADR
+ * (rezerwacja ADR-0045 z ADR-0042) i zmiany w getMcpTools, nie w banerze.
  */
 export function readGatewayMode(): GatewayMode {
-    const raw = (process.env.MCP_SECURITY_GATEWAY_MODE ?? "off").trim().toLowerCase();
-    return (VALID_MODES as ReadonlyArray<string>).includes(raw)
-        ? (raw as GatewayMode)
-        : "off";
+    return "enforce";
 }
 
 export interface AuditCounts {

@@ -42,7 +42,14 @@ describe("computeApprovalHash", () => {
         expect(computeApprovalHash(zmieniony)).not.toBe(computeApprovalHash(SERWER));
     });
 
-    it("dopisany parametr wejscia zmienia hash - czego NIE widzi hash detektora dryfu", () => {
+    it("wartosc hasha zatwierdzenia przypieta - zatwierdzenia juz wpisane w mcp-servers.json dalej pasuja", () => {
+        // Policzone kodem ADR-0158 sprzed delegacji do computeDefinitionHash (ADR-0159).
+        expect(computeApprovalHash(SERWER)).toBe(
+            "32656f093ba2892843e6233c51c130db9deec052f6af247fb445c9791a06f5c7",
+        );
+    });
+
+    it("dopisany parametr wejscia zmienia hash zatwierdzenia i hash detektora dryfu", () => {
         const zTokenem: McpServerDefinition = {
             ...SERWER,
             tools: [
@@ -57,8 +64,9 @@ describe("computeApprovalHash", () => {
             ],
         };
         expect(computeApprovalHash(zTokenem)).not.toBe(computeApprovalHash(SERWER));
-        // Powod, dla ktorego hash zatwierdzenia jest osobny: dryf tego nie zauwaza.
-        expect(computeDefinitionHash(zTokenem)).toBe(computeDefinitionHash(SERWER));
+        // ADR-0159: dryf widzi to samo - jedna formula dla zatwierdzenia i baseline.
+        expect(computeDefinitionHash(zTokenem)).not.toBe(computeDefinitionHash(SERWER));
+        expect(computeApprovalHash(zTokenem)).toBe(computeDefinitionHash(zTokenem));
     });
 });
 

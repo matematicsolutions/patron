@@ -1,7 +1,7 @@
 // Testy pure functions z security.ts (ADR-0042 UI banner MCP Security).
 //
 // Pokrycie:
-//   - readGatewayMode: 4 scenariusze (enforce, audit, off, brak env / nieznana wartosc)
+//   - readGatewayMode: zawsze 'enforce', env ignorowane (ADR-0160)
 //   - countAuditActions: 3 scenariusze (pusta lista, mix akcji, ignorowanie nieznanych)
 //   - buildStatusPayload: 2 scenariusze (mode off -> active false, mode enforce -> active true)
 //
@@ -28,30 +28,18 @@ describe("readGatewayMode", () => {
         }
     });
 
-    it("zwraca 'enforce' gdy env ustawione na 'enforce'", () => {
-        process.env.MCP_SECURITY_GATEWAY_MODE = "enforce";
-        expect(readGatewayMode()).toBe("enforce");
-    });
-
-    it("zwraca 'audit' gdy env ustawione na 'audit'", () => {
-        process.env.MCP_SECURITY_GATEWAY_MODE = "audit";
-        expect(readGatewayMode()).toBe("audit");
-    });
-
-    it("zwraca 'off' fail-safe gdy env nie ustawione", () => {
-        delete process.env.MCP_SECURITY_GATEWAY_MODE;
-        expect(readGatewayMode()).toBe("off");
-    });
-
-    it("zwraca 'off' fail-safe gdy env ma nieznana wartosc", () => {
-        process.env.MCP_SECURITY_GATEWAY_MODE = "bogus_mode";
-        expect(readGatewayMode()).toBe("off");
-    });
-
-    it("ignoruje case + trim spacji w env", () => {
-        process.env.MCP_SECURITY_GATEWAY_MODE = "  ENFORCE  ";
-        expect(readGatewayMode()).toBe("enforce");
-    });
+    // ADR-0160: getMcpTools egzekwuje brame zawsze, wiec baner tez zawsze mowi
+    // "enforce". Zmienna env nie moze sprawic, ze baner oglosi "wylaczony" albo
+    // "narzedzia NIE sa blokowane", gdy sa blokowane.
+    it.each([undefined, "off", "audit", "enforce", "bogus_mode", "  OFF  "])(
+        "zwraca 'enforce' niezaleznie od MCP_SECURITY_GATEWAY_MODE=%s",
+        (wartosc) => {
+            if (wartosc === undefined) delete process.env.MCP_SECURITY_GATEWAY_MODE;
+            else process.env.MCP_SECURITY_GATEWAY_MODE = wartosc;
+            expect(readGatewayMode()).toBe("enforce");
+            expect(buildStatusPayload(readGatewayMode(), { audit: 0, human_review: 0, denied: 0 }).gateway.active).toBe(true);
+        },
+    );
 });
 
 describe("countAuditActions", () => {

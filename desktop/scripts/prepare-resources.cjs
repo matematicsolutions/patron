@@ -718,6 +718,15 @@ function main() {
   const nodeManifest = stageMcpConnectors();
   const pyManifest = stageBundledPython();
   writeMcpManifest([...nodeManifest, ...pyManifest]);
+  // ADR-0162: hash definicji kazdego wozonego konektora - brama ufa definicji
+  // zgodnej z manifestem, wiec aktualizacja instalatora nie blokuje konektorow
+  // dryfem. Fail-loud: konektor, ktorego nie da sie zapytac, przerywa build.
+  log("Manifest definicji konektorow (ADR-0162)...");
+  // BEZ powloki (jak przy pyExe): process.execPath ma spacje w "Program Files".
+  execFileSync(process.execPath, [path.join(__dirname, "definition-manifest.cjs"), OUT_BACKEND], {
+    cwd: DESKTOP_DIR,
+    stdio: "inherit",
+  });
   stageItCaselawIndex();
   stageEmbedModel();
   stageOcrEngine();
