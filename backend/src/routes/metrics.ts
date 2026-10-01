@@ -12,20 +12,14 @@ import { requireMetricsAllowed } from "../middleware/metrics-allow";
 import { createServerSupabase } from "../lib/supabase";
 import { renderPrometheus, type MetricsSnapshot } from "../lib/metrics-render";
 import { recordAdminAccess } from "../lib/audit-admin-access";
+// Liczniki per event_type z kanonicznej listy (audit.ts) - lokalna kopia
+// zdryfowala do 7/21; parytet pilnuje event-type-parity.test.ts.
+import { EVENT_TYPES } from "../lib/audit";
+import { countAuditLogByEventType } from "../lib/db/audit-log-counts";
 
 export const metricsRouter = Router();
 
 const BACKEND_START_TIME = Date.now();
-
-const VALID_EVENT_TYPES = [
-    "chat.message.user",
-    "chat.message.assistant",
-    "input_security_scan",
-    "mcp_security.gateway",
-    "ring_policy.decision",
-    "rodo.delete",
-    "rodo.export",
-];
 
 metricsRouter.get(
     "/",
@@ -51,38 +45,50 @@ metricsRouter.get(
             (Date.now() - BACKEND_START_TIME) / 1000,
         );
 
-        const emptySnapshot: MetricsSnapshot = {
+        // Snapshot samych zer. `degraded` jest ARGUMENTEM, nie domyslna
+        // wartoscia pola: te same zera znacza cos zupelnie innego na swiezej
+        // instalacji (pusty dziennik - pomiar prawdziwy) niz przy zepsutym
+        // odczycie (placeholder udajacy pomiar). Do 2026-09-02 obie sciezki
+        // renderowaly identyczna odpowiedz z HTTP 200 i bez sladu w logu, wiec
+        // awaria konczyla sie sukcesem.
+        const pustySnapshot = (degraded: boolean): MetricsSnapshot => ({
+            degraded,
             audit_log_by_event_type: Object.fromEntries(
-                VALID_EVENT_TYPES.map((et) => [et, 0]),
+                EVENT_TYPES.map((et) => [et, 0]),
             ),
             merkle_root_count: 0,
             merkle_last_anchor_seconds: null,
             mcp_security_by_action: { audit: 0, human_review: 0, denied: 0 },
             uptime_seconds,
-        };
+        });
 
+        // Celowo NIE nie-200: przy 5xx Prometheus oznacza caly target jako down
+        // i traci takze `patron_uptime_seconds`, a przyczyna nadal nie ma gdzie
+        // wyladowac. Trojstan niesie wiec sama odpowiedz: 200 + degraded=0 z
+        // danymi, 200 + degraded=0 z zerami (swieza instalacja), 200 +
+        // degraded=1 (odczyt padl) - plus przyczyna w logu operatora.
         let supabase: ReturnType<typeof createServerSupabase>;
         try {
             supabase = createServerSupabase();
-        } catch {
+        } catch (err) {
+            console.error(
+                "[metrics] nie udalo sie utworzyc klienta bazy - snapshot zdegradowany:",
+                err,
+            );
             res.setHeader("Content-Type", "text/plain; version=0.0.4; charset=utf-8");
-            res.status(200).send(renderPrometheus(emptySnapshot));
+            res.status(200).send(renderPrometheus(pustySnapshot(true)));
             return;
         }
 
         try {
-            // Count audit_log entries per event_type
-            const auditCounts: Record<string, number> = Object.fromEntries(
-                VALID_EVENT_TYPES.map((et) => [et, 0]),
+            // Liczniki per event_type JEDNYM agregatem (warstwa db). Petla po
+            // EVENT_TYPES kosztowala tyle sekwencyjnych COUNT-ow, ile typow -
+            // po naprawie parytetu listy (7 -> 21) trzykrotnie wiecej na KAZDY
+            // scrape. SQL mieszka w lib/db/audit-log-counts.ts, nie tutaj.
+            const auditCounts = await countAuditLogByEventType(
+                supabase,
+                EVENT_TYPES,
             );
-
-            for (const eventType of VALID_EVENT_TYPES) {
-                const { count } = await supabase
-                    .from("audit_log")
-                    .select("id", { count: "exact", head: true })
-                    .eq("event_type", eventType);
-                auditCounts[eventType] = count ?? 0;
-            }
 
             // Merkle root count + last anchor age
             const { count: merkleCount } = await supabase
@@ -116,6 +122,7 @@ metricsRouter.get(
             }
 
             const snapshot: MetricsSnapshot = {
+                degraded: false,
                 audit_log_by_event_type: auditCounts,
                 merkle_root_count: merkleCount ?? 0,
                 merkle_last_anchor_seconds: merkleLastAnchorSeconds,
@@ -125,9 +132,13 @@ metricsRouter.get(
 
             res.setHeader("Content-Type", "text/plain; version=0.0.4; charset=utf-8");
             res.status(200).send(renderPrometheus(snapshot));
-        } catch {
+        } catch (err) {
+            console.error(
+                "[metrics] odczyt zrodel metryk padl - snapshot zdegradowany:",
+                err,
+            );
             res.setHeader("Content-Type", "text/plain; version=0.0.4; charset=utf-8");
-            res.status(200).send(renderPrometheus(emptySnapshot));
+            res.status(200).send(renderPrometheus(pustySnapshot(true)));
         }
     },
 );

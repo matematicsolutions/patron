@@ -15,7 +15,15 @@
 
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+// Skan calego drzewa zrodel to sekundy pracy I/O, a domyslny limit testu w
+// vitest to 5 s. Pod rownoleglym obciazeniem maszyny (druga sesja, build, dev
+// server) bramki skanujace padaly TIMEOUTEM - czyli swiecily na czerwono
+// z powodu, ktory nie ma nic wspolnego z tym, co mierza. Bramka, ktora bywa
+// czerwona bez powodu, uczy ignorowac swoj kolor; limit jest tu na tyle duzy,
+// zeby o kolorze decydowala TRESC skanu, a nie obciazenie maszyny.
+vi.setConfig({ testTimeout: 60_000 });
 
 const SRC = join(__dirname, "..");
 const CSS = readFileSync(join(SRC, "app", "globals.css"), "utf8");

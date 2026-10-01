@@ -16,7 +16,7 @@ import { completeText } from "../lib/llm";
 import { getUserApiKeys, getUserModelSettings } from "../lib/userSettings";
 import { checkProjectAccess } from "../lib/access";
 import { appendAuditEvent } from "../lib/audit";
-import { enforceEgressGuard } from "../lib/routing";
+import { enforceEgressGuard, appendLlmRouteEvent } from "../lib/routing";
 
 export const chatRouter = Router();
 
@@ -419,6 +419,7 @@ chatRouter.post("/:chatId/generate-title", requireAuth, async (req, res) => {
             await db.from("chats").update({ title: fallback }).eq("id", chatId);
             return void res.json({ title: fallback });
         }
+        const titleStartedAt = Date.now();
         const titleText = await completeText({
             model: title_model,
             user: `Generate a concise title (3–6 words) for a chat in an AI Legal Platform that starts with this message. The title should describe the topic or document — do NOT include words like "Legal Assistant", "AI", "Chat", or any similar prefix. Return only the title, no quotes or punctuation.\n\nMessage: ${message.slice(0, 500)}`,
@@ -426,6 +427,22 @@ chatRouter.post("/:chatId/generate-title", requireAuth, async (req, res) => {
             apiKeys: api_keys,
         });
         const title = titleText.trim() || message.slice(0, 60);
+        // ADR-0067/0095: audyt "llm_route" (allow). enforceEgressGuard zapisuje
+        // TYLKO blokade - sciezke dozwolona audytuje wolajacy, bo dopiero on zna
+        // latencje (kontrakt w naglowku enforceEgress.ts). Bez tego wywolanie
+        // nie zostawia sladu wymaganego przez AI Act art. 12.
+        await appendLlmRouteEvent(db, {
+            actorUserId: userId,
+            chatId,
+            caseId: chat.project_id ?? null,
+            model: title_model,
+            provider: titleGuard.provider,
+            egress: titleGuard.decision.egress,
+            classification: titleGuard.decision.classification,
+            action: "allow",
+            reason: titleGuard.decision.reason,
+            latencyMs: Date.now() - titleStartedAt,
+        });
 
         await db
             .from("chats")

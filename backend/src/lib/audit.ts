@@ -127,6 +127,18 @@ export const EVENT_TYPES = [
     // usunieciem. Lustro: schema.sqlite.ts, schema.sql, migrate.sqlite.ts (v7),
     // migrations/023.
     "audit.chain.fork_acknowledged",
+    // ADR-0164: przerwanie lancucha Z MOCY PRAWA. RODO art. 17 kaze zanonimizowac
+    // aktora, AI Act art. 12 kaze zachowac dowod - a `actor_user_id` wchodzi do
+    // hasha, wiec zerowanie go NIEUCHRONNIE zrywa lancuch. Tego konfliktu nie da
+    // sie rozwiazac po cichu: bez tego zdarzenia weryfikator raportuje skutek
+    // wykonania obowiazku prawnego DOKLADNIE tak samo jak sabotaz. Zdarzenie
+    // nazywa zerwanie ZANIM ktos je znajdzie - powod, pole, zakres id i licznik,
+    // bez danych osobowych (aktor pseudonimizowany hashem, jak w rodo.delete).
+    // Wymaga migracji: SQLite v8 (rebuild) + Postgres 025 (ALTER CHECK) - numery
+    // po scaleniu linii (ADR-0163), na linii 2.0 byly to v6 i 021.
+    // Lustro: schema.sqlite.ts, schema.sql, migrate.sqlite.ts, migrations/025,
+    // useAuditLog.ts, audit-filter-bar.tsx. Patrz scripts/rodo-delete.ts.
+    "audit.chain.legal_break",
 ] as const;
 
 /** Union literal lustrzany dla CHECK constraint w audit_log. */

@@ -15,8 +15,10 @@
 // Kody wyjscia (trojstan + blad):
 //   0 = OK       - jeden lancuch, kazdy hash zgodny (potwierdzone rozwidlenia = INFO)
 //   3 = UWAGI    - rozwidlenia z sygnatura wyscigu sprzed straznika, niepotwierdzone
-//                  (`npm run audit:acknowledge-forks`)
-//   1 = BLOKADA  - modyfikacja, usuniecie, wstawka, rozwidlenie bez wyjasnienia,
+//                  (`npm run audit:acknowledge-forks`); zerwania tresci z mocy prawa
+//                  zadeklarowane zdarzeniem audit.chain.legal_break (ADR-0164)
+//   1 = BLOKADA  - modyfikacja (takze zgodna z dawna kaskada FK - to hipoteza, nie
+//                  dowod), usuniecie, wstawka, rozwidlenie bez wyjasnienia,
 //                  zniknione ogniwo z potwierdzenia, pusty dziennik
 //   2 = blad     - nie da sie odczytac zrodla
 // Raport podaje id wierszy, nigdy payloadu (dane sprawy).
@@ -28,7 +30,11 @@ async function main() {
     const args = parseSourceArgs(process.argv.slice(2));
     const startedAt = Date.now();
     const { rows, guardAfterId } = await loadChain(args);
-    const report = verifyAuditChain(rows, { guardAfterId });
+    // Kaskada FK (ADR-0164) mogla zerowac pola hasha tylko w Postgresie.
+    const report = verifyAuditChain(rows, {
+        guardAfterId,
+        fkCascadePossible: args.source === "supabase",
+    });
     printReport(report, ((Date.now() - startedAt) / 1000).toFixed(2));
     process.exit(EXIT[report.verdict]);
 }

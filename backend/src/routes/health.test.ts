@@ -52,12 +52,28 @@ describe("buildStatusPayload", () => {
     const base = {
         vectorEnabled: true,
         ocrConfigured: false,
+        libreofficeAvailable: false,
         embedderModel: "Xenova/multilingual-e5-small",
         embedderDim: "384",
         apiKeys: { openrouter: true },
         consents: readConsents(),
         openrouterConfigured: true,
     };
+
+    it("panel stanu MOWI o LibreOffice - inaczej brak wychodzi dopiero przy 400", () => {
+        // LibreOffice nie jedzie w instalatorze (opcjonalny wymog zewnetrzny,
+        // docs/INSTALACJA.md), a bez niego nie przyjmujemy starych `.doc`.
+        // Bez tego pola aplikacja nie ma jak powiedziec, czego jej brakuje,
+        // dopoki mecenas nie sprobuje wgrac pliku i nie dostanie odmowy.
+        const brak = buildStatusPayload({ ...base, credits: null });
+        expect(brak.libreoffice).toEqual({ available: false });
+        const jest = buildStatusPayload({
+            ...base,
+            libreofficeAvailable: true,
+            credits: null,
+        });
+        expect(jest.libreoffice).toEqual({ available: true });
+    });
 
     it("saldo dodatnie -> depleted=false", () => {
         const p = buildStatusPayload({

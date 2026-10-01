@@ -941,9 +941,29 @@ export async function getTabularReviewPeople(
     return apiRequest<ProjectPeople>(`/tabular-review/${reviewId}/people`);
 }
 
+/**
+ * Zakres zadania generatora promptu kolumny - JAWNY i WYMAGANY.
+ *
+ * `reviewId` niesie kontekst sprawy do straznika data-residency po stronie
+ * backendu; bez niego kolumna tabeli sprawy objetej tajemnica egresowala po
+ * klasyfikacji "internal" (jedyna galaz straznika, ktora nie jest fail-closed).
+ * Dlatego zakres nie jest opcja, tylko unia rozlaczna: TypeScript nie pozwoli
+ * refaktorowi po cichu zgubic `reviewId` w kontekscie review, a backend odrzuca
+ * brak sprawy bez nazwanego zakresu 400-tka (lib/tabular/prompt-scope.ts).
+ * Ktore pliki wolno wolac z "workflow_template" - pilnuje bramka
+ * src/lib/tabular-prompt-scope.test.ts.
+ */
+export type ZakresPromptuKolumny =
+    | { scope: "review"; reviewId: string }
+    | { scope: "workflow_template" };
+
 export async function generateTabularColumnPrompt(
     title: string,
-    options?: { format?: string; documentName?: string; tags?: string[] },
+    zakres: ZakresPromptuKolumny,
+    options?: {
+        format?: string;
+        tags?: string[];
+    },
 ): Promise<{ prompt: string; source: "preset" | "llm" | "fallback" }> {
     return apiRequest<{
         prompt: string;
@@ -954,8 +974,8 @@ export async function generateTabularColumnPrompt(
         body: JSON.stringify({
             title,
             format: options?.format,
-            documentName: options?.documentName,
             tags: options?.tags,
+            ...zakres,
         }),
     });
 }

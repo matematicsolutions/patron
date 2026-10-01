@@ -34,13 +34,20 @@ export type Jurisdiction =
     | "OTHER";
 
 // Mapowanie nazwa konektora -> jurysdykcja (do grupowania w pickerze).
-const JURISDICTION_BY_CONNECTOR: Readonly<Record<string, Jurisdiction>> = {
+// Klucze MUSZA byc rowne APPROVED_PATRON_CONNECTORS (pipeline.ts) - parytet
+// pilnowany przez connector-name-parity.test.ts. Nie dopisuj tu konektora,
+// ktory nie przeszedl gateway-scanu i nie jest zsynchronizowany we wszystkich
+// lustrach (AGENTS.md Mirrors #2); sejm-eli siedzial tu osierocony od
+// ADR-0133 (2026-06-24) bez wpisu gdziekolwiek indziej - usuniety 2026-08-31
+// (repo ~/Projects/sejm-eli-mcp zyje we flocie; wejscie do PATRONa = scan +
+// ADR + wszystkie lustra naraz; uwaga: Levenshtein("sejm-eli","se-eli")=2,
+// wiec bez wpisu w APPROVED bramka typosquat go zablokuje).
+export const JURISDICTION_BY_CONNECTOR: Readonly<Record<string, Jurisdiction>> = {
     saos: "PL",
     nsa: "PL",
     isap: "PL",
     krs: "PL",
     eureka: "PL",
-    "sejm-eli": "PL",
     "eu-sparql": "EU",
     "eu-compliance": "EU",
     "de-eli": "DE",

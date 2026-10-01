@@ -317,7 +317,8 @@ create table if not exists audit_log (
     'mutation.approval.decision',
     'cost_cap',
     'deliverable.bundle_export',
-    'audit.chain.fork_acknowledged'
+    'audit.chain.fork_acknowledged',
+    'audit.chain.legal_break'
   )),
   chat_id text,
   document_id text,

@@ -17,11 +17,12 @@ import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
 import { EVENT_TYPES } from "../audit";
+import { VALID_EVENT_TYPES } from "../audit-log-query";
 import { SQLITE_SCHEMA } from "./schema.sqlite";
 import {
     runSqliteMigrations,
     SQLITE_MIGRATIONS,
-    AUDIT_EVENT_TYPES_V7,
+    AUDIT_EVENT_TYPES_LATEST,
 } from "./migrate.sqlite";
 
 const BACKEND_ROOT = path.resolve(__dirname, "../../..");
@@ -77,16 +78,68 @@ describe("parytet whitelist event_type (5 luster)", () => {
         expect({ file: latest, list: sorted(list) }).toEqual({ file: latest, list: expected });
     });
 
-    it("NAJNOWSZY rebuild SQLite (AUDIT_EVENT_TYPES_V7) == EVENT_TYPES i jest ostatnim krokiem z lista", () => {
-        // Przy KAZDYM nowym event_type podnies te stala do najnowszego V<n>.
-        // Ten test padl 2026-08-24 przy dodaniu deliverable.bundle_export - dokladnie
-        // po to istnieje: pilnuje, zeby nowy typ dostal wlasny krok rebuildu.
-        expect(sorted(AUDIT_EVENT_TYPES_V7)).toEqual(expected);
+    it("NAJNOWSZY rebuild SQLite (AUDIT_EVENT_TYPES_LATEST) == EVENT_TYPES i jest ostatnim krokiem z lista", () => {
+        // Importujemy alias LATEST, nie konkretne `..._V5`/`..._V6`: dopoki ta
+        // bramka nazywala wersje po numerze, byla KOLEJNYM lustrem listy - krok
+        // v6 wymagalby zmiany takze tutaj, a o tym nie mowilo zadne z pieciu
+        // miejsc w AGENTS.md. Kolejnosc krokow pilnuje asercja nizej.
+        expect(sorted(AUDIT_EVENT_TYPES_LATEST)).toEqual(expected);
         // Gdy ktos doda event_type do EVENT_TYPES bez nowego kroku SQLite, powyzsze
         // padnie. Dodatkowo: ostatni krok migracji ma byc tym z parytetem (nie
         // dopisuj kolejnych krokow "obok" bez pelnej listy).
         const last = SQLITE_MIGRATIONS[SQLITE_MIGRATIONS.length - 1];
         expect(last.name).toContain("event_type");
+    });
+});
+
+// Lustra FILTROW (poza whitelist DB): walidator query, liczniki metrics,
+// union + dropdown frontu. Rozjazd zmierzony 2026-08-31: audit-log-query.ts
+// i routes/metrics.ts mialy wlasne literalne kopie 7/21, front 11/21 -
+// audytor nie mogl odfiltrowac nowszych typow (a czesc opcji UI dostawala
+// 400 z walidatora). Regula domowa: lista w wielu runtime'ach ma jeden dom.
+describe("parytet event_type na powierzchniach filtrow", () => {
+    const FRONTEND_ROOT = path.join(BACKEND_ROOT, "..", "frontend");
+
+    it("VALID_EVENT_TYPES (audit-log-query) == EVENT_TYPES", () => {
+        expect(sorted(VALID_EVENT_TYPES)).toEqual(expected);
+    });
+
+    it("audit-log-query.ts i routes/metrics.ts nie maja wlasnej literalnej kopii listy", () => {
+        for (const rel of ["src/lib/audit-log-query.ts", "src/routes/metrics.ts"]) {
+            const src = readFileSync(path.join(BACKEND_ROOT, rel), "utf8");
+            // Literal pierwszego typu = sygnatura skopiowanej listy; obecnosc
+            // importu = wyprowadzenie z jednego domu.
+            expect(src, rel).not.toContain('"chat.message.user"');
+            expect(src, rel).toMatch(/import\s*\{[^}]*EVENT_TYPES[^}]*\}\s*from\s*"\.[./]*\/(lib\/)?audit"/);
+        }
+    });
+
+    it("frontend AuditEventType (useAuditLog.ts) == EVENT_TYPES + 'all'", () => {
+        const src = readFileSync(
+            path.join(FRONTEND_ROOT, "src", "hooks", "useAuditLog.ts"),
+            "utf8",
+        );
+        const m = /export type AuditEventType =([\s\S]*?);/.exec(src);
+        expect(m).not.toBeNull();
+        const list = [...m![1].matchAll(/"([^"]+)"/g)]
+            .map((x) => x[1])
+            .filter((x) => x !== "all");
+        expect(list.length).toBeGreaterThan(0);
+        expect(sorted(list)).toEqual(expected);
+    });
+
+    it("frontend EVENT_TYPE_OPTIONS (audit-filter-bar.tsx) == EVENT_TYPES + 'all'", () => {
+        const src = readFileSync(
+            path.join(FRONTEND_ROOT, "src", "components", "audit-filter-bar.tsx"),
+            "utf8",
+        );
+        const m = /EVENT_TYPE_OPTIONS[\s\S]*?=\s*\[([\s\S]*?)\];/.exec(src);
+        expect(m).not.toBeNull();
+        const list = [...m![1].matchAll(/value:\s*"([^"]+)"/g)]
+            .map((x) => x[1])
+            .filter((x) => x !== "all");
+        expect(list.length).toBeGreaterThan(0);
+        expect(sorted(list)).toEqual(expected);
     });
 });
 

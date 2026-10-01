@@ -33,6 +33,7 @@ describe("formatLabel", () => {
 describe("renderPrometheus", () => {
     function makeSnapshot(overrides: Partial<MetricsSnapshot> = {}): MetricsSnapshot {
         return {
+            degraded: false,
             audit_log_by_event_type: {
                 "chat.message.user": 100,
                 "chat.message.assistant": 95,
@@ -113,5 +114,46 @@ describe("renderPrometheus", () => {
         expect(out).toContain("# HELP patron_audit_log_total");
         expect(out).toContain("# TYPE patron_audit_log_total counter");
         expect(out).not.toContain("patron_audit_log_total{");
+    });
+
+    // Do 2026-09-02 zepsuty odczyt zrodel renderowal sie znak w znak
+    // tak samo jak swieza instalacja z pustym dziennikiem: same zera, HTTP 200,
+    // zero sladu w logu. Ponizsze asercje sa mianownikiem trojstanu -
+    // sprawdzaja, ze te dwa stany daja ROZNY tekst.
+    it("degraded=1 odroznia zepsuty odczyt od swiezej instalacji", () => {
+        const zera = {
+            audit_log_by_event_type: Object.fromEntries(
+                Object.keys(makeSnapshot().audit_log_by_event_type).map((et) => [
+                    et,
+                    0,
+                ]),
+            ),
+            merkle_root_count: 0,
+            merkle_last_anchor_seconds: null,
+            mcp_security_by_action: { audit: 0, human_review: 0, denied: 0 },
+        };
+        const swieza = renderPrometheus(
+            makeSnapshot({ ...zera, degraded: false }),
+        );
+        const zepsuty = renderPrometheus(
+            makeSnapshot({ ...zera, degraded: true }),
+        );
+
+        expect(swieza).toContain("patron_metrics_degraded 0");
+        expect(zepsuty).toContain("patron_metrics_degraded 1");
+        expect(
+            swieza,
+            "swieza instalacja i zepsuty odczyt renderuja sie identycznie - " +
+                "sygnal degradacji nie niesie zadnej informacji",
+        ).not.toEqual(zepsuty);
+    });
+
+    it("patron_metrics_degraded jest ZAWSZE w wyjsciu - takze przy 0", () => {
+        // Metryka obecna wylacznie w awarii znika razem ze zdolnoscia jej
+        // wyrenderowania: alert `== 1` nie odpali na czyms, czego nie ma.
+        const out = renderPrometheus(makeSnapshot({ degraded: false }));
+        expect(out).toContain("# HELP patron_metrics_degraded");
+        expect(out).toContain("# TYPE patron_metrics_degraded gauge");
+        expect(out).toContain("patron_metrics_degraded 0");
     });
 });

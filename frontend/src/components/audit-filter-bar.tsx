@@ -29,6 +29,8 @@ export function utcNaLokalneDlaInputu(iso: string): string {
     return utcNaLokalneZOffsetem(iso, d.getTimezoneOffset());
 }
 
+// Lustro kanonicznej listy EVENT_TYPES z backend/src/lib/audit.ts + "all".
+// Parytet pilnuje backend/src/lib/db/event-type-parity.test.ts (czyta ten plik).
 const EVENT_TYPE_OPTIONS: Array<{ value: AuditEventType; label: string }> = [
     { value: "all", label: "Wszystkie" },
     { value: "chat.message.user", label: "Wiadomosc uzytkownika" },
@@ -39,9 +41,25 @@ const EVENT_TYPE_OPTIONS: Array<{ value: AuditEventType; label: string }> = [
     { value: "rodo.delete", label: "RODO usuniecie" },
     { value: "rodo.export", label: "RODO eksport" },
     { value: "admin.access.audit_viewer", label: "Admin: viewer" },
+    { value: "admin.access.audit_export", label: "Admin: eksport audytu" },
+    { value: "admin.access.merkle_compute_now", label: "Admin: Merkle compute" },
     { value: "admin.access.security_banner", label: "Admin: banner" },
     { value: "admin.access.metrics", label: "Admin: metrics" },
     { value: "migrate.rollback", label: "Migracja: rollback" },
+    { value: "llm_route", label: "Routing LLM (straznik egress)" },
+    { value: "defense.pipeline.run", label: "Pipeline obrony draftu" },
+    { value: "document.edit_resolved", label: "Dokument: rozstrzygnieta zmiana" },
+    { value: "tabular.grounding", label: "Tabular: weryfikacja cytatow" },
+    { value: "project.cloud_consent", label: "Zgoda chmurowa sprawy" },
+    { value: "connector.toggle", label: "Konektor: wlacz/wylacz" },
+    { value: "mutation.approval.decision", label: "Karta zatwierdzenia mutacji" },
+    { value: "cost_cap", label: "Limit kosztu sprawy" },
+    { value: "deliverable.bundle_export", label: "Eksport pakietu dowodowego" },
+    { value: "audit.chain.fork_acknowledged", label: "Potwierdzenie rozwidlen lancucha" },
+    {
+        value: "audit.chain.legal_break",
+        label: "Przerwanie lancucha z mocy prawa",
+    },
 ];
 
 export interface AuditFilterBarProps {

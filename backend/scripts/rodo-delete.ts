@@ -12,9 +12,14 @@
 //   - user_api_keys user_id=...
 //
 // Co ZOSTAJE (compliance > prawo do usuniecia):
-//   - audit_log - z anonimizacja: actor_user_id SET NULL (FK ON DELETE SET NULL).
+//   - audit_log - z anonimizacja: actor_user_id ustawiane na NULL jawnym UPDATE-em
+//     (od migracji 024 audit_log NIE MA juz FK na polach hasha - patrz ADR-0164).
 //     To wymog AI Act art. 12 record-keeping + RODO art. 17 ust. 3 lit. b
 //     (przetwarzanie konieczne do wywiazania sie z obowiazku prawnego).
+//     UWAGA: `actor_user_id` wchodzi do hasha, wiec ta anonimizacja ZRYWA lancuch
+//     w dotknietych wierszach. Jest to swiadomy, nazwany skutek: krok 5b zapisuje
+//     zdarzenie `audit.chain.legal_break` z zakresem id, zeby weryfikator
+//     (scripts/verify-audit-chain.ts) odroznil obowiazek prawny od sabotazu.
 //
 // Wymaga --confirm zeby zadzialalo - bezpiecznik anty-pomylkowy.
 //
@@ -127,14 +132,62 @@ async function main() {
         }
     }
 
-    // 5. anonimizacja audit_log - FK ma ON DELETE SET NULL ale tutaj robimy
-    //    explicit UPDATE zeby nie czekac na usuniecie z auth.users.
+    // 5. anonimizacja audit_log - jawny UPDATE (od migracji 024 audit_log nie ma
+    //    juz FK na polach hasha, wiec to JEDYNA sciezka, ktora te pola przepisuje).
+    //
+    //    `actor_user_id` WCHODZI DO HASHA, wiec ten UPDATE NIEUCHRONNIE zrywa
+    //    lancuch w kazdym dotknietym wierszu. To nie jest defekt do naprawienia,
+    //    tylko konflikt dwoch obowiazkow: RODO art. 17 kaze zanonimizowac,
+    //    AI Act art. 12 kaze zachowac dowod. ADR-0164 rozstrzyga go tak:
+    //    anonimizacja zostaje, ale zerwanie MA SIE SAMO NAZWAC - inaczej
+    //    verify-audit-chain raportuje wykonanie obowiazku prawnego identycznie
+    //    jak sabotaz, a audytor nie ma jak ich odroznic.
+    //
+    //    Dlatego NAJPIERW zbieramy id wierszy, ktore za chwile zerwiemy.
+    const { data: doZerwania, error: err5a } = await db
+        .from("audit_log")
+        .select("id")
+        .eq("actor_user_id", userId!)
+        .order("id", { ascending: true });
+    if (err5a) {
+        console.error(`[rodo:delete] audit_log odczyt zakresu err:`, err5a.message);
+    }
+    const zerwaneIds = (doZerwania ?? []).map((r) => Number(r.id));
+
     const { error: err5 } = await db
         .from("audit_log")
         .update({ actor_user_id: null })
         .eq("actor_user_id", userId!);
     if (err5) {
         console.error(`[rodo:delete] audit_log anonimizacja err:`, err5.message);
+    }
+
+    // 5b. zdarzenie nazywajace zerwanie (ADR-0164). Idzie PO UPDATE: jego wlasny
+    //     wiersz ma actor_user_id = null, wiec nie lapie sie we wlasny filtr.
+    //     Payload bez danych osobowych - aktor pseudonimizowany tym samym hashem
+    //     co w rodo.delete, zeby IOD mogl powiazac oba wpisy ze zgloszeniem.
+    if (!err5 && zerwaneIds.length > 0) {
+        // Pelna lista id bywa dluga; przycinamy, ale mianownik zostaje JAWNY -
+        // milczace obciecie czyta sie potem jako "tyle bylo".
+        const LIMIT_ID = 500;
+        await appendAuditEvent(db, {
+            event_type: "audit.chain.legal_break",
+            actor_user_id: null,
+            payload: {
+                reason: "rodo_art_17_anonymization",
+                field: "actor_user_id",
+                target_user_id_hash: hashUserId(userId!),
+                affected_count: zerwaneIds.length,
+                first_id: zerwaneIds[0],
+                last_id: zerwaneIds[zerwaneIds.length - 1],
+                affected_ids: zerwaneIds.slice(0, LIMIT_ID),
+                affected_ids_truncated: zerwaneIds.length > LIMIT_ID,
+            },
+        });
+        console.log(
+            `[rodo:delete] lancuch zerwany w ${zerwaneIds.length} wierszach ` +
+                `(art. 17) - zapisano zdarzenie audit.chain.legal_break`,
+        );
     }
 
     // 6. samoaudyt - rodo.delete zdarzenie z anonimowym actor (nie wskazuje na usera ktorego usuwamy)

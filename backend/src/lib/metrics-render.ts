@@ -10,6 +10,15 @@
 // deterministycznych snapshotow w testach.
 
 export interface MetricsSnapshot {
+    /**
+     * Czy snapshot powstal z UDANEGO odczytu zrodel. Pole jest WYMAGANE, nie
+     * opcjonalne: gdyby brak degradacji byl domyslny, kazda nowa sciezka
+     * awaryjna wracalaby po cichu do "wyglada zdrowo" - a to jest dokladnie
+     * defekt, ktory to pole zamyka. Bez niego swieza instalacja z pustym
+     * dziennikiem i zepsuty odczyt renderuja sie IDENTYCZNIE (same zera przy
+     * HTTP 200), wiec alert nie ma na czym zadzialac. Zmierzone 2026-09-02.
+     */
+    degraded: boolean;
     audit_log_by_event_type: Record<string, number>;
     merkle_root_count: number;
     merkle_last_anchor_seconds: number | null;
@@ -108,6 +117,18 @@ export function renderPrometheus(snapshot: MetricsSnapshot): string {
             ),
         );
     }
+
+    lines.push("");
+    lines.push(
+        "# HELP patron_metrics_degraded 1 = snapshot rendered from a FAILED read (values are placeholders, not measurements)",
+    );
+    lines.push("# TYPE patron_metrics_degraded gauge");
+    // Zawsze obecna, takze przy 0. Metryka pojawiajaca sie WYLACZNIE w awarii
+    // znika razem ze zdolnoscia jej wyrenderowania - alert `== 1` nigdy nie
+    // odpali, jesli endpoint w ogole przestanie ja emitowac.
+    lines.push(
+        metricLine("patron_metrics_degraded", {}, snapshot.degraded ? 1 : 0),
+    );
 
     lines.push("");
     lines.push("# HELP patron_uptime_seconds Backend process uptime");

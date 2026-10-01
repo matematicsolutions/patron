@@ -67,6 +67,20 @@ jobs:
       - name: Bramka kotwic w samouczkach
         if: github.event_name == 'pull_request' || github.event_name == 'push'
         run: python scripts/samouczek_kotwice.py
+      # Paragony w AGENTS.md (hashe commitow, linki, sciezki) musza istniec.
+      # Lekcja z gridex/gridex: hash `6a4aad0` cytowany 4x nie istnial w historii
+      # (squash-merge) i nikt nie zauwazyl - dokumentacja zakotwiczona bramka.
+      # checkout ma fetch-depth: 0, wiec kazdy brak hasha jest tu twardy.
+      # Najpierw wzorce samej bramki na znanym-zlym: ksztalt, ktorego bramka
+      # nie umie zlapac, przechodzi po cichu i swieci na zielono (tak wypadly z
+      # mianownika dwa tokeny nazywajace SAME bramki). Zielony przebieg na
+      # AGENTS.md nic nie znaczy, dopoki wzorce nie padaja na fixture'ach.
+      - name: Samotest wzorcow bramki paragonow
+        if: github.event_name == 'pull_request' || github.event_name == 'push'
+        run: python scripts/agents_md_receipt_gate.py --samotest
+      - name: Bramka paragonow AGENTS.md
+        if: github.event_name == 'pull_request' || github.event_name == 'push'
+        run: python scripts/agents_md_receipt_gate.py . --strict
       - name: Skan calej historii git (cotygodniowo)
         if: github.event_name == 'schedule'
         run: python scripts/publication_gate.py . --history

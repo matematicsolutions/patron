@@ -36,7 +36,10 @@ import { ensureDocAccess } from "../lib/access";
 import { singleFileUpload } from "../lib/upload";
 
 export const documentsRouter = Router();
-const ALLOWED_TYPES = new Set(["pdf", "docx", "doc"]);
+// Lista dozwolonych typow NIE mieszka tutaj. Stala `ALLOWED_TYPES` stala w tym
+// miejscu nieuzywana - wygladala na autorytatywna, a nie gatekeeperowala
+// niczego; po dodaniu warunku "stary .doc wymaga LibreOffice" (2026-09-09)
+// klamalaby wprost. Jeden dom: `typDozwolony` w lib/documentIngest.ts.
 
 // GET /single-documents
 documentsRouter.get("/", requireAuth, async (req, res) => {

@@ -221,7 +221,7 @@ For a production deployment, use `deploy/README.md` (Docker).
 - A Supabase project
 - A Cloudflare R2 bucket, MinIO bucket, or another S3-compatible bucket
 - At least one supported model provider API key: Anthropic, Google Gemini, or OpenAI
-- LibreOffice installed locally if you need DOC/DOCX to PDF conversion
+- LibreOffice installed locally - required for legacy `.doc` uploads, optional for the DOCX-to-PDF preview rendition (which is generated in the background)
 
 ## Database Setup
 

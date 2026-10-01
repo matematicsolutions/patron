@@ -7,7 +7,7 @@
   weryfikacji"), linia publiczna
 - **Rozszerza:** [ADR-0001](./0001-hash-chain-audit-trail.md) (hash chain i weryfikator)
 - **Mapuje na:** ADR-0026 (Merkle), ADR-0038 (format migracji UP/DOWN), ADR-0053 (SQLite
-  domyslnie), ADR-0150 (trojstan tresci, `audit.chain.legal_break` - linia
+  domyslnie), ADR-0164 (trojstan tresci, `audit.chain.legal_break` - linia
   `feat/design-system-2-0`), [ADR-0159](./0159-detektor-dryfu-obejmuje-schemat-wejscia.md)
 
 ## Kontekst
@@ -130,10 +130,10 @@ dzis ochrony przed cichym skasowaniem. Test "GRANICA METODY" w
 Dlaczego B: hashe lisci wpisane do zdarzenia na glownej sciezce **przywracaja im ochrone**.
 Usuniecie liscia po potwierdzeniu da zadeklarowany hash bez wiersza, czyli BLOKADE. Do
 tego "wiedzielismy o tym w chwili T" samo staje sie chronione hashem. To ta sama zasada co
-`audit.chain.legal_break` z ADR-0150: anomalie lancucha nazywamy w lancuchu, nie ukrywamy.
+`audit.chain.legal_break` z ADR-0164: anomalie lancucha nazywamy w lancuchu, nie ukrywamy.
 
 **Jak dziala B.** Nowy `event_type` `audit.chain.fork_acknowledged` (rodzina `audit.chain.*`
-jak `legal_break` z ADR-0150), piec luster: `audit.ts`, `schema.sqlite.ts`, `schema.sql`,
+jak `legal_break` z ADR-0164), piec luster: `audit.ts`, `schema.sqlite.ts`, `schema.sql`,
 migracja Postgres `023`, krok SQLite v7 (pelna lista, rebuild z zachowaniem wierszy).
 Komenda `npm run audit:acknowledge-forks`:
 
@@ -228,15 +228,15 @@ z ADR-0137). Nastepny krok: przycisk na ekranie audytu, ktory wola te sama logik
   dotad - tej sciezki nie przebieglem na zywym Postgresie i nie deklaruje, ze dziala.
 - **Anonimizacja RODO na tej linii to nadal BLOKADA.** `rodo-delete.ts` zeruje
   `actor_user_id` w audycie, a to pole wchodzi do hasha, wiec weryfikator zglosi
-  `hash_mismatch`. Deklaracja `audit.chain.legal_break` (ADR-0150) zyje na drugiej linii i
+  `hash_mismatch`. Deklaracja `audit.chain.legal_break` (ADR-0164) zyje na drugiej linii i
   przyjdzie ze scaleniem. Na zmierzonej bazie desktopu takich wierszy nie ma (0 niezgodnych
   hashy).
 - **Pamiec.** Weryfikator trzyma caly dziennik w pamieci (mapa hashy). Kilka tysiecy wpisow
   to ulamek sekundy. Przy milionach wpisow w trybie serwerowym trzeba bedzie przejsc na strumien.
-- **Scalenie z linia ADR-0150.** Tamten `verify-audit-chain.ts` ma trojstan TRESCI (zerwanie
+- **Scalenie z linia ADR-0164.** Tamten `verify-audit-chain.ts` ma trojstan TRESCI (zerwanie
   z mocy prawa / kaskada FK / niewyjasnione); ten ma trojstan STRUKTURY. Sa ortogonalne z
   konstrukcji: krawedzie lancucha ida po zapisanym hashu, wiec zadeklarowane zerwanie tresci
-  nie rusza struktury. Przy scaleniu kategorie ADR-0150 wchodza do `verifyAuditChain` jako
+  nie rusza struktury. Przy scaleniu kategorie ADR-0164 wchodza do `verifyAuditChain` jako
   klasyfikacja znaleziska `hash_mismatch` - plik skryptu bedzie mial konflikt do recznego
   rozwiazania. Osobno: obie linie numeruja inaczej krok SQLite v6 i migracje 020, co przy
   scaleniu pominie krok na zainstalowanych bazach - zgloszone jako osobne zadanie

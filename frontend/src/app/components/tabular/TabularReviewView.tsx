@@ -827,6 +827,7 @@ export function TRView({ reviewId, projectId }: Props) {
                         <TRTable
                             ref={tableRef}
                             loading={loading}
+                            reviewId={reviewId}
                             columns={columns}
                             documents={filteredDocuments}
                             cells={cells}
@@ -910,6 +911,7 @@ export function TRView({ reviewId, projectId }: Props) {
             <AddColumnModal
                 open={addColOpen}
                 existingCount={columns.length}
+                zakres={{ scope: "review", reviewId }}
                 onClose={() => setAddColOpen(false)}
                 onAdd={handleAddColumn}
             />

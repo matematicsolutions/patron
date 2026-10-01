@@ -92,10 +92,19 @@ export function WFEditColumnModal({ column, onClose, onSave, onDelete }: Props) 
         if (!title) return;
         setGenerating(true);
         try {
-            const { prompt } = await generateTabularColumnPrompt(title, {
-                format: draft.format,
-                tags: draft.format === "tag" ? draft.tags : undefined,
-            });
+            // Zakres "workflow_template" CELOWO: to edytor SZABLONU workflow
+            // (nie review), wiec sprawy nie ma - do LLM idzie sam tytul kolumny
+            // szablonu z formatem i tagami, bez danych sprawy. Backend przyjmuje
+            // brak sprawy WYLACZNIE pod ta nazwa; to jedyny plik we froncie,
+            // ktoremu wolno jej uzyc (bramka: src/lib/tabular-prompt-scope.test.ts).
+            const { prompt } = await generateTabularColumnPrompt(
+                title,
+                { scope: "workflow_template" },
+                {
+                    format: draft.format,
+                    tags: draft.format === "tag" ? draft.tags : undefined,
+                },
+            );
             update({ prompt });
         } finally {
             setGenerating(false);

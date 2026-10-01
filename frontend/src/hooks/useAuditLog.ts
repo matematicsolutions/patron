@@ -9,6 +9,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { apiUrl } from "@/lib/apiBase";
 
+// Lustro kanonicznej listy EVENT_TYPES z backend/src/lib/audit.ts + "all".
+// Parytet pilnuje backend/src/lib/db/event-type-parity.test.ts (czyta ten plik).
 export type AuditEventType =
     | "all"
     | "chat.message.user"
@@ -19,9 +21,22 @@ export type AuditEventType =
     | "rodo.delete"
     | "rodo.export"
     | "admin.access.audit_viewer"
+    | "admin.access.audit_export"
+    | "admin.access.merkle_compute_now"
     | "admin.access.security_banner"
     | "admin.access.metrics"
-    | "migrate.rollback";
+    | "migrate.rollback"
+    | "llm_route"
+    | "defense.pipeline.run"
+    | "document.edit_resolved"
+    | "tabular.grounding"
+    | "project.cloud_consent"
+    | "connector.toggle"
+    | "mutation.approval.decision"
+    | "cost_cap"
+    | "deliverable.bundle_export"
+    | "audit.chain.fork_acknowledged"
+    | "audit.chain.legal_break";
 
 export interface AuditLogFilter {
     event_type: AuditEventType;

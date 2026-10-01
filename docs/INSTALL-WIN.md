@@ -25,8 +25,9 @@ cloud account required — one installer and you are running.
 - **Internet** is required only for the cloud model path and for live case-law
   search (SAOS, NSA, ISAP, KRS, EUR-Lex). Search over **your own documents** and
   the bundled EU-law base work offline.
-- **LibreOffice** (free, optional) — for converting legacy `.doc` files and PDF
-  preview. Install later from [libreoffice.org](https://www.libreoffice.org).
+- **LibreOffice** (free) — **required if you upload legacy `.doc` files**; without
+  it Patron refuses them and says so. Not needed for `.pdf` or `.docx`, which
+  always work. Install later from [libreoffice.org](https://www.libreoffice.org).
 
 ---
 

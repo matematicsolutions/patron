@@ -154,6 +154,7 @@ export async function loadChain(
 
 const KINDS = [
     "hash_mismatch",
+    "hash_mismatch_fk_cascade",
     "duplicate_hash",
     "missing_parent",
     "parent_not_earlier",
@@ -163,7 +164,9 @@ const KINDS = [
     "ack_invalid",
     "ack_missing",
     "fork_concurrent",
+    "hash_mismatch_legal_break",
     "fork_acknowledged",
+    "legal_break_truncated",
 ] as const;
 
 /** Druk raportu: pelny mianownik (kontrole zdane tez) i same id wierszy, nigdy payload. */
@@ -178,7 +181,7 @@ export function printReport(report: ChainReport, elapsedS: string): void {
     console.log(`[audit-chain] straznik: ${guard}`);
     for (const k of KINDS) {
         const n = report.findings.filter((f) => f.kind === k).length;
-        const mark = n === 0 ? "zdane " : k === "fork_acknowledged" ? "INFO  " : "ZNALEZ";
+        const mark = n === 0 ? "zdane " : k === "fork_acknowledged" || k === "legal_break_truncated" ? "INFO  " : "ZNALEZ";
         console.log(`[audit-chain]   ${mark} ${k}: ${n}`);
     }
     for (const f of report.findings) {

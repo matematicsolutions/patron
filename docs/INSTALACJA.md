@@ -11,7 +11,7 @@ Ten jednostronicowy poradnik dołączamy **do pliku instalatora** (`PATRON Setup
   - **Lokalnie (zero-cloud, zalecane dla akt objętych tajemnicą).** Zainstaluj [Ollama](https://ollama.com) i pobierz model wskazany w aplikacji. Dane **nie opuszczają Twojego komputera**, brak kosztów tokenów. Zalecany mocniejszy sprzęt (16 GB RAM+).
   - **Chmura (wygoda i jakość).** Klucz modelu — np. Libra/Anthropic (główne narzędzie prawników w PL), Gemini lub OpenAI. Wpiszesz go raz, już w aplikacji. Uwaga: przy modelu chmurowym treść akt jest wysyłana do dostawcy modelu — używaj za zgodą Administratora i zgodnie z polityką kancelarii.
 - **Internet** — wymagany przy modelu chmurowym oraz do wyszukiwania orzecznictwa na żywo (SAOS, NSA, ISAP, KRS, EUR-Lex). Wyszukiwanie w Twoich dokumentach i baza prawa UE działają też offline.
-- **LibreOffice** (bezpłatny, opcjonalnie) — przyda się do konwersji starszych plików `.doc` i podglądu PDF. Można doinstalować później: [libreoffice.org](https://www.libreoffice.org).
+- **LibreOffice** (bezpłatny) - **wymagany, jeśli wgrywasz starsze pliki `.doc`**; bez niego Patron ich nie przyjmie i powie o tym wprost. Dla `.pdf` i `.docx` nie jest potrzebny - te formaty działają zawsze. Można doinstalować później: [libreoffice.org](https://www.libreoffice.org).
 
 ---
 
