@@ -140,6 +140,39 @@ class BramkaPrePush(unittest.TestCase):
                           f"(delete) {ZERO} refs/heads/stara {self.baza}\n", self.env)
         self.assertEqual(rc, 0, out)
 
+    def test_prawdziwy_git_push_przez_hook(self):
+        # Pelna sciezka: git -> hook sh -> python main() -> stdin z refami. Testy
+        # wyzej wolaja logike bezposrednio; ten sprawdza, ze hook NAPRAWDE
+        # zatrzymuje push, a repo publiczne nie dostaje commita.
+        import os
+        import shlex
+        hooks = self.root.parent / "hooks"
+        hooks.mkdir()
+        skrypt = (Path(__file__).resolve().parent / "pre_push_gate.py").as_posix()
+        (hooks / "pre-push").write_text(
+            f'#!/bin/sh\nexec python {shlex.quote(skrypt)} "$1" "$2"\n', encoding="utf-8")
+        os.chmod(hooks / "pre-push", 0o755)
+        self._git("config", "core.hooksPath", hooks.as_posix())
+        env = {**os.environ, **self.env, "PYTHONUTF8": "1"}
+
+        def push() -> subprocess.CompletedProcess[str]:
+            return subprocess.run(["git", "-C", str(self.root), "push", "mat", "HEAD:main"],
+                                  capture_output=True, text=True, env=env)
+
+        zly = self._commit("docs/a.md", f"numer {nip_testowy()}\n", "wip")
+        r = push()
+        self.assertNotEqual(r.returncode, 0, r.stderr)
+        self.assertIn("BLOKADA", r.stderr)
+        publiczne_main = subprocess.run(["git", "-C", str(self.publiczne), "rev-parse", "main"],
+                                        capture_output=True, text=True).stdout.strip()
+        self.assertEqual(publiczne_main, self.baza)   # nic nie wyszlo
+        self.assertNotEqual(publiczne_main, zly)
+        # Po usunieciu tresci z historii (nowa galaz od czystej bazy) push przechodzi.
+        self._git("reset", "-q", "--hard", self.baza)
+        self._commit("docs/a.md", "czysto\n", "docs: zmiana")
+        r = push()
+        self.assertEqual(r.returncode, 0, r.stderr)
+
     def test_obejscie_tylko_swiadome_i_glosne(self):
         sha = self._commit("docs/a.md", f"numer {nip_testowy()}\n", "wip")
         rc, out = self._push(sha, env={**self.env, "PUSH_MIMO_BRAMKI": "tak"})
