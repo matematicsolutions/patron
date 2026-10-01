@@ -81,17 +81,21 @@ export function sofficeCandidates(
     return ["/Applications/LibreOffice.app/Contents/MacOS/soffice"];
   }
   if (platform === "win32") {
+    // `path.win32`, nie `path`: lista ma zalezec od PLATFORMY z argumentu, nie od
+    // gospodarza. Na Linuksie `path.isAbsolute("C:/...")` daje false i cala lista
+    // znikala - zmierzone 2026-10-01 w CI (convert-libreoffice-host.test.ts).
+    const w = path.win32;
     return [
-      path.join(process.env["PROGRAMFILES(X86)"] || "", "LIBREO~1/program/soffice.exe"),
-      path.join(process.env["PROGRAMFILES(X86)"] || "", "LibreOffice/program/soffice.exe"),
-      path.join(process.env.PROGRAMFILES_X86 || "", "LibreOffice/program/soffice.exe"),
-      path.join(process.env.PROGRAMFILES || "", "LibreOffice/program/soffice.exe"),
+      w.join(process.env["PROGRAMFILES(X86)"] || "", "LIBREO~1/program/soffice.exe"),
+      w.join(process.env["PROGRAMFILES(X86)"] || "", "LibreOffice/program/soffice.exe"),
+      w.join(process.env.PROGRAMFILES_X86 || "", "LibreOffice/program/soffice.exe"),
+      w.join(process.env.PROGRAMFILES || "", "LibreOffice/program/soffice.exe"),
       process.env.LIBRE_OFFICE_EXE || "",
       "C:/Program Files/LibreOffice/program/soffice.exe",
-      // Pusty wpis powstaje, gdy brakuje zmiennej srodowiskowej; `path.join("", x)`
+      // Pusty wpis powstaje, gdy brakuje zmiennej srodowiskowej; `join("", x)`
       // daje przy tym sciezke WZGLEDNA. Ani jedno, ani drugie nie moze trafic
       // przypadkiem w istniejacy plik i udac, ze LibreOffice jest.
-    ].filter((p) => p !== "" && path.isAbsolute(p));
+    ].filter((p) => p !== "" && w.isAbsolute(p));
   }
   return [
     "/usr/bin/libreoffice",
