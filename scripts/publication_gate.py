@@ -313,12 +313,15 @@ def iter_tree(root: Path, cfg: Config, all_files: bool = False) -> tuple[list[Fi
     return findings, scanned
 
 
-def iter_history(root: Path, cfg: Config) -> list[Finding]:
-    """Scan added lines across full git history (opt-in, slower)."""
+def iter_history(root: Path, cfg: Config, revs: list[str] | None = None) -> list[Finding]:
+    """Scan added lines across git history (opt-in, slower).
+
+    `revs` limits the walk (e.g. `[candidate, "--not", *public_tips]` = what a
+    publication would add); default is every ref."""
     try:
         diff = subprocess.run(
-            ["git", "-C", str(root), "log", "-p", "--no-color", "--all",
-             "--diff-filter=AM", "--format=commit:%H"],
+            ["git", "-C", str(root), "log", "-p", "--no-color",
+             "--diff-filter=AM", "--format=commit:%H", *(revs or ["--all"])],
             capture_output=True, text=True, check=True, encoding="utf-8",
             errors="replace",
         ).stdout
@@ -374,7 +377,46 @@ def scan_commit_msg(path: Path, cfg: Config) -> list[Finding]:
 # przepisujemy (decyzja WM 2026-09-21, wariant A). Kluczem jest SHA commita,
 # wiec lista nie wycisza niczego, co powstanie pozniej. Bez nazw - sama lista
 # jest publiczna.
+#
+# Lista uznaje to, co JUZ wyszlo, i nic poza tym: wpis dziala tylko dla commita
+# osiagalnego z refa publicznego (--public-ref). Powod, zmierzony 2026-10-01:
+# lista powstala z `git log --all`, wiec weszly do niej dwa commity z prywatnej
+# galezi, ktorych na repo publicznym nigdy nie bylo - merge tej galezi i push
+# przeszlyby po cichu. Bez --public-ref nie wiemy, co jest publiczne, wiec
+# lista nie wycisza niczego.
 BASELINE_FILE = ".publication-gate-history-baseline.txt"
+
+
+def _git(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(["git", "-C", str(root), *args], capture_output=True,
+                          text=True, encoding="utf-8", errors="replace")
+
+
+def resolve_public_tips(root: Path, refs: list[str]) -> list[str]:
+    """Pelne SHA czubkow refow publicznych. Ref z `*?[` to glob gita (dopasowuje
+    tez zagniezdzone: `refs/public/*`). Ref, ktorego nie ma, albo glob bez
+    trafien to ValueError - pusty zbior "publicznych" wygladalby jak wynik."""
+    tips: list[str] = []
+    for ref in refs:
+        if any(c in ref for c in "*?["):
+            got = _git(root, "rev-parse", f"--glob={ref}").stdout.split()
+            if not got:
+                raise ValueError(f"--public-ref {ref}: glob matches no ref")
+        else:
+            r = _git(root, "rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}")
+            if r.returncode != 0:
+                raise ValueError(f"--public-ref {ref}: not a commit in this clone")
+            got = [r.stdout.strip()]
+        tips.extend(got)
+    return sorted(set(tips))
+
+
+def published_sha7(root: Path, tips: list[str]) -> set[str]:
+    """Skroty (7 znakow, jak w etykiecie `history@sha7`) commitow osiagalnych z tips."""
+    r = _git(root, "rev-list", *tips)
+    if r.returncode != 0:
+        raise ValueError(f"rev-list over public refs failed: {r.stderr.strip()}")
+    return {line[:7] for line in r.stdout.split()}
 
 
 def load_baseline(root: Path) -> set[tuple[str, str, str]]:
@@ -411,6 +453,12 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("path", nargs="?", default=".", help="repo root (default: .)")
     ap.add_argument("--config", type=Path, help="path to .publication-gate.json")
     ap.add_argument("--history", action="store_true", help="also scan git history")
+    ap.add_argument("--public-ref", action="append", default=[], metavar="REF",
+                    help="ref/glob already public (repeatable, e.g. 'refs/public/*'); "
+                         "history baseline is honoured only for commits reachable from these")
+    ap.add_argument("--candidate", metavar="REV",
+                    help="scan only the history REV would add to --public-ref "
+                         "(REV --not public); tree and commit-msg are not scanned")
     ap.add_argument("--all-files", action="store_true",
                     help="scan every file, not just git-tracked (default: tracked only in a git repo)")
     ap.add_argument("--strict", action="store_true", help="WARN findings also fail")
@@ -442,14 +490,43 @@ def main(argv: list[str] | None = None) -> int:
         print("       albo swiadomie przepusc: --allow-empty-denylist", file=sys.stderr)
         return 1
 
+    if args.candidate and not args.public_ref:
+        print("--candidate needs --public-ref: without it every commit counts as new",
+              file=sys.stderr)
+        return 2
+    public_tips: list[str] | None = None
+    if args.public_ref:
+        try:
+            public_tips = resolve_public_tips(root, args.public_ref)
+        except ValueError as e:
+            print(f"public ref error: {e}", file=sys.stderr)
+            return 2
+
     if args.commit_msg:
         findings = scan_commit_msg(args.commit_msg, cfg)
         scanned = 1
+    elif args.candidate:
+        r = _git(root, "rev-parse", "--verify", "--quiet", f"{args.candidate}^{{commit}}")
+        if r.returncode != 0:
+            print(f"--candidate {args.candidate}: not a commit in this clone", file=sys.stderr)
+            return 2
+        revs = [r.stdout.strip(), "--not", *(public_tips or [])]
+        scanned = int(_git(root, "rev-list", "--count", *revs).stdout.strip() or 0)
+        findings = iter_history(root, cfg, revs)
     else:
         findings, scanned = iter_tree(root, cfg, args.all_files)
         if args.history:
             findings.extend(iter_history(root, cfg))
-    findings, known = split_baseline(findings, load_baseline(root))
+
+    baseline = load_baseline(root)
+    try:
+        published = published_sha7(root, public_tips) if public_tips else set()
+    except ValueError as e:
+        print(f"public ref error: {e}", file=sys.stderr)
+        return 2
+    honoured = {e for e in baseline if e[0] in published}
+    findings, known = split_baseline(findings, honoured)
+    history_scanned = bool(args.history or args.candidate) and not args.commit_msg
 
     hard = [f for f in findings if f.severity == HARD]
     warn = [f for f in findings if f.severity == WARN]
@@ -460,11 +537,20 @@ def main(argv: list[str] | None = None) -> int:
         for f in findings:
             print(f"{f.severity:4} {f.kind:18} {f.path}:{f.line}  {f.excerpt}")
         scope = ("commit message" if args.commit_msg else
+                 "commit(s) to publish" if args.candidate else
                  "all files" if args.all_files else "git-tracked files")
         print(f"\n{len(hard)} hard, {len(warn)} warn finding(s) "
               f"over {scanned} scanned {scope}.")
+        if args.candidate:   # pusty zakres to tez wynik - mowimy go glosno
+            print(f"range: {args.candidate} --not {len(public_tips or [])} public tip(s); "
+                  f"{scanned} commit(s) to publish.")
         if known:   # mianownik: wyciszone liczymy jawnie, nie znikaja
             print(f"{len(known)} known historical finding(s) acknowledged in {BASELINE_FILE}.")
+        if history_scanned and len(honoured) < len(baseline):
+            why = ("commit not reachable from --public-ref" if public_tips is not None
+                   else "no --public-ref given, so nothing counts as published")
+            print(f"{len(baseline) - len(honoured)} of {len(baseline)} {BASELINE_FILE} "
+                  f"entr(y/ies) NOT honoured: {why}.")
 
     failed = bool(hard) or (args.strict and bool(warn))
     if not args.json:
