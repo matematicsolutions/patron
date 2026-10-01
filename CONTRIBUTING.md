@@ -10,7 +10,8 @@ material in this repository** - not in issues, not in pull requests, not in
 commit messages. Patron's users are bound by professional secrecy, and so is
 its tracker. Use synthetic examples; a mechanical gate
 (`python scripts/publication_gate.py .`) checks the tree and every commit
-message before it lands.
+message before it lands, and CI also scans every commit a change would add
+to the public history (`--candidate HEAD --public-ref 'refs/public/*'`).
 
 ## License model (read this first)
 

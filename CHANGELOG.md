@@ -9,6 +9,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ### Naprawione
 
+- **Aktualizacja PATRONa kasowala ustawienia konektorow (ADR-0166).** Instalator przy
+  aktualizacji usuwa katalog instalacji, a razem z nim `mcp-servers.json` - z konektorami
+  dopisanymi przez Operatora (np. weryfikatorem powolan), ich zatwierdzeniem bramy i
+  przelacznikami pickera. Ustawienia Operatora zyja teraz w nakladce
+  `~/.patron/mcp-servers.operator.json`, ktora aktualizacje przezywa. Konektorom z
+  instalatora nakladka moze zmienic tylko `enabled` i `gatewayApproval`.
 - **Baner MCP Security i pasek perymetru nie widzialy blokady `human_review`.** Liczyly tylko
   decyzje `denied`, wiec konektor zablokowany przez dryf albo podmiane plikow (`human_review`
   bez zatwierdzenia Operatora) nie zapalal banera i nie trafial do licznika blokad. Oba licza

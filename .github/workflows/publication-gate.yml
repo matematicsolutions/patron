@@ -13,6 +13,9 @@ on:
 permissions:
   contents: read
 
+env:
+  PUBLIC_REPO: matematicsolutions/patron   # co tu jest, to juz wyszlo
+
 jobs:
   scan:
     runs-on: ubuntu-latest
@@ -31,6 +34,43 @@ jobs:
       - name: Skan trackowanych plikow (PR i push)
         if: github.event_name == 'pull_request' || github.event_name == 'push'
         run: python scripts/publication_gate.py .
+
+      # Stan repo publicznego pod refs/public/*: galezie ORAZ refs/pull/*/head -
+      # commit z zamknietego PR zostaje na GitHubie pod SHA (3 wpisy listy znanych
+      # trafien zyja juz tylko tam). Lista znanych trafien dziala wylacznie dla
+      # commitow osiagalnych stad. Fetch bez tokena: repo jest publiczne, a token
+      # z checkoutu nalezy do innego repo, gdy workflow biegnie w prywatnym.
+      # W samym repo publicznym ref sprawdzanej zmiany juz tam jest - wyjmujemy
+      # go, inaczej zmiana uznalaby sama siebie za opublikowana.
+      - name: Pobierz stan repo publicznego
+        run: |
+          git -c http.https://github.com/.extraheader= fetch --no-tags --quiet \
+            "https://github.com/$PUBLIC_REPO.git" \
+            '+refs/heads/*:refs/public/heads/*' '+refs/pull/*/head:refs/public/pull/*'
+          if [ "$GITHUB_REPOSITORY" = "$PUBLIC_REPO" ]; then
+            if [ "${{ github.event_name }}" = "push" ]; then
+              git update-ref -d "refs/public/heads/$GITHUB_REF_NAME" || true
+              BEFORE="${{ github.event.before }}"
+              if git rev-parse --quiet --verify "$BEFORE^{commit}" >/dev/null 2>&1; then
+                git update-ref refs/public/before "$BEFORE"
+              fi
+            elif [ "${{ github.event_name }}" = "pull_request" ]; then
+              git update-ref -d "refs/public/pull/${{ github.event.number }}" || true
+              if [ "${{ github.event.pull_request.head.repo.full_name }}" = "$PUBLIC_REPO" ]; then
+                git update-ref -d "refs/public/heads/$GITHUB_HEAD_REF" || true
+              fi
+            fi
+          fi
+          echo "refy publiczne: $(git for-each-ref refs/public | wc -l)"
+
+      # Historia, ktora ta zmiana DOKLADA do repo publicznego (HEAD --not public).
+      # Bramka drzewa widzi tylko stan koncowy: nazwa dodana jednym commitem
+      # i usunieta nastepnym przechodzila push bez slowa, a cotygodniowy skan
+      # wyciszal ja potem lista znanych trafien. 2026-10-01: lista zawierala
+      # dwa commity z galezi prywatnej - merge i push przeszlyby po cichu.
+      - name: Skan historii do publikacji (PR i push)
+        if: github.event_name == 'pull_request' || github.event_name == 'push'
+        run: python scripts/publication_gate.py . --candidate HEAD --public-ref 'refs/public/*'
       # Tresc commitow. Hook `commit-msg` w .githooks lapie to lokalnie, ale hooka
       # da sie ominac (--no-verify) i nie ma go na swiezym klonie - CI jest
       # backstopem. Powod: 2026-08-22 nazwa klienta korporacyjnego z obietnica
@@ -83,4 +123,4 @@ jobs:
         run: python scripts/agents_md_receipt_gate.py . --strict
       - name: Skan calej historii git (cotygodniowo)
         if: github.event_name == 'schedule'
-        run: python scripts/publication_gate.py . --history
+        run: python scripts/publication_gate.py . --history --public-ref 'refs/public/*'

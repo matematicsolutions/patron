@@ -171,7 +171,9 @@ async function readDocumentContent(
             );
         }
         console.log(
-            `[read_document] DONE filename="${docInfo.filename}" finalTextLength=${text.length} firstChars=${JSON.stringify(text.slice(0, 120))}`,
+            // Bez fragmentu tekstu: log jest lokalny, ale tresc pisma nie ma
+            // w nim czego szukac (ADR-0157; test read-document-log.test.ts).
+            `[read_document] DONE filename="${docInfo.filename}" finalTextLength=${text.length}`,
         );
 
         // ADR-0020 W4: obrona w glab. Tuz przed podaniem tresci do promptu

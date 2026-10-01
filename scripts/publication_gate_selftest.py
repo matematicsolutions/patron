@@ -187,5 +187,102 @@ class ListaZnanychTrafien(unittest.TestCase):
         self.assertEqual(load_baseline(d), {("abc1234", "denylist_hash", "docs/a b.md")})
 
 
+class ListaTylkoDlaOpublikowanych(unittest.TestCase):
+    """2026-10-01: lista znanych trafien powstala z `git log --all`, wiec weszly
+    do niej commity z prywatnej galezi, ktorych nigdy nie bylo na repo publicznym.
+    Lista miala uznawac to, co JUZ wyszlo, a dawala przepustke na przyszla
+    publikacje: merge takiej galezi i push na publiczne przeszlyby po cichu.
+    Kontrakt: wpis z listy dziala tylko dla commita osiagalnego z refa publicznego,
+    a skan zakresu (--candidate) bierze dokladnie to, co publikacja doda."""
+
+    PLIK = "docs/notatka.md"
+
+    def _git(self, *a: str) -> str:
+        import subprocess
+        return subprocess.run(
+            ["git", "-C", str(self.root), "-c", "user.name=t", "-c", "user.email=t@t", *a],
+            check=True, capture_output=True, text=True).stdout.strip()
+
+    def _commit(self, rel: str, tresc: str, msg: str) -> str:
+        (self.root / rel).parent.mkdir(parents=True, exist_ok=True)
+        (self.root / rel).write_text(tresc, encoding="utf-8")
+        self._git("add", "-A")
+        self._git("commit", "-q", "-m", msg)
+        return self._git("rev-parse", "HEAD")
+
+    def setUp(self):
+        import json
+        self.root = Path(self.enterContext(__import__("tempfile").TemporaryDirectory()))
+        self._git("init", "-q")
+        self._git("symbolic-ref", "HEAD", "refs/heads/main")
+        # Config i lista poza indeksem gita: cyfry w heksie hasha same skladaja
+        # sie czasem w REGON, a test ma mierzyc historie, nie wlasny config.
+        (self.root / ".git" / "info" / "exclude").write_text(
+            f".publication-gate.json\n{BASELINE_FILE}\n", encoding="utf-8")
+        (self.root / ".publication-gate.json").write_text(
+            json.dumps({"deny_term_hashes": [stem_hash("kowalsk")]}), encoding="utf-8")
+        self._commit("README.md", "czysto\n", "init")
+        self._git("update-ref", "refs/public/heads/main", "HEAD")
+        self._git("checkout", "-q", "-b", "feat")
+        # Nazwa wchodzi jednym commitem i znika nastepnym: drzewo jest czyste,
+        # zostaje tylko historia - dokladnie kanal, ktorego bramka drzewa nie widzi.
+        self.brudny = self._commit(self.PLIK, f"notatka {NAZWISKO}\n", "wip")
+        self._commit(self.PLIK, "notatka\n", "sprzatanie")
+        (self.root / BASELINE_FILE).write_text(
+            f"{self.brudny[:7]} denylist_hash {self.PLIK}\n", encoding="utf-8")
+
+    def _gate(self, *args: str) -> tuple[int, str]:
+        import contextlib
+        import io
+        from publication_gate import main
+        out, err = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            rc = main([str(self.root), *args])
+        tekst = out.getvalue() + err.getvalue()
+        self.assertNotIn(NAZWISKO.lower(), tekst.lower())   # nazwy nigdy nie drukujemy
+        return rc, tekst
+
+    def test_zakres_publikacji_blokuje_wpis_z_listy_spoza_publicznego(self):
+        rc, out = self._gate("--candidate", "feat", "--public-ref", "refs/public/heads/main")
+        self.assertEqual(rc, 1, out)
+        self.assertIn(f"history@{self.brudny[:7]}:{self.PLIK}", out)
+        self.assertIn("2 commit(s) to publish", out)
+
+    def test_pelna_historia_nie_uznaje_wpisu_dla_commita_nieopublikowanego(self):
+        rc, out = self._gate("--history", "--public-ref", "refs/public/heads/main")
+        self.assertEqual(rc, 1, out)
+        self.assertIn("not reachable from --public-ref", out)
+
+    def test_ten_sam_commit_osiagalny_z_publicznego_jest_wyciszony(self):
+        self._git("update-ref", "refs/public/heads/feat", "feat")
+        rc, out = self._gate("--history", "--public-ref", "refs/public/*")
+        self.assertEqual(rc, 0, out)
+        self.assertIn("1 known historical finding(s)", out)
+
+    def test_zakres_juz_opublikowany_jest_pusty_i_przechodzi_jawnie(self):
+        self._git("update-ref", "refs/public/heads/feat", "feat")
+        rc, out = self._gate("--candidate", "feat", "--public-ref", "refs/public/*")
+        self.assertEqual(rc, 0, out)
+        self.assertIn("0 commit(s) to publish", out)
+
+    def test_bez_refa_publicznego_lista_nie_daje_przepustki(self):
+        # "Nie wiem, co jest publiczne" blokuje - nie zgadujemy na korzysc przejscia.
+        rc, out = self._gate("--history")
+        self.assertEqual(rc, 1, out)
+        self.assertIn("--public-ref", out)
+
+    def test_nieistniejacy_ref_publiczny_to_blad_nie_pusty_zbior(self):
+        rc, _ = self._gate("--history", "--public-ref", "refs/public/heads/brak")
+        self.assertEqual(rc, 2)
+
+    def test_glob_bez_trafien_to_blad_nie_pusty_zbior(self):
+        rc, _ = self._gate("--candidate", "feat", "--public-ref", "refs/brak/*")
+        self.assertEqual(rc, 2)
+
+    def test_candidate_wymaga_refa_publicznego(self):
+        rc, _ = self._gate("--candidate", "feat")
+        self.assertEqual(rc, 2)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
