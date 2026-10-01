@@ -21,7 +21,7 @@ import { SQLITE_SCHEMA } from "./schema.sqlite";
 import {
     runSqliteMigrations,
     SQLITE_MIGRATIONS,
-    AUDIT_EVENT_TYPES_V6,
+    AUDIT_EVENT_TYPES_V7,
 } from "./migrate.sqlite";
 
 const BACKEND_ROOT = path.resolve(__dirname, "../../..");
@@ -77,11 +77,11 @@ describe("parytet whitelist event_type (5 luster)", () => {
         expect({ file: latest, list: sorted(list) }).toEqual({ file: latest, list: expected });
     });
 
-    it("NAJNOWSZY rebuild SQLite (AUDIT_EVENT_TYPES_V6) == EVENT_TYPES i jest ostatnim krokiem z lista", () => {
+    it("NAJNOWSZY rebuild SQLite (AUDIT_EVENT_TYPES_V7) == EVENT_TYPES i jest ostatnim krokiem z lista", () => {
         // Przy KAZDYM nowym event_type podnies te stala do najnowszego V<n>.
         // Ten test padl 2026-08-24 przy dodaniu deliverable.bundle_export - dokladnie
         // po to istnieje: pilnuje, zeby nowy typ dostal wlasny krok rebuildu.
-        expect(sorted(AUDIT_EVENT_TYPES_V6)).toEqual(expected);
+        expect(sorted(AUDIT_EVENT_TYPES_V7)).toEqual(expected);
         // Gdy ktos doda event_type do EVENT_TYPES bez nowego kroku SQLite, powyzsze
         // padnie. Dodatkowo: ostatni krok migracji ma byc tym z parytetem (nie
         // dopisuj kolejnych krokow "obok" bez pelnej listy).

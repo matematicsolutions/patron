@@ -3,7 +3,8 @@
 // Idea: kazdy rekord w `audit_log` zawiera `prev_hash` poprzedniego rekordu
 // oraz wlasny `hash` policzony z konkatenacji `prev_hash + canonical_json(...)`.
 // Modyfikacja albo usuniecie srodkowego rekordu zrywa lancuch i zostanie
-// wykryta przez weryfikator (`scripts/verify-audit-chain.ts`).
+// wykryta przez weryfikator (`scripts/verify-audit-chain.ts`, Supabase i SQLite;
+// rdzen w `audit-chain-verify.ts`, ADR-0161).
 //
 // Hash to SHA-256 hex (64 znaki, lower-case). Genesis = "0".repeat(64).
 //
@@ -120,6 +121,12 @@ export const EVENT_TYPES = [
     // ADR-0152: eksport pakietu dowodowego deliverable (audit-bundle).
     // Wyniesienie tresci z kancelarii = akt, ktory musi zostawic slad.
     "deliverable.bundle_export",
+    // ADR-0161 wariant B: Operator potwierdza rozwidlenia lancucha sprzed straznika
+    // (`npm run audit:acknowledge-forks`). Payload: id i hashe ogniw, prog straznika,
+    // bez tresci. Hashe lisci na glownej sciezce przywracaja im ochrone przed cichym
+    // usunieciem. Lustro: schema.sqlite.ts, schema.sql, migrate.sqlite.ts (v7),
+    // migrations/023.
+    "audit.chain.fork_acknowledged",
 ] as const;
 
 /** Union literal lustrzany dla CHECK constraint w audit_log. */
@@ -208,25 +215,33 @@ export function computeAuditHash(args: {
 
 /**
  * Pobiera hash ostatniego rekordu audit_log (do uzycia jako prev_hash dla
- * nowego). Zwraca GENESIS_HASH jesli tabela jest pusta.
+ * nowego). GENESIS_HASH tylko wtedy, gdy tabela jest PUSTA.
+ *
+ * Blad odczytu NIE jest pusta tabela: wczesniej zwracal GENESIS_HASH, wiec
+ * chwilowy blad bazy dopisywal drugi poczatek lancucha (ADR-0161). Teraz blad
+ * wraca do wolajacego i zapis sie nie odbywa.
  */
 async function getLastHash(
     db: ReturnType<typeof createServerSupabase>,
-): Promise<string> {
+): Promise<{ hash: string } | { error: string }> {
     const { data, error } = await db
         .from("audit_log")
         .select("hash")
         .order("id", { ascending: false })
         .limit(1);
     if (error) {
-        console.warn("[audit] cannot read last hash:", error.message);
-        return GENESIS_HASH;
+        return { error: error.message ?? String(error) };
     }
     const row = data?.[0] as { hash?: string } | undefined;
-    return row?.hash ?? GENESIS_HASH;
+    return { hash: row?.hash ?? GENESIS_HASH };
 }
 
 // Kolejka zapisow audytu w obrebie procesu (patrz appendAuditEvent).
+// Ile razy zapis moze przegrac wyscig o poprzednika z innym procesem, zanim
+// zwroci blad (ADR-0161). Wyscigi miedzy procesami sa rzadkie; osiem prob z
+// losowym odstepem pokrywa kilka procesow piszacych naraz.
+export const AUDIT_APPEND_MAX_ATTEMPTS = 8;
+
 let appendQueue: Promise<unknown> = Promise.resolve();
 
 /**
@@ -239,8 +254,11 @@ let appendQueue: Promise<unknown> = Promise.resolve();
  * czytaly ten sam `prev_hash` i lancuch sie rozwidlal. `hash unique` tego NIE
  * lapie: hash obejmuje `ts` i payload, wiec dwa ogniwa o wspolnym poprzedniku
  * maja rozne hashe (zmierzone 2026-10-01: 7 zdarzen startu, 6 zlych ogniw).
- * Retry na 23505 zostaje dla zapisow z innego procesu (tryb serwerowy) - tam
- * kolejka w pamieci nie siega.
+ * Zapisy z INNEGO procesu (tryb serwerowy, skrypt CLI na tej samej bazie)
+ * kolejka nie obejmuje. Te zatrzymuje baza: unikalny `prev_hash` dla wpisow
+ * dopisanych po instalacji straznika (ADR-0161, migracja 022 / SQLite
+ * `ensureAuditChainGuard`). Przegrany wyscig konczy sie bledem 23505 i petla
+ * ponizej czyta swiezy poprzednik, do AUDIT_APPEND_MAX_ATTEMPTS prob.
  */
 export function appendAuditEvent(
     db: ReturnType<typeof createServerSupabase>,
@@ -255,8 +273,13 @@ async function appendAuditEventNow(
     db: ReturnType<typeof createServerSupabase>,
     event: AuditEventInput,
 ): Promise<{ ok: boolean; row?: PreparedAuditRow; error?: string }> {
-    for (let attempt = 0; attempt < 2; attempt++) {
-        const prev_hash = await getLastHash(db);
+    for (let attempt = 1; attempt <= AUDIT_APPEND_MAX_ATTEMPTS; attempt++) {
+        const last = await getLastHash(db);
+        if ("error" in last) {
+            console.warn("[audit] cannot read last hash:", last.error);
+            return { ok: false, error: `cannot read last hash: ${last.error}` };
+        }
+        const prev_hash = last.hash;
         const ts = new Date().toISOString();
         const hash = computeAuditHash({
             prev_hash,
@@ -283,12 +306,18 @@ async function appendAuditEventNow(
         if (!error) {
             return { ok: true, row: { ...event, ts, prev_hash, hash } };
         }
-        // 23505 = unique_violation w PostgreSQL. Wystapila race - retry.
-        if (
-            (error as { code?: string }).code === "23505" &&
-            attempt === 0
-        ) {
-            continue;
+        // 23505 = unique_violation (PostgreSQL; shim SQLite mapuje na ten sam
+        // kod). Inny proces dopisal ogniwo do tego samego poprzednika - czytamy
+        // swiezy i probujemy jeszcze raz, z krotkim losowym odstepem, zeby kilka
+        // procesow nie przegrywalo ze soba w tym samym rytmie.
+        if ((error as { code?: string }).code === "23505") {
+            if (attempt < AUDIT_APPEND_MAX_ATTEMPTS) {
+                await new Promise((r) => setTimeout(r, Math.random() * 10 * attempt));
+                continue;
+            }
+            const msg = `audit chain contention: ${AUDIT_APPEND_MAX_ATTEMPTS} attempts lost`;
+            console.warn("[audit] insert failed:", msg);
+            return { ok: false, error: msg };
         }
         console.warn("[audit] insert failed:", error.message ?? error);
         return { ok: false, error: error.message ?? String(error) };

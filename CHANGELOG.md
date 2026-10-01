@@ -45,6 +45,19 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
   istniejacych bazach zostaja bez zmian - ich ocena to osobna decyzja.
   [ADR-0159](./governance/adr/0159-detektor-dryfu-obejmuje-schemat-wejscia.md), sekcja
   "Znalezione przy weryfikacji".
+- **Lancuch audytu chroniony takze miedzy procesami; weryfikator dziala na SQLite.** Kolejka
+  zapisow nie siega drugiego procesu (drugi backend, skrypt CLI na tej samej bazie). Teraz
+  baza odrzuca drugie ogniwo do tego samego poprzednika (unikalny `prev_hash` od chwili
+  instalacji - istniejace bazy z rozwidleniami przechodza migracje bez przepisywania
+  historii), a zapis ponawia sie ze swiezym poprzednikiem. Blad odczytu ostatniego hasha nie
+  zaczyna juz nowego lancucha od zera. `npm run audit:verify` sprawdza baze, do ktorej pisze
+  backend (SQLite albo Supabase), otwiera plik tylko do odczytu i odroznia rozwidlenie z
+  wyscigu zapisow (UWAGI, kod 3) od usuniecia, podmiany lub wstawki (BLOKADA, kod 1) - dotad
+  oba konczyly sie tym samym komunikatem o zmodyfikowanym wpisie. Rozwidlenia zapisane przed
+  ta zmiana Operator potwierdza raz (`npm run audit:acknowledge-forks`, podglad bez `--tak`):
+  zdarzenie `audit.chain.fork_acknowledged` niesie hashe ogniw bocznych, wiec ich pozniejsze
+  usuniecie weryfikator widzi jako BLOKADE. Dotad usuniecie takiego ogniwa bylo niewidoczne.
+  [ADR-0161](./governance/adr/0161-straznik-lancucha-audytu-w-bazie-i-weryfikator-sqlite.md).
 - **Detektor dryfu bramy MCP nie widzial zmian schematu wejscia narzedzi.** Hash baseline
   obejmowal nazwy i opisy, wiec konektor - takze bundlowany - mogl dopisac narzedziu
   parametr (np. `token`) bez zadnego sygnalu. Hash obejmuje teraz `inputSchema` (ta sama

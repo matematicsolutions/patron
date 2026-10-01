@@ -428,6 +428,143 @@ ${list}
     `);
 }
 
+/**
+ * v7: dodaje `audit.chain.fork_acknowledged` (ADR-0161 wariant B - Operator
+ * potwierdza rozwidlenia lancucha sprzed straznika). Jak v5/v6: pelna lista i
+ * rebuild Z ZACHOWANIEM wierszy. Rebuild kasuje indeksy, takze straznika
+ * `prev_hash` - runSqliteMigrations odtwarza go po krokach z TYM SAMYM progiem.
+ *
+ * Dodajac kolejny event_type: NOWY krok v8 z pelna lista (nie edytuj tej).
+ */
+export const AUDIT_EVENT_TYPES_V7 = [
+    ...AUDIT_EVENT_TYPES_V6,
+    "audit.chain.fork_acknowledged",
+] as const;
+
+function rebuildAuditLogAddForkAcknowledged(db: Database.Database): void {
+    const row = db
+        .prepare(
+            "select sql from sqlite_master where type = 'table' and name = 'audit_log'",
+        )
+        .get() as { sql?: string } | undefined;
+    if (!row?.sql) return;
+    const missing = AUDIT_EVENT_TYPES_V7.filter((t) => !row.sql!.includes(`'${t}'`));
+    if (missing.length === 0) return;
+
+    const list = AUDIT_EVENT_TYPES_V7.map((t) => `          '${t}'`).join(",\n");
+    db.exec(`
+      create table audit_log_new (
+        id integer primary key autoincrement,
+        ts text not null,
+        actor_user_id text,
+        event_type text not null check (event_type in (
+${list}
+        )),
+        chat_id text,
+        document_id text,
+        payload text not null,
+        prev_hash text not null,
+        hash text not null unique
+      );
+      insert into audit_log_new
+        (id, ts, actor_user_id, event_type, chat_id, document_id, payload, prev_hash, hash)
+        select id, ts, actor_user_id, event_type, chat_id, document_id, payload, prev_hash, hash
+        from audit_log;
+      drop table audit_log;
+      alter table audit_log_new rename to audit_log;
+      create index if not exists idx_audit_log_chat on audit_log(chat_id, ts);
+      create index if not exists idx_audit_log_actor on audit_log(actor_user_id, ts);
+      create index if not exists idx_audit_log_event_type on audit_log(event_type, ts);
+    `);
+}
+
+/**
+ * Straznik lancucha audytu na poziomie bazy (ADR-0161): unikalny `prev_hash`
+ * dla wpisow dopisanych PO instalacji straznika.
+ *
+ * Po co: kolejka w `appendAuditEvent` porzadkuje zapisy jednego procesu, ale nie
+ * siega innego procesu na tej samej bazie (skrypt CLI, drugi backend). Dwa zapisy
+ * czytajace ten sam ostatni hash daja dwa ogniwa o wspolnym poprzedniku, a
+ * `hash unique` tego nie lapie, bo hash obejmuje `ts` i payload. Indeks na
+ * `prev_hash` zamienia taki wyscig w blad 23505, ktory zapis ponawia.
+ *
+ * Dlaczego czesciowy (`where id > N`): istniejace bazy MAJA juz rozwidlenia z
+ * czasu przed kolejka (zmierzone 2026-10-01 na instalacji desktopowej, rownolegle
+ * wywolania narzedzi). Pelny unikalny indeks by sie na nich nie zbudowal, a
+ * przepisywanie historii audytu nie wchodzi w gre. N = max(id) w chwili
+ * instalacji; na swiezej bazie N = 0, czyli straznik obejmuje caly lancuch.
+ * Weryfikator (`audit-chain-verify.ts`) czyta N z definicji indeksu: rozwidlenie
+ * powyzej N jest niemozliwe przy zywym strazniku, wiec znaczy BLOKADE.
+ *
+ * Dlaczego NIE w SQLITE_SCHEMA: tamten tekst wykonuje sie przy kazdym starcie na
+ * istniejacej bazie, a `create unique index` bez progu wywrocilby start na bazie
+ * z rozwidleniami. Dlaczego NIE jako krok z numerem wersji: kazdy rebuild
+ * `audit_log` (zmiana CHECK event_type, kroki v2-v6) kasuje tabele razem z jej
+ * indeksami. Funkcja jest idempotentna i `runSqliteMigrations` wola ja na koncu
+ * KAZDEGO przebiegu, wiec przyszly rebuild nie zgubi straznika po cichu.
+ * Prog przezywa rebuild: runSqliteMigrations czyta go PRZED krokami i podaje tu
+ * jako `keepThreshold`. Gdyby indeks z tym progiem sie nie zbudowal (rozwidlenie
+ * POWYZEJ progu - przy zywym strazniku niemozliwe, wiec slad ingerencji), start
+ * nie pada: straznik wraca z biezacym max(id), a blad idzie glosno do logu.
+ * Weryfikator i tak pokaze takie rozwidlenie, bo hash i krawedzie zostaja.
+ */
+export const AUDIT_CHAIN_GUARD_INDEX = "uq_audit_log_prev_hash";
+
+export function ensureAuditChainGuard(
+    db: Database.Database,
+    keepThreshold: number | null = null,
+): void {
+    const table = db
+        .prepare("select 1 from sqlite_master where type = 'table' and name = 'audit_log'")
+        .get();
+    if (!table) return;
+    const existing = db
+        .prepare("select 1 from sqlite_master where type = 'index' and name = ?")
+        .get(AUDIT_CHAIN_GUARD_INDEX);
+    if (existing) return;
+    // Prog to liczba calkowita z naszej bazy, nie wejscie uzytkownika; SQLite
+    // nie przyjmuje parametru w predykacie indeksu czesciowego.
+    const create = (n: number) => {
+        if (!Number.isSafeInteger(n) || n < 0) {
+            throw new Error(`[audit-guard] nieprawidlowy prog: ${n}`);
+        }
+        db.exec(
+            `create unique index ${AUDIT_CHAIN_GUARD_INDEX} on audit_log(prev_hash) where id > ${n}`,
+        );
+    };
+    const apply = db.transaction(() => {
+        if (keepThreshold !== null) {
+            try {
+                create(keepThreshold);
+                return;
+            } catch (e) {
+                console.error(
+                    `[audit-guard] straznik z dotychczasowym progiem id > ${keepThreshold} sie nie zbudowal ` +
+                        `(rozwidlenie powyzej progu - uruchom npm run audit:verify): ${e instanceof Error ? e.message : String(e)}`,
+                );
+            }
+        }
+        const row = db.prepare("select coalesce(max(id), 0) as n from audit_log").get() as {
+            n: number;
+        };
+        create(Math.trunc(Number(row.n)));
+    });
+    apply();
+}
+
+/**
+ * Prog straznika odczytany z definicji indeksu (zrodlo, ktore realnie
+ * egzekwuje), albo null gdy indeksu nie ma.
+ */
+export function readAuditChainGuardThreshold(db: Database.Database): number | null {
+    const row = db
+        .prepare("select sql from sqlite_master where type = 'index' and name = ?")
+        .get(AUDIT_CHAIN_GUARD_INDEX) as { sql?: string } | undefined;
+    if (!row?.sql) return null;
+    const m = /where\s+id\s*>\s*(\d+)\s*$/i.exec(row.sql.trim());
+    return m ? Number(m[1]) : null;
+}
+
 /** Lista migracji SQLite (kolejnosc = version rosnaco). */
 export const SQLITE_MIGRATIONS: ReadonlyArray<SqliteMigration> = [
     {
@@ -460,6 +597,11 @@ export const SQLITE_MIGRATIONS: ReadonlyArray<SqliteMigration> = [
         name: "audit_log_add_deliverable_bundle_export_event_type",
         up: rebuildAuditLogAddDeliverableBundleExport,
     },
+    {
+        version: 7,
+        name: "audit_log_add_fork_acknowledged_event_type",
+        up: rebuildAuditLogAddForkAcknowledged,
+    },
 ];
 
 /**
@@ -479,6 +621,8 @@ export function runSqliteMigrations(
     const pending = [...migrations]
         .filter((m) => m.version > current)
         .sort((a, b) => a.version - b.version);
+    // Prog straznika lancucha PRZED krokami - rebuild audit_log kasuje indeks.
+    const guardThreshold = readAuditChainGuardThreshold(db);
     for (const m of pending) {
         const apply = db.transaction(() => {
             m.up(db);
@@ -489,5 +633,7 @@ export function runSqliteMigrations(
         apply();
         current = m.version;
     }
+    // Poza lista wersji celowo - patrz ensureAuditChainGuard.
+    ensureAuditChainGuard(db, guardThreshold);
     return current;
 }

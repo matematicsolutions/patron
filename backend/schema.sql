@@ -490,7 +490,8 @@ create table if not exists public.audit_log (
     'connector.toggle',
     'mutation.approval.decision',
     'cost_cap',
-    'deliverable.bundle_export'
+    'deliverable.bundle_export',
+    'audit.chain.fork_acknowledged'
   ))
 );
 
@@ -500,6 +501,29 @@ create index if not exists idx_audit_log_actor
   on public.audit_log(actor_user_id, ts);
 create index if not exists idx_audit_log_event_type
   on public.audit_log(event_type, ts);
+
+-- ADR-0161: straznik lancucha - unikalny prev_hash dla wpisow po instalacji
+-- straznika (czesciowy, `where id > N`, bo istniejace bazy moga miec rozwidlenia
+-- z czasu przed kolejka zapisow). Ten sam blok co migracja 022; jako `do` z
+-- progiem, a nie golym `create unique index`, bo ten plik bywa uruchamiany
+-- ponownie na istniejacej bazie.
+do $$
+declare
+  watermark bigint;
+begin
+  if not exists (
+    select 1 from pg_indexes
+    where schemaname = 'public' and indexname = 'audit_log_prev_hash_unique'
+  ) then
+    lock table public.audit_log in share row exclusive mode;
+    select coalesce(max(id), 0) into watermark from public.audit_log;
+    execute format(
+      'create unique index audit_log_prev_hash_unique on public.audit_log (prev_hash) where id > %s',
+      watermark
+    );
+  end if;
+end;
+$$;
 
 -- RLS: append-only z poziomu service role; uzytkownicy nie czytaja bezposrednio.
 alter table public.audit_log enable row level security;
