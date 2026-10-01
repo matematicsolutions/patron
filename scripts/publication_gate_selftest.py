@@ -154,6 +154,15 @@ class SkanHistorii(unittest.TestCase):
         self.assertFalse(scan_text("x.md", "przykladowy KRS 0000123456", Config()))
         self.assertTrue(scan_text("x.md", "KRS 0000512346", Config()))  # pubgate:allow
 
+    def test_cyfry_w_hashu_gita_to_nie_nip(self):
+        # 2026-10-01: syntetyczny merge PR "Merge <sha> into <sha>" - w hashu
+        # siedzi 10 kolejnych cyfr z poprawna suma NIP.
+        msg = "Merge 2deba096f6410451136b7733c3265768ddb3fa92 into 41c45da897da980c98336fff69f6f4fee78db18f"
+        self.assertFalse(scan_text("commit-msg", msg, Config()))
+        # Ta sama liczba GOLA dalej jest trafieniem - wyjatek dotyczy tylko hasha.
+        self.assertTrue(scan_text("x.md", "NIP 6410451136", Config()))  # pubgate:allow
+        self.assertTrue(scan_text("x.md", "nip:6410451136.", Config()))  # pubgate:allow
+
     def test_ciag_kolejnych_cyfr_to_nie_nip(self):
         # hex fixture "0123456789abcdef" w tescie innej bramki - "0123456789" ma sume NIP
         self.assertFalse(scan_text("t.py", '"0123456789abcdef0123456789"', Config()))
