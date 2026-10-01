@@ -26,6 +26,11 @@ import {
 } from "../mcp-security";
 import { recordMcpSecurityEvent, recordRingPolicyEvent } from "./audit-bridge";
 import { decideRing } from "./ring-policy";
+import {
+    operatorOverlayPath,
+    readMergedConfig,
+    writeEnabledToOverlay,
+} from "./operator-overlay";
 import type { McpCitation, McpToolResult } from "./types";
 
 export type { McpCitation, McpToolResult } from "./types";
@@ -141,22 +146,21 @@ export function resolveStdioSpawn(cfg: McpServerConfig): McpServerConfig {
     return { ...cfg, command, args, env };
 }
 
+// ADR-0166: konfiguracja = plik instalatora (resources/backend, kasowany przy
+// aktualizacji) + nakladka Operatora w katalogu uzytkownika (przezywa update).
+// Ostrzezenia o pominietych wpisach logujemy raz na proces.
+let _ostrzezeniaZalogowane = false;
+function mergedConfig(): McpServerConfig[] {
+    const { configs, warnings } = readMergedConfig(CONFIG_PATH, operatorOverlayPath());
+    if (!_ostrzezeniaZalogowane) {
+        for (const w of warnings) console.warn(`[MCP] ${w}`);
+        _ostrzezeniaZalogowane = true;
+    }
+    return configs;
+}
+
 function loadConfig(): McpServerConfig[] {
-    if (!fs.existsSync(CONFIG_PATH)) {
-        return [];
-    }
-    try {
-        const raw = fs.readFileSync(CONFIG_PATH, "utf-8");
-        const parsed = JSON.parse(raw) as McpServerConfig[];
-        if (!Array.isArray(parsed)) {
-            console.warn("[MCP] mcp-servers.json must be a JSON array - ignoring");
-            return [];
-        }
-        return parsed.filter((s) => s.enabled !== false).map(resolveStdioSpawn);
-    } catch (err) {
-        console.warn("[MCP] Failed to parse mcp-servers.json:", err);
-        return [];
-    }
+    return mergedConfig().filter((s) => s.enabled !== false).map(resolveStdioSpawn);
 }
 
 // ---------------------------------------------------------------------------
@@ -167,56 +171,25 @@ function loadConfig(): McpServerConfig[] {
 // dostepu - latwiejszy audyt bezpieczenstwa).
 // ---------------------------------------------------------------------------
 
-/** Surowa lista konektorow (WSZYSTKICH, lacznie z enabled=false). */
+/** Lista konektorow (WSZYSTKICH, lacznie z enabled=false): instalator + nakladka. */
 export function listConnectorConfigs(): McpServerConfig[] {
-    if (!fs.existsSync(CONFIG_PATH)) return [];
-    try {
-        const parsed = JSON.parse(
-            fs.readFileSync(CONFIG_PATH, "utf-8"),
-        ) as McpServerConfig[];
-        return Array.isArray(parsed) ? parsed : [];
-    } catch (err) {
-        console.warn("[MCP] listConnectorConfigs: parse failed:", err);
-        return [];
-    }
+    return mergedConfig();
 }
 
 /**
- * Ustawia flage `enabled` konektora w mcp-servers.json (atomowy tmp+rename).
- * NIE waliduje ring - autoryzacja (tylko Ring 1 przez picker) jest w connectors.ts.
- * Zmiana wchodzi w zycie po restarcie/reloadzie (konektory czytane przy starcie).
+ * Ustawia flage `enabled` konektora. ADR-0166: zapis idzie do NAKLADKI Operatora,
+ * nie do mcp-servers.json z katalogu instalacji - inaczej przelacznik ginal przy
+ * kazdej aktualizacji. NIE waliduje ring - autoryzacja (tylko Ring 1 przez
+ * picker) jest w connectors.ts. Zmiana wchodzi w zycie po restarcie/reloadzie.
  */
 export function setConnectorEnabledInConfig(
     name: string,
     enabled: boolean,
 ): { ok: boolean; error?: string } {
-    if (!fs.existsSync(CONFIG_PATH)) {
-        return { ok: false, error: "mcp-servers.json not found" };
-    }
-    let parsed: McpServerConfig[];
-    try {
-        parsed = JSON.parse(
-            fs.readFileSync(CONFIG_PATH, "utf-8"),
-        ) as McpServerConfig[];
-    } catch (err) {
-        return { ok: false, error: `parse error: ${String(err)}` };
-    }
-    if (!Array.isArray(parsed)) {
-        return { ok: false, error: "config is not an array" };
-    }
-    const idx = parsed.findIndex((s) => s.name === name);
-    if (idx === -1) {
+    if (!mergedConfig().some((s) => s.name === name)) {
         return { ok: false, error: `connector "${name}" not found` };
     }
-    parsed[idx] = { ...parsed[idx], enabled };
-    try {
-        const tmp = `${CONFIG_PATH}.tmp`;
-        fs.writeFileSync(tmp, `${JSON.stringify(parsed, null, 2)}\n`, "utf-8");
-        fs.renameSync(tmp, CONFIG_PATH);
-        return { ok: true };
-    } catch (err) {
-        return { ok: false, error: `write error: ${String(err)}` };
-    }
+    return writeEnabledToOverlay(operatorOverlayPath(), name, enabled);
 }
 
 // ---------------------------------------------------------------------------

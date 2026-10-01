@@ -2,13 +2,14 @@
 //
 // Repertorium jest serwisem ZDALNYM (HTTP), wiec NIE ma go na liscie zaufanych
 // konektorow Patrona (APPROVED_PATRON_CONNECTORS = konektory bundlowane w
-// instalatorze). Operator dopisuje go w mcp-servers.json jako Ring 2 z
+// instalatorze). Operator dopisuje go w nakladce ~/.patron/mcp-servers.operator.json
+// (ADR-0166 - plik instalatora ginie przy aktualizacji) jako Ring 2 z
 // `operatorApproved: true` - ta sama sciezka co kazdy konektor 3rd-party:
 // brama bezpieczenstwa przy starcie (ADR-0028) i ring-policy przy kazdym
 // wywolaniu (ADR-0027, zdarzenie `ring_policy.decision` w lancuchu audytu).
 // Brama daje Repertorium `human_review` (falszywe alarmy o polach wyniku), wiec
 // Operator po przegladzie wpisuje tez `gatewayApproval.hash` (ADR-0158).
-// Adres konektora z kluczem dostepu zyje wylacznie w lokalnym mcp-servers.json.
+// Adres konektora z kluczem dostepu zyje wylacznie w lokalnej nakladce Operatora.
 
 import { getMcpTools, isMcpTool, runMcpTool } from "../mcp";
 import type { VerifyToolCall } from "./index";

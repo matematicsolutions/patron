@@ -7,6 +7,15 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ## [Unreleased]
 
+### Naprawione
+
+- **Aktualizacja PATRONa kasowala ustawienia konektorow (ADR-0166).** Instalator przy
+  aktualizacji usuwa katalog instalacji, a razem z nim `mcp-servers.json` - z konektorami
+  dopisanymi przez Operatora (np. weryfikatorem powolan), ich zatwierdzeniem bramy i
+  przelacznikami pickera. Ustawienia Operatora zyja teraz w nakladce
+  `~/.patron/mcp-servers.operator.json`, ktora aktualizacje przezywa. Konektorom z
+  instalatora nakladka moze zmienic tylko `enabled` i `gatewayApproval`.
+
 ### Dodane
 
 - **Spojnosc lancucha audytu widoczna w aplikacji (ADR-0165).** Ekran audytu pokazuje, czy

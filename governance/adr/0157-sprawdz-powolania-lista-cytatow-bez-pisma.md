@@ -64,8 +64,9 @@ sprawdzono"), nigdy cisza. Wywolanie nieudane albo odmowa limitu = `failed`/`par
 
 **7. Repertorium jako Ring 2, nie Ring 1.** To serwis zdalny (HTTP), nie konektor bundlowany
 w instalatorze, wiec NIE trafia do `APPROVED_PATRON_CONNECTORS` ani do szesciu luster nazw.
-Operator dopisuje go w lokalnym `mcp-servers.json` (`gatewayApproval` wpisuje PO przegladzie
-findings bramy - hash podaje log pierwszego startu, ADR-0158):
+Operator dopisuje go w nakladce `~/.patron/mcp-servers.operator.json` - NIE w `mcp-servers.json`
+z katalogu instalacji, ktory kazda aktualizacja kasuje (ADR-0166). `gatewayApproval` wpisuje PO
+przegladzie findings bramy - hash podaje log pierwszego startu, ADR-0158:
 
 ```json
 {
@@ -82,10 +83,10 @@ findings bramy - hash podaje log pierwszego startu, ADR-0158):
 
 Nazwe serwera zmienia `PATRON_CITATION_VERIFIER_SERVER` (domyslnie `repertorium`). Kazde
 wywolanie przechodzi ring-policy i zostawia `ring_policy.decision` w lancuchu audytu (ADR-0027)
-- bez nowego `event_type`. Trasa sama nie loguje tresci pisma, ALE reuzyta sciezka odczytu
-(`readDocumentContent`, wspolna z czatem) wypisuje do lokalnego logu backendu pierwsze 120
-znakow tekstu. Log nie wychodzi z komputera, lecz to fragment pisma w pliku, ktorego prawnik
-sie nie spodziewa - naprawa tej linii to osobna zmiana (dotyka sciezki czatu).
+- bez nowego `event_type`. Ani trasa, ani reuzyta sciezka odczytu (`readDocumentContent`,
+wspolna z czatem) nie loguja tresci pisma. Do 2026-10-01 sciezka odczytu wypisywala do
+lokalnego logu pierwsze 120 znakow tekstu; usuniete razem z testem, ktory przechwytuje
+`console` przy prawdziwym odczycie (`read-document-log.test.ts`).
 
 **8. Raport lokalny.** HTML skladany w przegladarce (Blob), bez skryptow i zasobow
 zewnetrznych, kazdy napis z pisma i z serwera escapowany; niesie fragmenty powolan (nie cale
