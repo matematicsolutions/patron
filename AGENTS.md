@@ -6,7 +6,7 @@ This is the [agents.md](https://agents.md) file (Linux Foundation / Agentic AI F
 
 ## Purpose
 
-Patron is a **local-first, self-hosted AI agent for a Polish law firm, built for GDPR and professional-secrecy compliance**. A zero-cloud, single-user desktop application (Electron): local SQLite by default ([ADR-0053](./governance/adr/0053-sqlite-single-user-zero-cloud.md)) plus MCP connectors to Polish and EU law (7 Node connectors: SAOS, NSA, ISAP, KRS, EUR-Lex SPARQL, EU compliance, EUREKA; 13 Python ELI connectors for national law), an audit trail with a hash chain (AI Act art. 12), bring-your-own-model (Gemini / Claude / local Ollama / OpenRouter). Server mode (Postgres + MinIO + Supabase) remains available as an alternative. A fork of [willchen96/mike](https://github.com/willchen96/mike) (AGPL-3.0) - Patron's shell inherits AGPL-3.0 as a derivative work; the MCP connectors are separate and MIT-licensed - see [ADR-0002](./governance/adr/0002-dual-license-agpl-shell-mit-connectors.md).
+Patron is a **local-first, self-hosted AI agent for a Polish law firm, designed around GDPR duties and professional secrecy**. A single-user desktop application (Electron) that keeps case files on the machine it runs on: local SQLite by default ([ADR-0053](./governance/adr/0053-sqlite-single-user-zero-cloud.md)) plus MCP connectors to Polish and EU law (7 Node connectors: SAOS, NSA, ISAP, KRS, EUR-Lex SPARQL, EU compliance, EUREKA; 13 Python ELI connectors for national law), an audit trail with a hash chain (record-keeping), bring-your-own-model (Gemini / Claude / local Ollama / OpenRouter). Server mode (Postgres + MinIO + Supabase) remains available as an alternative. A fork of [willchen96/mike](https://github.com/willchen96/mike) (AGPL-3.0) - Patron's shell inherits AGPL-3.0 as a derivative work; the MCP connectors are separate and MIT-licensed - see [ADR-0002](./governance/adr/0002-dual-license-agpl-shell-mit-connectors.md).
 
 ## MateMatic context (HARD CONSTRAINTS)
 
@@ -14,7 +14,7 @@ The repository is maintained by [MateMatic Solutions](https://matematicsolutions
 
 - **Professional secrecy of advocates and legal advisers** (Polish Bar Act art. 6, Legal Advisers Act art. 3) - absolute. Patron does not send case files to the cloud without the Operator's informed decision ([Constitution](./governance/CONSTITUTION.md) Art. 1 and Art. 5).
 - **GDPR art. 5/25/30/32** - data minimisation, privacy by design, records of processing, security. The data schema (local SQLite in desktop mode - ADR-0053; Postgres `backend/schema.sql` in server mode) is designed around art. 30 and 32.
-- **AI Act art. 6 (high-risk AI in the legal domain, from 2026-08-02)** + **art. 12 (record-keeping)** - every LLM interaction is logged with a hash chain (ADR-0001).
+- **AI Act** - not every legal use of AI is high-risk: Annex III point 8 covers systems used by or on behalf of judicial authorities, and after Regulation (EU) 2026/1744 those obligations apply from 2027-12-02. Do not describe Patron or a deployment as high-risk or as "AI Act compliant" by default. Regardless of qualification, every LLM interaction is logged with a hash chain (ADR-0001), which supports record-keeping of the kind art. 12 asks for.
 - **Vendor neutrality** ([Constitution](./governance/CONSTITUTION.md) Art. 4) - Patron does not favour any LLM or provider. Do NOT introduce a single-provider dependency into the shell code.
 
 ## Build and test
