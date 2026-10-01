@@ -18,7 +18,11 @@ export const VERIFY_TOOL = "verify_citations";
 /** Nazwa serwera MCP z narzedziem `verify_citations` (domyslnie "repertorium"). */
 export function verifierServerName(): string {
     const v = process.env.PATRON_CITATION_VERIFIER_SERVER?.trim();
-    return v && /^[a-z0-9][a-z0-9_-]{0,63}$/i.test(v) ? v : "repertorium";
+    // "__" jest separatorem serwer__narzedzie w nazwach narzedzi MCP - nazwa
+    // serwera z nim wskazywalaby cudze narzedzie ("saos__search").
+    return v && /^[a-z0-9][a-z0-9_-]{0,63}$/i.test(v) && !v.includes("__")
+        ? v
+        : "repertorium";
 }
 
 /**
