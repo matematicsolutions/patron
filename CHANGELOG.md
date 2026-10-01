@@ -21,30 +21,16 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
   teraz `denied` + `human_review`. Komunikat mowi o blokadach konektorow (dawniej "narzedzi"),
   a nieosiagalne komunikaty o trybach `off` i `audit` zniknely ze slownikow.
   [ADR-0160](./governance/adr/0160-baner-mcp-security-pokazuje-tryb-egzekwowany.md), uzupelnienie.
-
-### Dodane
-
-- **Spojnosc lancucha audytu widoczna w aplikacji (ADR-0165).** Ekran audytu pokazuje, czy
-  zaden wpis dziennika nie zostal zmieniony, usuniety ani dopisany wstecz (OK / UWAGI /
-  BLOKADA, same numery wpisow, bez tresci). Rozwidlenia z wczesniejszych wersji Operator
-  potwierdza tam w dwoch krokach; zapis przechodzi tylko wtedy, gdy stan lancucha jest taki
-  sam jak w podgladzie. Dotad sprawdzenie i potwierdzenie istnialy tylko jako komendy
-  `npm run`, niedostepne w zainstalowanym programie.
-  [ADR-0165](./governance/adr/0165-stan-lancucha-audytu-i-potwierdzanie-rozwidlen-w-aplikacji.md).
-- **"Sprawdz powolania" w oknie pisma (ADR-0157).** PATRON wyciaga z pisma sygnatury i
-  przepisy LOKALNIE (kopia jawnego ekstraktora Repertorium, test dryfu sha256) i wysyla do
-  narzedzia `verify_citations` wylacznie ich liste - bez tresci pisma. Wynik wraca przy
-  wlasciwych miejscach tekstu (podswietlenie po offsetach, ktore zna tylko PATRON), z nota,
-  ze "brak w korpusie" nie dowodzi nieistnienia orzeczenia. Prawnik widzi dokladnie, co
-  wyszlo, i pobiera raport HTML skladany na swoim komputerze.
-- **Operator moze zatwierdzic werdykt `human_review` bramy MCP (ADR-0158).** Dotad
-  `human_review` blokowal konektor bez sciezki decyzji. Teraz Operator wpisuje w
-  `mcp-servers.json` `gatewayApproval.hash` konkretnej definicji narzedzi (hash podaje log
-  startu); kazda zmiana narzedzi - takze schematu wejscia - wraca do przegladu, a `denied`
-  zostaje blokada bez wyjatkow. Decyzja trafia do zdarzenia `mcp_security.gateway`.
-
-### Naprawione
-
+- **Odczyt pisma wypisywal do logu poczatek jego tresci.** Wspolna sciezka odczytu dokumentu
+  (czat, weryfikacja cytatow, "Sprawdz powolania") zapisywala w lokalnym logu backendu
+  pierwsze 120 znakow kazdego czytanego pisma. Zostaje sama dlugosc tekstu; test przechwytuje
+  log przy prawdziwym odczycie.
+- **"Sprawdz powolania" podswietlalo za duzo.** Zaznaczenie przepisu siegalo do nastepnego
+  artykulu ("art. 471 k.c., klauzula z"); konczy sie teraz na skrocie kodeksu. Nota o
+  wysylce nazywa weryfikator zamiast wstawiac gola nazwe serwera.
+- **Bramka publikacji brala cyfry z hasha gita za NIP.** Syntetyczny commit scalenia PR na
+  GitHubie zawieral w hashu 10 cyfr z poprawna suma kontrolna NIP i blokowal PR. Bramka
+  pomija ciag cyfr wewnatrz tokenu w formacie hasha; gola liczba dalej jest trafieniem.
 - **Po scaleniu linii instalacja z 1.3.0 odrzucalaby zapis o przerwaniu lancucha
   z mocy prawa.** Obie linie rozwojowe nazwaly swoj krok migracji bazy desktopowej
   "6" i obie zajely migracje serwerowa "020", kazda dla innego typu zdarzenia audytu.
@@ -67,7 +53,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 - **Aktualizacja instalatora blokowalaby konektory, ktore sam instalator wozi.** Brama MCP
   porownywala definicje narzedzi z poprzednim startem, wiec pierwsze wydanie zmieniajace opis
-  albo schemat narzedzia bundlowanego konektora dawaloby kazdemu uzytkownikowi `human_review`.
+  albo schemat narzedzia konektora wozonego w instalatorze dawaloby kazdemu uzytkownikowi `human_review`.
   Build zapisuje teraz manifest definicji wozonych konektorow (`bundled-definitions.json`);
   definicja zgodna z manifestem przechodzi, a niezgodna - pliki zmienione po instalacji -
   blokuje. Bramka paczki wymaga manifestu, ktory pokrywa wszystkie konektory edycji.
@@ -132,6 +118,31 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
   Identyfikator jest teraz WYPROWADZANY z dokumentu, wiec rozjazd nie ma jak powstac.
 - **Klikniecie przypisu zrzucalo tresc cytatu do konsoli przegladarki** (`console.log`
   z etapu prac). Usuniete.
+
+### Dodane
+
+- **Spojnosc lancucha audytu widoczna w aplikacji (ADR-0165).** Ekran audytu pokazuje, czy
+  zaden wpis dziennika nie zostal zmieniony, usuniety ani dopisany wstecz (OK / UWAGI /
+  BLOKADA, same numery wpisow, bez tresci). Rozwidlenia z wczesniejszych wersji Operator
+  potwierdza tam w dwoch krokach; zapis przechodzi tylko wtedy, gdy stan lancucha jest taki
+  sam jak w podgladzie. Dotad sprawdzenie i potwierdzenie istnialy tylko jako komendy
+  `npm run`, niedostepne w zainstalowanym programie.
+  [ADR-0165](./governance/adr/0165-stan-lancucha-audytu-i-potwierdzanie-rozwidlen-w-aplikacji.md).
+- **"Sprawdz powolania" w oknie pisma (ADR-0157).** PATRON wyciaga z pisma sygnatury i
+  przepisy lokalnie (kopia jawnego ekstraktora Repertorium, test dryfu sha256) i wysyla do
+  narzedzia `verify_citations` wylacznie ich liste - bez tresci pisma. Wynik wraca przy
+  wlasciwych miejscach tekstu (podswietlenie po offsetach, ktore zna tylko PATRON), z nota,
+  ze "brak w korpusie" nie dowodzi nieistnienia orzeczenia. Prawnik widzi dokladnie, co
+  wyszlo, i pobiera raport HTML skladany na swoim komputerze.
+- **Operator moze zatwierdzic werdykt `human_review` bramy MCP (ADR-0158).** Dotad
+  `human_review` blokowal konektor bez sciezki decyzji. Teraz Operator wpisuje w
+  nakladce (`~/.patron/mcp-servers.operator.json`, ADR-0166) `gatewayApproval.hash` konkretnej
+  definicji narzedzi (hash podaje log startu); kazda zmiana narzedzi - takze schematu wejscia - wraca do przegladu, a `denied`
+  zostaje blokada bez wyjatkow. Decyzja trafia do zdarzenia `mcp_security.gateway`.
+- **Hook `pre-push` na linie publiczna.** Push na repo publiczne przechodzi bramke publikacji
+  na historii i tresci commitow, ktore push doklada - przed faktem, a nie dopiero w CI po
+  publikacji. Bez refow sledzacych remote'u publicznego hook blokuje. Push na prywatny remote
+  bez zmian. Wlaczenie: `git config core.hooksPath .githooks`.
 
 ### Naprawione - BEZPIECZENSTWO
 

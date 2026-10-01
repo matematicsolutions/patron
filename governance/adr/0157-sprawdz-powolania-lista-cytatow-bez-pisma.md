@@ -1,6 +1,6 @@
 # ADR-0157 - "Sprawdz powolania": do weryfikatora idzie lista cytatow, nie pismo
 
-- **Status:** Proponowany (kod gotowy; blocker bramy MCP rozwiazany opcja A w [ADR-0158](./0158-zatwierdzenie-human-review-bramy-mcp-przez-operatora.md); E2E na zywym Repertorium - po stronie Operatora)
+- **Status:** Proponowany. Kod na `main`; przebieg na zywym Repertorium zaliczony 2026-10-01.
 - **Data:** 2026-09-30
 - **Galaz:** od `main` (linia publiczna)
 - **Mapuje na:** ADR-0005 (grounding cytatow), ADR-0027 (privilege rings), ADR-0028 (brama
@@ -14,8 +14,8 @@ czy orzeczenie o tej sygnaturze jest w korpusie i ma te date, czy artykul jest w
 jednolitym, czy przepis zmieniono po dacie zdarzenia. Korpus z osia nowelizacji i grafem
 cytowan ma zewnetrzny serwer MCP Repertorium (narzedzie `verify_citations`). Samo pismo
 niesie dane klienta i jest objete tajemnica zawodowa - nie moze opuscic komputera
-kancelarii (Konstytucja Art. 1/5; w tym samym kierunku zasady etyki adwokackiej o
-narzedziach AI i przewodnik techniczny CCBE z 2026 r. dla danych poufnych).
+kancelarii (Konstytucja Art. 1/5; w tym samym kierunku § 23e zasad etyki adwokackiej NRA
+oraz przewodnik techniczny CCBE z 27.03.2026, ktory dla danych poufnych wskazuje on-prem).
 
 Narzedzie ma dwa tryby: `text` (cale pismo) i `citations` (lista cytatow wyciagnietych
 u klienta, pozycja `{type, signature|act_id+article, date_in_text?, ref?}`, `ref` wraca 1:1).
@@ -28,21 +28,21 @@ cytaty_pl.ts` to kopia 1:1 pliku `src/cytaty_pl.ts` z Repertorium (plik bez zale
 jawny z zalozenia - przewaga to korpus, nie wzorce). Obok przypiety `cytaty_pl.sha256`.
 Test dryfu: (a) zawsze - sha kopii (LF) == przypiety; (b) gdy repozytorium Repertorium jest
 obok (albo `REPERTORIUM_DIR`) - przypiety == biezacy w domu. Repertorium jest prywatne, wiec
-w CI poziom (b) jest pomijany Z NAZWANYM powodem. Aktualizacja kopii = swiadomy commit pliku
+w CI poziom (b) jest pomijany z nazwanym powodem. Aktualizacja kopii = swiadomy commit pliku
 i sha razem.
 
 **2. Wysylamy biala liste pol, budowana od zera.** `buildVerifyItems` sklada kazda pozycje z
 czterech pol: typ, sygnatura albo akt+artykul, data przy sygnaturze, `ref`. `ref` to
-nieprzezroczyste `c1..cN` - NIE offset (offset mowilby cos o ukladzie pisma). Ustawa spoza
+nieprzezroczyste `c1..cN`, nie offset (offset mowilby cos o ukladzie pisma). Ustawa spoza
 listy ekstraktora (`akt_nierozpoznany`) nie wychodzi - jej nazwa to tekst z pisma - i dostaje
-lokalny stan "nierozpoznana, nie wyslano". Wyciek resztkowy, nazwany: sam ZBIOR powolan
+lokalny stan "nierozpoznana, nie wyslano". Wyciek resztkowy, nazwany: sam zbior powolan
 (jakie przepisy i orzeczenia pismo cytuje) oraz `as_of`, jesli prawnik go poda.
 
 **3. Offset zna tylko PATRON.** Wynik laczymy z lokalna lista po `ref`; podswietlenie idzie po
-offsetach w TYM tekscie, ktory wyciagnela ta sama sciezka co grounding
+offsetach w tym samym tekscie, ktory wyciagnela ta sama sciezka co grounding
 (`getDocumentTextForGrounding`: biezaca wersja, PDF/DOCX, bramka input-security, odwrot do
-OCR dla skanow). Dlatego widok pokazuje tekst wyciagniety przez PATRON, a nie render PDF -
-offsety w renderze bylyby zgadywaniem. Zakres podswietlenia przepisu konczy sie na nowym
+OCR dla skanow). Dlatego widok pokazuje tekst wyciagniety przez PATRON, a nie wyrenderowany PDF -
+offsety w obrazie strony bylyby zgadywaniem. Zakres podswietlenia przepisu konczy sie na nowym
 wierszu z wielka litera, a potem na skrocie kodeksu ("art. 471 k.c., klauzula z" -> "art. 471
 k.c.", zmierzone na zywym przebiegu 2026-10-01); okno ekstraktora ma do 160 znakow i celowo
 nie tnie na koncu linii.
@@ -59,14 +59,14 @@ najwyzej 4 wywolania na pismo; nadwyzka ma stan `not_sent`, nie ginie.
 **6. Stany uczciwe.** `not_in_corpus` jest kolorem "uwagi", nie bledu, z nota na ekranie i w
 raporcie: brak w korpusie nie dowodzi, ze orzeczenie nie istnieje. Zgodna sygnatura z
 niezgodna data schodzi z zielonego. Nieznany status serwera jest pokazany wprost. Brak
-konektora = `not_configured` z lokalnie wyciagnietymi powolaniami ("wyciagnieto, NIE
+konektora = `not_configured` z lokalnie wyciagnietymi powolaniami ("wyciagnieto, nie
 sprawdzono"), nigdy cisza. Wywolanie nieudane albo odmowa limitu = `failed`/`partial`.
 
-**7. Repertorium jako Ring 2, nie Ring 1.** To serwis zdalny (HTTP), nie konektor bundlowany
-w instalatorze, wiec NIE trafia do `APPROVED_PATRON_CONNECTORS` ani do szesciu luster nazw.
-Operator dopisuje go w nakladce `~/.patron/mcp-servers.operator.json` - NIE w `mcp-servers.json`
-z katalogu instalacji, ktory kazda aktualizacja kasuje (ADR-0166). `gatewayApproval` wpisuje PO
-przegladzie findings bramy - hash podaje log pierwszego startu, ADR-0158:
+**7. Repertorium jako Ring 2, nie Ring 1.** To serwis zdalny (HTTP), nie konektor wozony
+w instalatorze, wiec nie trafia do `APPROVED_PATRON_CONNECTORS` ani do szesciu luster nazw.
+Operator dopisuje go w nakladce `~/.patron/mcp-servers.operator.json`, a nie w `mcp-servers.json`
+z katalogu instalacji, ktory kazda aktualizacja kasuje (ADR-0166). `gatewayApproval` wpisuje dopiero
+po przegladzie zastrzezen bramy - hash podaje log pierwszego startu, ADR-0158:
 
 ```json
 {
@@ -92,23 +92,23 @@ lokalnego logu pierwsze 120 znakow tekstu; usuniete razem z testem, ktory przech
 zewnetrznych, kazdy napis z pisma i z serwera escapowany; niesie fragmenty powolan (nie cale
 pismo), stany, noty i dokladna liste wyslanych pozycji.
 
-## Blocker (rozwiazany w ADR-0158): brama bezpieczenstwa MCP dawala Repertorium `human_review`
+## Przeszkoda (usunieta w ADR-0158): brama bezpieczenstwa MCP dawala Repertorium `human_review`
 
 Zmierzone 2026-09-30 na definicjach narzedzi z `origin/main` Repertorium przez
 `scanMcpRegistry`: **`human_review`, ryzyko 18.** Poza oczekiwanymi `typosquat/low`
-(3rd-party) i `drift/low` (pierwszy load) sa cztery `tool-poisoning/medium`: opisy
+(konektor spoza zaufanej listy) i `drift/low` (pierwsze ladowanie) sa cztery `tool-poisoning/medium`: opisy
 `search_law`, `get_document`, `get_citations` i `verify_citations` wymieniaja nazwy pol
-WYNIKU (np. `possible_typo_of`, `zywotnosc`), a detektor "schema mismatch" porownuje je
-wylacznie z `inputSchema`. `human_review` blokuje rejestracje, a brama NIE MA dzis sciezki
-zatwierdzenia przez operatora - `operatorApproved` dziala tylko w ring-policy (runtime), nie
-przy starcie. Skutek: przy obecnym kodzie "Sprawdz powolania" zawsze pokaze `not_configured`.
+wyniku (np. `possible_typo_of`, `zywotnosc`), a detektor "schema mismatch" porownuje je
+wylacznie z `inputSchema`. `human_review` blokowal rejestracje, a brama nie miala wtedy sciezki
+zatwierdzenia przez operatora - `operatorApproved` dzialal tylko w ring-policy (runtime), nie
+przy starcie. Skutek: bez zmiany w bramie "Sprawdz powolania" pokazywaloby zawsze `not_configured`.
 
-Poluzowanie bramy bezpieczenstwa to decyzja wlasciciela produktu, nie tej zmiany. Opcje:
+Poluzowanie bramy bezpieczenstwa bylo decyzja wlasciciela produktu, nie tej zmiany. Opcje:
 
 - **A. Zatwierdzenie `human_review` przez operatora przypiete do hasha definicji** (ADR-0028
   rozszerzony): operator akceptuje konkretny `currentHash`; kazda zmiana opisow (drift) wraca
-  do przegladu. Zgodne z Art. 6 - `human_review` znaczy "czlowiek decyduje", a dzis czlowiek
-  nie ma jak zdecydowac. Najmniejsza zmiana, ogolna dla kazdego konektora 3rd-party.
+  do przegladu. Zgodne z Art. 6 - `human_review` znaczy "czlowiek decyduje", a czlowiek
+  nie mial jak zdecydowac. Najmniejsza zmiana, ogolna dla kazdego konektora 3rd-party.
 - **B. Detektor uwzglednia `outputSchema`**: nazwa pola zadeklarowana w schemacie wyniku nie
   jest niezgodnoscia. Wymaga, zeby Repertorium deklarowalo `outputSchema` z polami (dzis
   `additionalProperties: true`) - zmiana w dwoch repozytoriach.
