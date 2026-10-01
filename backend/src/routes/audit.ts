@@ -43,6 +43,12 @@ import {
     toPackEvent,
 } from "../lib/audit-bundle-source";
 import { appendAuditEvent } from "../lib/audit";
+import {
+    acknowledgeForks,
+    ackHttpStatus,
+    getChainStatus,
+    isAckDigest,
+} from "../lib/audit-chain-status";
 import { checkProjectAccess } from "../lib/access";
 import {
     buildComputeNowResponse,
@@ -423,6 +429,84 @@ auditRouter.post(
 
         const response = buildComputeNowResponse(result);
         res.status(200).json(response);
+    },
+);
+
+// ---------------------------------------------------------------------------
+// Stan lancucha audytu i potwierdzanie rozwidlen (ADR-0165, rdzen ADR-0161)
+// ---------------------------------------------------------------------------
+//
+// GET  /api/audit/chain              - trojstan OK / UWAGI / BLOKADA, znaleziska
+//                                      (same id, bez tresci), co mozna potwierdzic
+// POST /api/audit/chain/acknowledge  - { digest } z podgladu; zapis jednego
+//                                      zdarzenia audit.chain.fork_acknowledged
+//
+// Admin-only jak caly ekran audytu. GET zostawia meta-slad admin.access.audit_viewer
+// (ADR-0043). POST zostawia slad samym zdarzeniem potwierdzenia (aktor = admin).
+// Status codes POST:
+//   200 - zapisano, w odpowiedzi stan po zapisie
+//   400 - brak digest
+//   409 - odmowa: blocked / no_guard / nothing_to_acknowledge / stale (stan sie
+//         zmienil od podgladu - odswiez i potwierdz jeszcze raz)
+//   500 - blad odczytu albo zapisu
+auditRouter.get(
+    "/chain",
+    requireAuth,
+    requireAdmin,
+    async (req: Request, res: Response): Promise<void> => {
+        let db: ReturnType<typeof createServerSupabase>;
+        try {
+            db = createServerSupabase();
+        } catch (e) {
+            res.status(500).json({ error: "supabase_unavailable", detail: e instanceof Error ? e.message : String(e) });
+            return;
+        }
+        void recordAdminAccess({
+            db,
+            event_type: "admin.access.audit_viewer",
+            actor_user_id: (res.locals.userId as string | null) ?? null,
+            actor_email: (res.locals.userEmail as string | null) ?? null,
+            method: req.method,
+            path: req.originalUrl,
+        });
+        try {
+            res.status(200).json(await getChainStatus(db));
+        } catch (e) {
+            res.status(500).json({ error: "chain_read_failed", detail: e instanceof Error ? e.message : String(e) });
+        }
+    },
+);
+
+auditRouter.post(
+    "/chain/acknowledge",
+    requireAuth,
+    requireAdmin,
+    async (req: Request, res: Response): Promise<void> => {
+        const digest = (req.body as { digest?: unknown } | undefined)?.digest;
+        if (!isAckDigest(digest)) {
+            res.status(400).json({ error: "invalid_digest" });
+            return;
+        }
+        let db: ReturnType<typeof createServerSupabase>;
+        try {
+            db = createServerSupabase();
+        } catch (e) {
+            res.status(500).json({ error: "supabase_unavailable", detail: e instanceof Error ? e.message : String(e) });
+            return;
+        }
+        try {
+            const result = await acknowledgeForks(db, {
+                actorUserId: (res.locals.userId as string | null) ?? null,
+                digest,
+            });
+            if (result.ok) {
+                res.status(200).json(result.status);
+                return;
+            }
+            res.status(ackHttpStatus(result)).json({ error: result.reason, detail: result.detail, status: result.status });
+        } catch (e) {
+            res.status(500).json({ error: "chain_read_failed", detail: e instanceof Error ? e.message : String(e) });
+        }
     },
 );
 

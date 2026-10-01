@@ -12,6 +12,7 @@
 
 import { useMemo, useState } from "react";
 import { t } from "@/i18n";
+import { AuditChainPanel } from "@/components/audit-chain-panel";
 import { AuditFilterBar } from "@/components/audit-filter-bar";
 import { AuditEventsList } from "@/components/audit-events-list";
 import { AuditEventDetail } from "@/components/audit-event-detail";
@@ -63,6 +64,8 @@ export default function AdminAuditPage() {
                         : t("audit.loadedEvents").replace("{count}", String(eventCount))}
                 </div>
             </header>
+
+            <AuditChainPanel />
 
             <AuditFilterBar
                 filter={filter}

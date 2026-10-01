@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import crypto from "crypto";
 import {
+    AUDIT_APPEND_MAX_ATTEMPTS,
     GENESIS_HASH,
     appendAuditEvent,
     canonicalJsonStringify,
@@ -266,6 +267,46 @@ describe("appendAuditEvent - rownolegle zapisy", () => {
         };
         return { db: db as unknown as Parameters<typeof appendAuditEvent>[0], rows };
     }
+
+    it("blad odczytu ostatniego hasha NIE zaczyna nowego lancucha od GENESIS (ADR-0161)", async () => {
+        let inserts = 0;
+        const db = {
+            from: () => ({
+                select: () => ({
+                    order: () => ({
+                        limit: async () => ({ data: null, error: { message: "database is locked" } }),
+                    }),
+                }),
+                insert: async () => {
+                    inserts++;
+                    return { error: null };
+                },
+            }),
+        } as unknown as Parameters<typeof appendAuditEvent>[0];
+        const w = await appendAuditEvent(db, { event_type: "mcp_security.gateway" });
+        expect(w.ok).toBe(false);
+        expect(w.error).toContain("cannot read last hash");
+        expect(inserts).toBe(0);
+    });
+
+    it("przegrany wyscig o poprzednika ponawia do limitu, potem zwraca blad (bez rzucania)", async () => {
+        let inserts = 0;
+        const db = {
+            from: () => ({
+                select: () => ({
+                    order: () => ({ limit: async () => ({ data: [], error: null }) }),
+                }),
+                insert: async () => {
+                    inserts++;
+                    return { error: { code: "23505", message: "duplicate key" } };
+                },
+            }),
+        } as unknown as Parameters<typeof appendAuditEvent>[0];
+        const w = await appendAuditEvent(db, { event_type: "mcp_security.gateway" });
+        expect(w.ok).toBe(false);
+        expect(w.error).toContain("contention");
+        expect(inserts).toBe(AUDIT_APPEND_MAX_ATTEMPTS);
+    });
 
     it("siedem rownoleglych zdarzen (start bramy MCP) tworzy JEDEN lancuch, bez rozwidlen", async () => {
         const { db, rows } = fakeDb();
