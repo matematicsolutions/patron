@@ -38,4 +38,10 @@ export interface McpToolResult {
     citations: McpCitation[];
     /** true jesli serwer oznaczyl wynik jako blad (result.isError). */
     isError?: boolean;
+    /**
+     * Surowe `structuredContent` - dla wolajacych spoza czatu, ktorzy czytaja
+     * odpowiedz narzedzia jako dane (np. "Sprawdz powolania", ADR-0157).
+     * Do LLM nie trafia; czat dalej uzywa `text`.
+     */
+    structured?: unknown;
 }

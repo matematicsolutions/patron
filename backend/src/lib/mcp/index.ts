@@ -17,7 +17,9 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 import type { OpenAIToolSchema } from "../llm/types";
 import {
     buildScanContext,
+    resolveOperatorApproval,
     scanMcpRegistry,
+    type GatewayApproval,
     type McpServerDefinition,
     type McpToolDefinition,
 } from "../mcp-security";
@@ -54,6 +56,10 @@ export interface McpServerConfig {
     operatorApproved?: boolean;
     approvedAt?: string;
     approvedBy?: string;
+    // ADR-0158: zatwierdzenie werdyktu `human_review` bramy (load-time) dla
+    // KONKRETNEJ definicji narzedzi. Niezalezne od operatorApproved (ring-policy,
+    // runtime). Hash podaje log przy starcie; `denied` nie jest do zatwierdzenia.
+    gatewayApproval?: GatewayApproval;
 }
 
 // ---------------------------------------------------------------------------
@@ -410,16 +416,45 @@ export async function getMcpTools(): Promise<OpenAIToolSchema[]> {
     const newBaseline = new Map(baseline);
     const tools: OpenAIToolSchema[] = [];
 
-    for (const d of ok) {
+    for (const [i, d] of ok.entries()) {
         const result = report.perServer.find((r) => r.serverName === d.cfg.name);
         if (!result) continue;
 
-        if (result.action === "allowed" || result.action === "audit") {
+        // ADR-0158: `human_review` moze zostac zatwierdzony przez Operatora dla
+        // tej konkretnej definicji (hash); `denied` - nigdy.
+        const approval = resolveOperatorApproval(
+            result.action,
+            definitions[i],
+            d.cfg.gatewayApproval,
+        );
+        const cfgApproval = d.cfg.gatewayApproval;
+        const operatorApproval =
+            approval.status === "not_needed"
+                ? undefined
+                : {
+                      status: approval.status,
+                      gatewayAction: result.action,
+                      approvalHash: approval.approvalHash,
+                      ...(typeof cfgApproval?.approvedAt === "string" && {
+                          approvedAt: cfgApproval.approvedAt,
+                      }),
+                      ...(typeof cfgApproval?.approvedBy === "string" && {
+                          approvedBy: cfgApproval.approvedBy,
+                      }),
+                  };
+        const action = approval.status === "approved" ? "audit" : result.action;
+
+        if (approval.register) {
             registerTools(d.client, d.cfg.name, d.tools, d.cfg);
             newBaseline.set(d.cfg.name, result.currentHash);
-            if (result.action === "audit" || result.findings.length > 0) {
+            if (approval.status === "approved") {
                 console.warn(
-                    `[MCP-SECURITY] Server "${d.cfg.name}" action=${result.action} riskScore=${result.riskScore} findings=${result.findings.length}`,
+                    `[MCP-SECURITY] Server "${d.cfg.name}" human_review ZATWIERDZONY przez Operatora (hash=${approval.approvalHash}) - narzedzia zarejestrowane.`,
+                );
+            }
+            if (action === "audit" || result.findings.length > 0) {
+                console.warn(
+                    `[MCP-SECURITY] Server "${d.cfg.name}" action=${action} riskScore=${result.riskScore} findings=${result.findings.length}`,
                 );
                 for (const f of result.findings) {
                     console.warn(
@@ -430,9 +465,10 @@ export async function getMcpTools(): Promise<OpenAIToolSchema[]> {
                 // Fire-and-forget - porazka audit nie blokuje registracji toolow.
                 void recordMcpSecurityEvent({
                     serverName: d.cfg.name,
-                    action: result.action,
+                    action,
                     riskScore: result.riskScore,
                     findings: result.findings,
+                    ...(operatorApproval && { operatorApproval }),
                 }).catch((err) => {
                     console.warn(
                         `[MCP-SECURITY] audit bridge failed for "${d.cfg.name}":`,
@@ -452,6 +488,13 @@ export async function getMcpTools(): Promise<OpenAIToolSchema[]> {
                     `[MCP-SECURITY]   - ${f.detector}/${f.severity}: ${f.message}`,
                 );
             }
+            if (approval.status === "missing" || approval.status === "hash_mismatch") {
+                // Sciezka decyzji dla czlowieka (ADR-0158): po przegladzie findings
+                // Operator wpisuje ten hash - i tylko ta definicja przechodzi.
+                console.warn(
+                    `[MCP-SECURITY]   ${approval.status === "hash_mismatch" ? "Zatwierdzenie w mcp-servers.json dotyczy INNEJ definicji (narzedzia sie zmienily). " : ""}Po przegladzie findings Operator moze zatwierdzic te definicje: "gatewayApproval": { "hash": "${approval.approvalHash}", "approvedAt": "RRRR-MM-DD", "approvedBy": "..." } w mcp-servers.json.`,
+                );
+            }
             // ADR-0033: propagacja decyzji Gateway do audit hash-chain.
             // Fire-and-forget - porazka audit nie wstrzymuje obslugi blokady konektora.
             void recordMcpSecurityEvent({
@@ -459,6 +502,7 @@ export async function getMcpTools(): Promise<OpenAIToolSchema[]> {
                 action: result.action,
                 riskScore: result.riskScore,
                 findings: result.findings,
+                ...(operatorApproval && { operatorApproval }),
             }).catch((err) => {
                 console.warn(
                     `[MCP-SECURITY] audit bridge failed for "${d.cfg.name}":`,
@@ -565,16 +609,19 @@ export async function runMcpTool(
         }
 
         // 2. Wyluskaj structured citations (opcjonalne).
-        const citations = extractMcpCitations(
-            (result as { structuredContent?: unknown }).structuredContent,
-            serverName,
-            toolName,
-        );
+        const structured = (result as { structuredContent?: unknown })
+            .structuredContent;
+        const citations = extractMcpCitations(structured, serverName, toolName);
 
         const isError =
             (result as { isError?: boolean }).isError === true || undefined;
 
-        return { text, citations, isError };
+        return {
+            text,
+            citations,
+            isError,
+            ...(structured !== undefined && { structured }),
+        };
     } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         return {
