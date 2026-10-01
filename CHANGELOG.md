@@ -23,6 +23,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ### Naprawione
 
+- **Baner MCP Security mowil adminowi, ze brama jest wylaczona, gdy dzialala.** Tryb na
+  banerze pochodzil ze zmiennej `MCP_SECURITY_GATEWAY_MODE` (domyslnie `off`), ktora nie
+  sterowala brama: konektory z decyzja `denied` albo `human_review` byly blokowane zawsze, a
+  baner pisal "Wylaczony. Zalecane wlaczenie w env" albo, przy `audit`, "Narzedzia NIE sa
+  blokowane". Baner pokazuje teraz tryb, ktory kod egzekwuje; zmienna jest ignorowana, a jej
+  opis w `.env.docker.example` poprawiony.
+  [ADR-0160](./governance/adr/0160-baner-mcp-security-pokazuje-tryb-egzekwowany.md).
 - **Rownolegle zapisy rozwidlaly lancuch audytu.** Zdarzenia zapisywane jednoczesnie - brama
   MCP dla kazdego konektora przy starcie, rownolegle wywolania narzedzi w ring-policy - czytaly
   ten sam ostatni hash i dostawaly wspolnego poprzednika. Zabezpieczenie przez `hash unique`

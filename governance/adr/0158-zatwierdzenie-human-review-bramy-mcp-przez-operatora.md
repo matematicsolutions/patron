@@ -82,5 +82,6 @@ z werdyktem `human_review` potrzebuje obu.
   nazwy i opisy). Dotyczy tez konektorow Ring 1 - osobna zmiana. Zalatwione w
   [ADR-0159](./0159-detektor-dryfu-obejmuje-schemat-wejscia.md).
 - **Tryb bramy w banerze to nie tryb bramy w kodzie:** `MCP_SECURITY_GATEWAY_MODE` (domyslnie
-  `off`) czyta tylko `routes/security.ts` do banera; `getMcpTools` egzekwuje zawsze.
+  `off`) czyta tylko `routes/security.ts` do banera; `getMcpTools` egzekwuje zawsze. Zalatwione w
+  [ADR-0160](./0160-baner-mcp-security-pokazuje-tryb-egzekwowany.md).
 - **Detektor "schema mismatch" nie zna `outputSchema`** - opcja B z ADR-0157, porzadek na pozniej.
