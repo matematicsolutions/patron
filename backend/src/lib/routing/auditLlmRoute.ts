@@ -43,6 +43,14 @@ export interface LlmRouteAuditInput {
     reason: RouteReason;
     latencyMs?: number | null;
     usage?: LlmRouteUsage | null;
+    /**
+     * Nazwa powierzchni/zakresu, z ktorego przyszlo wywolanie (opcjonalna).
+     * Powod: `case_id: null` ma wiecej niz jedno zrodlo - czat ogolny, szablon
+     * workflow i przeglad samodzielny zapisuja sie identycznie, wiec z dziennika
+     * nie da sie odtworzyc, ktoredy weszlo zadanie. AI Act art. 12 chce sladu, z
+     * ktorego da sie zrekonstruowac przebieg, a nie samego faktu wywolania.
+     */
+    scope?: string | null;
 }
 
 /**
@@ -78,6 +86,7 @@ export function buildLlmRouteEvent(input: LlmRouteAuditInput): AuditEventInput {
             decision: input.action,
             reason: input.reason,
             case_id: input.caseId ?? null,
+            scope: input.scope ?? null,
             prompt_tokens: usage.promptTokens ?? null,
             completion_tokens: usage.completionTokens ?? null,
             cost_usd: costUsd,

@@ -342,17 +342,27 @@ export const AUDIT_EVENT_TYPES_V5 = [
     "cost_cap",
 ] as const;
 
-function rebuildAuditLogEventTypeParityV5(db: Database.Database): void {
+/**
+ * Rebuild audit_log z PODANA lista event_type. Sam SQL nie jest kopiowany na
+ * kolejny krok - kopiowana jest tylko LISTA (kazdy krok ma wlasna, zamrozona
+ * w czasie). AGENTS.md: "nie kopiuj logiki, importuj ja".
+ *
+ * Samo-pomijalny tylko gdy CHECK zawiera JUZ WSZYSTKIE wartosci z listy.
+ */
+function rebuildAuditLogEventTypes(
+    db: Database.Database,
+    typy: readonly string[],
+): void {
     const row = db
         .prepare(
             "select sql from sqlite_master where type = 'table' and name = 'audit_log'",
         )
         .get() as { sql?: string } | undefined;
     if (!row?.sql) return;
-    const missing = AUDIT_EVENT_TYPES_V5.filter((t) => !row.sql!.includes(`'${t}'`));
+    const missing = typy.filter((t) => !row.sql!.includes(`'${t}'`));
     if (missing.length === 0) return;
 
-    const list = AUDIT_EVENT_TYPES_V5.map((t) => `          '${t}'`).join(",\n");
+    const list = typy.map((t) => `          '${t}'`).join(",\n");
     db.exec(`
       create table audit_log_new (
         id integer primary key autoincrement,
@@ -383,50 +393,13 @@ ${list}
  * v6: dodaje `deliverable.bundle_export` (ADR-0152 - eksport pakietu dowodowego
  * deliverable). Jak v5: pelna lista, nie "ostatnia dodana", i rebuild
  * Z ZACHOWANIEM wierszy - hash-chain i korzenie Merkle musza przezyc.
- *
- * Dodajac kolejny event_type: NOWY krok v7 z pelna lista (nie edytuj tej).
+ * WYDANY w 1.3.0 - numer i nazwa sa zamrozone (db/migration-line-collision.test.ts),
+ * bo instalacje maja juz user_version = 6.
  */
 export const AUDIT_EVENT_TYPES_V6 = [
     ...AUDIT_EVENT_TYPES_V5,
     "deliverable.bundle_export",
 ] as const;
-
-function rebuildAuditLogAddDeliverableBundleExport(db: Database.Database): void {
-    const row = db
-        .prepare(
-            "select sql from sqlite_master where type = 'table' and name = 'audit_log'",
-        )
-        .get() as { sql?: string } | undefined;
-    if (!row?.sql) return;
-    const missing = AUDIT_EVENT_TYPES_V6.filter((t) => !row.sql!.includes(`'${t}'`));
-    if (missing.length === 0) return;
-
-    const list = AUDIT_EVENT_TYPES_V6.map((t) => `          '${t}'`).join(",\n");
-    db.exec(`
-      create table audit_log_new (
-        id integer primary key autoincrement,
-        ts text not null,
-        actor_user_id text,
-        event_type text not null check (event_type in (
-${list}
-        )),
-        chat_id text,
-        document_id text,
-        payload text not null,
-        prev_hash text not null,
-        hash text not null unique
-      );
-      insert into audit_log_new
-        (id, ts, actor_user_id, event_type, chat_id, document_id, payload, prev_hash, hash)
-        select id, ts, actor_user_id, event_type, chat_id, document_id, payload, prev_hash, hash
-        from audit_log;
-      drop table audit_log;
-      alter table audit_log_new rename to audit_log;
-      create index if not exists idx_audit_log_chat on audit_log(chat_id, ts);
-      create index if not exists idx_audit_log_actor on audit_log(actor_user_id, ts);
-      create index if not exists idx_audit_log_event_type on audit_log(event_type, ts);
-    `);
-}
 
 /**
  * v7: dodaje `audit.chain.fork_acknowledged` (ADR-0161 wariant B - Operator
@@ -434,49 +407,41 @@ ${list}
  * rebuild Z ZACHOWANIEM wierszy. Rebuild kasuje indeksy, takze straznika
  * `prev_hash` - runSqliteMigrations odtwarza go po krokach z TYM SAMYM progiem.
  *
- * Dodajac kolejny event_type: NOWY krok v8 z pelna lista (nie edytuj tej).
  */
 export const AUDIT_EVENT_TYPES_V7 = [
     ...AUDIT_EVENT_TYPES_V6,
     "audit.chain.fork_acknowledged",
 ] as const;
 
-function rebuildAuditLogAddForkAcknowledged(db: Database.Database): void {
-    const row = db
-        .prepare(
-            "select sql from sqlite_master where type = 'table' and name = 'audit_log'",
-        )
-        .get() as { sql?: string } | undefined;
-    if (!row?.sql) return;
-    const missing = AUDIT_EVENT_TYPES_V7.filter((t) => !row.sql!.includes(`'${t}'`));
-    if (missing.length === 0) return;
+/**
+ * v8 (ADR-0163): SUMA obu linii po scaleniu - +`audit.chain.legal_break` (ADR-0164).
+ *
+ * Linia feat/design-system-2-0 dodala ten typ jako SWOJ krok v6, rownolegle do
+ * v6 z 1.3.0. Runner pomija kroki z version <= user_version, wiec instalacja z 1.3.0
+ * (user_version = 6) nigdy by go nie dostala, a rodo-delete odbijalby sie od CHECK
+ * przy zapisie `audit.chain.legal_break`. Dlatego krok drugiej linii nie dostaje
+ * numeru 6, tylko nowy, powyzej wszystkiego, co juz jest - i niesie PELNA liste,
+ * jak v5. Samo-pomijanie sprawdza wszystkie wartosci, wiec ten sam krok naprawia
+ * baze z 1.3.0, baze po v7 i baze deweloperska linii 2.0 (brak
+ * deliverable.bundle_export i fork_acknowledged), a swieza baze zostawia bez
+ * rebuildu. Straznik `prev_hash` odtwarza runSqliteMigrations po krokach.
+ *
+ * Dodajac kolejny event_type: NOWY krok z pelna lista (nie edytuj tej).
+ */
+export const AUDIT_EVENT_TYPES_V8 = [
+    ...AUDIT_EVENT_TYPES_V7,
+    "audit.chain.legal_break",
+] as const;
 
-    const list = AUDIT_EVENT_TYPES_V7.map((t) => `          '${t}'`).join(",\n");
-    db.exec(`
-      create table audit_log_new (
-        id integer primary key autoincrement,
-        ts text not null,
-        actor_user_id text,
-        event_type text not null check (event_type in (
-${list}
-        )),
-        chat_id text,
-        document_id text,
-        payload text not null,
-        prev_hash text not null,
-        hash text not null unique
-      );
-      insert into audit_log_new
-        (id, ts, actor_user_id, event_type, chat_id, document_id, payload, prev_hash, hash)
-        select id, ts, actor_user_id, event_type, chat_id, document_id, payload, prev_hash, hash
-        from audit_log;
-      drop table audit_log;
-      alter table audit_log_new rename to audit_log;
-      create index if not exists idx_audit_log_chat on audit_log(chat_id, ts);
-      create index if not exists idx_audit_log_actor on audit_log(actor_user_id, ts);
-      create index if not exists idx_audit_log_event_type on audit_log(event_type, ts);
-    `);
-}
+/**
+ * NAJNOWSZA lista rebuildu - to JA jest porownywana przez bramke parytetu
+ * (db/event-type-parity.test.ts).
+ *
+ * Alias istnieje po to, zeby dodanie kolejnego kroku bylo zmiana w JEDNYM pliku.
+ * Kontroli to nie gubi - to, co ostatni krok naprawde zapisuje w bazie, sprawdza
+ * db/migration-line-collision.test.ts.
+ */
+export const AUDIT_EVENT_TYPES_LATEST: readonly string[] = AUDIT_EVENT_TYPES_V8;
 
 /**
  * Straznik lancucha audytu na poziomie bazy (ADR-0161): unikalny `prev_hash`
@@ -590,17 +555,22 @@ export const SQLITE_MIGRATIONS: ReadonlyArray<SqliteMigration> = [
     {
         version: 5,
         name: "audit_log_event_type_parity_cost_cap",
-        up: rebuildAuditLogEventTypeParityV5,
+        up: (db) => rebuildAuditLogEventTypes(db, AUDIT_EVENT_TYPES_V5),
     },
     {
         version: 6,
         name: "audit_log_add_deliverable_bundle_export_event_type",
-        up: rebuildAuditLogAddDeliverableBundleExport,
+        up: (db) => rebuildAuditLogEventTypes(db, AUDIT_EVENT_TYPES_V6),
     },
     {
         version: 7,
         name: "audit_log_add_fork_acknowledged_event_type",
-        up: rebuildAuditLogAddForkAcknowledged,
+        up: (db) => rebuildAuditLogEventTypes(db, AUDIT_EVENT_TYPES_V7),
+    },
+    {
+        version: 8,
+        name: "audit_log_event_type_union_legal_break",
+        up: (db) => rebuildAuditLogEventTypes(db, AUDIT_EVENT_TYPES_V8),
     },
 ];
 

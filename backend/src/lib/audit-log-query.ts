@@ -3,15 +3,12 @@
 // Parser cursor-based paginacji + filtrow dla audytora. Wszystkie funkcje
 // pure, testowalne bez mockow Supabase.
 
-export const VALID_EVENT_TYPES = [
-    "chat.message.user",
-    "chat.message.assistant",
-    "input_security_scan",
-    "mcp_security.gateway",
-    "ring_policy.decision",
-    "rodo.delete",
-    "rodo.export",
-] as const;
+import { EVENT_TYPES } from "./audit";
+
+// Filtr event_type wyprowadzony z kanonicznej listy w audit.ts - JEDEN dom
+// (AGENTS.md Mirrors #1). Literalna kopia zdryfowala do 7/21 i audytor nie
+// mogl filtrowac nowszych typow; parytet pilnuje event-type-parity.test.ts.
+export const VALID_EVENT_TYPES = EVENT_TYPES;
 
 export type EventType = (typeof VALID_EVENT_TYPES)[number];
 

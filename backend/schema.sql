@@ -445,13 +445,23 @@ revoke all on public.user_api_keys from anon, authenticated;
 --   { ts, event_type, actor_user_id, payload }
 -- (canonical_json sortuje klucze alfabetycznie, zeby hash byl deterministyczny).
 
+-- ADR-0164: `actor_user_id`, `chat_id` i `document_id` WCHODZA DO HASHA, wiec nie
+-- moga byc kolumnami FK z akcja `on delete`. Do migracji 024 (pierwotnie 020 na linii 2.0, renumeracja ADR-0163) mialy tu
+-- `on delete set null`, czyli baza byla DRUGIM pisarzem pol hasha: zwykle
+-- usuniecie dokumentu albo czatu zerowalo je w kazdym wierszu audytu bez
+-- przeliczenia hasha i zrywalo lancuch, a `verify-audit-chain.ts` raportowal to
+-- slowo w slowo tak samo jak sabotaz. Rejestr append-only nie jest dzieckiem
+-- czatu ani dokumentu - te kolumny to ZDENORMALIZOWANY SLAD HISTORYCZNY, ktory
+-- ma prawo wskazywac na obiekt juz nieistniejacy. Warstwa SQLite (desktop)
+-- trzymala je jako gole `text` od poczatku; ta zmiana zrownuje Postgres z nia.
+-- Bramka: src/lib/audit-hash-inputs-have-one-writer.test.ts
 create table if not exists public.audit_log (
   id           bigserial primary key,
   ts           timestamptz not null default now(),
-  actor_user_id uuid references auth.users(id) on delete set null,
+  actor_user_id uuid,
   event_type   text not null,
-  chat_id      uuid references public.chats(id) on delete set null,
-  document_id  uuid references public.documents(id) on delete set null,
+  chat_id      uuid,
+  document_id  uuid,
   payload      jsonb not null,
   prev_hash    text not null,
   hash         text not null unique,
@@ -491,7 +501,8 @@ create table if not exists public.audit_log (
     'mutation.approval.decision',
     'cost_cap',
     'deliverable.bundle_export',
-    'audit.chain.fork_acknowledged'
+    'audit.chain.fork_acknowledged',
+    'audit.chain.legal_break'
   ))
 );
 

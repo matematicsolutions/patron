@@ -24,6 +24,8 @@ export interface TRTableHandle {
 
 interface Props {
     loading: boolean;
+    /** Sprawa niesiona do straznika data-residency (generator promptu kolumny). */
+    reviewId: string;
     columns: ColumnConfig[];
     documents: PATRONDocument[];
     cells: TabularCell[];
@@ -45,6 +47,7 @@ interface Props {
 export const TRTable = forwardRef<TRTableHandle, Props>(function TRTable(
     {
         loading,
+        reviewId,
         columns,
         documents,
         cells,
@@ -255,6 +258,7 @@ export const TRTable = forwardRef<TRTableHandle, Props>(function TRTable(
                             <span className="truncate">{col.name}</span>
                             <TREditColumnMenu
                                 column={col}
+                                reviewId={reviewId}
                                 disabled={savingColumn || savingColumnsConfig}
                                 onSave={onUpdateColumn}
                                 onDelete={onDeleteColumn}

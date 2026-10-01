@@ -16,7 +16,11 @@
 import fs from "fs";
 import path from "path";
 import { uploadFile, storageKey } from "./storage";
-import { docxToPdf, convertedPdfKey } from "./convert";
+import {
+  docxToPdf,
+  convertedPdfKey,
+  isLibreOfficeAvailable,
+} from "./convert";
 import { extractDocxBodyText } from "./docxTrackedChanges";
 import { extractPdfText } from "./chat/pdf";
 import { indexDocument } from "./retrieval/indexer";
@@ -34,13 +38,121 @@ import { runOcr, isOcrConfigured } from "./convert/ocrRunner";
 
 // ADR-0074: typy bazowe zawsze; obrazy/skany akceptowane tylko gdy OCR (Chandra)
 // jest skonfigurowany - build bez OCR zachowuje sie jak dotad (czyste odrzucenie).
-const BASE_TYPES = new Set(["pdf", "docx", "doc"]);
+const BASE_TYPES = new Set(["pdf", "docx"]);
 const IMAGE_TYPES = new Set(["jpg", "jpeg", "png", "tiff", "tif", "bmp", "webp"]);
+// Stary, BINARNY `.doc` (format OLE) wymaga LibreOffice - bez niego nie umiemy go
+// ani przeczytac, ani pokazac: `extractDocxBodyText` to parser ZIP-a (OOXML), wiec
+// ekstrakcja pada, tekst jest pusty, dokument nie wchodzi do indeksu, a przegladarka
+// DocxView tez go nie wyrenderuje. Do 2026-09-09 konczylo sie to CICHO - plik
+// ladowal w bazie ze statusem "ready" i po prostu znikal z zycia mecenasa.
+// Ten sam wzorzec co obrazy pod OCR: brak silnika = czyste, nazwane odrzucenie.
+const LIBREOFFICE_TYPES = new Set(["doc"]);
+
+/**
+ * Konwersja DOCX/DOC -> PDF poza sciezka zadania.
+ *
+ * Nie rzuca: wolajacy juz odpowiedzial klientowi, wiec jedyne, co mozna tu
+ * zrobic z bledem, to go zapisac. `pdf_storage_path` zostaje wtedy puste i obie
+ * powierzchnie podgladu ida wariantem zapasowym.
+ */
+async function renderPdfInBackground(args: {
+  content: Buffer;
+  userId: string;
+  docId: string;
+  versionId: string;
+  filename: string;
+  db: IngestParams["db"];
+}): Promise<void> {
+  const { content, userId, docId, versionId, filename, db } = args;
+  if (!isLibreOfficeAvailable()) {
+    // Nie probujemy i nie udajemy, ze probowalismy. Dla .docx to stan normalny
+    // (DocxView renderuje bez PDF-a); .doc w ogole tu nie dojdzie, bo odpada
+    // wczesniej na isAllowedType.
+    console.info(
+      `[ingest] podglad PDF dla ${filename} pominiety: brak LibreOffice ` +
+        "(opcjonalny wymog zewnetrzny - docs/INSTALACJA.md)",
+    );
+    return;
+  }
+  try {
+    const pdfBuf = await docxToPdf(content);
+    const pdfKey = convertedPdfKey(userId, docId);
+    await uploadFile(
+      pdfKey,
+      pdfBuf.buffer.slice(
+        pdfBuf.byteOffset,
+        pdfBuf.byteOffset + pdfBuf.byteLength,
+      ) as ArrayBuffer,
+      "application/pdf",
+    );
+    await db
+      .from("document_versions")
+      .update({ pdf_storage_path: pdfKey })
+      .eq("id", versionId);
+  } catch (err) {
+    console.error(`[ingest] DOCX→PDF conversion failed for ${filename}:`, err);
+  }
+}
+
+/** Zdolnosci srodowiska, od ktorych zalezy zbior przyjmowanych typow. */
+export interface ZdolnosciKonwersji {
+  libreoffice: boolean;
+  ocr: boolean;
+}
+
+/**
+ * Czy przyjmujemy ten typ pliku - CZYSTA funkcja zdolnosci srodowiska.
+ *
+ * Wyjeta z `isAllowedType`, bo tamta pyta system plikow i zmienne srodowiskowe,
+ * wiec jej wynik zalezy od tego, co akurat jest zainstalowane na maszynie
+ * testujacej. Konwencja jak w `routes/security.test.ts`: logika decyzyjna osobno,
+ * odpytanie srodowiska osobno.
+ */
+export function typDozwolony(
+  suffix: string,
+  zdolnosci: ZdolnosciKonwersji,
+): boolean {
+  if (BASE_TYPES.has(suffix)) return true;
+  if (LIBREOFFICE_TYPES.has(suffix)) return zdolnosci.libreoffice;
+  if (IMAGE_TYPES.has(suffix)) return zdolnosci.ocr;
+  return false;
+}
+
+/** Lista typow do komunikatu 400 - ta sama wiedza co `typDozwolony`, jeden dom. */
+export function opisDozwolonychTypow(zdolnosci: ZdolnosciKonwersji): string {
+  const czesci = ["pdf", "docx"];
+  if (zdolnosci.libreoffice) czesci.push("doc");
+  if (zdolnosci.ocr) czesci.push("jpg, png, tiff (skany/zdjecia przez OCR)");
+  return czesci.join(", ");
+}
+
+/**
+ * Podpowiedz, KTOREGO skladnika brakuje. Bez niej mecenas widzi "nieobslugiwany
+ * typ" przy pliku, ktory obslugujemy po doinstalowaniu jednego programu, i nie
+ * ma jak sie domyslic ktorego.
+ */
+export function podpowiedzBrakujacegoSkladnika(
+  suffix: string,
+  zdolnosci: ZdolnosciKonwersji,
+): string {
+  if (LIBREOFFICE_TYPES.has(suffix) && !zdolnosci.libreoffice) {
+    return (
+      " Format .doc wymaga programu LibreOffice (bezplatny, libreoffice.org)." +
+      " Zapisz plik jako .docx albo zainstaluj LibreOffice i uruchom Patrona ponownie."
+    );
+  }
+  if (IMAGE_TYPES.has(suffix) && !zdolnosci.ocr) {
+    return " Skany i zdjecia wymagaja skonfigurowanego silnika OCR.";
+  }
+  return "";
+}
+
+function zdolnosci(): ZdolnosciKonwersji {
+  return { libreoffice: isLibreOfficeAvailable(), ocr: isOcrConfigured() };
+}
 
 function isAllowedType(suffix: string): boolean {
-  if (BASE_TYPES.has(suffix)) return true;
-  if (IMAGE_TYPES.has(suffix)) return isOcrConfigured();
-  return false;
+  return typDozwolony(suffix, zdolnosci());
 }
 
 function contentTypeFor(suffix: string): string {
@@ -91,12 +203,14 @@ export async function ingestDocument(
   const { content, filename, userId, projectId, db } = params;
   const suffix = suffixOf(filename);
   if (!isAllowedType(suffix)) {
-    const allowed = isOcrConfigured()
-      ? "pdf, docx, doc, jpg, png, tiff (skany/zdjecia przez OCR)"
-      : "pdf, docx, doc";
+    const z = zdolnosci();
+    const allowed = opisDozwolonychTypow(z);
+    const podpowiedz = podpowiedzBrakujacegoSkladnika(suffix, z);
     return {
       httpStatus: 400,
-      body: { detail: `Unsupported file type: ${suffix}. Allowed: ${allowed}` },
+      body: {
+        detail: `Unsupported file type: ${suffix}. Allowed: ${allowed}.${podpowiedz}`,
+      },
     };
   }
 
@@ -196,30 +310,20 @@ export async function ingestDocument(
     const tree = await extractStructureTree(rawBuf, suffix, filename);
     const pageCount = suffix === "pdf" ? await countPdfPages(rawBuf) : null;
 
-    // Convert DOCX/DOC → PDF for display. PDFs are their own rendition.
-    let pdfStoragePath: string | null = null;
-    if (suffix === "docx" || suffix === "doc") {
-      try {
-        const pdfBuf = await docxToPdf(content);
-        const pdfKey = convertedPdfKey(userId, docId);
-        await uploadFile(
-          pdfKey,
-          pdfBuf.buffer.slice(
-            pdfBuf.byteOffset,
-            pdfBuf.byteOffset + pdfBuf.byteLength,
-          ) as ArrayBuffer,
-          "application/pdf",
-        );
-        pdfStoragePath = pdfKey;
-      } catch (err) {
-        console.error(
-          `[ingest] DOCX→PDF conversion failed for ${filename}:`,
-          err,
-        );
-      }
-    } else if (suffix === "pdf") {
-      pdfStoragePath = key;
-    }
+    // Rendition PDF do podgladu. Dla PDF-a jest nim on sam - za darmo, od reki.
+    //
+    // Dla DOCX/DOC konwersja idzie W TLE (ADR-0150 nie dotyczy; pomiar 2026-09-09).
+    // Powod: `docxToPdf` odpala LibreOffice i kosztuje 25-40 s NA DOKUMENT, bez
+    // rozgrzewania sie. Stala na sciezce zadania, wiec import folderu z 50 pismami
+    // trwal ponad 20 minut - a tuz obok `indexDocument` bylo juz zdjete z tej
+    // sciezki z komentarzem "embedding trwa kilka sekund, nie blokujemy
+    // odpowiedzi". Czterdziestosekundowy etap blokowal, kilkusekundowy nie.
+    //
+    // Nic nie czeka na ten plik synchronicznie: `DocPanel` wybiera przegladarke
+    // po NAZWIE pliku i dla .docx zawsze uzywa DocxView, a `TRSidePanel` ma
+    // dzialajacy wariant zapasowy, gdy `pdf_storage_path` jest puste. Dokument
+    // jest juz utrwalony i "ready" - rendition dochodzi pozniej albo wcale.
+    const pdfStoragePath: string | null = suffix === "pdf" ? key : null;
 
     // storage_path / pdf_storage_path live on document_versions now — create
     // the V1 "upload" row and point documents.current_version_id at it.
@@ -254,6 +358,21 @@ export async function ingestDocument(
         updated_at: new Date().toISOString(),
       })
       .eq("id", docId);
+
+    // Rendition PDF w tle - patrz komentarz przy `pdfStoragePath` wyzej.
+    // Best-effort dokladnie jak indeksacja nizej: gdy sie nie uda (brak
+    // LibreOffice, uszkodzony plik), `pdf_storage_path` zostaje puste, a obie
+    // powierzchnie podgladu maja wariant zapasowy.
+    if (suffix === "docx" || suffix === "doc") {
+      void renderPdfInBackground({
+        content,
+        userId,
+        docId,
+        versionId: versionRow.id as string,
+        filename,
+        db,
+      });
+    }
 
     // ADR-0054: indeksacja do hybrid retrieval + graf cytowan. Tylko gdy skan
     // bezpieczenstwa dopuscil (outcome.allowIndex) - quarantined/human_review

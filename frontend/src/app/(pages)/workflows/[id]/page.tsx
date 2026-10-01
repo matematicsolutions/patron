@@ -477,9 +477,13 @@ export default function WorkflowDetailPage({ params }: Props) {
             )}
 
             {/* Add column modal */}
+            {/* Zakres "workflow_template" CELOWO: to edytor SZABLONU, sprawy
+                nie ma. Deklaracja stoi TUTAJ, u rodzica, ktory jako jedyny wie,
+                w jakim jest kontekscie (bramka: src/lib/tabular-prompt-scope.test.ts). */}
             <AddColumnModal
                 open={addColumnOpen}
                 existingCount={columns.length}
+                zakres={{ scope: "workflow_template" }}
                 onClose={() => setAddColumnOpen(false)}
                 onAdd={handleColumnsAdded}
             />

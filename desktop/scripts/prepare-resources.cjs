@@ -123,30 +123,42 @@ const EU_LARGEST_FIRST = [
   "fi-eli", "ie-eli", "lu-eli",
 ];
 // EN: UE-first (largest-first), PL na koncu. PL: dotychczasowe PL-first.
+// Listy PELNE (kazdy konektor z APPROVED ma jawna pozycje) - parytet pilnuje
+// connector-name-parity.test.ts. Wczesniej br/gb/us-eli nie mialy wpisu i
+// ladowaly na koncu przez cichy fallback rank=999; teraz ten sam porzadek
+// jest jawny.
 const ORDER_EN = [
   ...EU_LARGEST_FIRST, "eu-sparql", "eu-compliance", "saos", "nsa", "isap", "krs", "eureka",
+  "br-eli", "gb-eli", "us-eli",
 ];
 const ORDER_PL = [
   "saos", "nsa", "isap", "krs", "eureka", "eu-sparql", "eu-compliance", ...EU_LARGEST_FIRST,
+  "br-eli", "gb-eli", "us-eli",
 ];
 // Rynki (ADR-0139): konektor macierzysty pierwszy, potem UE-zbiorcze, reszta
-// krajowych largest-first, PL na koncu (obecne, przelaczalne pickerem).
+// krajowych largest-first, PL, na koncu pozostale jurysdykcje spoza UE.
 const HOME_CONNECTOR = {
   it: "it-eli", de: "de-eli", es: "es-eli", fr: "fr-eli", pt: "br-eli",
-  // Jurysdykcja USA (nie rynek UE) - marketOrder() nizej nadal dziala: us-eli
-  // nie jest w EU_LARGEST_FIRST wiec filter jest no-op, a stagedPythonConnectors
-  // i tak ogranicza bundel do WYLACZNIE us-eli (lean edition, ta sama logika
-  // co it/de/es/fr/pt).
+  // Jurysdykcja USA / GB (nie rynek UE) - stagedPythonConnectors i tak
+  // ogranicza bundel do WYLACZNIE konektora macierzystego (lean edition, ta
+  // sama logika co it/de/es/fr/pt).
   gb: "gb-eli",
   us: "us-eli",
 };
+// TRZECIA lista porzadku (obok ORDER_PL/ORDER_EN), uzywana w buildach
+// rynkowych. Lista PELNA (kazdy konektor z APPROVED ma jawna pozycje) -
+// parytet pilnuje connector-name-parity.test.ts. Do 2026-08-31 stala poza
+// mianownikiem tej bramki i brakowalo w niej eureka/br-eli/gb-eli/us-eli:
+// wpadaly na koniec manifestu przez cichy fallback rank=999, a AGENTS.md
+// twierdzil, ze porzadek jest jawny bez fallbacku.
+const MARKET_ORDER = [
+  "eu-sparql", "eu-compliance", ...EU_LARGEST_FIRST,
+  "saos", "nsa", "isap", "krs", "eureka",
+  "br-eli", "gb-eli", "us-eli",
+];
 function marketOrder(locale) {
   const home = HOME_CONNECTOR[locale];
-  return [
-    home, "eu-sparql", "eu-compliance",
-    ...EU_LARGEST_FIRST.filter((n) => n !== home),
-    "saos", "nsa", "isap", "krs",
-  ];
+  return [home, ...MARKET_ORDER.filter((n) => n !== home)];
 }
 
 // Domyslny stan enabled wg locale. EN: wszystko poza PL wlaczone (FR off - klucz).

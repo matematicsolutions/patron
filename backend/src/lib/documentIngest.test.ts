@@ -6,6 +6,11 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import {
+  opisDozwolonychTypow,
+  podpowiedzBrakujacegoSkladnika,
+  typDozwolony,
+} from "./documentIngest";
 
 let ingest: typeof import("./documentIngest");
 let conn: typeof import("./db/sqlite-connection");
@@ -82,7 +87,7 @@ describe("ingestDocument (headless)", () => {
       .prepare("select count(*) c from document_versions where document_id = ?")
       .get(r.documentId) as { c: number };
     expect(ver.c).toBe(1);
-  }, 30000); // cold-start LibreOffice (docxToPdf) bywa >5s przy pierwszym docx
+  });
 
   it("niewspierany typ -> 400", async () => {
     const r = await ingest.ingestDocument({
@@ -116,7 +121,7 @@ describe("ingestFolder (headless)", () => {
     expect(results.every((r) => !!r.documentId)).toBe(true);
 
     fs.rmSync(dir, { recursive: true, force: true });
-  }, 30000); // 2x docxToPdf (LibreOffice) - cold start moze przekroczyc 5s
+  });
 
   it("przeszukuje podkatalogi rekurencyjnie, sciezka wzgledna w polu file", async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), "patron-folder-rec-"));
@@ -138,4 +143,63 @@ describe("ingestFolder (headless)", () => {
 
     fs.rmSync(dir, { recursive: true, force: true });
   }, 30000);
+});
+
+// Zdolnosci wstrzykiwane, nie odpytywane: `isLibreOfficeAvailable()` czyta system
+// plikow, wiec na maszynie WM zwraca true, a w CI false - test oparty na niej
+// mierzylby maszyne, nie regule.
+describe("typDozwolony - zbior typow zalezy od zdolnosci srodowiska", () => {
+  const BRAK = { libreoffice: false, ocr: false };
+  const PELNE = { libreoffice: true, ocr: true };
+
+  it("pdf i docx sa przyjmowane ZAWSZE - nie wymagaja niczego z zewnatrz", () => {
+    for (const s of ["pdf", "docx"]) {
+      expect(typDozwolony(s, BRAK), s).toBe(true);
+      expect(typDozwolony(s, PELNE), s).toBe(true);
+    }
+  });
+
+  it("stary .doc BEZ LibreOffice jest odrzucany, nie przyjmowany po cichu", () => {
+    // Do 2026-09-09 przechodzil: `extractDocxBodyText` to parser ZIP-a, a .doc to
+    // format OLE - ekstrakcja padala, tekst byl pusty, dokument nie wchodzil do
+    // indeksu i nie dalo sie go wyswietlic. Plik ladowal w bazie jako "ready"
+    // i znikal z zycia mecenasa. Czyste odrzucenie jest uczciwsze.
+    expect(typDozwolony("doc", BRAK)).toBe(false);
+    expect(typDozwolony("doc", PELNE)).toBe(true);
+  });
+
+  it("obrazy zaleza od OCR - istniejacy precedens, ten sam ksztalt", () => {
+    expect(typDozwolony("png", BRAK)).toBe(false);
+    expect(typDozwolony("png", { libreoffice: false, ocr: true })).toBe(true);
+  });
+
+  it("nieznany typ odpada niezaleznie od zdolnosci", () => {
+    for (const z of [BRAK, PELNE]) expect(typDozwolony("txt", z)).toBe(false);
+  });
+
+  it("opis dozwolonych typow NIE klamie o tym, czego nie przyjmiemy", () => {
+    // Lista w komunikacie 400 i regula wpuszczajaca maja jeden dom: kazdy typ
+    // wymieniony w opisie musi realnie przechodzic przy tych samych zdolnosciach.
+    for (const z of [BRAK, PELNE, { libreoffice: true, ocr: false }]) {
+      const opis = opisDozwolonychTypow(z);
+      expect(opis.includes("doc,") || opis.endsWith("doc")).toBe(z.libreoffice);
+      for (const s of ["pdf", "docx", "doc", "png"]) {
+        if (!typDozwolony(s, z)) {
+          expect(
+            opis.split(/[\s,]+/).includes(s),
+            `opis wymienia ${s}, ktorego nie przyjmiemy`,
+          ).toBe(false);
+        }
+      }
+    }
+  });
+
+  it("komunikat nazywa BRAKUJACY skladnik, nie tylko liste dozwolonych", () => {
+    const p = podpowiedzBrakujacegoSkladnika("doc", BRAK);
+    expect(p).toContain("LibreOffice");
+    expect(p).toContain(".docx");
+    // Gdy skladnik jest, nie ma czego podpowiadac.
+    expect(podpowiedzBrakujacegoSkladnika("doc", PELNE)).toBe("");
+    expect(podpowiedzBrakujacegoSkladnika("pdf", BRAK)).toBe("");
+  });
 });

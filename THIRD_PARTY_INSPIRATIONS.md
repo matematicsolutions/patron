@@ -786,3 +786,37 @@ prawa - to wartosc, nie wstyd.
 - Kodu (markdown/JSON pluginy) i nazw "Claude"/"Anthropic" w brandingu (Apache 6 - brak praw do znakow towarowych).
 
 **Wdrozenie**: ADR-0102 (tagi proweniencji A + kontrakt komorki B, branch feat/grounding-provenance-tabular, default OFF za flaga). Reszta wzorcow (C trust-gate, D watcher/lint, E cold-start, F AI-inventory) = drafty w patron-desktop-drafts/spec/claude-for-legal-adoption/, rezerwacja. Clean-room: reimplementacja wzorca PL od zera, nie port. Atrybucja przy reuzyciu tresci: patron-desktop-drafts/spec/claude-for-legal-adoption/NOTICE-attribution.md.
+
+## gridex/gridex (Apache-2.0)
+
+**Repo**: https://github.com/gridex/gridex
+**Licencja**: Apache-2.0
+**Pattern wzorcowany**: AGENTS.md jako katalog powierzchni reuse + "DON'T z paragonami"
+(kazdy zakaz zakotwiczony hashem commita-incydentu); trojstan uprawnien MCP
+(allowed / requiresApproval / denied) z human-in-the-loop jako pierwszoklasowym
+wynikiem silnika.
+
+**Co Patron bierze (wzor)**:
+- Struktura AGENTS.md: sekcja "Reusable surface" (tabele kontraktow "uzyj gdy...",
+  coupling notes) + sekcja "DON'T - with receipts" (antywzorzec generalny -> hash/ADR
+  jako paragon). Wdrozone 2026-08-31 w AGENTS.md tego repo.
+- Lekcja z ich slabosci, nie tylko z sily: w macos/AGENTS.md gridexa hash `6a4aad0`
+  byl cytowany 4x i NIE istnial w historii (squash-merge), "~50 metod" = 29,
+  "15 tools" = 13. Wniosek: paragony bez bramki gnija -> nasza bramka
+  `scripts/agents_md_receipt_gate.py` (CI: publication-gate.yml), ktorej gridex nie ma.
+- (rezerwacja) MCPRowCountEstimator - podglad blast radius (ile wierszy dotknie
+  mutacja) w dialogu zgody, kandydat do kart mutation_approvals (ADR-0137).
+- (rezerwacja) Session-approval z TTL per (connection, tool) w ich MCPApprovalGate.
+
+**Czego Patron NIE bierze**:
+- Kodu Swift/C++/Qt (Patron jest TypeScript/Node - zaden port).
+- Walidacji read-only przez DENYLIST slow kluczowych SQL (obchodzi sie ja; nasz
+  mcp-security-gateway skanuje definicje, nie zgaduje semantyki SQL).
+- Transportu MCP po HTTP bez uwierzytelnienia + CORS `*` (anty-wzorzec,
+  localhost-CSRF na cala baze).
+- Zera testow na warstwie security (ich 6 warstw MCP nie ma ANI JEDNEGO testu;
+  u nas warstwa bramek ma testy + korpusy regresyjne).
+
+**Wdrozenie**: AGENTS.md (sekcje "Reusable surface" i "DON'T - with receipts"),
+scripts/agents_md_receipt_gate.py, krok "Bramka paragonow AGENTS.md" w
+publication-gate.yml. Clean-room: struktura dokumentu i idea bramki, zero kodu.

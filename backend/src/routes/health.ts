@@ -15,6 +15,7 @@ import { requireAuth, requireAdmin } from "../middleware/auth";
 import { createServerSupabase, isSqliteBackend } from "../lib/supabase";
 import { isVecEnabled, getDb } from "../lib/db/sqlite-connection";
 import { isOcrConfigured } from "../lib/convert/ocrRunner";
+import { isLibreOfficeAvailable } from "../lib/convert";
 import { getUserApiKeyStatus } from "../lib/userApiKeys";
 import { getOpenRouterCredits } from "../lib/llm/openrouter";
 import { allowUsProviders, allowPrivilegedCloud } from "../lib/routing/guard";
@@ -48,6 +49,7 @@ export function readConsents(): SystemConsents {
 export interface StatusParts {
   vectorEnabled: boolean;
   ocrConfigured: boolean;
+  libreofficeAvailable: boolean;
   embedderModel: string | null;
   embedderDim: string | null;
   apiKeys: unknown;
@@ -66,6 +68,12 @@ export function buildStatusPayload(p: StatusParts) {
     ok: true,
     vector: { enabled: p.vectorEnabled },
     ocr: { configured: p.ocrConfigured },
+    // Ten sam ksztalt co `ocr` i z tego samego powodu: LibreOffice jest
+    // OPCJONALNYM wymogiem zewnetrznym (nie jedzie w instalatorze - patrz
+    // docs/INSTALACJA.md), a bez niego nie przyjmujemy starych `.doc`.
+    // Bez tego pola aplikacja nie ma jak powiedziec, czego jej brakuje,
+    // dopoki mecenas nie sprobuje wgrac pliku i nie dostanie 400.
+    libreoffice: { available: p.libreofficeAvailable },
     embedder: { model: p.embedderModel, dim: p.embedderDim },
     apiKeys: p.apiKeys,
     consents: p.consents,
@@ -110,6 +118,7 @@ healthRouter.get("/", requireAuth, requireAdmin, async (_req, res) => {
     buildStatusPayload({
       vectorEnabled: isVecEnabled(),
       ocrConfigured: isOcrConfigured(),
+      libreofficeAvailable: isLibreOfficeAvailable(),
       embedderModel: readRetrievalMeta("embed_model"),
       embedderDim: readRetrievalMeta("embed_dim"),
       apiKeys,

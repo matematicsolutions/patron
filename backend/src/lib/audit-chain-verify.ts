@@ -23,6 +23,15 @@
 // UWAGI: rozwidlenia z sygnatura wyscigu sprzed straznika. Kazde ogniwo ma
 // poprawny hash, ale ogniwa boczne sa liscmi - ich usuniecia nie wykryje
 // zaden kolejny wpis. To realna strata ochrony, nie kosmetyka.
+// Zerwanie TRESCI (hash nie zgadza sie z wierszem) dostaje trojstan z ADR-0164:
+//   - z mocy prawa: wiersz zadeklarowany zdarzeniem `audit.chain.legal_break`
+//     (RODO art. 17 zeruje `actor_user_id`, a to pole wchodzi do hasha). UWAGI,
+//     nie BLOKADA - deklaracja jest dowodem, a nie domyslem. Liczy sie tylko
+//     deklaracja z wlasnym poprawnym hashem, pozniejsza od zerwanego wiersza,
+//     i tylko gdy wiersz ma wyzerowane dokladnie to pole, ktore deklaracja nazywa.
+//   - zgodne z kaskada FK: ktores z pol FK jest NULL, co pasuje do `on delete
+//     set null` sprzed migracji 024 (tryb serwerowy). HIPOTEZA, wiec BLOKADA.
+//   - niewyjasnione: BLOKADA.
 // INFO (nie zmienia werdyktu): takie rozwidlenie potwierdzone przez Operatora
 // zdarzeniem `audit.chain.fork_acknowledged` (wariant B). Zdarzenie niesie hashe
 // ogniw, wiec ich pozniejsze usuniecie to BLOKADA `ack_missing` - potwierdzenie
@@ -53,6 +62,9 @@ export type ChainVerdict = "ok" | "uwagi" | "blokada";
 export type ChainFindingKind =
     | "empty"
     | "hash_mismatch"
+    | "hash_mismatch_legal_break"
+    | "hash_mismatch_fk_cascade"
+    | "legal_break_truncated"
     | "duplicate_hash"
     | "missing_parent"
     | "parent_not_earlier"
@@ -63,6 +75,16 @@ export type ChainFindingKind =
     | "fork_acknowledged"
     | "ack_invalid"
     | "ack_missing";
+
+/** Zdarzenie, ktorym system nazywa zerwanie lancucha z mocy prawa (ADR-0164). */
+export const LEGAL_BREAK_EVENT = "audit.chain.legal_break";
+
+/**
+ * Pola wchodzace do hasha, ktore do migracji 024 byly w Postgresie kluczami obcymi
+ * z `on delete set null` - baza przepisywala je bez przeliczenia hasha. Nazwa
+ * opisuje HISTORIE kolumn, bo to ona tlumaczy stare zerwania.
+ */
+const FK_HASH_FIELDS = ["actor_user_id", "chat_id", "document_id"] as const;
 
 /** Zdarzenie, ktorym Operator potwierdza rozwidlenia sprzed straznika (ADR-0161 B). */
 export const FORK_ACK_EVENT = "audit.chain.fork_acknowledged";
@@ -108,6 +130,13 @@ export interface VerifyOptions {
      * rozwidlenia mialy rozrzut 0 ms (identyczny ts). Domyslnie 2000 ms.
      */
     raceWindowMs?: number;
+    /**
+     * Czy kaskada FK jest w ogole mozliwym wyjasnieniem zerwania tresci. Tylko
+     * tryb serwerowy (Postgres) mial FK na polach hasha, i to do migracji 024;
+     * baza desktopowa trzymala je jako gole `text` od poczatku. Domyslnie false:
+     * hipoteze, ktora nie ma zrodla, lepiej nie podsuwac audytorowi.
+     */
+    fkCascadePossible?: boolean;
 }
 
 const DEFAULT_RACE_WINDOW_MS = 2000;
@@ -146,6 +175,7 @@ export function verifyAuditChain(
 
     // 1. Tresc kazdego wiersza.
     const byHash = new Map<string, ChainRow>();
+    const mismatched: ChainRow[] = [];
     for (const row of rows) {
         const recomputed = computeAuditHash({
             prev_hash: row.prev_hash,
@@ -156,14 +186,7 @@ export function verifyAuditChain(
             document_id: row.document_id,
             payload: row.payload,
         });
-        if (recomputed !== row.hash) {
-            findings.push({
-                kind: "hash_mismatch",
-                severity: "blokada",
-                ids: [row.id],
-                detail: "hash nie zgadza sie z trescia wiersza - modyfikacja po zapisie",
-            });
-        }
+        if (recomputed !== row.hash) mismatched.push(row);
         if (byHash.has(row.hash)) {
             findings.push({
                 kind: "duplicate_hash",
@@ -175,6 +198,7 @@ export function verifyAuditChain(
             byHash.set(row.hash, row);
         }
     }
+    findings.push(...classifyContentBreaks(rows, mismatched, opts.fkCascadePossible ?? false));
 
     // 2. Poprzednicy.
     const parentOf = new Map<number, ChainRow>();
@@ -317,6 +341,73 @@ export function verifyAuditChain(
         headHash: head.hash,
         findings,
     };
+}
+
+/**
+ * Trojstan zerwan tresci (ADR-0164). Deklaracje czytamy wylacznie ze zdarzen,
+ * ktorych wlasny hash jest poprawny - podrobiona albo zmieniona deklaracja nie
+ * wybiela niczego (sama jest wtedy zerwaniem tresci).
+ */
+function classifyContentBreaks(
+    rows: ReadonlyArray<ChainRow>,
+    mismatched: ReadonlyArray<ChainRow>,
+    fkCascadePossible: boolean,
+): ChainFinding[] {
+    const out: ChainFinding[] = [];
+    const broken = new Set(mismatched.map((r) => r.id));
+    const declared = new Map<number, { eventId: number; field: string; reason: string }>();
+    for (const ev of rows) {
+        if (ev.event_type !== LEGAL_BREAK_EVENT || broken.has(ev.id)) continue;
+        const p = ev.payload;
+        const reason = typeof p.reason === "string" ? p.reason : "nieznany powod";
+        const field = typeof p.field === "string" ? p.field : "actor_user_id";
+        const ids = Array.isArray(p.affected_ids) ? p.affected_ids.filter(isId) : [];
+        for (const id of ids) {
+            if (id < ev.id && !declared.has(id)) declared.set(id, { eventId: ev.id, field, reason });
+        }
+        if (p.affected_ids_truncated === true) {
+            const count = typeof p.affected_count === "number" ? p.affected_count : "?";
+            out.push({
+                kind: "legal_break_truncated",
+                severity: "info",
+                ids: [ev.id],
+                detail: `deklaracja wymienia ${ids.length} z ${count} zerwanych wierszy (lista obcieta) - reszta pokaze sie jako kaskada albo niewyjasnione; sprawdz zakres first_id/last_id`,
+            });
+        }
+    }
+    for (const row of mismatched) {
+        const d = declared.get(row.id);
+        if (d && isFkHashField(d.field) && row[d.field] === null) {
+            out.push({
+                kind: "hash_mismatch_legal_break",
+                severity: "uwagi",
+                ids: [row.id],
+                detail: `zerwanie Z MOCY PRAWA, zadeklarowane zdarzeniem id=${d.eventId} (${d.reason}, pole ${d.field})`,
+            });
+            continue;
+        }
+        const nulls = FK_HASH_FIELDS.filter((k) => row[k] === null);
+        if (fkCascadePossible && nulls.length > 0) {
+            out.push({
+                kind: "hash_mismatch_fk_cascade",
+                severity: "blokada",
+                ids: [row.id],
+                detail: `hash nie zgadza sie z trescia; HIPOTEZA: zgodne z kaskada FK sprzed migracji 024 (${nulls.join(", ")} = NULL) - nie do rozstrzygniecia, oryginalnej wartosci juz nie ma`,
+            });
+            continue;
+        }
+        out.push({
+            kind: "hash_mismatch",
+            severity: "blokada",
+            ids: [row.id],
+            detail: "hash nie zgadza sie z trescia wiersza - modyfikacja po zapisie, bez deklaracji i bez zgodnosci z kaskada",
+        });
+    }
+    return out;
+}
+
+function isFkHashField(x: string): x is (typeof FK_HASH_FIELDS)[number] {
+    return (FK_HASH_FIELDS as readonly string[]).includes(x);
 }
 
 /**

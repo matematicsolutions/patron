@@ -241,3 +241,111 @@ describe("potwierdzenie rozwidlen przez Operatora (ADR-0161 wariant B)", () => {
         expect(buildForkAcknowledgement(done, verifyAuditChain(done, { guardAfterId: guard }))).toBeNull();
     });
 });
+
+// ADR-0164 w rdzeniu ADR-0161: zerwanie TRESCI dostaje trojstan. Na linii 2.0 zyl
+// w skrypcie Postgres; po scaleniu linii jest tutaj, wiec obejmuje tez SQLite.
+describe("zerwanie tresci: z mocy prawa / kaskada FK / niewyjasnione (ADR-0164)", () => {
+    /** Lancuch z aktorem, potem anonimizacja jak w rodo-delete (UPDATE bez przeliczenia). */
+    function anonymized(declare: Record<string, unknown> | null): ChainRow[] {
+        const rows: ChainRow[] = [];
+        let prevHash = GENESIS_HASH;
+        for (let i = 0; i < 4; i++) {
+            const base: Omit<ChainRow, "hash"> = {
+                id: i + 1,
+                ts: `2026-01-15T10:00:1${i}.000Z`,
+                event_type: "chat.message.user",
+                actor_user_id: i === 1 || i === 2 ? "u-anon" : "u-inny",
+                chat_id: "c1",
+                document_id: null,
+                payload: { n: i },
+                prev_hash: prevHash,
+            };
+            const row: ChainRow = { ...base, hash: computeAuditHash(base) };
+            rows.push(row);
+            prevHash = row.hash;
+        }
+        rows[1] = { ...rows[1], actor_user_id: null };
+        rows[2] = { ...rows[2], actor_user_id: null };
+        if (declare) link(rows, rows[3], "2026-01-15T10:00:20.000Z", "d", "audit.chain.legal_break", declare);
+        return rows;
+    }
+    const decl = {
+        reason: "rodo_art_17_anonymization",
+        field: "actor_user_id",
+        affected_count: 2,
+        first_id: 2,
+        last_id: 3,
+        affected_ids: [2, 3],
+        affected_ids_truncated: false,
+    };
+    const kinds = (r: ReturnType<typeof verifyAuditChain>) => r.findings.map((f) => f.kind);
+
+    it("zadeklarowana anonimizacja: UWAGI, nie BLOKADA, z id zdarzenia w opisie", () => {
+        const r = verifyAuditChain(anonymized(decl), noGuard);
+        expect(r.verdict).toBe("uwagi");
+        expect(kinds(r)).toEqual(["hash_mismatch_legal_break", "hash_mismatch_legal_break"]);
+        expect(r.findings[0].detail).toContain("id=5");
+    });
+
+    it("KONTROLA POZYTYWNA: bez deklaracji ta sama anonimizacja to BLOKADA", () => {
+        const r = verifyAuditChain(anonymized(null), noGuard);
+        expect(r.verdict).toBe("blokada");
+        expect(kinds(r)).toEqual(["hash_mismatch", "hash_mismatch"]);
+    });
+
+    it("kaskada FK tylko gdy zrodlo ja w ogole mialo (Postgres): nadal BLOKADA, z hipoteza", () => {
+        const rows = anonymized(null);
+        expect(kinds(verifyAuditChain(rows, noGuard))).not.toContain("hash_mismatch_fk_cascade");
+        const r = verifyAuditChain(rows, { ...noGuard, fkCascadePossible: true });
+        expect(r.verdict).toBe("blokada");
+        expect(kinds(r)).toEqual(["hash_mismatch_fk_cascade", "hash_mismatch_fk_cascade"]);
+    });
+
+    it("deklaracja nie wybiela innej zmiany: zadeklarowany wiersz z podmienionym payloadem", () => {
+        const rows = anonymized(decl);
+        rows[2] = { ...rows[2], payload: { n: "podmienione" } };
+        rows[2] = { ...rows[2], actor_user_id: "u-anon" };
+        const r = verifyAuditChain(rows, noGuard);
+        expect(r.verdict).toBe("blokada");
+        expect(kinds(r)).toContain("hash_mismatch");
+    });
+
+    it("zmieniona deklaracja nie wybiela niczego (sama jest zerwaniem tresci)", () => {
+        const rows = anonymized(decl);
+        const ev = rows[rows.length - 1];
+        rows[rows.length - 1] = { ...ev, payload: { ...ev.payload, affected_ids: [2, 3, 4] } };
+        const r = verifyAuditChain(rows, noGuard);
+        expect(r.verdict).toBe("blokada");
+        expect(kinds(r)).not.toContain("hash_mismatch_legal_break");
+    });
+
+    it("deklaracja nie obejmuje wiersza NOWSZEGO od siebie (nawet gdy wymienia jego id)", () => {
+        // Deklaracja wymienia id 6, ktorego w chwili zapisu jeszcze nie bylo.
+        const rows = anonymized({ ...decl, affected_ids: [2, 3, 6], affected_count: 3 });
+        const base = {
+            id: 6,
+            ts: "2026-01-15T10:00:30.000Z",
+            event_type: "chat.message.user",
+            actor_user_id: "u-anon",
+            chat_id: "c1",
+            document_id: null,
+            payload: { n: 6 },
+            prev_hash: rows[rows.length - 1].hash,
+        };
+        rows.push({ ...base, hash: computeAuditHash(base), actor_user_id: null });
+        const r = verifyAuditChain(rows, noGuard);
+        expect(r.findings.filter((f) => f.ids.includes(6)).map((f) => f.kind)).toEqual(["hash_mismatch"]);
+        expect(r.verdict).toBe("blokada");
+    });
+
+    it("obcieta lista id w deklaracji: INFO z jawnym mianownikiem", () => {
+        const r = verifyAuditChain(
+            anonymized({ ...decl, affected_count: 700, affected_ids_truncated: true }),
+            noGuard,
+        );
+        const t = r.findings.find((f) => f.kind === "legal_break_truncated");
+        expect(t?.severity).toBe("info");
+        expect(t?.detail).toContain("2 z 700");
+        expect(r.verdict).toBe("uwagi");
+    });
+});

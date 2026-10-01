@@ -30,6 +30,26 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ### Naprawione
 
+- **Po scaleniu linii instalacja z 1.3.0 odrzucalaby zapis o przerwaniu lancucha
+  z mocy prawa.** Obie linie rozwojowe nazwaly swoj krok migracji bazy desktopowej
+  "6" i obie zajely migracje serwerowa "020", kazda dla innego typu zdarzenia audytu.
+  Migracje uruchamiaja sie po numerze, wiec baza, ktora ma juz krok 6 z wydania 1.3.0,
+  nigdy nie dostalaby kroku 6 drugiej linii. Kasowanie danych na zadanie klienta
+  odbijaloby sie wtedy od ograniczenia w tabeli audytu, a kazda migracja konczylaby sie
+  "sukcesem". Krok drugiej linii ma teraz numer 8 i niesie pelna liste typow z obu
+  linii, a migracje serwerowe 020/021 tej linii maja numery 024/025. Bramka zamraza
+  kroki, ktore juz wyszly, i sprawdza, co ostatni krok naprawde zapisuje w bazie,
+  a nie jak sie nazywa. Sprawdzone na kopii prawdziwej bazy desktopowej: wszystkie
+  wpisy i ich hashe bez zmian. ADR-0163.
+- **Weryfikator lancucha odroznia anonimizacje na zadanie klienta od ingerencji -
+  takze na desktopie.** Zerwanie tresci wpisu zadeklarowane przez sam system
+  (zdarzenie `audit.chain.legal_break`) daje UWAGI, nie BLOKADE. Deklaracja liczy sie
+  tylko wtedy, gdy sama ma poprawny hash, jest pozniejsza od zerwanego wpisu, a wpis
+  ma wyzerowane dokladnie to pole, ktore deklaracja nazywa - zmieniona albo
+  podrobiona deklaracja niczego nie wybiela. Hipoteza dawnej kaskady kluczy obcych
+  pojawia sie tylko dla bazy serwerowej, bo desktop tych kluczy nigdy nie mial.
+  ADR-0164 (dawniej 0150 na linii 2.0), ADR-0161.
+
 - **Aktualizacja instalatora blokowalaby konektory, ktore sam instalator wozi.** Brama MCP
   porownywala definicje narzedzi z poprzednim startem, wiec pierwsze wydanie zmieniajace opis
   albo schemat narzedzia bundlowanego konektora dawaloby kazdemu uzytkownikowi `human_review`.
@@ -97,6 +117,158 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
   Identyfikator jest teraz WYPROWADZANY z dokumentu, wiec rozjazd nie ma jak powstac.
 - **Klikniecie przypisu zrzucalo tresc cytatu do konsoli przegladarki** (`console.log`
   z etapu prac). Usuniete.
+
+### Naprawione - BEZPIECZENSTWO
+
+- **Dwa miejsca w przegladzie tabelarycznym pytaly model z pominieciem polityki
+  wyjscia danych.** Generator promptu kolumny wysylal tytul kolumny i nazwe dokumentu,
+  a ta potrafi niesc nazwisko klienta albo sygnature sprawy; nadawanie tytulu rozmowie
+  wysylalo tresc pierwszej wiadomosci mecenasa. Obie sciezki szly do modelu wybranego
+  w ustawieniach, ale omijaly wspolnego straznika: nie sprawdzaly, czy dla tej sprawy
+  wolno w ogole wyjsc poza maszyne, i nie zapisywaly zdarzenia `llm_route` w lancuchu
+  audytu. Co to znaczy dla audytu: w lancuchach zalozonych przed ta poprawka tych
+  dwoch wywolan po prostu nie ma. Kto odtwarza z lancucha komplet zapytan do modelu
+  (art. 12 AI Act), musi wiedziec o luce na tych dwoch sciezkach. Teraz obie ida ta
+  sama droga co reszta aplikacji, a blokada nie przerywa pracy: tytul powstaje ze
+  skrotu pierwszej wiadomosci, generator promptu podpowiada, ktory model wybrac.
+- **Skasowanie dokumentu zrywalo lancuch audytu - a weryfikator nazywal to tak
+  samo jak sabotaz.** Trzy pola wchodzace do hasha wpisu (`actor_user_id`,
+  `chat_id`, `document_id`) byly w trybie serwerowym kluczami obcymi z kaskada
+  `on delete set null`. Czyli pisala je takze baza, nie tylko my: skasowanie
+  dokumentu zerowalo je w kazdym wierszu audytu, ktory go dotyczyl, a hasha nikt
+  nie przeliczal. Weryfikator opisywal to slowo w slowo tak jak celowa podmiane
+  wpisu, wiec dowod zgodnosci wygladal identycznie jak slad wlamania. Migracja
+  024 zdejmuje te wiezy: rejestr audytu nie jest dzieckiem czatu ani dokumentu,
+  tylko sladem historycznym, ktory ma prawo wskazywac na cos, czego juz nie ma.
+  Wersja desktopowa nigdy tych wiezow nie miala i nie byla dotknieta - to
+  Postgres dogonil desktop, nie odwrotnie.
+  **Czego ta poprawka NIE robi:** lancuchow zerwanych wczesniej w trybie
+  serwerowym nie da sie odtworzyc, bo hash liczy sie z wartosci, ktorej juz nie
+  ma. Okno obejmuje kazde skasowanie dokumentu, czatu i konta w instalacji
+  serwerowej sprzed tej wersji; na desktopie okna nie ma. Zerwane wpisy pokaze
+  `npm run audit:verify` - w grupie "zgodne z dawna kaskada".
+- **Kasowanie danych na zadanie klienta zrywa lancuch nieusuwalnie - i teraz samo
+  to zglasza.** Ten sam mechanizm co wyzej, tyle ze tu nie ma czego naprawiac.
+  Realizujac prawo do bycia zapomnianym zerujemy aktora takze we wpisach audytu,
+  a aktor wchodzi do hasha. RODO kaze zapomniec, AI Act kaze pamietac; przy tej
+  konstrukcji dowodu nie da sie zrobic obu rzeczy naraz. Nie udajemy wiec, ze
+  problemu nie ma: kasowanie zapisuje osobne zdarzenie z powodem, zakresem
+  i liczba dotknietych wpisow, bez danych osobowych. Weryfikator to czyta
+  i rozdziela zerwania na trzy grupy zamiast dwoch: z mocy prawa, zgodne z dawna
+  kaskada i niewyjasnione. Czlowieka wymaga tylko ta trzecia.
+- **Generator promptu kolumny traktowal sprawe jak zwykla notatke - i domykalismy to
+  dwa razy.** Wywolanie szlo do modelu bez kontekstu sprawy, a brak sprawy to jedyny
+  przypadek, w ktorym straznik nie zaklada najgorszego: znaczy dla niego klasyfikacje
+  "wewnetrzna", a nie "objete tajemnica". Kolumna tabeli zalozonej na aktach klienta
+  wychodzila wiec do chmury po zanizonej ocenie. Ekran przegladu podaje teraz
+  identyfikator przegladu, backend sprawdza uprawnienia do niego i bierze klasyfikacje
+  z jego sprawy - tak jak nadawanie tytulu rozmowie. To jednak nie wystarczylo: serwer
+  nadal przyjmowal zadanie BEZ tego identyfikatora, wiec droga tylnymi drzwiami stala
+  otworem - pominac jedno pole i tytul kolumny razem z tagami sprawy szedl do chmury po
+  ocenie "wewnetrzna". Teraz brak sprawy trzeba NAZWAC, jako szablon workflow. Zadanie
+  bez tej nazwy serwer odrzuca, zamiast domyslac sie, ze sprawy po prostu nie ma.
+  Edytor szablonow workflow dziala jak dzialal - swoj brak sprawy deklaruje wprost.
+- **Nieudane zapytanie do chmury znikalo z lancucha audytu.** Straznik przepuszczal
+  generator promptu kolumny, wywolanie modelu padalo - i na tym sie konczylo. Dane
+  wyszly z maszyny, a w lancuchu nie zostawal po nich zaden slad. Kto odtwarzal
+  komplet zapytan do modelu, widzial tylko te udane. Teraz aplikacja zapisuje
+  zdarzenie tak samo jak przy powodzeniu: lancuch notuje decyzje straznika, a nie
+  wynik samego zapytania. Powod niepowodzenia zostaje w logu instalacji.
+- **Ten sam generator przyjmowal nazwe dokumentu, ktorej nie wysylal zaden ekran.**
+  Pole doklejalo sie do zapytania do modelu, gdyby ktos podal je z zewnatrz, a w samej
+  aplikacji nie ustawial go nikt. Wejscie, ktorego nie uzywa zaden ekran, nie ma tez
+  wlasnego testu ani spojrzenia czlowieka, a lezy na drodze danych wychodzacych
+  z kancelarii. Usuniete.
+- **Blad odczytu licznika audytu pokazywal audytorowi zero.** Gdy zapytanie o liczbe
+  zdarzen danego rodzaju sie nie udalo, metryka podawala "0" - nie do odroznienia od
+  prawdy. Teraz odczyt sie przerywa i caly zestaw metryk schodzi do zer naraz - jedna
+  seria falszywych zer zamieniona na jednolita degradacje, ktora widac po ksztalcie.
+  Same zera nie mowily jednak, ktora to sytuacja: swiezo zainstalowana aplikacja z
+  pustym dziennikiem oddawala dokladnie te sama odpowiedz co zepsuty odczyt, a
+  przyczyna nie trafiala nawet do logu. Doszla wiec osobna metryka stanu: zero, kiedy
+  liczby sa pomiarem, jedynka, kiedy sa zaslepka po nieudanej probie. Odpowiedz HTTP
+  zostaje bez zmian swiadomie - na bledzie zbieracz metryk uznaje caly serwer za
+  martwy, gasi razem z nim czas jego pracy i o przyczynie tez nie powie nic.
+- **Audytor widzial 7 z 21 rodzajow zdarzen.** Filtr strefy audytu i licznik metryk
+  trzymaly wlasne, przestarzale kopie listy, wiec nie dalo sie odfiltrowac ani trasy
+  zapytania do modelu, ani limitu kosztu sprawy, ani weryfikacji cytatow. Zdarzenia
+  lezaly w lancuchu przez caly czas. Brakowalo do nich dojscia. Obie kopie czerpia
+  teraz z jednej listy.
+- **Import dokumentu trwal 25-40 sekund na plik - i nikt tego nie zmierzyl.**
+  Zeby pokazac podglad, Patron przerabial kazdy `.docx` na PDF przez LibreOffice
+  - i kazal na to czekac, zanim w ogole potwierdzil przyjecie pliku. Zmierzone na
+  trzech kolejnych plikach: 40,1 / 35,9 / 25,2 s. Nie przyspiesza z czasem.
+  Import folderu z 50 pismami zajmowal ponad 20 minut. Indeksowanie do
+  wyszukiwarki juz wczesniej przeniesiono tak, zeby nie kazalo czekac, z
+  komentarzem autora: "embedding trwa kilka sekund, nie blokujemy odpowiedzi".
+  Czyli ktos swiadomie odsunal etap kilkusekundowy i zostawil czterdziestosekundowy.
+  Konwersja idzie teraz w tle. Dokument jest gotowy od razu, podglad dochodzi
+  chwile pozniej. Zaden ekran na niego nie czeka: glowna przegladarka renderuje
+  `.docx` bezposrednio, a panel przegladu tabelarycznego ma wariant zapasowy.
+- **Stary `.doc` bez LibreOffice znikal po cichu.** W wersji desktopowej
+  LibreOffice nie jedzie w instalatorze i nigdy nie jechal - to osobny program do
+  doinstalowania. (W instalacji serwerowej jest, bo dokłada go obraz Dockera.)
+  Bez niego nie umiemy odczytac starego `.doc`: to inny format niz `.docx`,
+  a nasz czytnik obsluguje tylko nowszy. Plik ladowal wiec w bazie oznaczony
+  jako gotowy, bez tekstu, poza wyszukiwarka i bez mozliwosci wyswietlenia.
+  Mecenas nie dostawal zadnego sygnalu. Teraz Patron takiego pliku nie przyjmuje
+  i mowi wprost, czego brakuje i co z tym zrobic: zapisac jako `.docx` albo
+  doinstalowac LibreOffice. Tak samo dziala to przy skanach, ktore wymagaja OCR.
+- **Panel stanu mowi, czy LibreOffice jest.** Dotad brak wychodzil dopiero przy
+  probie wgrania pliku. Teraz stoi obok informacji o OCR i module wyszukiwania.
+
+### Dodane - bramki
+
+- **Nowe bramki mechaniczne** pilnuja regul, ktore wczesniej opieraly sie na
+  czujnosci czlowieka. Jedna nie przepusci zapytania do modelu, ktore nie zostawia
+  sladu w lancuchu audytu - to ona znalazla obie luki opisane wyzej. Druga porownuje
+  liste konektorow prawa w pieciu miejscach naraz, zeby zaden nie trafil do
+  instalatora wylaczony. Trzecia sprawdza, czy odsylacze w dokumentacji dla agentow
+  prowadza do istniejacych plikow.
+- **Bramka odsylaczy mowi teraz, czego NIE sprawdzila - i siega glebiej.**
+  Potwierdzala tylko to, co akurat umiala rozpoznac: skroty commitow o dwoch
+  dlugosciach, odsylacze pisane w jeden sposob, sciezki z zamknietej listy katalogow.
+  Dziewiec sciezek w dokumentacji dla agentow przechodzilo w ogole niesprawdzonych,
+  a napis obok twierdzil, ze sprawdzane jest wszystko. Wymagala tez, zeby sciezka byla
+  calym zapisem kodu, a nie jego czescia - wiec dwa odsylacze nazywajace same bramki
+  nie byly ani sprawdzane, ani wymienione wsrod pominietych. Nie potwierdzala sciezki
+  nawet do samej siebie. Teraz kazdy przebieg drukuje wlasny mianownik: ile odsylaczy
+  sprawdzono i ile pominieto, z powodem dla kazdego pominietego. Rozpoznaje tez
+  odsylacze z tytulem i pisane od korzenia repozytorium, a ksztalt, ktorego nie umie
+  rozebrac, laduje na liscie pominietych, zamiast wypasc poza obie listy. Wlasnych
+  wzorcow pilnuje przed kazdym przebiegiem, na przykladach znanego bledu.
+- **Bramka pol hasha mierzy PISARZY, nie sam schemat.** Pierwsza wersja
+  sprawdzala wylacznie definicje tabel - a schemat to tylko jeden z dwoch
+  pisarzy. Drugim jest kod: skrypt kasowania RODO przepisuje pole hasha jawnym
+  poleceniem, ktore dziala na obu bazach, takze na desktopie. Bramka, ktora
+  konczy sie na schemacie, zapalilaby sie na zielono po naprawie wiezow - i
+  zostawila zywa luke w produkcie, ktory wysylamy. Teraz trzyma rejestr: kto
+  i ile razy zapisuje do audytu. Jedyne pozwolenie na zmiane wpisu jest wazne
+  tylko razem z obowiazkiem zadeklarowania skutku.
+- **Front nie zgubi juz po cichu kontekstu sprawy.** Nic nie pilnowalo, ze ekrany
+  przegladu nadal podaja identyfikator przegladu przy generowaniu promptu kolumny.
+  Nastepny refaktor moglby to cofnac, a testy zostalyby zielone. Kontekst wymusza
+  teraz typ, a osobna bramka skanuje caly front i trzyma NAZWANA liste plikow, ktorym
+  wolno pracowac bez sprawy. Dzis sa na niej dwa ekrany edytora szablonow workflow.
+- **Bramka listy konektorow objela trzecia liste kolejnosci** (buildy rynkowe),
+  w ktorej brakowalo czterech konektorow. Laczyly sie poprawnie, ale w instalatorze
+  ladowaly na szarym koncu.
+
+### Zmienione
+
+- **Bramki skanujace przestaly bywac czerwone bez powodu.** Trzy testy
+  przechodzace cale drzewo zrodel miescily sie w domyslnym limicie pieciu sekund
+  tylko na wolnej maszynie. Pod rownoleglym obciazeniem przekraczaly czas, czyli
+  swiecily na czerwono z powodu, ktory nie ma nic wspolnego z tym, co mierza.
+  Bramka czerwona bez powodu uczy ignorowac swoj kolor. Limit podniesiony, a skan
+  generatora promptu czyta drzewo raz, nie raz na test.
+- Konektor `sejm-eli` usuniety z mapy jurysdykcji, gdzie siedzial osierocony od
+  czerwca. Bez wpisu w pozostalych czterech miejscach i tak nie mial jak wystartowac.
+- **Odczyt metryk nie kaze juz bazie liczyc wszystkiego po kolei.** Kazde pobranie
+  metryk wysylalo osobne zapytanie na kazdy rodzaj zdarzenia - po zrownaniu listy do
+  kanonu bylo ich 21 zamiast 7, jedno po drugim. W trybie desktopowym (baza lokalna)
+  jest to teraz jedno zapytanie zbiorcze; w trybie serwerowym zapytania nadal ida per
+  rodzaj, ale rownolegle - jedna fala zamiast 21 rund w szeregu.
 
 ## [1.3.0] - 2026-08-24
 

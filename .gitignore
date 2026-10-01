@@ -46,5 +46,6 @@ eval-report/
 .matematic/
 .mcp.json
 .publication-gate.private.json
+# Python bytecode (bramki w scripts/ uruchamiane lokalnie i w CI)
 __pycache__/
 *.pyc

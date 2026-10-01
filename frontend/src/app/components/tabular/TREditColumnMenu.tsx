@@ -18,6 +18,9 @@ import {
 export interface TREditColumnMenuProps {
     column: ColumnConfig;
     disabled?: boolean;
+    /** Sprawa niesiona do straznika data-residency przy generowaniu promptu. */
+    /** Sprawa dla straznika data-residency - to menu zyje TYLKO w review. */
+    reviewId: string;
     onSave: (column: ColumnConfig) => void | Promise<void>;
     onDelete: (columnIndex: number) => void | Promise<void>;
 }
@@ -25,6 +28,7 @@ export interface TREditColumnMenuProps {
 export function TREditColumnMenu({
     column,
     disabled,
+    reviewId,
     onSave,
     onDelete,
 }: TREditColumnMenuProps) {
@@ -102,10 +106,11 @@ export function TREditColumnMenu({
         if (!name.trim()) return;
         setGenerating(true);
         try {
-            const { prompt } = await generateTabularColumnPrompt(name.trim(), {
-                format,
-                tags: format === "tag" ? tags : undefined,
-            });
+            const { prompt } = await generateTabularColumnPrompt(
+                name.trim(),
+                { scope: "review", reviewId },
+                { format, tags: format === "tag" ? tags : undefined },
+            );
             setPrompt(prompt);
         } finally {
             setGenerating(false);

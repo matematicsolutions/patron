@@ -34,6 +34,7 @@ import {
 } from "../lib/tabular/audit-grounding";
 import { enforceEgressGuard, appendLlmRouteEvent } from "../lib/routing";
 import { reviewCell } from "../lib/tabular/cell-review";
+import { rozstrzygnijZakresPromptu } from "../lib/tabular/prompt-scope";
 
 function formatPromptSuffix(format?: string, tags?: string[]): string {
     switch (format) {
@@ -277,17 +278,29 @@ tabularRouter.post("/", requireAuth, async (req, res) => {
 // POST /tabular-review/prompt (must come before /:reviewId routes)
 tabularRouter.post("/prompt", requireAuth, async (req, res) => {
     const userId = res.locals.userId as string;
+    const userEmail = res.locals.userEmail as string | undefined;
     const title =
         typeof req.body.title === "string" ? req.body.title.trim() : "";
     if (!title)
         return void res.status(400).json({ detail: "title is required" });
+    // Kontekst sprawy dla straznika data-residency. Generator promptu kolumny
+    // dostawal wczesniej tylko {title, format, documentName, tags}, wiec
+    // egressowal z projectId=null - a resolveClassification(null) to JEDYNA
+    // galaz NIE fail-closed ("internal"). Kolumna tabeli sprawy objetej
+    // tajemnica wychodzila wiec do chmury po zanizonej klasyfikacji.
+    //
+    // Od 2026-08-31 "brak sprawy" nie jest juz galezia domyslna, tylko NAZWANYM
+    // zakresem (lib/tabular/prompt-scope.ts): bez reviewId zadanie przechodzi
+    // wylacznie jako scope "workflow_template" (edytor SZABLONU workflow, ktory
+    // sprawy celowo nie ma). Kazdy inny ksztalt to 400 - ostrzej niz
+    // najostrzejsza klasyfikacja, bo zadanie nie dociera do modelu w ogole.
+    const zakres = rozstrzygnijZakresPromptu(req.body);
+    if (!zakres.ok) return void res.status(400).json({ detail: zakres.detail });
+    const reviewId =
+        zakres.zakres.scope === "review" ? zakres.zakres.reviewId : "";
 
     const format: string =
         typeof req.body.format === "string" ? req.body.format : "text";
-    const documentName: string =
-        typeof req.body.documentName === "string"
-            ? req.body.documentName.trim()
-            : "";
     const tags: string[] = Array.isArray(req.body.tags)
         ? req.body.tags.filter((t: unknown) => typeof t === "string")
         : [];
@@ -308,27 +321,124 @@ tabularRouter.post("/prompt", requireAuth, async (req, res) => {
         format === "tag" && tags.length
             ? `\nAvailable tags: ${tags.join(", ")}`
             : "";
-    const docNote = documentName ? `\nDocument type/name: ${documentName}` : "";
-
+    // `documentName` bylo tu trzecim polem wejsciowym - przyjmowanym,
+    // doklejanym do promptu i wysylanym do modelu, a NIEUSTAWIANYM przez zaden
+    // call-site frontu. Martwy, ale osiagalny input na powierzchni egressowej to
+    // kanal, ktorego nikt nie oglada; usuniety razem z galezia bez sprawy.
     const userMessage =
         `Column title: ${title}` +
-        docNote +
         `\nExpected response format: ${formatHint}` +
         tagsNote +
         `\n\nWrite the best extraction prompt for a legal tabular review column with this title. ` +
         `Do NOT include any instruction about the response format in the prompt — ` +
         `format handling is applied separately and must not be duplicated inside the prompt text.`;
 
+    // Ta sama bariera cross-tenant co pozostale route'y tabular: bez
+    // ensureReviewAccess parametr reviewId bylby wyciekiem project_id cudzej
+    // sprawy (i cudzej klasyfikacji) do straznika.
+    //
+    // UWAGA - ta bramka zamyka DROGE NA SKROTY (zadanie bez nazwanego zakresu),
+    // ale NIE domyka calej gałęzi "internal". `tabular_reviews.project_id` jest
+    // NULLABLE (schema.sqlite.ts) i przeglad samodzielny - osobna zakladka w UI -
+    // legalnie go nie ma. Wtedy scope "review" z PRAWDZIWYM reviewId nadal daje
+    // projectId=null, czyli resolveClassification(null) => "internal", mimo ze
+    // przeglad ma podpiete dokumenty kancelarii. To NIE jest domkniete i nie
+    // udawaj, ze jest: klasyfikacja przegladu bez sprawy to decyzja produktowa
+    // (fail-closed = zablokowanie chmury dla wszystkich przegladow samodzielnych),
+    // dotyczy TAKZE trzech siostrzanych powierzchni w tym pliku, i czeka na
+    // rozstrzygniecie. Zmierzone 2026-09-02 w recenzji przedcommitowej.
+    const db = createServerSupabase();
+    let projectId: string | null = null;
+    if (reviewId) {
+        const { data: review, error } = await db
+            .from("tabular_reviews")
+            .select("*")
+            .eq("id", reviewId)
+            .single();
+        if (error || !review)
+            return void res.status(404).json({ detail: "Review not found" });
+        const access = await ensureReviewAccess(review, userId, userEmail, db);
+        if (!access.ok)
+            return void res.status(404).json({ detail: "Review not found" });
+        projectId = (review.project_id as string | null | undefined) ?? null;
+    }
+
     try {
         const { title_model, api_keys } = await getUserModelSettings(userId);
-        const raw = await completeText({
+        // Parytet z czatem (ADR-0067/0095): generator promptu kolumny wysyla
+        // tytul kolumny i nazwe dokumentu (potrafi niesc dane sprawy) do LLM,
+        // domyslnie chmurowego - musi przejsc przez TEN SAM straznik
+        // data-residency co pozostale powierzchnie, z klasyfikacja SPRAWY
+        // (wzorzec: routes/chat.ts generate-title przekazuje chat.project_id).
+        // Do 2026-08-31 ta powierzchnia egressowala BEZ straznika i bez sladu
+        // llm_route (luke znalazla bramka egress-surface-parity.test.ts), a
+        // pierwsza naprawa zostawila stale projectId=null - zanizona klasyfikacje.
+        const guard = await enforceEgressGuard({
+            db,
             model: title_model,
-            systemPrompt:
-                'You write high-quality column prompts for legal tabular review workflows. Return only valid JSON with a single field: {"prompt": string}. The prompt you write must focus solely on what to extract — never on how to format the response.',
-            user: userMessage,
-            maxTokens: 512,
-            apiKeys: api_keys,
+            projectId,
+            actorUserId: userId,
         });
+        if (!guard.allowed) {
+            return void res.status(403).json({
+                detail:
+                    guard.blockMessage ??
+                    "Routing zablokowany przez polityke data-residency.",
+                code: "egress_blocked",
+                suggestedModel: guard.suggestedModel ?? null,
+            });
+        }
+        // ADR-0067/0095: audyt "llm_route" (allow) - parytet z czatem/draftem.
+        // enforceEgressGuard zapisuje TYLKO blokade; sciezka dozwolona audytuje
+        // sie tutaj, bo dopiero wolajacy zna latencje (kontrakt w naglowku
+        // enforceEgress.ts). Bez tego wywolanie nie zostawia sladu wymaganego
+        // przez AI Act art. 12.
+        const zapiszSladRoutingu = (latencyMs: number) =>
+            appendLlmRouteEvent(db, {
+                actorUserId: userId,
+                caseId: projectId,
+                // Bez tego "case_id: null" ma trzy zrodla nie do odroznienia:
+                // szablon workflow, przeglad samodzielny i czat ogolny.
+                scope: `tabular_prompt:${zakres.zakres.scope}`,
+                model: title_model,
+                provider: guard.provider,
+                egress: guard.decision.egress,
+                classification: guard.decision.classification,
+                action: "allow",
+                reason: guard.decision.reason,
+                latencyMs,
+            });
+
+        const startedAt = Date.now();
+        let raw: string;
+        try {
+            raw = await completeText({
+                model: title_model,
+                systemPrompt:
+                    'You write high-quality column prompts for legal tabular review workflows. Return only valid JSON with a single field: {"prompt": string}. The prompt you write must focus solely on what to extract — never on how to format the response.',
+                user: userMessage,
+                maxTokens: 512,
+                apiKeys: api_keys,
+            });
+        } catch (err) {
+            // Egress NASTAPIL: straznik przepuscil, zapytanie poszlo do
+            // dostawcy i dopiero tam padlo. Do 2026-09-02 lapal to dopiero
+            // zewnetrzny `catch {}` bez logu - wiec wyjscie danych do chmury nie
+            // zostawialo ZADNEGO sladu llm_route (AI Act art. 12 chce sladu
+            // wywolania, nie samych udanych wywolan), a operator nie mial gdzie
+            // przeczytac przyczyny. `action: "allow"` jest tu prawda: dziennik
+            // routingu zapisuje DECYZJE straznika, nie wynik wywolania -
+            // niepowodzenie samego wywolania mieszka w logu operatora.
+            console.error(
+                "[tabular/prompt] wywolanie LLM padlo po decyzji ALLOW straznika:",
+                err,
+            );
+            await zapiszSladRoutingu(Date.now() - startedAt);
+            return void res
+                .status(502)
+                .json({ detail: "Failed to generate prompt from LLM" });
+        }
+        await zapiszSladRoutingu(Date.now() - startedAt);
         const parsed = JSON.parse(
             raw
                 .replace(/^```(?:json)?\n?/i, "")
@@ -340,7 +450,10 @@ tabularRouter.post("/prompt", requireAuth, async (req, res) => {
         } else {
             res.status(502).json({ detail: "LLM returned an empty prompt" });
         }
-    } catch {
+    } catch (err) {
+        // Sciezka PRZED egressem (ustawienia modelu, straznik) albo rozbior
+        // odpowiedzi. Bez logu awaria konczyla sie 502-ka bez przyczyny.
+        console.error("[tabular/prompt] generowanie promptu kolumny padlo:", err);
         res.status(502).json({ detail: "Failed to generate prompt from LLM" });
     }
 });
@@ -1553,15 +1666,56 @@ tabularRouter.post("/:reviewId/chat", requireAuth, async (req, res) => {
         // Generate title on first exchange
         if (chatId && isFirstExchange && !chatTitle && lastUser.content) {
             const { title_model } = await getUserModelSettings(userId, db);
-            const title = await generateChatTitle(
-                title_model,
-                lastUser.content,
-                {
-                    reviewTitle: clientReviewTitle ?? review.title ?? null,
-                    projectName: clientProjectName ?? null,
-                },
-                api_keys,
-            );
+            // Parytet z czatem (ADR-0067/0095): tytul czatu tabular wysyla
+            // tresc pierwszej wiadomosci uzytkownika do LLM (title_model
+            // domyslnie chmurowy) - TEN SAM straznik co generate-title czatu.
+            // Blok = fallback do skrotu wiadomosci, zero egressu. Do
+            // 2026-08-31 ta powierzchnia egressowala BEZ straznika i bez
+            // sladu llm_route (luke znalazla bramka
+            // egress-surface-parity.test.ts).
+            const titleGuard = await enforceEgressGuard({
+                db,
+                model: title_model,
+                projectId:
+                    (review.project_id as string | null | undefined) ?? null,
+                actorUserId: userId,
+                // chatId TAKZE do straznika: blokada zapisuje audyt sama i bez
+                // tego zdarzenie "block" nie wskazywaloby czatu, choc sciezka
+                // allow ponizej juz go podaje - ten sam egress opisany raz z
+                // czatem, raz bez, jest nie do zestawienia w audycie.
+                chatId,
+            });
+            let title: string | null;
+            if (titleGuard.allowed) {
+                const titleStartedAt = Date.now();
+                title = await generateChatTitle(
+                    title_model,
+                    lastUser.content,
+                    {
+                        reviewTitle: clientReviewTitle ?? review.title ?? null,
+                        projectName: clientProjectName ?? null,
+                    },
+                    api_keys,
+                );
+                // ADR-0067/0095: audyt "llm_route" (allow) - enforceEgressGuard
+                // zapisuje TYLKO blokade, sciezke dozwolona audytuje wolajacy
+                // (kontrakt w naglowku enforceEgress.ts). AI Act art. 12.
+                await appendLlmRouteEvent(db, {
+                    actorUserId: userId,
+                    chatId,
+                    caseId:
+                        (review.project_id as string | null | undefined) ?? null,
+                    model: title_model,
+                    provider: titleGuard.provider,
+                    egress: titleGuard.decision.egress,
+                    classification: titleGuard.decision.classification,
+                    action: "allow",
+                    reason: titleGuard.decision.reason,
+                    latencyMs: Date.now() - titleStartedAt,
+                });
+            } else {
+                title = lastUser.content.slice(0, 60);
+            }
             if (title) {
                 await db
                     .from("tabular_review_chats")

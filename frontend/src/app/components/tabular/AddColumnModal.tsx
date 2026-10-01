@@ -4,7 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ChevronDown, Plus, X } from "lucide-react";
 import type { ColumnConfig, ColumnFormat } from "../shared/types";
-import { generateTabularColumnPrompt } from "@/app/lib/patronApi";
+import {
+    generateTabularColumnPrompt,
+    type ZakresPromptuKolumny,
+} from "@/app/lib/patronApi";
 import { FORMAT_OPTIONS, formatLabel, formatIcon } from "./columnFormat";
 import { TAG_COLORS } from "./pillUtils";
 import { getPresetConfig, PROMPT_PRESETS } from "./columnPresets";
@@ -35,6 +38,16 @@ const EMPTY_DRAFT: ColumnDraft = {
 interface Props {
     open: boolean;
     existingCount: number;
+    /**
+     * Zakres dla straznika data-residency (generator promptu kolumny).
+     *
+     * Modal sluzy DWOM kontekstom: review (TRView - jest sprawa) i edytor
+     * SZABLONU workflow (workflows/[id] - sprawy nie ma). Kontekst deklaruje
+     * RODZIC, modal go nie zgaduje: wczesniej byl to `reviewId?: string`, wiec
+     * pominiecie propa wygladalo identycznie jak swiadomy brak sprawy i cicho
+     * schodzilo na klasyfikacje "internal".
+     */
+    zakres: ZakresPromptuKolumny;
     onClose: () => void;
     onAdd: (cols: ColumnConfig[]) => void;
     editingColumn?: ColumnConfig;
@@ -42,7 +55,7 @@ interface Props {
     onDelete?: () => void;
 }
 
-export function AddColumnModal({ open, existingCount, onClose, onAdd, editingColumn, onSave, onDelete }: Props) {
+export function AddColumnModal({ open, existingCount, zakres, onClose, onAdd, editingColumn, onSave, onDelete }: Props) {
     const isEditing = !!editingColumn;
     const [columns, setColumns] = useState<ColumnDraft[]>([{ ...EMPTY_DRAFT }]);
     const [generatingIndices, setGeneratingIndices] = useState<number[]>([]);
@@ -152,10 +165,14 @@ export function AddColumnModal({ open, existingCount, onClose, onAdd, editingCol
         setGeneratingIndices((prev) => [...prev, index]);
         try {
             const col = columns[index]!;
-            const { prompt } = await generateTabularColumnPrompt(title, {
-                format: col.format,
-                tags: col.format === "tag" ? col.tags : undefined,
-            });
+            const { prompt } = await generateTabularColumnPrompt(
+                title,
+                zakres,
+                {
+                    format: col.format,
+                    tags: col.format === "tag" ? col.tags : undefined,
+                },
+            );
             updateColumn(index, { prompt });
         } finally {
             setGeneratingIndices((prev) => prev.filter((v) => v !== index));
