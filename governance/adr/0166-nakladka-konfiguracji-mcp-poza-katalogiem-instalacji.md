@@ -21,7 +21,7 @@ Zmierzone u zrodla 2026-10-01: instalator NSIS electron-buildera przy aktualizac
 `uninstallOldVersion` (`templates/nsis/include/installUtil.nsh`), a szablon wprost zaklada, ze
 katalog instalacji "will be deleted". Kazda aktualizacja PATRONa kasowala wiec wszystkie
 ustawienia Operatora i pickera - po cichu, bez komunikatu. Weryfikator powolan przestawal
-dzialac po pierwszym update, a wylaczone przez mecenasa konektory wlaczaly sie z powrotem.
+dzialac po pierwszej aktualizacji, a wylaczone przez mecenasa konektory wlaczaly sie z powrotem.
 
 ## Decyzja
 
@@ -33,7 +33,7 @@ dzialac po pierwszym update, a wylaczone przez mecenasa konektory wlaczaly sie z
 **2. Scalanie przy odczycie (`readMergedConfig`).** Konektory instalatora w ich kolejnosci,
 potem nowe z nakladki.
 
-- Konektor z instalatora: z nakladki bierzemy TYLKO `enabled` i `gatewayApproval`.
+- Konektor z instalatora: z nakladki bierzemy wylacznie `enabled` i `gatewayApproval`.
   `command`, `args`, `url`, `operatorApproved` pochodza wylacznie z instalatora - nakladka nie
   podmieni konektora zaufanego na inny proces ani nie podniesie mu uprawnien. Inne pola sa
   ignorowane z ostrzezeniem w logu. `gatewayApproval` jest bezpieczne, bo przypiete do hasha
@@ -43,8 +43,8 @@ potem nowe z nakladki.
 - Wpis bez nazwy, bez `transport` albo powtorzony: pominiety z ostrzezeniem, nie po cichu.
   Uszkodzona nakladka nie zabiera konektorow instalatora (ostrzezenie, odczyt instalatora dziala).
 
-**3. Picker pisze do nakladki.** `setConnectorEnabledInConfig` robi upsert `{name, enabled}` w
-nakladce (atomowo, tmp+rename), zostawiajac inne pola wpisu. Uszkodzonej nakladki nie
+**3. Picker pisze do nakladki.** `setConnectorEnabledInConfig` dopisuje albo aktualizuje `{name, enabled}`
+w nakladce (atomowo, przez plik tymczasowy), zostawiajac inne pola wpisu. Uszkodzonej nakladki nie
 nadpisuje - moze niesc wpis Operatora. Plik instalatora nie jest juz modyfikowany przez aplikacje.
 
 **4. Bez zmian:** `getMcpTools`, brama bezpieczenstwa, ring-policy, kontrakt pickera
@@ -57,7 +57,7 @@ nadpisuje - moze niesc wpis Operatora. Plik instalatora nie jest juz modyfikowan
   zostaja, a nowe `args` z instalatora wchodza); wpiecie przez `listConnectorConfigs` /
   `setConnectorEnabledInConfig` z kontrola, ze plik instalatora jest nietkniety.
 - Mutanty czerwone: picker piszacy do pliku instalatora; nakladka podmieniajaca `command`.
-- NIE przebiegnieto pelnej aktualizacji spakowanego instalatora (build + instalacja dwoch
+- Nie przebiegnieto pelnej aktualizacji spakowanego instalatora (build + instalacja dwoch
   wersji) - to przebieg do zrobienia przy najblizszym wydaniu.
 
 ## Konsekwencje

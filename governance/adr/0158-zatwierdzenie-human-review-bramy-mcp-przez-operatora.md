@@ -17,14 +17,16 @@ sciezki tej decyzji. `operatorApproved` z ADR-0027 dziala tylko w ring-policy (p
 nie przy starcie. W praktyce `human_review` dzialal jak `denied`.
 
 Zmierzone 2026-09-30 (ADR-0157): konektor Repertorium dostaje `human_review` (ryzyko 18) za
-cztery `tool-poisoning/medium` - opisy narzedzi wymieniaja pola WYNIKU (`possible_typo_of`,
+cztery `tool-poisoning/medium` - opisy narzedzi wymieniaja pola wyniku (`possible_typo_of`,
 `zywotnosc`...), a detektor "schema mismatch" porownuje je tylko z `inputSchema`. To falszywy
 alarm, ale bez sciezki decyzji nie da sie go rozstrzygnac, a ten sam wzorzec trafi kazdy
 konektor 3rd-party z bogatym opisem wyniku.
 
 ## Decyzja
 
-**1. Operator zatwierdza KONKRETNA definicje.** W `mcp-servers.json` konektor dostaje:
+**1. Operator zatwierdza konkretna definicje.** W nakladce Operatora
+(`~/.patron/mcp-servers.operator.json`, [ADR-0166](./0166-nakladka-konfiguracji-mcp-poza-katalogiem-instalacji.md);
+`mcp-servers.json` z katalogu instalacji ginie przy aktualizacji) konektor dostaje:
 
 ```json
 "gatewayApproval": { "hash": "<64 hex>", "approvedAt": "RRRR-MM-DD", "approvedBy": "<operator>" }
@@ -32,7 +34,7 @@ konektor 3rd-party z bogatym opisem wyniku.
 
 Przy `human_review` brama porownuje `hash` z hashem biezacej definicji. Zgodny - narzedzia
 rejestrowane (skutek `audit`). Brak albo niezgodny - blokada jak dotad, a log podaje hash
-biezacej definicji i gotowy fragment do wpisania po przegladzie findings.
+biezacej definicji i gotowy fragment do wpisania po przegladzie zastrzezen bramy.
 
 **2. Hash zatwierdzenia obejmuje schematy wejscia.** `computeApprovalHash` liczy
 `canonicalSha256` (ADR-0142) z nazwy serwera i pelnych definicji narzedzi: nazwa, opis,
@@ -71,7 +73,7 @@ z werdyktem `human_review` potrzebuje obu.
 
 ## Konsekwencje i ryzyko
 
-- Operator moze zatwierdzac bez czytania findings. Ograniczenie: przypiecie do hasha (kazda
+- Operator moze zatwierdzac bez czytania zastrzezen. Ograniczenie: przypiecie do hasha (kazda
   zmiana narzedzi wymaga nowej decyzji), `denied` poza zasiegiem, slad w audycie z autorem.
 - Zatwierdzenie zyje w lokalnym pliku konfiguracji, jak `operatorApproved` - kto moze pisac do
   tego pliku, i tak kontroluje liste konektorow.
@@ -79,9 +81,9 @@ z werdyktem `human_review` potrzebuje obu.
 ## Poza zakresem (znalezione przy okazji)
 
 - **Detektor dryfu nie widzi zmian `inputSchema`** (`computeDefinitionHash` hashuje tylko
-  nazwy i opisy). Dotyczy tez konektorow Ring 1 - osobna zmiana. Zalatwione w
+  nazwy i opisy). Dotyczy tez konektorow Ring 1 - osobna zmiana. Rozwiazane w
   [ADR-0159](./0159-detektor-dryfu-obejmuje-schemat-wejscia.md).
 - **Tryb bramy w banerze to nie tryb bramy w kodzie:** `MCP_SECURITY_GATEWAY_MODE` (domyslnie
-  `off`) czyta tylko `routes/security.ts` do banera; `getMcpTools` egzekwuje zawsze. Zalatwione w
+  `off`) czyta tylko `routes/security.ts` do banera; `getMcpTools` egzekwuje zawsze. Rozwiazane w
   [ADR-0160](./0160-baner-mcp-security-pokazuje-tryb-egzekwowany.md).
 - **Detektor "schema mismatch" nie zna `outputSchema`** - opcja B z ADR-0157, porzadek na pozniej.
