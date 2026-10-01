@@ -23,6 +23,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ### Naprawione
 
+- **Rownolegle zapisy rozwidlaly lancuch audytu.** Zdarzenia zapisywane jednoczesnie - brama
+  MCP dla kazdego konektora przy starcie, rownolegle wywolania narzedzi w ring-policy - czytaly
+  ten sam ostatni hash i dostawaly wspolnego poprzednika. Zabezpieczenie przez `hash unique`
+  nie dzialalo, bo hash obejmuje czas i tresc zdarzenia, wiec rozwidlone ogniwa nigdy nie
+  kolidowaly. Zapisy audytu w obrebie procesu ida teraz po kolei. Rozwidlenia juz zapisane w
+  istniejacych bazach zostaja bez zmian - ich ocena to osobna decyzja.
+  [ADR-0159](./governance/adr/0159-detektor-dryfu-obejmuje-schemat-wejscia.md), sekcja
+  "Znalezione przy weryfikacji".
 - **Detektor dryfu bramy MCP nie widzial zmian schematu wejscia narzedzi.** Hash baseline
   obejmowal nazwy i opisy, wiec konektor - takze bundlowany - mogl dopisac narzedziu
   parametr (np. `token`) bez zadnego sygnalu. Hash obejmuje teraz `inputSchema` (ta sama

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import crypto from "crypto";
 import {
     GENESIS_HASH,
+    appendAuditEvent,
     canonicalJsonStringify,
     computeAuditHash,
 } from "./audit";
@@ -233,5 +234,55 @@ describe("hash-chain integralnosci - scenariusze ataku", () => {
         [chain[1], chain[2]] = [chain[2], chain[1]];
         const result = verifyChain(chain);
         expect(result.ok).toBe(false);
+    });
+});
+
+describe("appendAuditEvent - rownolegle zapisy", () => {
+    // Atrapa klienta bazy: kazde zapytanie oddaje sterowanie petli zdarzen,
+    // jak prawdziwy sterownik, wiec rownolegle wywolania sie przeplataja.
+    function fakeDb() {
+        const rows: Array<{ id: number; prev_hash: string; hash: string }> = [];
+        const tick = () => new Promise((r) => setTimeout(r, 0));
+        const db = {
+            from: () => ({
+                select: () => ({
+                    order: () => ({
+                        limit: async () => {
+                            await tick();
+                            const last = rows[rows.length - 1];
+                            return { data: last ? [{ hash: last.hash }] : [], error: null };
+                        },
+                    }),
+                }),
+                insert: async (row: { prev_hash: string; hash: string }) => {
+                    await tick();
+                    if (rows.some((r) => r.hash === row.hash)) {
+                        return { error: { code: "23505", message: "duplicate" } };
+                    }
+                    rows.push({ id: rows.length + 1, prev_hash: row.prev_hash, hash: row.hash });
+                    return { error: null };
+                },
+            }),
+        };
+        return { db: db as unknown as Parameters<typeof appendAuditEvent>[0], rows };
+    }
+
+    it("siedem rownoleglych zdarzen (start bramy MCP) tworzy JEDEN lancuch, bez rozwidlen", async () => {
+        const { db, rows } = fakeDb();
+        const wyniki = await Promise.all(
+            Array.from({ length: 7 }, (_, i) =>
+                appendAuditEvent(db, {
+                    event_type: "mcp_security.gateway",
+                    payload: { server_name: `konektor-${i}` },
+                }),
+            ),
+        );
+        expect(wyniki.every((w) => w.ok)).toBe(true);
+        expect(rows).toHaveLength(7);
+        let prev = GENESIS_HASH;
+        for (const r of rows) {
+            expect(r.prev_hash).toBe(prev);
+            prev = r.hash;
+        }
     });
 });
