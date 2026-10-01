@@ -1,6 +1,6 @@
 # ADR-0162 - Manifest definicji konektorow wozonych przez instalator: aktualizacja nie blokuje, podmiana plikow tak
 
-- **Status:** Proponowany (kod gotowy, testy + mutanty, E2E na zasobach instalatora 1.3.0)
+- **Status:** Proponowany (kod gotowy, testy + mutanty, pelny build PL + E2E na spakowanej aplikacji)
 - **Data:** 2026-10-01
 - **Galaz:** na galezi ADR-0158/0159/0160, linia publiczna
 - **Rozszerza:** [ADR-0159](./0159-detektor-dryfu-obejmuje-schemat-wejscia.md) (dryf z formula v2),
@@ -76,6 +76,14 @@ manifestu "dzialalaby", a runtime po cichu wracalby do zwyklego dryfu i blokad p
 - `connectors-gate.test.cjs`: 4 nowe znane-zle (brak pliku, brak wpisu, wpis obcy, zly format).
   Na prawdziwej paczce 1.3.0 bramka jest czerwona (brak manifestu), na tej samej paczce z
   wygenerowanym manifestem - zielona.
+
+- Pelny build edycji PL (`npm run build:dir`, exit 0): generator w `prepare-resources` - 20/20,
+  hashe identyczne z pomiarem na 1.3.0; `bundled-definitions.json` w `dist/win-unpacked` bajt w
+  bajt jak w stagingu; `connectors-gate` na artefakcie zielona; `e2e:smoke` PASS (czysty profil).
+- Brama uruchomiona ze SPAKOWANEGO backendu (Node wbudowany w `PATRON.exe`, konektory z paczki,
+  kopia realnego baseline v1 z 1.3.0): pierwszy start - 7 konektorow `low` "zgodna z manifestem",
+  wszystkie zarejestrowane, baseline przepisany na `v2:`; drugi start - zero findingow. Lancuch
+  audytu tej bazy: 7 zdarzen z jednego startu, zero rozwidlen (kolejka zapisow z ADR-0159).
 
 ## Konsekwencje i ryzyko
 
