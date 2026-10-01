@@ -2,7 +2,8 @@
 
 Deterministyczny, lokalny (zero-LLM, zero-cloud) skan definicji konektorow MCP
 **zanim** zostana zaladowane do kontraktu Patrona. Wykrywa typosquat (namespace
-phishing), drift (zmiane opisu narzedzia od poprzedniego loadu), hidden-instructions
+phishing), drift (zmiane nazwy, opisu lub schematu wejscia narzedzia od poprzedniego
+loadu), hidden-instructions
 (jailbreak via tool description) i tool-poisoning (zaden o uprawnienia spoza
 inputSchema).
 
@@ -76,6 +77,9 @@ Pelna atrybucja w [THIRD_PARTY_INSPIRATIONS.md](../../../../THIRD_PARTY_INSPIRAT
 - Polski + angielski korpus wzorcow w hidden-instructions i tool-poisoning.
 - Lista 6 zatwierdzonych konektorow Patrona jako baseline typosquat.
 - Hash SHA256 z (server.name + tools[].name + tools[].description) jako drift fingerprint.
+  Od ADR-0159 formula v2: `canonicalSha256` z nazwy serwera i pelnych definicji narzedzi
+  (nazwa, opis, `inputSchema`), wpisy baseline wersjonowane `v2:<hex>`, stare wpisy v1
+  migrowane jednorazowo przy starcie (zgodny v1 = finding low do audytu, niezgodny = high).
 
 ## Struktura
 
@@ -84,7 +88,7 @@ mcp-security/
   types.ts                              - definicje typow
   detectors/
     typosquat.ts                        - Levenshtein vs lista zatwierdzonych
-    drift.ts                            - SHA256 hash vs baseline
+    drift.ts                            - hash definicji (v2, z inputSchema) vs baseline + migracja v1
     hidden-instructions.ts              - jailbreak patterns w opisach (PL+EN)
     tool-poisoning.ts                   - permission expansion + schema mismatch
   scorer.ts                             - calculateRiskScore, decideAction

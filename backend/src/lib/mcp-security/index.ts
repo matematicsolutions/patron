@@ -14,7 +14,15 @@ export {
 export { calculateRiskScore, decideAction, toThreatLevel, worstAction } from "./scorer";
 export { buildReport } from "./report";
 export { typosquatDetector, levenshtein } from "./detectors/typosquat";
-export { driftDetector, computeDefinitionHash } from "./detectors/drift";
+export {
+    driftDetector,
+    computeDefinitionHash,
+    computeLegacyDefinitionHash,
+    formatBaselineEntry,
+    parseBaselineEntry,
+    DRIFT_BASELINE_VERSION,
+    type ParsedBaselineEntry,
+} from "./detectors/drift";
 export { hiddenInstructionsDetector } from "./detectors/hidden-instructions";
 export { toolPoisoningDetector } from "./detectors/tool-poisoning";
 export {

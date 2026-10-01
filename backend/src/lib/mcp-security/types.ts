@@ -12,7 +12,7 @@
 /**
  * Kategoria zagrozenia wykrytego w definicji konektora MCP.
  * - typosquat: nazwa konektora myli sie z nazwa zatwierdzonego (atak phishing namespace)
- * - drift: hash opisu konektora/narzedzi rozni sie od poprzedniego ladowania
+ * - drift: hash definicji konektora (nazwy, opisy, schematy wejscia narzedzi) rozni sie od poprzedniego ladowania
  * - hidden_instructions: wzorce w description skierowane do LLM (jailbreak via tool description)
  * - tool_poisoning: opis prosi o uprawnienia poza inputSchema lub modyfikuje zachowanie systemu
  */
@@ -84,7 +84,10 @@ export interface McpDetector {
 export interface McpScanContext {
     /** Lista zatwierdzonych nazw konektorow Patrona (canonical) - referencja dla typosquat. */
     approvedNames: ReadonlySet<string>;
-    /** Mapa: serverName -> baseline hash (do detektora drift). Brak = pierwszy load. */
+    /**
+     * Mapa: serverName -> wpis baseline (do detektora drift). Brak = pierwszy load.
+     * Wpis `v2:<hex>` albo goly hex v1 sprzed ADR-0159 (migrowany przy starcie).
+     */
     driftBaseline: ReadonlyMap<string, string>;
 }
 
@@ -98,7 +101,10 @@ export interface McpServerScanResult {
     threatLevel: McpSeverity;
     /** Decyzja PATRON dla tego konektora. */
     action: McpAction;
-    /** Hash aktualny opisow (do zapisu jako nowy baseline, jezeli action!=denied). */
+    /**
+     * Wpis baseline dla aktualnej definicji, wersjonowany (`v2:<sha256>`, ADR-0159) -
+     * do zapisu jako nowy baseline, jezeli konektor zostal zarejestrowany.
+     */
     currentHash: string;
 }
 

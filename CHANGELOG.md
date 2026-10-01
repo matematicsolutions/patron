@@ -23,6 +23,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ### Naprawione
 
+- **Detektor dryfu bramy MCP nie widzial zmian schematu wejscia narzedzi.** Hash baseline
+  obejmowal nazwy i opisy, wiec konektor - takze bundlowany - mogl dopisac narzedziu
+  parametr (np. `token`) bez zadnego sygnalu. Hash obejmuje teraz `inputSchema` (ta sama
+  formula co hash zatwierdzenia Operatora). Wpisy baseline sa wersjonowane: stary wpis
+  migruje sie przy pierwszym starcie tylko wtedy, gdy nazwy i opisy sie nie zmienily (slad
+  w audycie), a prawdziwy dryf z okna aktualizacji dalej blokuje konektor. Aktualizacja nie
+  zamienia wiec kazdego konektora w `human_review`.
+  [ADR-0159](./governance/adr/0159-detektor-dryfu-obejmuje-schemat-wejscia.md).
 - **Pasek perymetru opisywal model chmurowy jako lokalny.** Plakietka `(lokalny)` przy
   nazwie modelu zapalala sie od `PATRON_LOCAL_MODEL` z konfiguracji, czyli od tego, ze
   gdziekolwiek ustawiono model lokalny - a nie od tego, ktory model jest wybrany. Przy
