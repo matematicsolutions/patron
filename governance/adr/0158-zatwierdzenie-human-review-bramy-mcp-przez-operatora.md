@@ -143,12 +143,14 @@ Dla kancelarii po aktualizacji to brak wykonalnej sciezki. Dodane:
 
 - `GET /connectors/:name/gateway` i `POST /connectors/:name/gateway-approval`, obie z
   `requireAuth` + `requireAdmin` (straznik strukturalny w `gateway-approval.test.ts`);
-- serwer przyjmuje tylko `hash` i `origin` rowne biezacemu skanowi w procesie (skan
-  uruchamiany na zadanie, gdy panel otwarto przed pierwszym czatem) - inaczej 409
-  `stale_definition`; `denied` i konektor niczego nieoczekujacy - 409;
+- serwer przyjmuje tylko `hash` i `origin` rowne biezacemu skanowi w procesie (gdy panel
+  otwarto przed pierwszym czatem, skan rusza w chwili zapytania panelu) - inaczej 409
+  `stale_definition`; decyzja `denied` albo konektor, ktory nie czeka na zatwierdzenie -
+  takze 409;
 - decyzja do lancucha audytu PRZED zapisem nakladki, fail-closed: istniejacy
   `mcp_security.gateway` z `operator_approval.source = "operator_ui"`, `approval_origin` i
-  `actor_user_id` Operatora - bez nowego `event_type`, piec luster bez zmian;
+  `actor_user_id` Operatora - bez nowego `event_type`, wiec piec lustrzanych list `event_type`
+  (AGENTS.md, Mirrors #1) zostaje bez zmian;
 - zapis przez `operator-overlay.ts` (ta sama procedura co przelacznik pickera: atomowo,
   `.bak`, tryb pliku); zatwierdzenie wchodzi w zycie po restarcie, a pozniejszy dryf
   definicji albo pochodzenia znow blokuje (`resolveOperatorApproval` przy starcie).

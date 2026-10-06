@@ -1,6 +1,7 @@
 # ADR-0156 - Jedno otwarcie PDF-a w ingescie i realne odsuniecie indeksacji za odpowiedz
 
-- **Status:** Przyjety (wdrozony 2026-09-09, galaz `claude/ecstatic-grothendieck-14737e`)
+- **Status:** Przyjety (wdrozony 2026-09-09, scalony na main 2026-10-06
+  w `9eb6031`)
 - **Data:** 2026-09-09
 - **Galaz:** linia release 2.0.0
 - **Zrodlo:** sprawa pozostawiona otwarta w ADR-0153 ("Czego ten ADR NIE mowi") - upload
@@ -10,7 +11,7 @@
   Markdown/OCR), ADR-0019 / ADR-0020 / ADR-0055 (skan input-security w ingescie),
   ADR-0054 (indeksacja hybrid retrieval), ADR-0056 (import Folderu Sprawy),
   ADR-0071 (zakaz pobierania wag modelu bez zgody Operatora)
-- **KOLIZJA Z ADR-0154 - ROZSTRZYGNIETA PRZEZ SCALENIE (2026-09-09).** Rownolegla galaz
+- **Kolizja z ADR-0154 - rozstrzygnieta przez scalenie (2026-09-09).** Rownolegla galaz
   `claude/bold-jennings-9d003b` (ADR-0154) tworzyla **ten sam plik**
   `backend/src/lib/retrieval/index-queue.ts` z innym API i innym limitem. Rozbieznosc nie
   byla nazewnicza: ADR-0154 przyjmowal, ze `void indexDocument(...)` bylo sluszne, bo
@@ -113,7 +114,7 @@ zablokowana petla zdarzen nie obsluguje **nikogo**, wiec rownolegle zadania pada
 outline }`. `extractPdfText()` zostaje jako cienka nakladka dla wolajacych, ktorych struktura
 nie interesuje (czat, narzedzia agenta). Warstwa konwersji (ADR-0074) niesie te metadane
 dalej w `ConvertResult.pdf`, a `ingestDocument` lapie je w punkcie wstrzykniecia zaleznosci -
-dzieki temu przezywaja wyjatek z galezi OCR (skan ma strony, choc konwersja moze paść).
+dzieki temu przezywaja wyjatek z galezi OCR (skan ma strony, choc konwersja moze pasc).
 
 Powodem nie jest oszczednosc czasu - ta jest mala i pomiar to pokazuje. Powodem jest to, ze
 byly to **trzy kopie wiedzy "jak otworzyc ten PDF"**, kazda z wlasnym `catch`, kazda mogaca
@@ -134,9 +135,8 @@ zwrocila, czysta funkcja `buildStructureTree()` bez I/O.
   byla rowna liczbie plikow w katalogu. To wklad ADR-0154 wraz z pomiarem wartosci: limit 1
   kosztuje +32% czasu importu, limit 2 +6%, przy identycznym szczycie pamieci.
 
-To NIE czyni indeksacji nieblokujaca: praca dalej zajmuje watek, gdy juz ruszy. Przenosi
-granice - odpowiedz wychodzi przed nia, nie po niej. Zdjecie jej z watku (worker_threads)
-to osobna decyzja.
+Indeksacja nie staje sie przez to nieblokujaca - granice i ryzyko zdjecia jej z watku opisuje
+"Czego ten ADR NIE mowi".
 
 **2a. Dwa rezimy pomiaru - i dlaczego oba ADR-y mialy racje.**
 Pomiar w tym ADR-ze szedl przy **wylaczonej warstwie wektorowej** (wag `e5-small` nie bylo
@@ -149,7 +149,7 @@ obalal drugiego; kazdy widzial polowe.
 
 **3. Bramka liczy OTWARCIA DOKUMENTU, nie sekundy.**
 `documentIngest.pdfjs.test.ts` mockuje modul pdfjs i sprawdza, ze jeden ingest wola
-`getDocument()` **dokladnie raz** oraz ze `page_count` i `structure_tree` sa nadal komplet.
+`getDocument()` **dokladnie raz** oraz ze `page_count` i `structure_tree` sa nadal kompletne.
 Na kodzie sprzed tej zmiany test daje `expected 3 to be 1`. Deterministyczny, offline, bez
 zegara - z tego samego powodu, dla ktorego ADR-0153 nie postawil progu pamieciowego w CI.
 
@@ -167,7 +167,7 @@ ktora dziala po utrwaleniu, nie jest bramka (ADR-0019 / ADR-0020 / ADR-0055).
   odsuwajacy indeksacji - zmierzone, 100%) i nazywa dwie sciezki, ktorych na tej maszynie
   zmierzyc nie mozna (embedder bez wag, OCR bez oryginalnego pliku). Domkniecie wymaga albo
   zgody Operatora na wagi modelu, albo tego jednego PDF-a.
-- **Nie czyni indeksacji nieblokujaca.** Przenosi granice: odpowiedz wychodzi **przed** nia,
+- **Nie czyni indeksacji nieblokujacej.** Przenosi granice: odpowiedz wychodzi **przed** nia,
   nie po niej. Gdy zadanie juz ruszy, dalej zajmuje watek. Zdjecie go z watku
   (`worker_threads`) to osobna decyzja i osobne ryzyko (better-sqlite3, singleton polaczenia).
 - **Nie dodaje statusu "indeksowanie" do dokumentu.** Zmienia sie obserwowalne: dokument
@@ -183,7 +183,8 @@ ktora dziala po utrwaleniu, nie jest bramka (ADR-0019 / ADR-0020 / ADR-0055).
 - Ingest PDF-a otwiera dokument raz zamiast trzech razy. Na mierzonym materiale to 0,1-0,4 s
   na dokument - malo; wartoscia jest jedno miejsce, w ktorym zyje wiedza "jak czytamy PDF".
 - Ingest DOCX parsuje plik raz zamiast dwoch (znika `mammoth` z ingestu).
-- Import Folderu Sprawy indeksuje po jednym dokumencie naraz zamiast wszystkich naraz.
+- Import Folderu Sprawy indeksuje najwyzej `INDEX_CONCURRENCY` dokumentow naraz (domyslnie 2)
+  zamiast wszystkich naraz.
 - Odpowiedz HTTP wychodzi przed indeksacja. Testy dotykajace indeksu musza teraz czekac na
   `flushIndexQueue()` - dopisane w `documentIngest.test.ts` i w nowej bramce; bez tego
   `afterAll` zamykalby SQLite pod trwajacym zadaniem.

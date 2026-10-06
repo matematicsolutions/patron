@@ -1,8 +1,8 @@
 # ADR-0154 - Kolejka indeksacji w tle: rownoleglosc jako wielkosc projektowana, nie wypadkowa
 
-- **Status:** Proponowany, **w czesci mechanizmu zastapiony przez ADR-0156** (scalenie
-  2026-09-09). W mocy zostaje pomiar i wartosc limitu; sama kolejka opisana jest w ADR-0156.
-  Review tresci: runda 1 marko-PL wykonana, runda 2 PENDING - AGENTS.md wymaga dwoch.
+- **Status:** Zaakceptowany (wdrozony 2026-10-06), **w czesci mechanizmu zastapiony przez
+  ADR-0156** (scalenie 2026-09-09). W mocy zostaje pomiar i wartosc limitu; sama kolejka
+  opisana jest w ADR-0156. Review tresci: patrz "Bramki PRZED merge".
 - **Data:** 2026-09-09
 - **Galaz:** linia release 2.0.0
 - **Zrodlo:** obserwacja zapisana w ADR-0153 ("Czego ten ADR NIE mowi") - `void indexDocument()`
@@ -19,14 +19,14 @@ void indexDocument(docId, scanText).catch(...)
 ```
 
 Intencja byla sluszna - embedding trwa dziesiatki sekund, a dokument jest juz utrwalony
-i `ready`, wiec odpowiedz HTTP nie ma na co czekac (ADR-0056). **Ale ten zapis intencji nie
-realizowal, i pierwsza wersja tego ADR-a myslila inaczej.** ADR-0156 zmierzyl, ze `void`
-nie odsuwa niczego, gdy warstwa wektorowa jest wylaczona: `indexDocument` nie ma wtedy ani
-jednego punktu oddania sterowania, wiec wykonuje sie w calosci przed odpowiedzia. Sprawdzone
-przy scalaniu na obu implementacjach - semafor sam tego nie naprawia, dopiero `setImmediate`.
-Mechanizm nalezy wiec do ADR-0156. Ten ADR odpowiada za druga wade: **nikt nie ograniczal
-liczby takich zgloszen naraz**. `ingestFolder` (Folder
-Sprawy, ADR-0056) idzie rekurencyjnie po wszystkich plikach katalogu i dla kazdego wola
+i `ready`, wiec odpowiedz HTTP nie ma na co czekac (ADR-0056). **Zapis tej intencji nie
+realizowal.** ADR-0156 zmierzyl, ze `void` nie odsuwa niczego, gdy warstwa wektorowa jest
+wylaczona: `indexDocument` nie ma wtedy ani jednego punktu oddania sterowania, wiec wykonuje
+sie w calosci przed odpowiedzia. Przy scalaniu sprawdzono to na obu implementacjach: semafor
+sam tego nie naprawia, naprawia dopiero `setImmediate`. Dlatego mechanizm odsuniecia opisuje
+ADR-0156. Ten ADR odpowiada za druga wade: **nikt nie ograniczal liczby takich zgloszen
+naraz**. `ingestFolder` (Folder Sprawy, ADR-0056) idzie rekurencyjnie po wszystkich plikach
+katalogu i dla kazdego wola
 `ingestDocument`, wiec liczba rownoczesnych indekserow byla rowna liczbie plikow w folderze.
 
 To ta sama klasa wady co w ADR-0153, o pietro wyzej: tam nieograniczony byl rozmiar wsadu
@@ -140,11 +140,11 @@ bo zaden wniosek uzyty w decyzji nie zalezy od roznicy rzedu kilku procent.
 nie-embeddingowych indeksacji (chunking, encje, graf, zapisy SQLite). Przy limicie 2
 koszt to +6% czasu importu i +4% czasu odpowiedzi, a szczyt pamieci jest ten sam.
 
-**2. Wolajacy dalej nie czeka - i po scaleniu naprawde nie czeka.**
+**2. Wolajacy nie czeka na indeksacje.**
 `scheduleIndexing(docId, text)` wraca natychmiast, a praca rusza dopiero w nastepnej fazie
-petli zdarzen (`setImmediate`, ADR-0156). Pierwsza wersja tego ADR-a twierdzila, ze sam
-brak `await` wystarcza; nie wystarczal. Kontrakt ADR-0056 jest teraz pilnowany bramka, ktora
-sprawdza kolejnosc, a nie tylko to, czy funkcja wrocila.
+petli zdarzen (`setImmediate`, ADR-0156). Sam brak `await` tego nie zapewnia - pierwsza
+wersja tego ADR-a twierdzila inaczej, pomiar w ADR-0156 to obalil. Kontrakt ADR-0056 pilnuje
+bramka, ktora sprawdza kolejnosc, a nie tylko to, czy funkcja wrocila.
 
 **3. Limit siedzi w kolejce, nie w `ingestFolder`.** Z tego samego powodu, dla ktorego
 ADR-0153 polozyl limit paczki w `embed()`, a nie w indekserze: dzis jedynym wolajacym "w tle"
@@ -186,7 +186,8 @@ odrzucone", i obowiazuje bez zmian.
   Osobny ADR, i pilniejszy niz ten.
 - **Nie daje kolejki trwalej.** Zamkniecie aplikacji w trakcie importu zostawia dokumenty
   utrwalone i `ready`, ale niezaindeksowane - po cichu, bez sladu i bez sciezki naprawy
-  (w repo nie ma dzis zadnego endpointu ponownej indeksacji). Ta wada istniala przed ta
+  (w dniu decyzji repo nie mialo zadnego endpointu ponownej indeksacji). Ta wada istniala
+  przed ta
   poprawka i istnieje po niej; kolejka jedynie wydluza okno, w ktorym moze wystapic.
   Rozwiazanie (tabela zadan + wznowienie + widoczny postep) to osobna decyzja.
 - **Nie stawia progu pamieciowego w CI.** Uzasadnienie z ADR-0153 obowiazuje bez zmian,
@@ -204,13 +205,14 @@ odrzucone", i obowiazuje bez zmian.
 - **Bilans tej zmiany zalezy od pracy, ktora nie jest zaplanowana.** Dzisiejszy sufit 4-5
   bierze sie z tego, ze inferencja glodzi petle `ingestFolder`. Zdjecie konwersji z watku
   glownego - jedyna znana naprawa 23-minutowej odpowiedzi - to sprzezenie usunie i nawal
-  urosnie do liczby plikow w folderze. Ta naprawa nie ma dzis ani numeru ADR, ani
-  wlasciciela, ani terminu. Jezeli nigdy nie powstanie, ten ADR zostawia produkt z
+  urosnie do liczby plikow w folderze. W dniu decyzji (2026-09-09) ta naprawa nie miala ani
+  numeru ADR, ani wlasciciela, ani terminu. Jezeli nigdy nie powstanie, ten ADR zostawia
+  produkt z
   granica zapisana zamiast przypadkowej i rachunkiem +6%. Tyle. Nazywamy to wprost, zeby
   nikt nie czytal tej zmiany jako zysku, ktory juz zostal zainkasowany.
 - **`PATRON_INDEX_CONCURRENCY` daje Operatorowi dzwignie** na slabszej maszynie (nizej =
   mniej rownoczesnej pracy, wolniej) bez przebudowy instalatora - analogicznie do
-  `PATRON_EMBED_BATCH` z ADR-0153. Wartosc bezsensowna spada do domyslnej.
+  `PATRON_EMBED_BATCH` z ADR-0153. Wartosc nieliczbowa albo mniejsza niz 1 spada do domyslnej.
 - **Kazdy przyszly wolajacy "w tle" dostaje limit za darmo**, bo drzwiami do indeksacji jest
   `scheduleIndexing`, nie `indexDocument`. Watcher Folderu Sprawy, ponowna indeksacja
   korpusu przy zmianie modelu i import paczki wiedzy (ADR-0140) beda z tego korzystac,
@@ -235,8 +237,9 @@ odrzucone", i obowiazuje bez zmian.
   klonie ta kontrola jest pomijana jawnie).
 - **Bramka publikacyjna** na tresci commita: 0 hard / 0 warn.
 - **Zero nowych zaleznosci npm.** LoC: 117 (kolejka) + 335 (dwa pliki testowe) + 11 (szew).
-- **Review tresci**: runda 1 (marko-PL) wykonana, osiem zarzutow naniesionych - w tym
-  przemilczenie, ze zmiana pogarsza czas odpowiedzi HTTP. **Runda 2 PENDING.**
+- **Review tresci**: runda 1 (marko-PL) przed merge, osiem zarzutow naniesionych - w tym
+  przemilczenie, ze zmiana pogarsza czas odpowiedzi HTTP. Runda 2 po scaleniu, przed
+  publikacja (2026-10-06).
 
 ## Alternatywy odrzucone
 
@@ -261,8 +264,8 @@ limicie 2, przy identycznym szczycie pamieci. Limit 1 zostaje dostepny przez
 jest domyslny, bo domyslna ma byc wartosc zmierzona, nie wartosc, ktora brzmi bezpiecznie.
 
 **Zostawienie stanu jak byl (sam pomiar, zero zmian w kodzie).** Najmocniejsza z odrzuconych
-i jedyna, ktora warto rozwazyc ponownie przy drugiej rundzie review: skoro warunek ze
-zlecenia - "jesli pomiar potwierdzi narost" - nie zostal spelniony, konsekwentnym wynikiem
+i jedyna, ktora warto rozwazyc ponownie: skoro warunek
+postawiony przed pomiarem - "jesli pomiar potwierdzi narost" - nie zostal spelniony, konsekwentnym wynikiem
 bylby zapis pomiaru bez zmiany kodu. Wybrano zmiane, bo brak narostu nie wynika z granicy
 w kodzie, tylko z przypadkowego sprzezenia. Wazac te dwie racje trzeba pamietac, ze druga
 z nich jest warta tyle, ile praca opisana w "Konsekwencjach" jako niezaplanowana.

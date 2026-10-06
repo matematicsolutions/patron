@@ -1,6 +1,7 @@
 # ADR-0153 - Limit paczki embeddera: rozmiar wsadu do modelu jako granica pamieci procesu
 
-- **Status:** Przyjety (wdrozony 2026-09-09, galaz `claude/zen-pascal-f32559`)
+- **Status:** Przyjety (wdrozony 2026-09-09, scalony na main 2026-10-06
+  w `9eb6031`)
 - **Data:** 2026-09-09
 - **Galaz:** linia release 2.0.0
 - **Zrodlo:** zgloszenie Operatora - aplikacja po dwoch dniach ciaglej pracy zajmowala
@@ -11,9 +12,8 @@
 
 ## Kontekst
 
-Kancelaria nie zamyka narzedzia na noc. To nie jest hipoteza o uzytkowniku - to zmierzony
-tryb pracy: instancja Operatora chodzila od 2026-09-07, godz. 12:23, przez dwa dni. W tym czasie
-laczny commit szesciu procesow doszedl do 18 050 MB, a `pagefile.sys` do 41 GB przy
+Kancelaria nie zamyka narzedzia na noc. Zmierzylismy to, nie zalozylismy: instancja Operatora
+chodzila od 2026-09-07, godz. 12:23, przez dwa dni. W tym czasie laczny commit szesciu procesow doszedl do 18 050 MB, a `pagefile.sys` do 41 GB przy
 31,7 GB RAM. Po zamknieciu i ponownym uruchomieniu: 385 MB lacznie.
 
 Rozklad byl nierowny i to on wskazal kierunek. Proces z oknem mial 76 MB. Winowajca byl
@@ -28,8 +28,8 @@ pomocnicze Chromium maja `--type=`, nasze dwa serwery nie maja. Winowajca byl ba
 
 ## Pomiar (2026-09-09)
 
-Przyczyne ustalil pomiar, nie lektura kodu - i to jest tresc tego ADR-a rownie wazna jak
-sama poprawka. **Trzy pierwsze hipotezy, wszystkie wiarygodne z lektury, okazaly sie falszywe:**
+Przyczyne ustalil pomiar, nie lektura kodu, i ta lekcja jest czescia decyzji: trzy pierwsze
+hipotezy, wszystkie wiarygodne z lektury, okazaly sie falszywe.
 
 | Hipoteza | Weryfikacja | Wynik |
 |---|---|---|
@@ -92,23 +92,26 @@ pamieciowego w CI nie stawiamy swiadomie - patrz alternatywy odrzucone.
   celowo roznych dlugosciach (40-910 znakow, czyli maksymalny padding w duzej paczce),
   policzone raz jednym wsadem i raz paczkami po 16. **Maksymalna roznica na wspolrzednej: 0.**
   Wymiar, model i prefiksy e5 bez zmian, re-index niepotrzebny.
-- **Nie jest optymalizacja wydajnosci**, choc nia przy okazji jest: paczkowanie po 16 jest
-  SZYBSZE (103 s vs 183 s na 400 chunkach), bo jedna gigantyczna paczka jest paddowana do
+- **Nie wynika z wydajnosci**, choc ja poprawia: paczkowanie po 16 jest szybsze (103 s vs
+  183 s na 400 chunkach), bo jedna gigantyczna paczka jest paddowana do
   najdluzszej sekwencji i liczy mase pustych tokenow. Gdyby bylo wolniejsze, i tak nalezaloby
   je wziac.
 - **Nie zamyka drugiej usterki ujawnionej przy pomiarze.** Upload jednego PDF na 200 stron
   blokuje odpowiedz HTTP przez ~290 s (synchroniczna konwersja do Markdown w watku backendu),
   przez co rownolegle zadania koncza sie bledem. To wada UX, nie pamieciowa; osobna sprawa.
+  Ciag dalszy: ADR-0156.
 - **Nie rusza `void indexDocument()`** w `documentIngest.ts`. Indeksacja leci w tle bez
   `await`, wiec przy imporcie folderu kilka indekserow moze zyc naraz, kazdy trzymajac pelny
   tekst swojego dokumentu. Po tej poprawce arena jest wspolna i ograniczona, wiec ryzyko
-  spadlo z GB do MB - ale kolejkowanie indeksacji zostaje do rozwazenia osobno.
+  spadlo z GB do MB - ale kolejkowanie indeksacji zostaje do rozwazenia osobno. Ciag dalszy:
+  ADR-0154.
 
 ## Konsekwencje
 
 - Szczyt pamieci backendu przestaje zalezec od wielkosci dokumentu. Byl liniowy
   (~10 MB na chunk), jest staly (~1,4 GB w trakcie indeksacji, ~725 MB po niej).
-- Kancelaria moze trzymac PATRON otwartego przez tydzien. To byl warunek uzywalnosci, nie
+- Kancelaria moze trzymac PATRON otwartego przez tydzien - to wniosek z niezaleznosci szczytu
+  od wielkosci dokumentu, nie pomiar tygodniowej sesji. To byl warunek uzywalnosci, nie
   ulepszenie: aplikacja zjadajaca 17,6 GB u klienta z dluga sesja jest ryzykiem wydania 2.0.0.
 - `PATRON_EMBED_BATCH` daje Operatorowi dzwignie na slabszej maszynie (nizej = mniej pamieci,
   wolniej) bez przebudowy instalatora.

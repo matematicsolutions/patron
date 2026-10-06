@@ -7,20 +7,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ## [Unreleased]
 
-### Zmienione
-
-- **Liczba rownoczesnych indeksacji ma gorna granice** (domyslnie 2,
-  `PATRON_INDEX_CONCURRENCY`) - wczesniej import Folderu Sprawy wypuszczal jeden indekser
-  na kazdy plik w katalogu, bez ograniczenia. Dla Operatora import 30 akt po 50 stron trwa
-  o 6% dluzej; zuzycie pamieci jest takie samo. **Nie jest to naprawa wycieku pamieci** -
-  pomiar zadnego nie znalazl, szczyt to ~1,40 GB niezaleznie od liczby plikow i od liczby
-  indekserow. Limit 1 odrzucony pomiarem (+32% czasu importu). Powod, dla ktorego mimo to
-  warto, oraz pelne dane:
-  [ADR-0154](./governance/adr/0154-kolejka-indeksacji-w-tle-rownoleglosc.md).
-
 ### Naprawione
 
-- **Scalenie galezi poprawek z kursu (fix/kurs-aies-fala1) z linia po audycie.**
+- **Scalenie galezi poprawek z kursu AIES (`fix/kurs-aies-fala1`) z `main` po audycie.**
   Wiekszosc poprawek obie galezie zrobily niezaleznie (maskowanie tytulu i draftu,
   czesciowe wykonanie karty, wynik MCP pod input-security, obraz w odpowiedzi) -
   zostaje wersja z main, na ktorej stoja testy audytu; jeden renderer markdown.
@@ -42,11 +31,11 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
     drugie zdarzenie `mcp_security.gateway` z `operator_approval.status = "write_failed"` -
     nie pokazuje juz zatwierdzenia, ktore nie weszlo w zycie. Bez nowego `event_type`.
   - `rodo:delete` na desktopie odmawia pracy (kod 2), gdy na porcie backendu dziala
-    PATRON - dwa procesy dopisujace dziennik naraz moglyby rozwidlic lancuch. Wymog
+    Patron - dwa procesy dopisujace dziennik naraz moglyby rozwidlic lancuch. Wymog
     "zamknij aplikacje" nie jest juz tylko zdaniem w instrukcji.
 
 - **Decyzje wlasciciela produktu (2026-10-06).**
-  - Karty zatwierdzen (ADR-0137) WLACZONE DOMYSLNIE dla edit_document, generate_docx,
+  - Karty zatwierdzen (ADR-0137) wlaczone domyslnie dla edit_document, generate_docx,
     add_comments, replicate_document i remember; wylacznik `PATRON_MUTATION_APPROVAL=false`.
     Czat pokazuje "akcja czeka na zatwierdzenie" z linkiem do skrzynki (zdarzenie SSE
     `mutation_staged`). Nieudany zapis karty nie przerywa tury.
@@ -57,7 +46,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
     (`gatewayApproval` z hash + origin w nakladce); jedno zatwierdzenie wystarcza do
     wywolan w Ring 2. "Sprawdz powolania" pokazuje stan `gateway_pending` z gotowym wpisem;
     baner i panel konektorow pokazuja "czeka na zatwierdzenie" zamiast alarmu (B-08).
-    UWAGA przy aktualizacji: istniejacy konektor 3rd-party z samym `operatorApproved`
+    **Uwaga przy aktualizacji:** istniejacy konektor 3rd-party z samym `operatorApproved`
     wymaga zatwierdzenia - Operator robi to w panelu "Konektory prawa" przyciskiem
     "Przejrzyj i zatwierdz" (zastrzezenia bramy na ekranie, decyzja w lancuchu audytu,
     restart). Reczny wpis `gatewayApproval` w nakladce dalej dziala.
@@ -68,7 +57,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
   bramy, hash definicji, odcisk pochodzenia) i `POST /connectors/:name/gateway-approval`.
   Serwer przyjmuje tylko hash i odcisk rowne biezacemu skanowi (inaczej 409
   `stale_definition`), `denied` nie do zatwierdzenia, decyzja idzie do lancucha audytu
-  PRZED zapisem nakladki (`mcp_security.gateway`, `operator_approval.source=operator_ui`,
+  przed zapisem nakladki (`mcp_security.gateway`, `operator_approval.source=operator_ui`,
   aktor = Operator; bez nowego `event_type`). Zapis ta sama procedura co przelacznik
   pickera (atomowo, `.bak`, tryb pliku). Pozniejszy dryf definicji albo pochodzenia znow
   blokuje.
@@ -91,14 +80,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
   ignoruje przekierowanie `APPDATA`, wiec kazdy przebieg `e2e:smoke` pisal do profilu
   roboczego maszyny. Teraz `PATRON_E2E=1` + `PATRON_USER_DATA_DIR`, a e2e sprawdza, ze baza
   powstala w profilu testu i ze profil roboczy jest nietkniety.
-  - Eksport audytu i pakiet dowodowy wydaja wpis zanonimizowany na podstawie RODO art. 17
-    ze znacznikiem `legal_break` i dolaczona deklaracja; weryfikatory w archiwum maja trzeci
-    werdykt "OK - zerwanie z mocy prawa", kod wyjscia 3. Deklaracja w starym formacie nadal
-    blokuje eksport (409 z `legal_break.status`).
-  - Projekt zmiany Art. 5 Konstytucji (docs/PROJEKT_KONSTYTUCJA_ART5_2026-10.md) i nota dla
-    uzytkownikow (docs/NOTA_WYDANIA_2026-10.md) - do decyzji i podpisu.
+- Eksport audytu i pakiet dowodowy wydaja wpis zanonimizowany na podstawie RODO art. 17
+  ze znacznikiem `legal_break` i dolaczona deklaracja; weryfikatory w archiwum maja trzeci
+  werdykt "OK - zerwanie z mocy prawa", kod wyjscia 3. Deklaracja w starym formacie nadal
+  blokuje eksport (409 z `legal_break.status`).
+- Projekt zmiany Art. 5 Konstytucji (docs/PROJEKT_KONSTYTUCJA_ART5_2026-10.md) i nota dla
+  uzytkownikow (docs/NOTA_WYDANIA_2026-10.md) - do decyzji i podpisu.
 
-- **Czwarta fala napraw.** Odcisk pochodzenia konektora MCP (komenda/host) w baseline -
+- **Czwarta seria poprawek.** Odcisk pochodzenia konektora MCP (komenda/host) w baseline -
   podmiana komendy konektora o zaufanej nazwie daje human_review; Ring 1 tylko dla
   konektora z pliku instalatora, wpis nakladki pod zaufana nazwa to Ring 2 (B-06,
   R-MCP-01; zatwierdzenie Operatora moze niesc `origin`). Podpis skilla bez weryfikacji
@@ -108,10 +97,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
   na AST (wrappery, importy namespace/dynamiczne, komentarze). Komunikaty bramy MCP
   wskazuja nakladke Operatora (R-MCP-06).
 
-- **Trzecia fala napraw (przeglad 2026-10-02).** Logi bez nazw plikow i sciezek (R-CC-06);
+- **Trzecia seria poprawek (przeglad 2026-10-02).** Logi bez nazw plikow i sciezek (R-CC-06);
   jawny sygnal zgubionych przypisow i awarii konektora MCP zamiast ciszy (D-14, D-07);
   karta zatwierdzenia z chat_id i slad wstrzymania w audit_log (C-09); pamiec osobista
-  per uzytkownik (B-05); read-time guard input-security w search_corpus, wyniku MCP
+  per uzytkownik (B-05); straznik input-security przy odczycie w search_corpus, wyniku MCP
   i recall w trybie enforce (B-12, B-03); `replicate_document` i `remember` przez bramke
   kart zatwierdzen (B-04); panel draftu wysyla model rozmowy i sprawe, `/draft/refine`
   bez modelu = 400 i sprawdza dostep do sprawy (A-05); workflow karny osiagalny z UI
@@ -129,7 +118,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 - **Kanaly wycieku bez klikniecia (A-20, A-22, A-23).** Obrazy w markdown z odpowiedzi
   modelu nie sa ladowane (wspolny SafeMarkdown, linki tylko http/https/mailto). Backend
   w trybie SQLite odrzuca obcy naglowek Host (421) i zadania zmieniajace stan z obcym
-  Origin (403); bypass logowania tylko dla polaczen z loopback
+  Origin (403); pominiecie logowania tylko dla polaczen z loopback
   (`PATRON_SQLITE_TRUST_NETWORK` jako swiadoma furtka). docker-compose startuje backend
   w trybie Supabase.
 - **"Sprawdz powolania" (przeglad 2026-10-02).** Do weryfikatora wychodza tylko sygnatury
@@ -137,8 +126,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
   sprawy - nie); nota o prywatnosci mowi dokladnie, co wychodzi. Narzedzia weryfikatora
   nie sa narzedziami czatu (koniec trybu `text` z calym pismem). Znieksztalcona odpowiedz
   serwera nie wywraca backendu; niewyslane powolanie nie zmienia sie w zielone.
-- **Bramka pre-push / publikacji.** Sprawdza deny_paths w zakresie publikacji, rename'y
-  i tresc merge'a, tresc tagow i nazwy refow; blad gita blokuje zamiast przepuszczac;
+- **Bramka pre-push / publikacji.** Sprawdza deny_paths w zakresie publikacji, zmiany
+  nazw plikow i tresc commitow scalenia, tresc tagow i nazwy refow; blad gita blokuje zamiast przepuszczac;
   remote z publicznym `pushurl` i prywatnym `url` nie uchodzi za stan publiczny.
 - **Audyt tury czatu.** llm_route niesie chat_id, nazwy wywolanych narzedzi (bez
   argumentow) i wynik tury; tura zakonczona bledem providera zostawia slad (C-01..C-03).
@@ -152,13 +141,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
   a detektor przepuszczal wiekszosc nazwisk. Domyslna wartosc to teraz `false`; zgoda dla
   konkretnej sprawy idzie przelacznikiem w ustawieniach sprawy (ADR-0128). Bramka
   `desktop/scripts/egress-defaults-gate.test.cjs` w `prepare:resources` i `build`.
-  Notatka w ADR-0101; Konstytucja Art. 5 wymaga aktualizacji (decyzja WM).
+  Notatka w ADR-0101; Konstytucja Art. 5 wymaga aktualizacji (decyzja wlasciciela produktu).
 - **"Zapomnij sprawe" (RODO art. 17) nie udaje sukcesu i usuwa tresc wyprowadzona z akt.**
   Usuwa tez przeglady tabelaryczne spoza sprawy z jej dokumentami, czaty ogolne
-  z zalacznikami z jej akt i karty zatwierdzen z trescia akt. Czaty INNYCH spraw sa
+  z zalacznikami z jej akt i karty zatwierdzen z trescia akt. Czaty innych spraw sa
   liczone w raporcie, nie kasowane. Plik zablokowany przez inny program albo blad bazy
   daja 500 z lista niepowodzen; raport liczy tylko faktycznie usuniete elementy (D-03..D-06).
-- **Skrypt RODO a lancuch audytu.** Deklaracja `audit.chain.legal_break` zapisuje sie PRZED
+- **Skrypt RODO a lancuch audytu.** Deklaracja `audit.chain.legal_break` zapisuje sie przed
   anonimizacja, w porcjach (bez obcinania do 500), z hashem kazdego wiersza po zerwaniu;
   weryfikator traktuje zmiane tresci zanonimizowanego wiersza jako BLOKADE. Blad zapisu
   deklaracji przerywa skrypt z kodem bledu zamiast "OK".
@@ -172,7 +161,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
   usunac przypis, pole albo hiperlacze, jest odrzucana jawnym bledem. Edycja nie przepisuje
   juz tekstu wygladajacego jak liczba w calym dokumencie ("0012" -> "12"). Czesciowe
   wykonanie karty zatwierdzenia jest widoczne na karcie, w audycie (liczby) i w UI.
-- **Tabular review.** Model lokalny nie wywraca procesu backendu. Skan bez warstwy tekstu
+- **Przeglad tabelaryczny.** Model lokalny nie wywraca procesu backendu. Skan bez warstwy tekstu
   bierze tekst z OCR (jak czat), a gdy go brak - komorka ma blad zamiast "Not Found"
   ze statusem gotowe. Dokument dluzszy niz limit niesie jawny znacznik obciecia.
   Nieudane wywolanie modelu zostawia slad `llm_route`.
@@ -188,7 +177,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
   pola nakladki walidowane; zapis nie poszerza uprawnien pliku; zly wpis baseline daje
   drift/high zamiast wywrocenia czatu.
 
-- **Aktualizacja PATRONa kasowala ustawienia konektorow (ADR-0166).** Instalator przy
+- **Aktualizacja Patrona kasowala ustawienia konektorow (ADR-0166).** Instalator przy
   aktualizacji usuwa katalog instalacji, a razem z nim `mcp-servers.json` - z konektorami
   dopisanymi przez Operatora (np. weryfikatorem powolan), ich zatwierdzeniem bramy i
   przelacznikami pickera. Ustawienia Operatora zyja teraz w nakladce
@@ -232,9 +221,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 - **Aktualizacja instalatora blokowalaby konektory, ktore sam instalator wozi.** Brama MCP
   porownywala definicje narzedzi z poprzednim startem, wiec pierwsze wydanie zmieniajace opis
-  albo schemat narzedzia konektora wozonego w instalatorze dawaloby kazdemu uzytkownikowi `human_review`.
-  Build zapisuje teraz manifest definicji wozonych konektorow (`bundled-definitions.json`);
-  definicja zgodna z manifestem przechodzi, a niezgodna - pliki zmienione po instalacji -
+  albo schemat narzedzia konektora wozonego w instalatorze dawaloby kazdemu uzytkownikowi
+  `human_review`. Build zapisuje teraz manifest definicji wozonych konektorow
+  (`bundled-definitions.json`); definicja zgodna z manifestem przechodzi, a niezgodna - pliki zmienione po instalacji -
   blokuje. Bramka paczki wymaga manifestu, ktory pokrywa wszystkie konektory edycji.
   [ADR-0162](./governance/adr/0162-manifest-definicji-bundlowanych-konektorow.md).
 - **Baner MCP Security mowil adminowi, ze brama jest wylaczona, gdy dzialala.** Tryb na
@@ -266,7 +255,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
   usuniecie weryfikator widzi jako BLOKADE. Dotad usuniecie takiego ogniwa bylo niewidoczne.
   [ADR-0161](./governance/adr/0161-straznik-lancucha-audytu-w-bazie-i-weryfikator-sqlite.md).
 - **Detektor dryfu bramy MCP nie widzial zmian schematu wejscia narzedzi.** Hash baseline
-  obejmowal nazwy i opisy, wiec konektor - takze bundlowany - mogl dopisac narzedziu
+  obejmowal nazwy i opisy, wiec konektor - takze wozony w instalatorze - mogl dopisac narzedziu
   parametr (np. `token`) bez zadnego sygnalu. Hash obejmuje teraz `inputSchema` (ta sama
   formula co hash zatwierdzenia Operatora). Wpisy baseline sa wersjonowane: stary wpis
   migruje sie przy pierwszym starcie tylko wtedy, gdy nazwy i opisy sie nie zmienily (slad
@@ -275,7 +264,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
   [ADR-0159](./governance/adr/0159-detektor-dryfu-obejmuje-schemat-wejscia.md).
 
 - **Aplikacja zostawiona otwarta na dwa dni zajmowala 17,6 GB pamieci.** Indekser RAG
-  oddawal embedderowi caly dokument w JEDNEJ paczce, wiec rozmiar wsadu do modelu byl
+  oddawal embedderowi caly dokument w jednej paczce, wiec rozmiar wsadu do modelu byl
   rowny liczbie fragmentow dokumentu - bez zadnej gornej granicy. onnxruntime alokuje
   aktywacje pod najwieksza widziana paczke i tej pamieci nie oddaje, wiec jedne duze akta
   na stale zajmowaly pamiec proporcjonalna do swojej objetosci (zmierzone: 100 fragmentow
@@ -284,20 +273,20 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
   procesu bez okna i `pagefile.sys` rosnacy do 41 GB. `embed()` tnie teraz wsad na paczki
   po 16 (`PATRON_EMBED_BATCH`), a arena onnxruntime jest wylaczona. Szczyt pamieci przestal
   zalezec od wielkosci dokumentu: na tym samym PDF 200 stron 9 791 MB przed poprawka wobec
-  1 405 MB po niej - i przy okazji o 44% szybciej. Kancelaria moze trzymac PATRON otwartego
-  przez tydzien. Jakosc retrievalu bez zmian, re-index niepotrzebny.
+  1 405 MB po niej - i przy okazji o 44% szybciej. Kancelaria moze trzymac Patrona otwartego
+  przez tydzien. Jakosc wyszukiwania bez zmian, ponowna indeksacja niepotrzebna.
   [ADR-0153](./governance/adr/0153-limit-paczki-embeddera-pamiec-procesu.md).
 - **Indeksacja dokumentu tylko udawala, ze leci w tle.** `void indexDocument(...)`
   nie odsuwal niczego: funkcja `async` bez punktu oddania sterowania wykonuje sie
-  synchronicznie do konca, wiec cala indeksacja (chunkowanie, graf encji, embedding)
+  synchronicznie do konca, wiec cala indeksacja (podzial na fragmenty, graf encji, embedding)
   siedziala w sciezce odpowiedzi HTTP - zmierzone 100% czasu przed oddaniem sterowania,
-  dla 1000 / 1595 / 4000 chunkow. Zablokowana petla zdarzen nie obsluguje nikogo, wiec
+  dla 1000 / 1595 / 4000 fragmentow. Zablokowana petla zdarzen nie obsluguje nikogo, wiec
   rownolegle zadania konczyly sie bledem polaczenia. Indeksacja idzie teraz kolejka,
   ktora startuje zadanie dopiero po wyslaniu odpowiedzi. Dokument wraca jako `ready`, gdy
   indeks moze byc jeszcze niegotowy. Gorna granica liczby rownoczesnych indeksacji -
   osobna sprawa, ponizej w "Zmienione".
   [ADR-0156](./governance/adr/0156-jedno-otwarcie-pdf-i-realne-odsuniecie-indeksacji.md).
-- **Ten sam PDF byl otwierany trzy razy w jednym ingescie** (tekst, drzewo struktury,
+- **Ten sam PDF byl otwierany trzy razy przy jednym imporcie** (tekst, drzewo struktury,
   liczba stron) - trzy kopie wiedzy "jak otworzyc ten dokument", kazda z wlasnym
   `catch`. Liczba stron i zakladki pochodza teraz z tego samego otwarcia co tekst;
   DOCX przestal byc przy okazji parsowany drugi raz. Bramka liczy otwarcia dokumentu,
@@ -311,10 +300,10 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
   domyslnym modelu chmurowym pasek pisal doslownie `MODEL
   openrouter/google/gemini-3-flash-preview (lokalny)` obok zielonego `Dane nie opuszczaja
   urzadzenia`. Plakietka zalezy teraz wylacznie od wyswietlanego modelu, a zielone
-  zapewnienie o danych wymaga zamknietej polityki egresu ORAZ lokalnego modelu w uzyciu;
+  zapewnienie o danych wymaga zamknietej polityki egresu oraz lokalnego modelu w uzyciu;
   zamknieta polityka przy modelu chmurowym ma wlasny napis `Chmura zablokowana - wybrany
-  model nie jest lokalny` w barwie ostrzezenia. Najglosniejszy sygnal zaufania produktu
-  przestaje wystawiac twierdzenie, ktorego nie sprawdza.
+  model nie jest lokalny` w barwie ostrzezenia. Pasek nie twierdzi juz niczego, czego nie
+  sprawdza.
   [ADR-0147](./governance/adr/0147-system-wizualny-2-0-i-perymetr.md), sekcja 3a.
 - **Przypis do dokumentu, ktorego nie ma, otwieral karte widma w panelu bocznym.**
   Gdy model przywolal `doc_id` spoza indeksu tury, adnotacja szla do bazy bez
@@ -326,7 +315,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
   Przy trafieniu w istniejaca karte lista zostawala przy starym identyfikatorze,
   a aktywny ustawiano na identyfikator obiektu, ktory do listy nie trafil - defekt
   utajony, bo wszystkie trzy sciezki otwarcia wpisywaly przypadkiem to samo.
-  Identyfikator jest teraz WYPROWADZANY z dokumentu, wiec rozjazd nie ma jak powstac.
+  Identyfikator jest teraz wyprowadzany z dokumentu, wiec rozjazd nie ma jak powstac.
 - **Klikniecie przypisu zrzucalo tresc cytatu do konsoli przegladarki** (`console.log`
   z etapu prac). Usuniete.
 
@@ -339,17 +328,17 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
   sam jak w podgladzie. Dotad sprawdzenie i potwierdzenie istnialy tylko jako komendy
   `npm run`, niedostepne w zainstalowanym programie.
   [ADR-0165](./governance/adr/0165-stan-lancucha-audytu-i-potwierdzanie-rozwidlen-w-aplikacji.md).
-- **"Sprawdz powolania" w oknie pisma (ADR-0157).** PATRON wyciaga z pisma sygnatury i
+- **"Sprawdz powolania" w oknie pisma (ADR-0157).** Patron wyciaga z pisma sygnatury i
   przepisy lokalnie (kopia jawnego ekstraktora Repertorium, test dryfu sha256) i wysyla do
   narzedzia `verify_citations` wylacznie ich liste - bez tresci pisma. Wynik wraca przy
-  wlasciwych miejscach tekstu (podswietlenie po offsetach, ktore zna tylko PATRON), z nota,
+  wlasciwych miejscach tekstu (podswietlenie po offsetach, ktore zna tylko Patron), z nota,
   ze "brak w korpusie" nie dowodzi nieistnienia orzeczenia. Prawnik widzi dokladnie, co
   wyszlo, i pobiera raport HTML skladany na swoim komputerze.
 - **Operator moze zatwierdzic werdykt `human_review` bramy MCP (ADR-0158).** Dotad
   `human_review` blokowal konektor bez sciezki decyzji. Teraz Operator wpisuje w
   nakladce (`~/.patron/mcp-servers.operator.json`, ADR-0166) `gatewayApproval.hash` konkretnej
-  definicji narzedzi (hash podaje log startu); kazda zmiana narzedzi - takze schematu wejscia - wraca do przegladu, a `denied`
-  zostaje blokada bez wyjatkow. Decyzja trafia do zdarzenia `mcp_security.gateway`.
+  definicji narzedzi (hash podaje log startu); kazda zmiana narzedzi - takze schematu
+  wejscia - wraca do przegladu, a `denied` zostaje blokada bez wyjatkow. Decyzja trafia do zdarzenia `mcp_security.gateway`.
 - **Hook `pre-push` na linie publiczna.** Push na repo publiczne przechodzi bramke publikacji
   na historii i tresci commitow, ktore push doklada - przed faktem, a nie dopiero w CI po
   publikacji. Bez refow sledzacych remote'u publicznego hook blokuje. Push na prywatny remote
@@ -393,16 +382,16 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
   i liczba dotknietych wpisow, bez danych osobowych. Weryfikator to czyta
   i rozdziela zerwania na trzy grupy zamiast dwoch: z mocy prawa, zgodne z dawna
   kaskada i niewyjasnione. Czlowieka wymaga tylko ta trzecia.
-- **Generator promptu kolumny traktowal sprawe jak zwykla notatke - i domykalismy to
-  dwa razy.** Wywolanie szlo do modelu bez kontekstu sprawy, a brak sprawy to jedyny
+- **Generator promptu kolumny traktowal sprawe jak zwykla notatke (poprawione w dwoch
+  krokach).** Wywolanie szlo do modelu bez kontekstu sprawy, a brak sprawy to jedyny
   przypadek, w ktorym straznik nie zaklada najgorszego: znaczy dla niego klasyfikacje
   "wewnetrzna", a nie "objete tajemnica". Kolumna tabeli zalozonej na aktach klienta
   wychodzila wiec do chmury po zanizonej ocenie. Ekran przegladu podaje teraz
   identyfikator przegladu, backend sprawdza uprawnienia do niego i bierze klasyfikacje
   z jego sprawy - tak jak nadawanie tytulu rozmowie. To jednak nie wystarczylo: serwer
-  nadal przyjmowal zadanie BEZ tego identyfikatora, wiec droga tylnymi drzwiami stala
-  otworem - pominac jedno pole i tytul kolumny razem z tagami sprawy szedl do chmury po
-  ocenie "wewnetrzna". Teraz brak sprawy trzeba NAZWAC, jako szablon workflow. Zadanie
+  nadal przyjmowal zadanie bez tego identyfikatora, wiec wystarczylo pominac jedno pole,
+  zeby tytul kolumny razem z tagami sprawy szedl do chmury po ocenie "wewnetrzna". Teraz
+  brak sprawy trzeba nazwac wprost, jako szablon workflow. Zadanie
   bez tej nazwy serwer odrzuca, zamiast domyslac sie, ze sprawy po prostu nie ma.
   Edytor szablonow workflow dziala jak dzialal - swoj brak sprawy deklaruje wprost.
 - **Nieudane zapytanie do chmury znikalo z lancucha audytu.** Straznik przepuszczal
@@ -418,8 +407,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
   z kancelarii. Usuniete.
 - **Blad odczytu licznika audytu pokazywal audytorowi zero.** Gdy zapytanie o liczbe
   zdarzen danego rodzaju sie nie udalo, metryka podawala "0" - nie do odroznienia od
-  prawdy. Teraz odczyt sie przerywa i caly zestaw metryk schodzi do zer naraz - jedna
-  seria falszywych zer zamieniona na jednolita degradacje, ktora widac po ksztalcie.
+  prawdy. Teraz odczyt sie przerywa i caly zestaw metryk schodzi do zer naraz: zamiast
+  pojedynczego falszywego zera wszystkie liczniki pokazuja zero, po czym widac awarie.
   Same zera nie mowily jednak, ktora to sytuacja: swiezo zainstalowana aplikacja z
   pustym dziennikiem oddawala dokladnie te sama odpowiedz co zepsuty odczyt, a
   przyczyna nie trafiala nawet do logu. Doszla wiec osobna metryka stanu: zero, kiedy
@@ -431,20 +420,20 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
   zapytania do modelu, ani limitu kosztu sprawy, ani weryfikacji cytatow. Zdarzenia
   lezaly w lancuchu przez caly czas. Brakowalo do nich dojscia. Obie kopie czerpia
   teraz z jednej listy.
-- **Import dokumentu trwal 25-40 sekund na plik - i nikt tego nie zmierzyl.**
+- **Import dokumentu trwal 25-40 sekund na plik, a nikt tego nie mierzyl.**
   Zeby pokazac podglad, Patron przerabial kazdy `.docx` na PDF przez LibreOffice
   - i kazal na to czekac, zanim w ogole potwierdzil przyjecie pliku. Zmierzone na
   trzech kolejnych plikach: 40,1 / 35,9 / 25,2 s. Nie przyspiesza z czasem.
   Import folderu z 50 pismami zajmowal ponad 20 minut. Indeksowanie do
   wyszukiwarki juz wczesniej przeniesiono tak, zeby nie kazalo czekac, z
   komentarzem autora: "embedding trwa kilka sekund, nie blokujemy odpowiedzi".
-  Czyli ktos swiadomie odsunal etap kilkusekundowy i zostawil czterdziestosekundowy.
+  Etap kilkusekundowy odsunieto wiec swiadomie, a czterdziestosekundowy zostal.
   Konwersja idzie teraz w tle. Dokument jest gotowy od razu, podglad dochodzi
   chwile pozniej. Zaden ekran na niego nie czeka: glowna przegladarka renderuje
   `.docx` bezposrednio, a panel przegladu tabelarycznego ma wariant zapasowy.
 - **Stary `.doc` bez LibreOffice znikal po cichu.** W wersji desktopowej
   LibreOffice nie jedzie w instalatorze i nigdy nie jechal - to osobny program do
-  doinstalowania. (W instalacji serwerowej jest, bo dokłada go obraz Dockera.)
+  doinstalowania. (W instalacji serwerowej jest, bo doklada go obraz Dockera.)
   Bez niego nie umiemy odczytac starego `.doc`: to inny format niz `.docx`,
   a nasz czytnik obsluguje tylko nowszy. Plik ladowal wiec w bazie oznaczony
   jako gotowy, bez tekstu, poza wyszukiwarka i bez mozliwosci wyswietlenia.
@@ -462,7 +451,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
   liste konektorow prawa w pieciu miejscach naraz, zeby zaden nie trafil do
   instalatora wylaczony. Trzecia sprawdza, czy odsylacze w dokumentacji dla agentow
   prowadza do istniejacych plikow.
-- **Bramka odsylaczy mowi teraz, czego NIE sprawdzila - i siega glebiej.**
+- **Bramka odsylaczy podaje, czego nie sprawdzila, i sprawdza wiecej.**
   Potwierdzala tylko to, co akurat umiala rozpoznac: skroty commitow o dwoch
   dlugosciach, odsylacze pisane w jeden sposob, sciezki z zamknietej listy katalogow.
   Dziewiec sciezek w dokumentacji dla agentow przechodzilo w ogole niesprawdzonych,
@@ -474,9 +463,9 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
   odsylacze z tytulem i pisane od korzenia repozytorium, a ksztalt, ktorego nie umie
   rozebrac, laduje na liscie pominietych, zamiast wypasc poza obie listy. Wlasnych
   wzorcow pilnuje przed kazdym przebiegiem, na przykladach znanego bledu.
-- **Bramka pol hasha mierzy PISARZY, nie sam schemat.** Pierwsza wersja
-  sprawdzala wylacznie definicje tabel - a schemat to tylko jeden z dwoch
-  pisarzy. Drugim jest kod: skrypt kasowania RODO przepisuje pole hasha jawnym
+- **Bramka pol hasha sprawdza wszystko, co je zapisuje, nie sam schemat.** Pierwsza
+  wersja sprawdzala wylacznie definicje tabel - a schemat to tylko jedno z dwoch
+  miejsc, ktore zapisuja te pola. Drugim jest kod: skrypt kasowania RODO przepisuje pole hasha jawnym
   poleceniem, ktore dziala na obu bazach, takze na desktopie. Bramka, ktora
   konczy sie na schemacie, zapalilaby sie na zielono po naprawie wiezow - i
   zostawila zywa luke w produkcie, ktory wysylamy. Teraz trzyma rejestr: kto
@@ -485,7 +474,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 - **Front nie zgubi juz po cichu kontekstu sprawy.** Nic nie pilnowalo, ze ekrany
   przegladu nadal podaja identyfikator przegladu przy generowaniu promptu kolumny.
   Nastepny refaktor moglby to cofnac, a testy zostalyby zielone. Kontekst wymusza
-  teraz typ, a osobna bramka skanuje caly front i trzyma NAZWANA liste plikow, ktorym
+  teraz typ, a osobna bramka skanuje caly front i trzyma nazwana liste plikow, ktorym
   wolno pracowac bez sprawy. Dzis sa na niej dwa ekrany edytora szablonow workflow.
 - **Bramka listy konektorow objela trzecia liste kolejnosci** (buildy rynkowe),
   w ktorej brakowalo czterech konektorow. Laczyly sie poprawnie, ale w instalatorze
@@ -493,11 +482,19 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ### Zmienione
 
+- **Liczba rownoczesnych indeksacji ma gorna granice** (domyslnie 2,
+  `PATRON_INDEX_CONCURRENCY`) - wczesniej import Folderu Sprawy wypuszczal jeden indekser
+  na kazdy plik w katalogu, bez ograniczenia. Dla Operatora import 30 akt po 50 stron trwa
+  o 6% dluzej; zuzycie pamieci jest takie samo. **Nie jest to naprawa wycieku pamieci** -
+  pomiar zadnego nie znalazl, szczyt to ~1,40 GB niezaleznie od liczby plikow i od liczby
+  indekserow. Limit 1 odrzucony pomiarem (+32% czasu importu). Powod, dla ktorego mimo to
+  warto, oraz pelne dane:
+  [ADR-0154](./governance/adr/0154-kolejka-indeksacji-w-tle-rownoleglosc.md).
 - **Bramki skanujace przestaly bywac czerwone bez powodu.** Trzy testy
   przechodzace cale drzewo zrodel miescily sie w domyslnym limicie pieciu sekund
   tylko na wolnej maszynie. Pod rownoleglym obciazeniem przekraczaly czas, czyli
   swiecily na czerwono z powodu, ktory nie ma nic wspolnego z tym, co mierza.
-  Bramka czerwona bez powodu uczy ignorowac swoj kolor. Limit podniesiony, a skan
+  Taka bramka uczy ignorowac czerwony wynik. Limit podniesiony, a skan
   generatora promptu czyta drzewo raz, nie raz na test.
 - Konektor `sejm-eli` usuniety z mapy jurysdykcji, gdzie siedzial osierocony od
   czerwca. Bez wpisu w pozostalych czterech miejscach i tak nie mial jak wystartowac.
