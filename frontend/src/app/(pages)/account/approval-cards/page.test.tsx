@@ -85,6 +85,22 @@ describe("ApprovalCardsPage - inbox zatwierdzen (ADR-0137)", () => {
         expect(screen.getByText(/docx locked by another process/)).toBeTruthy();
     });
 
+    it("approve wykonany CZESCIOWO: executed=true, ale komunikat o czesciowym wykonaniu jest widoczny", async () => {
+        listApprovalCards.mockResolvedValue([card()]);
+        approveCard.mockResolvedValue({
+            approval: card({ status: "approved" }),
+            executed: true,
+            execution_error: "Czesciowo: zastosowano 2 z 5 zatwierdzonych zmian.",
+        });
+        render(<ApprovalCardsPage />);
+        await screen.findByText(t("approvals.approve"));
+        await act(async () => {
+            fireEvent.click(screen.getByText(t("approvals.approve")));
+        });
+        await screen.findByText(t("approvals.empty"));
+        expect(screen.getByText(/zastosowano 2 z 5/)).toBeTruthy();
+    });
+
     it("reject: wpisany powod idzie do API; pusty powod = undefined", async () => {
         listApprovalCards.mockResolvedValue([card({ id: "c-r1" })]);
         rejectCard.mockResolvedValue({ approval: card({ id: "c-r1", status: "rejected" }) });

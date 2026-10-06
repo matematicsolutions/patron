@@ -1000,6 +1000,20 @@ export function useAssistantChat({
                             continue;
                         }
 
+                        if (data.type === "incomplete") {
+                            const reason =
+                                data.reason === "max_tokens" ? "max_tokens" : "max_iterations";
+                            setMessages((prev) => {
+                                const updated = [...prev];
+                                const last = updated[updated.length - 1];
+                                if (last?.role === "assistant") {
+                                    updated[updated.length - 1] = { ...last, incomplete: reason };
+                                }
+                                return updated;
+                            });
+                            continue;
+                        }
+
                         if (data.type === "mcp_grounding") {
                             // ADR-0146: werdykt groundingu cytatow MCP - raport na
                             // wiadomosci (baner) + werdykt per karta doklejony do

@@ -7,6 +7,7 @@ import {
     buildWorkflowStore,
     enrichWithPriorEvents,
     extractAnnotations,
+    incompleteAnnotations,
     groundingSummary,
     runLLMStream,
     PROJECT_EXTRA_TOOLS,
@@ -180,7 +181,7 @@ projectChatRouter.post("/", requireAuth, async (req, res) => {
     try {
         write(`data: ${JSON.stringify({ type: "chat_id", chatId })}\n\n`);
 
-        const { fullText, events, mcpCitations, grounding, mcpGrounding } =
+        const { fullText, events, mcpCitations, grounding, mcpGrounding, stopReason } =
             await runLLMStream({
                 apiMessages,
                 docStore,
@@ -204,7 +205,7 @@ projectChatRouter.post("/", requireAuth, async (req, res) => {
             mcpCitations,
             grounding,
             mcpGrounding,
-        );
+        ).concat(incompleteAnnotations(stopReason));
         await db.from("chat_messages").insert({
             chat_id: chatId,
             role: "assistant",
@@ -234,6 +235,8 @@ projectChatRouter.post("/", requireAuth, async (req, res) => {
                 grounding: groundingSummary(grounding),
                 // ADR-0146: grounding cytatow MCP - tylko liczby (zero tresci cytatow).
                 mcp_grounding: mcpGroundingSummary(mcpGrounding),
+                // Odpowiedz przerwana limitem petli albo dlugosci (null = nieznany).
+                stop_reason: stopReason ?? null,
             },
         });
 

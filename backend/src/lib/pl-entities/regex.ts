@@ -196,6 +196,18 @@ export const LEGAL_FORM_LITERALS: readonly string[] = [
     "spółka cywilna",
     "spolka cywilna",
     "s.c.",
+    // Pelne brzmienie pozostalych form i przypadki zalezne (2026-09-24): na
+    // slepym zestawie dokumentow B2B brak tych zapisow gubil wiekszosc spolek.
+    "spółką z ograniczoną odpowiedzialnością",
+    "spółki z ograniczoną odpowiedzialnością",
+    "spółka akcyjna", "spółki akcyjnej", "spółką akcyjną",
+    "prosta spółka akcyjna", "prostej spółki akcyjnej", "prostą spółką akcyjną",
+    "spółka komandytowo-akcyjna", "spółki komandytowo-akcyjnej",
+    "spółki komandytowej", "spółką komandytową",
+    "spółka jawna", "spółki jawnej", "spółką jawną",
+    "spółka partnerska", "spółki partnerskiej", "spółką partnerską",
+    "spółki cywilnej", "spółką cywilną",
+    "spółka z o.o.", "spółki z o.o.", "spółką z o.o.",
 ];
 
 /**
@@ -228,7 +240,7 @@ function legalFormPattern(literal: string): string {
 // Sortowanie malejaco po dlugosci literalu - alternacja JS bierze PIERWSZY
 // pasujacy wariant, wiec dluzsza forma musi byc probowana przed krotsza
 // (inaczej "spolka komandytowa" zredukowaloby sie do przedrostka).
-const LEGAL_FORM_ALT = [...LEGAL_FORM_LITERALS]
+export const LEGAL_FORM_ALT = [...LEGAL_FORM_LITERALS]
     .sort((a, b) => b.length - a.length)
     .map(legalFormPattern)
     .join("|");
@@ -258,10 +270,48 @@ const LEGAL_FORM_ALT = [...LEGAL_FORM_LITERALS]
  * Lapie tylko czesc nazw - "Acme sp. z o.o." OK, ale "Acme" bez
  * formy nie. W praktyce do uzupelnienia LLM-fallbackiem + lookup KRS.
  */
-const FIRMA_Z_FORMA_RE = new RegExp(
-    `(?<![\\p{L}\\p{N}_])[A-ZŁŚŻŹĆŃÓĄĘ][\\wŁŚŻŹĆŃÓĄĘłśżźćńóąę.,\\s&-]{0,80}?\\s+(?:${LEGAL_FORM_ALT})(?![\\p{L}\\p{N}])`,
+// Nazwa = do szesciu czlonow z wielkiej litery (albo cyfra/cudzyslow), z
+// lacznikami "i", "&", "oraz", oddzielonych spacja/tabulatorem - NIGDY koncem
+// linii. Wczesniej leniwy prefiks {0,80} przez \\s i male litery wciagal
+// tytul dokumentu i kawalki zdania ("ZESTAWIENIE WIERZYTELNOSCI przyslugujacych
+// Zielony Mlyn S.A.").
+// Bez kropki: inaczej "S.A." bylo czlonem nazwy i lacznik "i" sklejal dwie
+// spolki ("X S.A. i Y sp. j."), a kropka konca zdania wchodzila do nazwy.
+const CZLON_FIRMY = "[\\p{Lu}\\d„\"'][\\p{L}\\d&'’”\"+-]*";
+
+// Fundacja / stowarzyszenie / spoldzielnia z nazwa (bez formy prawnej w nazwie).
+// Sam rzeczownik ("Fundacja to forma prawna") nie jest firma - wymagany czlon.
+const ORGANIZACJA_RE = new RegExp(
+    `(?<![\\p{L}\\p{N}_])(?:[fF][uU][nN][dD][aA][cC][jJ][aAiIęĘąĄ]|[sS][tT][oO][wW][aA][rR][zZ][yY][sS][zZ][eE][nN][iI][aAeEuUoO]|[sS][pP][óÓ][łŁ][dD][zZ][iI][eE][lL][nN][iI][aAęĘąĄiI]?)(?:[ \\t]+(?:(?:i|&)[ \\t]+)?${CZLON_FIRMY}){1,5}(?![\\p{L}\\p{N}])`,
     "gu",
 );
+const FIRMA_Z_FORMA_RE = new RegExp(
+    `(?<![\\p{L}\\p{N}_])${CZLON_FIRMY}(?:[ \\t]+(?:(?:i|&|oraz)[ \\t]+)?${CZLON_FIRMY}){0,5}[ \\t]+(?:${LEGAL_FORM_ALT})(?:[ \\t]+(?:${LEGAL_FORM_ALT}))?(?![\\p{L}\\p{N}])`,
+    "gu",
+);
+
+// Slowo strony albo rodzaj dokumentu na poczatku nazwy ("Pozwana Termika
+// sp. z o.o.", "UMOWA SPOLKI Z O.O.") to rola/tytul, nie czesc firmy.
+const NIE_NAZWA_FIRMY = new Set([
+    "pozwana", "pozwany", "powodka", "powod", "wierzyciel", "dluznik", "dluzniczka",
+    "zamawiajacy", "wykonawca", "sprzedajacy", "kupujacy", "spolka", "firma", "kontrahent",
+    "wnioskodawca", "wnioskodawczyni", "uczestnik", "uczestniczka", "dostawca", "odbiorca",
+    "zleceniodawca", "zleceniobiorca", "najemca", "wynajmujacy", "pozyczkodawca",
+    "pozyczkobiorca", "strona", "umowa", "umowy", "statut", "statutu", "uchwala", "uchwaly",
+    "protokol", "protokolu", "aneks", "aneksu", "regulamin", "regulaminu", "akt", "aktu",
+    "wniosek", "wniosku",
+]);
+const zlozFirma = (s: string) =>
+    s.toLowerCase().replace(/ł/g, "l").normalize("NFD").replace(/\p{M}/gu, "");
+function przytnijFirme(raw: string): string {
+    const czlony = raw.split(/[ \t]+/);
+    let i = 0;
+    while (i < czlony.length - 1 && NIE_NAZWA_FIRMY.has(zlozFirma(czlony[i]!))) i++;
+    return czlony.slice(i).join(" ");
+}
+const SAMA_FORMA_RE = new RegExp(`^(?:${LEGAL_FORM_ALT})`, "u");
+/** Po przycieciu musi zostac nazwa, a nie sama forma prawna. */
+const maNazweFirmy = (raw: string) => !SAMA_FORMA_RE.test(raw);
 
 /**
  * Osoba zakotwiczona na honoryfikatorze / tytule / roli procesowej (ADR-0127,
@@ -425,7 +475,18 @@ export const PL_EXTRACTION_RULES: ExtractionRule[] = [
         id: "firma-z-forma-prawna",
         type: "FIRMA",
         pattern: FIRMA_Z_FORMA_RE,
+        trim: przytnijFirme,
+        validate: maNazweFirmy,
         baseConfidence: 0.75,
+        normalize: (v) => v.replace(/\s+/g, " ").trim(),
+    },
+
+    // === Fundacje, stowarzyszenia, spoldzielnie (bez formy prawnej) ===
+    {
+        id: "organizacja",
+        type: "FIRMA",
+        pattern: ORGANIZACJA_RE,
+        baseConfidence: 0.7,
         normalize: (v) => v.replace(/\s+/g, " ").trim(),
     },
 
@@ -481,7 +542,8 @@ export function detectAll(
         const re = new RegExp(rule.pattern.source, rule.pattern.flags);
         let m: RegExpExecArray | null;
         while ((m = re.exec(text)) !== null) {
-            const raw = m[1] ?? m[0];
+            let raw = m[1] ?? m[0];
+            if (rule.trim) raw = rule.trim(raw);
             if (!raw) continue;
             const start = m.index + m[0]!.indexOf(raw);
             if (rule.validate && !rule.validate(raw)) continue;

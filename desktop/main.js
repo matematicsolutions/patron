@@ -620,6 +620,28 @@ function createWindow() {
     }
   });
 
+  // Defense-in-depth dla wycieku przez obraz (klasa EchoLeak): obraz, dzwiek
+  // i ping pobierane przez OKNO z hosta innego niz lokalny to zadanie, ktore
+  // wysyla dane w URL bez klikniecia. Pierwsza warstwa jest w rendererze
+  // (SafeMarkdown nie tworzy <img>); ta lapie kazda inna droge. Zakres celowo
+  // waski: tylko zadania z tego okna i tylko te typy zasobow - auto-update
+  // i backend (proces glowny) tego filtra nie dotykaja.
+  const ZDALNE_TYPY_ZABRONIONE = new Set(['image', 'media', 'ping']);
+  win.webContents.session.webRequest.onBeforeRequest(
+    { urls: ['http://*/*', 'https://*/*'] },
+    (details, callback) => {
+      if (details.webContentsId !== win.webContents.id
+          || !ZDALNE_TYPY_ZABRONIONE.has(details.resourceType)) {
+        return callback({});
+      }
+      let host = '';
+      try { host = new URL(details.url).hostname; } catch { /* zablokuj */ }
+      if (host === 'localhost' || host === '127.0.0.1') return callback({});
+      console.warn('[security] zablokowano zdalny zasob okna:', details.resourceType, host);
+      return callback({ cancel: true });
+    },
+  );
+
   win.once('ready-to-show', () => {
     if (stan?.maximized) win.maximize();
     win.show();

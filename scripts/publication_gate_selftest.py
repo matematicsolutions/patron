@@ -167,6 +167,26 @@ class SkanHistorii(unittest.TestCase):
         # hex fixture "0123456789abcdef" w tescie innej bramki - "0123456789" ma sume NIP
         self.assertFalse(scan_text("t.py", '"0123456789abcdef0123456789"', Config()))
 
+    def test_formaty_tokenow_ktorych_uzywamy(self):
+        # Wszystkie siedem przechodzilo do 2026-09-24. Tokeny skladane w locie,
+        # zeby ten plik nie zatrzymal bramki sam na sobie.
+        przypadki = {
+            "anthropic_key": "sk-" + "ant-api03-" + "A1b2" * 20,
+            "openai_key": "sk-" + "proj-" + "Z9y8" * 12,
+            "github_pat": "github" + "_pat_" + "1A" * 11 + "_" + "Bc" * 30,
+            "github_token": "gh" + "o_" + "C3" * 18,
+            "huggingface_token": "hf" + "_" + "D4" * 17,
+            "pypi_token": "pypi-" + "AgEIcHlwaS5vcmc" + "E5" * 30,
+            "npm_token": "npm" + "_" + "F6" * 18,
+        }
+        for rodzaj, token in przypadki.items():
+            with self.subTest(rodzaj=rodzaj):
+                self.assertIn(rodzaj, {f.kind for f in scan_text("x.md", f"t {token} t", Config())})
+        for podobne in ["hf_hub_download(repo)", "npm_config_cache", "sk-learn to biblioteka",
+                        "github_pat_ placeholder"]:
+            with self.subTest(podobne=podobne):
+                self.assertFalse(scan_text("x.md", podobne, Config()))
+
 
 class ListaZnanychTrafien(unittest.TestCase):
     """2026-09-21, decyzja WM (wariant A): trafienia sprzed czyszczenia zostaja

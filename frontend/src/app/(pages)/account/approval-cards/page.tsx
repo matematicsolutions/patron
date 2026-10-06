@@ -71,8 +71,10 @@ export default function ApprovalCardsPage() {
             try {
                 const res = await approveCard(card.id);
                 // Karta nie jest juz pending - znika z inboxa. Gdy wykonanie
-                // padlo po zatwierdzeniu, pokazujemy komunikat (decyzja zaszla).
-                if (!res.executed && res.execution_error) {
+                // padlo po zatwierdzeniu ALBO weszlo tylko czesciowo (executed,
+                // ale z execution_error), pokazujemy komunikat - czesciowa
+                // edycja nie moze wygladac jak pelna.
+                if (res.execution_error) {
                     setExecError(res.execution_error);
                 }
                 // Wykonanie czesciowe: "zastosowano N z M, nie zastosowano: ...".

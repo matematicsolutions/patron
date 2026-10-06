@@ -89,14 +89,42 @@ describe("wrapConversation - propagacja znanych oryginalow (A-03)", () => {
         expect(new Set(w.map.tokens.map((t) => t.token)).size).toBe(w.map.tokens.length);
     });
 
+    // Od scalenia fix/kurs-aies-fala1 (464846d) imie ze slownika + nazwisko JEST
+    // kotwica (wykrycie osoby bez markera roli), wiec "Jan Testowy" przestal byc
+    // przykladem "bez kotwicy". Kontrola zostaje scisla na wejsciach, ktore
+    // naprawde nie maja kotwicy: samo nazwisko, nazwy instytucji i miejsc.
     it("kontrola negatywna: brak kotwicy nigdzie -> bez propagacji (nie wymysla encji)", async () => {
+        for (const tekst of [
+            "Czy Testowy moze zlozyc apelacje?",
+            "Czy Kowalczyk moze zlozyc apelacje?",
+            "Sad Najwyzszy w Warszawie uchylil wyrok.",
+        ]) {
+            const w = await wrapConversation("Sys.", [{ role: "user", content: tekst }], opts);
+            expect(w.map.tokens, tekst).toHaveLength(0);
+            expect(w.messages[0]!.content).toBe(tekst);
+        }
+    });
+
+    // Znana luka (A-02, otwarte): samo nazwisko w KOLEJNEJ wiadomosci po
+    // zakotwiczonej osobie nie jest maskowane - propagacja A-03 niesie pelny
+    // oryginal, a "dalsze wystapienia nazwiska" z kursu dzialaja w obrebie tekstu.
+    // Celowo bez testu udajacego, ze dziala; pomiar na nowym zestawie (A-02).
+    it("bez kotwicy samo nazwisko nie jest maskowane takze w kolejnej wiadomosci", async () => {
+        const w = await wrapConversation(
+            "Sys.",
+            [{ role: "user", content: "Czy Testowy moze zlozyc apelacje?" }, { role: "user", content: "Testowy pyta o termin." }],
+            opts,
+        );
+        expect(w.map.tokens).toHaveLength(0);
+    });
+
+    it("imie ze slownika + nazwisko bez markera roli jest wykryte (kurs, A-02)", async () => {
         const w = await wrapConversation(
             "Sys.",
             [{ role: "user", content: "Czy Jan Testowy moze zlozyc apelacje?" }],
             opts,
         );
-        expect(w.map.tokens).toHaveLength(0);
-        expect(w.messages[0]!.content).toBe("Czy Jan Testowy moze zlozyc apelacje?");
+        expect(w.messages[0]!.content).not.toContain("Jan Testowy");
     });
 
     it("oryginal wewnatrz innego slowa nie wyzwala maskowania (granica slowa)", async () => {

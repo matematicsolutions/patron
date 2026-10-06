@@ -116,3 +116,72 @@ describe("plEntityDetector - integracja z wrap/unwrap (round-trip)", () => {
         expect(await detect("")).toEqual([]);
     });
 });
+
+describe("plEntityDetector - PERSON bez kotwicy i dalsze wystapienia nazwiska", () => {
+    it("imie ze slownika + nazwisko w srodku zdania, bez markera roli", async () => {
+        const h = await detect("Umowe podpisal Jan Kowalski w obecnosci notariusza.");
+        expect(cats(h, "PERSON")).toContain("Jan Kowalski");
+    });
+
+    it("imie w odmianie rozpoznaje osobe (powodki Anny, pozwanemu Janowi)", async () => {
+        const h = await detect("W imieniu powodki Anny Zielińskiej. Pozwanemu Janowi Nowakowi doręczono odpis.");
+        const p = cats(h, "PERSON");
+        expect(p).toContain("Anny Zielińskiej");
+        expect(p).toContain("Janowi Nowakowi");
+    });
+
+    it("dalsze wystapienia nazwiska: odmiana, wersaliki, OCR bez ogonkow", async () => {
+        const h = await detect(
+            "Pani Anna Zielińska wniosła pozew. Zdaniem Zielińskiej umowa wygasła. ZIELIŃSKA podpisała. Po OCR: Zielinska.",
+        );
+        const p = cats(h, "PERSON");
+        for (const f of ["Zielińskiej", "ZIELIŃSKA", "Zielinska"]) expect(p).toContain(f);
+    });
+
+    it("kontrola negatywna: sady, kodeksy i slowa o innym rdzeniu bez maskowania", async () => {
+        const h = await detect(
+            "Anna Zielińska, sygn. I C 123/24, art. 415 k.c. Sad Okregowy w Zielonej Gorze. Kodeks Cywilny.",
+        );
+        // Samo "Zielinska" z wnetrza pelnego spanu jest dopuszczalne (wrap bierze
+        // dluzszy span w tym miejscu); zadna inna "osoba" pojawic sie nie moze.
+        expect(new Set(cats(h, "PERSON"))).toEqual(new Set(["Anna Zielińska", "Zielińska"]));
+    });
+
+    it("wrap maskuje wszystkie formy, a unwrap odtwarza tekst co do znaku", async () => {
+        const map = createPseudonimMap();
+        const tekst = "Powod Jan Kowalski. Kowalskiego reprezentuje adwokat. KOWALSKI podpisal.";
+        const masked = await wrapInto(map, tekst, { llmDetector: plEntityDetector });
+        for (const f of ["Kowalski", "Kowalskiego", "KOWALSKI"]) expect(masked).not.toContain(f);
+        expect(unwrap(masked, map)).toBe(tekst);
+    });
+});
+
+describe("plEntityDetector - komparycje, tabele i dwa imiona", () => {
+    it("wersaliki z komparycji i 'Nazwisko Imie' w tabeli", async () => {
+        const p = cats(await detect("JAN KOWALCZYK, zamieszkaly w Lodzi.\nLp. 1 | Nowak Anna | ul. Polna 5"), "PERSON");
+        expect(p).toContain("JAN KOWALCZYK");
+        expect(p).toContain("Nowak Anna");
+    });
+
+    it("dwa imiona: nazwisko po nich nie przecieka", async () => {
+        const p = cats(await detect("Stawila sie Anna Maria Nowak, legitymujaca sie dowodem."), "PERSON");
+        expect(p).toContain("Anna Maria Nowak");
+    });
+
+    it("kontrola negatywna: rola + imie w zdaniu i tytuly wersalikami to nie osoby", async () => {
+        const h = await detect("Pozwany Jan zeznal, ze nie pamieta. UMOWA SPRZEDAZY. PROTOKOL ZGROMADZENIA.");
+        expect(cats(h, "PERSON")).toEqual([]);
+    });
+});
+
+describe("plEntityDetector - ORG: dalsze wystapienia nazwy i organizacje", () => {
+    it("nazwa spolki bez formy, w odmianie i wersalikami", async () => {
+        const o = cats(await detect("Termika Wschód sp. z o.o. wezwała dłużnika. Termika żąda zapłaty, pełnomocnik Termiki odpowie. TERMIKA WSCHÓD też."), "ORG");
+        for (const x of ["Termika", "Termiki", "TERMIKA WSCHÓD"]) expect(o).toContain(x);
+    });
+    it("fundacja i stowarzyszenie z nazwa; rzeczownik ogolny nie jest propagowany", async () => {
+        const o = cats(await detect("Członkiem jest Stowarzyszenie Kupców Rynku Jeżyckiego. Umowę zawarło Centrum Logistyczne Wola sp. z o.o. Centrum miasta jest zakorkowane."), "ORG");
+        expect(o).toContain("Stowarzyszenie Kupców Rynku Jeżyckiego");
+        expect(o).not.toContain("Centrum");
+    });
+});

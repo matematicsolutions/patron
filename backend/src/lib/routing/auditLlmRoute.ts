@@ -14,6 +14,7 @@
 import { appendAuditEvent, type AuditEventInput } from "../audit";
 import type { createServerSupabase } from "../supabase";
 import type { DataClassification, EgressFlag } from "../llm/provider";
+import type { StopReason } from "../llm/types";
 import type { RouteAction, RouteReason } from "./decideRoute";
 import { OPENROUTER_PREFIX } from "../llm/models";
 import { OLLAMA_PREFIX } from "./egress";
@@ -78,6 +79,12 @@ export interface LlmRouteAuditInput {
      * pozostawione jako token w argumentach MCP zamiast odtworzenia - liczniki.
      */
     mcpArgsTokensWithheld?: Record<string, number> | null;
+    /**
+     * Dlaczego petla modelu sie skonczyla (StopReason z lib/llm/types).
+     * `max_iterations` / `max_tokens` = odpowiedz niepelna. Brak = dostawca nie
+     * raportuje - w payload null, nigdy domyslne "complete".
+     */
+    stopReason?: StopReason | null;
 }
 
 /**
@@ -136,6 +143,7 @@ export function buildLlmRouteEvent(input: LlmRouteAuditInput): AuditEventInput {
             Object.keys(input.mcpArgsTokensWithheld).length
                 ? { mcp_args_tokens_withheld: { ...input.mcpArgsTokensWithheld } }
                 : {}),
+            stop_reason: input.stopReason ?? null,
         },
     };
 }

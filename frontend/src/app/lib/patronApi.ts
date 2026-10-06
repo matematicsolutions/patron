@@ -794,6 +794,10 @@ export async function getChat(chatId: string): Promise<PATRONChatDetailOut> {
             });
         // ADR-0146: raport groundingu cytatow MCP (jedna adnotacja per odpowiedz).
         const mcpGroundingRaw = rawAnns.find((a) => a.type === "mcp_grounding");
+        const incompleteRaw = rawAnns.find((a) => a.type === "incomplete");
+        const incomplete = incompleteRaw
+            ? ((incompleteRaw.reason === "max_tokens" ? "max_tokens" : "max_iterations") as import("@/app/components/shared/types").PATRONIncompleteReason)
+            : undefined;
         const mcpGrounding = mcpGroundingRaw
             ? ({
                   quotes: (mcpGroundingRaw.quotes ?? []) as import("@/app/components/shared/types").PATRONMcpGrounding["quotes"],
@@ -812,6 +816,7 @@ export async function getChat(chatId: string): Promise<PATRONChatDetailOut> {
                 : undefined,
             mcpCitations: mcpCitations.length ? mcpCitations : undefined,
             mcpGrounding,
+            incomplete,
             events,
         };
     });

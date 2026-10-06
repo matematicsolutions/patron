@@ -24,12 +24,17 @@
 //     "Kodeks Karny" itp. byly maskowane masowo, psujac kontekst prawny.
 //   - ADDRESS: kod pocztowy (NN-NNN) + ulica/aleja/plac z numerem.
 //
-// OGRANICZENIE v1: nazwisko bez kotwicy (np. samo "Jan Kowalski" w srodku zdania
-// bez "Pan"/roli) nie jest lapane. Twarde identyfikatory (PESEL itd.) lapie
-// warstwa regex. Rozszerzenie (gazetteer imion / lokalny model NER) - rezerwacja.
+//   - PERSON bez kotwicy (od 2026-09-24): imie ze slownika, takze w odmianie
+//     ("powodki Anny Zielinskiej"), plus dalsze wystapienia nazwiska kazdej
+//     wykrytej osoby ("Zielinskiej", "ZIELINSKA", po OCR bez ogonkow) -
+//     pl-entities/osoby.ts. Pomiar na slepym zestawie 80 fragmentow: osoby
+//     zamaskowane 34/199 -> 152/199, zero zjedzonych kontroli negatywnych.
+//
+// OGRANICZENIE: umyka nazwisko osoby, ktora nigdy nie stoi przy imieniu ani
+// przy markerze, oraz liczba mnoga nazwiska. Lokalny model NER - rezerwacja.
 
 import type { LlmDetector, PiiCategory } from "./types";
-import { detectAll } from "../pl-entities";
+import { detectAll, osobyZImieniem, propagujFirmy, propagujNazwiska } from "../pl-entities";
 
 // Token nazwy: pierwsza litera wielka (z polskimi), reszta male/lacznik.
 const NAME_TOKEN = "[A-ZŁŚŻŹĆŃÓĄĘ][a-ząćęłńóśźż]+";
@@ -122,6 +127,13 @@ export const plEntityDetector: LlmDetector = {
 
         // PERSON - grupa (1) (sama nazwa, bez markera).
         hits.push(...collect(PERSON_RE, text, "PERSON", 1));
+        // PERSON bez kotwicy: imie ze slownika (takze w odmianie) + nazwisko.
+        for (const span of osobyZImieniem(text)) hits.push({ span, category: "PERSON" });
+        // Dalsze wystapienia nazwisk wszystkich wykrytych osob ("Zielinskiej",
+        // "ZIELINSKA"). wrap.ts przy tym samym miejscu bierze dluzszy span, wiec
+        // pelne "Anna Zielinska" wygrywa z samym nazwiskiem.
+        const osoby = hits.filter((h) => h.category === "PERSON").map((h) => h.span);
+        for (const span of propagujNazwiska(text, osoby)) hits.push({ span, category: "PERSON" });
 
         // ORG - reuzycie utrzymywanego regexu form prawnych z pl-entities.
         for (const m of detectAll(text)) {
@@ -129,6 +141,10 @@ export const plEntityDetector: LlmDetector = {
                 hits.push({ span: m.raw.trim(), category: "ORG" });
             }
         }
+
+        // Dalsze wystapienia nazwy spolki bez formy prawnej ("Termiki", "TERMIKA").
+        const firmy = hits.filter((h) => h.category === "ORG").map((h) => h.span);
+        for (const span of propagujFirmy(text, firmy)) hits.push({ span, category: "ORG" });
 
         // ADDRESS - ulica z numerem + kod pocztowy.
         hits.push(...collect(STREET_RE, text, "ADDRESS"));

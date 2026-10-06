@@ -24,6 +24,9 @@ export {
     type RegexMatch,
 } from "./regex";
 
+export { FORMY_IMION, osobyZImieniem, propagujNazwiska } from "./osoby";
+export { propagujFirmy } from "./firmy";
+
 export {
     COURTS,
     SIGNATURE_PREFIXES,

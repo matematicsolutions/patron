@@ -2,6 +2,7 @@ import { GoogleGenAI } from "@google/genai";
 import type {
     StreamChatParams,
     StreamChatResult,
+    StopReason,
     NormalizedToolCall,
 } from "./types";
 import { toGeminiTools } from "./tools";
@@ -67,6 +68,7 @@ export async function streamGemini(
     let promptTokens: number | null = null;
     let completionTokens: number | null = null;
 
+    let stop: StopReason = "max_iterations";
     for (let iter = 0; iter < maxIter; iter++) {
         const stream = await ai.models.generateContentStream({
             model,
@@ -91,6 +93,7 @@ export async function streamGemini(
         const callParts: GeminiPart[] = [];
         const toolCalls: NormalizedToolCall[] = [];
         let sawThinking = false;
+        let truncated = false;
         let iterPromptTokens: number | null = null;
         let iterCompletionTokens: number | null = null;
 
@@ -111,9 +114,11 @@ export async function streamGemini(
                     (um.candidatesTokenCount ?? 0) + (um.thoughtsTokenCount ?? 0);
                 if (wy > 0) iterCompletionTokens = wy;
             }
-            const parts =
-                (chunk as { candidates?: { content?: { parts?: GeminiPart[] } }[] })
-                    .candidates?.[0]?.content?.parts ?? [];
+            const cand = (chunk as {
+                candidates?: { content?: { parts?: GeminiPart[] }; finishReason?: string }[];
+            }).candidates?.[0];
+            if (cand?.finishReason === "MAX_TOKENS") truncated = true;
+            const parts = cand?.content?.parts ?? [];
 
             for (const part of parts) {
                 if (part.text) {
@@ -150,6 +155,7 @@ export async function streamGemini(
         fullText += textParts.join("");
 
         if (!toolCalls.length || !runTools) {
+            stop = truncated ? "max_tokens" : "complete";
             break;
         }
 
@@ -184,6 +190,7 @@ export async function streamGemini(
     // nie zerowe (patrz latka B).
     return {
         fullText,
+        stopReason: stop,
         usage:
             promptTokens !== null || completionTokens !== null
                 ? { promptTokens, completionTokens, costUsd: null }

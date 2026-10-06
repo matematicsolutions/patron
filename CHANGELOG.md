@@ -9,6 +9,22 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ### Naprawione
 
+- **Scalenie galezi poprawek z kursu (fix/kurs-aies-fala1) z linia po audycie.**
+  Wiekszosc poprawek obie galezie zrobily niezaleznie (maskowanie tytulu i draftu,
+  czesciowe wykonanie karty, wynik MCP pod input-security, obraz w odpowiedzi) -
+  zostaje wersja z main, na ktorej stoja testy audytu; jeden renderer markdown.
+  Z kursu weszlo to, czego main nie mial:
+  - detektor osob bez markera roli (imie ze slownika + nazwisko) i dalszych wystapien
+    nazwiska/spolki w obrebie tekstu; kontrola negatywna A-03 zaostrzona na wejsciach
+    bez kotwicy (samo nazwisko, instytucje); statusu A-02 nie zmieniamy - pomiar
+    wymaga nowego zestawu; znana luka: samo nazwisko w kolejnej wiadomosci;
+  - wywolanie narzedzia z argumentami, ktore nie sa obiektem JSON, nie idzie jako `{}` -
+    model dostaje komunikat o bledzie;
+  - odpowiedz przerwana limitem iteracji/tokenow oznaczona jako niepelna (baner w UI,
+    `stop_reason` w `llm_route`);
+  - "zastosowano X z Y" liczone od listy zmian, nie od adnotacji;
+  - filtr zdalnych obrazow/dzwieku/ping z okna desktopu (druga warstwa za SafeMarkdown);
+  - bramka publikacji rozpoznaje 7 kolejnych formatow tokenow.
 - **Uwagi z przegladu wdrozen 2026-10-06.**
   - Zatwierdzenie konektora z panelu zapisuje w dzienniku rzeczywista ocene ryzyka bramy
     (wczesniej 0). Gdy nakladka nie przyjmie zapisu po wpisie audytu, dziennik dostaje

@@ -9,6 +9,7 @@ import {
     DEFAULT_MAIN_MODEL,
     type LlmMessage,
     type OpenAIToolSchema,
+    type StopReason,
 } from "../llm";
 import { getMcpTools, isMcpTool, runMcpTool, type McpCitation } from "../mcp";
 import {
@@ -75,6 +76,7 @@ import {
     type CitationsParseError,
 } from "./citations";
 import { groundCitationsByRef } from "./ground-citations";
+import { incompleteAnnotations } from "./persistence";
 import { makeJudge } from "../citation/judge";
 import type { GroundingResult } from "../citation/grounding";
 import {
@@ -168,6 +170,11 @@ type AssistantEvent =
       }
     | { type: "content"; text: string };
 
+/** Wynik narzedzia dla wywolania z argumentami, ktore nie sa obiektem JSON. */
+export const NIEPOPRAWNE_ARGUMENTY = JSON.stringify({
+    error: "Arguments are not a valid JSON object. The tool was NOT run. Fix the arguments and call it again.",
+});
+
 export async function runLLMStream(params: {
     apiMessages: unknown[];
     docStore: DocStore;
@@ -206,6 +213,8 @@ export async function runLLMStream(params: {
     grounding: Record<number, GroundingResult>;
     /** ADR-0146: grounding cytatow MCP (null gdy w turze nie bylo zrodel MCP). */
     mcpGrounding: McpGroundingReport | null;
+    /** Powod konca petli modelu; undefined = dostawca nie raportuje. */
+    stopReason?: StopReason;
 }> {
     const {
         apiMessages,
@@ -531,7 +540,10 @@ export async function runLLMStream(params: {
                 toolCallCounts[n] = (toolCallCounts[n] ?? 0) + 1;
             }
 
-            const toolCalls: ToolCall[] = calls.map((c) => {
+            // Argumenty, ktore nie sa obiektem JSON, NIE ida do narzedzia jako `{}`
+            // (fix/kurs-aies-fala1, 6198feb): wywolanie z pustymi argumentami
+            // wygladaloby na udane; model dostaje NIEPOPRAWNE_ARGUMENTY.
+            const toolCalls: ToolCall[] = calls.filter((c) => !c.argumentsInvalid).map((c) => {
                 // A-09 / B-11 (decyzja 2026-10-06): argumenty dla ZEWNETRZNEGO
                 // konektora MCP (`serwer__narzedzie`) - odtwarzamy tylko
                 // ORG/NIP/REGON/KRS, kategorie osobowe zostaja tokenem, a PESEL i
@@ -739,13 +751,14 @@ export async function runLLMStream(params: {
                     }),
             );
 
-            const results = toolCalls.map((c) => ({
+            const results = calls.map((c) => ({
                 tool_use_id: c.id,
-                content:
-                    resultByCallId.get(c.id) ??
-                    JSON.stringify({
-                        error: `Tool '${c.function.name}' is not available.`,
-                    }),
+                content: c.argumentsInvalid
+                    ? NIEPOPRAWNE_ARGUMENTY
+                    : resultByCallId.get(c.id) ??
+                      JSON.stringify({
+                          error: `Tool '${c.name}' is not available.`,
+                      }),
             }));
 
             // Audyt A-01 (P0): wyniki narzedzi (tresc akt, fragmenty RAG, pamiec,
@@ -811,7 +824,13 @@ export async function runLLMStream(params: {
         memoryWrites,
         mcpArgsRedacted,
         mcpArgsTokensWithheld,
+        stopReason: streamResult.stopReason ?? null,
     });
+    // Odpowiedz przerwana limitem NIE moze wygladac jak pelna (awaria konczaca
+    // sie sukcesem). Frontend pokazuje baner, adnotacja trwa po reloadzie.
+    for (const a of incompleteAnnotations(streamResult.stopReason)) {
+        write(`data: ${JSON.stringify(a)}\n\n`);
+    }
 
     // Parse and emit citations from <CITATIONS> block
     // D-14: parser tolerancyjny (przecinek wiszacy, ref jako string) + diagnoza.
@@ -952,6 +971,13 @@ export async function runLLMStream(params: {
     }
     write("data: [DONE]\n\n");
 
-    return { fullText, events, mcpCitations, grounding, mcpGrounding };
+    return {
+        fullText,
+        events,
+        mcpCitations,
+        grounding,
+        mcpGrounding,
+        stopReason: streamResult.stopReason,
+    };
 }
 

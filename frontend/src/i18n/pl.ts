@@ -93,6 +93,10 @@ export const pl = {
     // Chat
     // ---------------------------------------------------------------------
     chat: {
+        // Obraz w markdownie odpowiedzi NIE jest pobierany (wektor wycieku przez URL).
+        imageBlocked: "Obraz z zewnętrznego adresu nie został wczytany ({host})",
+        incompleteMaxIterations: "Odpowiedź niepełna: model przerwał pracę po osiągnięciu limitu kroków. Może brakować części ustaleń - zadaj pytanie węższe albo poproś o kontynuację.",
+        incompleteMaxTokens: "Odpowiedź niepełna: została ucięta limitem długości. Poproś o kontynuację albo o krótszą wersję.",
         title: "Czat z Patronem",
         placeholder: "Zapytaj Patrona…",
         send: "Wyślij",

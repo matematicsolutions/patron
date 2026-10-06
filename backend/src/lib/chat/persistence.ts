@@ -6,6 +6,7 @@ import type { McpCitation } from "../mcp";
 import { mcpCitationKey, type McpGroundingReport } from "../citation/mcp-grounding";
 import { createServerSupabase } from "../supabase";
 import type { GroundingResult } from "../citation/grounding";
+import type { StopReason } from "../llm/types";
 import type { CitationLocator } from "../citation/locator";
 import { parseCitations, resolveDoc } from "./citations";
 import type {
@@ -19,6 +20,17 @@ import type {
 // ---------------------------------------------------------------------------
 // Annotation extraction (for DB save)
 // ---------------------------------------------------------------------------
+
+/**
+ * Adnotacja "odpowiedz niepelna" (petla modelu przerwana limitem iteracji albo
+ * dlugosci). Persystowana, zeby baner przetrwal ponowne otwarcie czatu. Pusta
+ * lista dla odpowiedzi pelnej i dla dostawcy, ktory powodu nie raportuje.
+ */
+export function incompleteAnnotations(stopReason: StopReason | undefined): unknown[] {
+    return stopReason === "max_iterations" || stopReason === "max_tokens"
+        ? [{ type: "incomplete", reason: stopReason }]
+        : [];
+}
 
 export function extractAnnotations(
     fullText: string,

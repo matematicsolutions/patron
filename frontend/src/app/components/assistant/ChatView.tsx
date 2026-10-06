@@ -542,6 +542,7 @@ export function ChatView({
                                                 annotations={msg.annotations}
                                                 mcpCitations={msg.mcpCitations}
                                                 mcpGrounding={msg.mcpGrounding}
+                                                incomplete={msg.incomplete}
                                                 onCitationClick={openCitation}
                                                 minHeight={
                                                     i === lastAssistantIndex

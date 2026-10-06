@@ -262,6 +262,19 @@ describe("runDefensePipeline - pseudonimizacja egress (H14)", () => {
     expect(seen[0]).not.toContain("[PESEL_1]");
   });
 
+  it("model chmurowy: nazwiska i firmy w drafcie oraz caly kontekst sprawy tez maskowane", async () => {
+    const { fake, seen } = echoLlm();
+    const draft = "Pozwany Jan Kowalski wniosl odpowiedz. Termika Wschod sp. z o.o. zada zaplaty, a Kowalskiego reprezentuje adwokat.";
+    const context = `Klientka Anna Nowak, PESEL ${PESEL}.`;
+    const r = await runDefensePipeline(draft, { model: "claude-opus-4-7", stages: ["recenzent"], context }, fake);
+    for (const jawne of ["Jan Kowalski", "Kowalskiego", "Termika Wschod", "Anna Nowak", PESEL]) {
+      expect(seen[0]).not.toContain(jawne);
+    }
+    // uzytkownik widzi oryginaly
+    expect(r.final).toContain("Jan Kowalski");
+    expect(r.final).toContain("Termika Wschod sp. z o.o.");
+  });
+
   it("wylacznik PATRON_PSEUDONIM_EGRESS=false: brak maskowania nawet dla chmury", async () => {
     process.env.PATRON_PSEUDONIM_EGRESS = "false";
     const { fake, seen } = echoLlm();

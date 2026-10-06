@@ -325,3 +325,20 @@ describe("detectAll - integracja", () => {
         expect(unique.size).toBe(ids.length);
     });
 });
+
+describe("FIRMA - pelne brzmienie form, tytuly i slowa strony (2026-09-24)", () => {
+    const firmy = (t: string) => detectAll(t).filter((m) => m.type === "FIRMA").map((m) => m.raw);
+    it("pelne brzmienie i przypadki zalezne", () => {
+        expect(firmy("Zawarta z Baltic Freight Solutions spółką z ograniczoną odpowiedzialnością.")).toEqual([
+            "Baltic Freight Solutions spółką z ograniczoną odpowiedzialnością",
+        ]);
+        expect(firmy("Kancelaria Nowicki Zawadzka Adwokaci spółka partnerska.")).toEqual([
+            "Kancelaria Nowicki Zawadzka Adwokaci spółka partnerska",
+        ]);
+    });
+    it("tytul w linii wyzej, slowo strony i rodzaj dokumentu nie wchodza do nazwy", () => {
+        expect(firmy("ZESTAWIENIE WIERZYTELNOŚCI\nprzysługujących Zielony Młyn S.A.")).toEqual(["Zielony Młyn S.A."]);
+        expect(firmy("Pozwana Termika Wschód sp. z o.o. wniosła odpowiedź.")).toEqual(["Termika Wschód sp. z o.o."]);
+        expect(firmy("UMOWA SPÓŁKI Z OGRANICZONĄ ODPOWIEDZIALNOŚCIĄ")).toEqual([]);
+    });
+});

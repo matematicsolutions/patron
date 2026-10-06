@@ -62,4 +62,21 @@ describe("executeStagedTool - liczby wykonania (C-08)", () => {
         expect(r.counts).toEqual({ requested: 2, applied: 2, failed: 0 });
         expect(r.result).toMatchObject({ partial: false, errors: [] });
     });
+
+    it("liczy od listy zmian, nie od adnotacji: 1 z 2 zmian z 3 adnotacjami to nadal 1 z 2", async () => {
+        // Jedna zmiana bywa kilkoma adnotacjami (usuniecie + wstawienie); liczba
+        // adnotacji zawyzala "zastosowano" (z galezi fix/kurs-aies-fala1, 2a9f28d).
+        runEditDocument.mockResolvedValueOnce(okRun(3, [{ index: 1, reason: "Nie znaleziono." }]));
+        const r = await executeStagedTool(card("edit_document", { edits: [{}, {}] }), "u1", {} as never);
+        expect(r.counts).toEqual({ requested: 2, applied: 1, failed: 1 });
+        expect(r.result).toMatchObject({ applied: 1, failed: 1, partial: true });
+    });
+
+    it("kilka bledow tej samej zmiany liczy sie raz", async () => {
+        runEditDocument.mockResolvedValueOnce(
+            okRun(0, [{ index: 0, reason: "a" }, { index: 0, reason: "b" }]),
+        );
+        const r = await executeStagedTool(card("edit_document", { edits: [{}, {}] }), "u1", {} as never);
+        expect(r.counts).toEqual({ requested: 2, applied: 1, failed: 1 });
+    });
 });

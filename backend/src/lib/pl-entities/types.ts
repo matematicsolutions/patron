@@ -89,4 +89,9 @@ export interface ExtractionRule {
     baseConfidence: number;
     /** Funkcja normalizujaca wartosc (np. UPPERCASE, trim, padding zer). */
     normalize?: (match: string) => string;
+    /**
+     * Przyciecie dopasowania PRZED walidacja - np. zdjecie slowa strony
+     * ("Pozwana") z poczatku nazwy firmy. Offset liczony od przycietej wartosci.
+     */
+    trim?: (match: string) => string;
 }

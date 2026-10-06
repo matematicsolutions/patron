@@ -22,6 +22,12 @@ export type NormalizedToolCall = {
     id: string;
     name: string;
     input: Record<string, unknown>;
+    /**
+     * Model podal argumenty, ktore nie sa obiektem JSON. `input` jest wtedy
+     * pusty, a narzedzia NIE wolno uruchomic z `{}` - petla czatu oddaje
+     * modelowi blad, zeby poprawil wywolanie.
+     */
+    argumentsInvalid?: boolean;
 };
 
 export type NormalizedToolResult = {
@@ -61,8 +67,18 @@ export type StreamChatParams = {
     enableThinking?: boolean;
 };
 
+/**
+ * Dlaczego petla modelu sie skonczyla. `complete` = model sam zakonczyl ture.
+ * `max_iterations` = wyczerpany limit petli narzedziowej (model chcial dalej).
+ * `max_tokens` = odpowiedz ucieta limitem dlugosci. Oba ostatnie znacza, ze
+ * odpowiedz jest NIEPELNA - nie wolno jej pokazac ani zaudytowac jak pelnej.
+ */
+export type StopReason = "complete" | "max_iterations" | "max_tokens";
+
 export type StreamChatResult = {
     fullText: string;
+    /** undefined = dostawca nie raportuje powodu (Ollama) - stan nieznany, nie "complete". */
+    stopReason?: StopReason;
     /**
      * Realne zuzycie zwrocone przez dostawce, gdy dostepne. OpenRouter zwraca
      * tokeny + realny koszt (usage.cost). Pozostali dostawcy zwykle nie podaja

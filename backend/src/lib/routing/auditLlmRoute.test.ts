@@ -18,6 +18,22 @@ describe("providerLabelForModel", () => {
 });
 
 describe("buildLlmRouteEvent", () => {
+    it("powod zakonczenia trafia do payload; brak = null (nieznany), nie complete", () => {
+        const baza = {
+            actorUserId: "u",
+            model: "claude-opus-4-7",
+            provider: "anthropic",
+            egress: "us-with-dpa" as const,
+            classification: "internal" as const,
+            action: "allow" as const,
+            reason: "us-allowed-by-administrator" as const,
+        };
+        const ucieta = buildLlmRouteEvent({ ...baza, stopReason: "max_iterations" });
+        expect((ucieta.payload as Record<string, unknown>).stop_reason).toBe("max_iterations");
+        const nieznany = buildLlmRouteEvent(baza);
+        expect((nieznany.payload as Record<string, unknown>).stop_reason).toBeNull();
+    });
+
     it("zdarzenie ma typ llm_route i komplet pol w payload", () => {
         const ev = buildLlmRouteEvent({
             actorUserId: "user-1",

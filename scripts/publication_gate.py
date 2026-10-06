@@ -122,8 +122,14 @@ _KRS = re.compile(r"\bKRS[:\s-]*?(\d{10})\b", re.IGNORECASE)
 _SECRETS = [
     ("aws_access_key", re.compile(r"\bAKIA[0-9A-Z]{16}\b")),
     ("private_key_block", re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----")),
-    ("github_pat", re.compile(r"\bghp_[0-9A-Za-z]{36}\b")),
-    ("openai_key", re.compile(r"\bsk-[A-Za-z0-9]{20,}\b")),
+    ("github_pat", re.compile(r"\b(?:ghp_[0-9A-Za-z]{36}|github_pat_[0-9A-Za-z_]{60,})\b")),
+    ("github_token", re.compile(r"\bgh[ousr]_[0-9A-Za-z]{36}\b")),
+    ("anthropic_key", re.compile(r"\bsk-ant-(?:api|admin)\d{2}-[A-Za-z0-9_\-]{20,}")),
+    # Stary sk-<alnum> oraz klucze projektowe i serwisowe (sk-proj-, sk-svcacct-, sk-admin-).
+    ("openai_key", re.compile(r"\bsk-(?:(?:proj|svcacct|admin)-[A-Za-z0-9_\-]{20,}|[A-Za-z0-9]{20,}\b)")),
+    ("huggingface_token", re.compile(r"\bhf_[A-Za-z0-9]{30,}\b")),
+    ("pypi_token", re.compile(r"\bpypi-AgEIcHlwaS5vcmc[A-Za-z0-9_\-]{50,}")),
+    ("npm_token", re.compile(r"\bnpm_[A-Za-z0-9]{36}\b")),
     ("google_api_key", re.compile(r"\bAIza[0-9A-Za-z_\-]{35}\b")),
     ("slack_token", re.compile(r"\bxox[baprs]-[0-9A-Za-z-]{10,}\b")),
 ]

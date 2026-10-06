@@ -3,6 +3,7 @@ import type { Tool } from "@anthropic-ai/sdk/resources/messages/messages";
 import type {
     StreamChatParams,
     StreamChatResult,
+    StopReason,
     NormalizedToolCall,
     NormalizedToolResult,
 } from "./types";
@@ -60,6 +61,7 @@ export async function streamClaude(
     const messages: NativeMessage[] = toNativeMessages(params.messages);
     let fullText = "";
 
+    let stop: StopReason = "max_iterations";
     for (let iter = 0; iter < maxIter; iter++) {
         const stream = anthropic.messages.stream({
             model,
@@ -122,6 +124,7 @@ export async function streamClaude(
         }
 
         if (stopReason !== "tool_use" || !toolCalls.length || !runTools) {
+            stop = stopReason === "max_tokens" ? "max_tokens" : "complete";
             break;
         }
 
@@ -141,7 +144,7 @@ export async function streamClaude(
         });
     }
 
-    return { fullText };
+    return { fullText, stopReason: stop };
 }
 
 export async function completeClaudeText(params: {

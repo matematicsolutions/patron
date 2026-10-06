@@ -3,6 +3,7 @@ import type {
     NormalizedToolCall,
     NormalizedToolResult,
     OpenAIToolSchema,
+    StopReason,
     StreamChatParams,
     StreamChatResult,
 } from "./types";
@@ -88,19 +89,23 @@ function extractSseJson(buffer: string): { events: unknown[]; rest: string } {
 
 function parseFunctionCall(item: ResponseFunctionCallItem): NormalizedToolCall {
     let input: Record<string, unknown> = {};
+    let argumentsInvalid = false;
     try {
         const parsed = JSON.parse(item.arguments || "{}");
         if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
             input = parsed as Record<string, unknown>;
+        } else {
+            argumentsInvalid = true;
         }
     } catch {
-        input = {};
+        argumentsInvalid = true;
     }
 
     return {
         id: item.call_id ?? item.name ?? "function_call",
         name: item.name ?? "",
         input,
+        ...(argumentsInvalid ? { argumentsInvalid } : {}),
     };
 }
 
@@ -167,6 +172,7 @@ export async function streamOpenAI(
     let fullText = "";
     const hasTools = responseTools.length > 0;
 
+    let stop: StopReason = "max_iterations";
     for (let iter = 0; iter < maxIter; iter++) {
         const response = await createResponse({
             model,
@@ -187,6 +193,9 @@ export async function streamOpenAI(
         let buffer = "";
         let pendingText = "";
         let sawReasoning = false;
+        // Responses API konczy ucieta odpowiedz zdarzeniem "response.incomplete"
+        // (np. max_output_tokens) zamiast "response.completed".
+        let truncated = false;
 
         while (true) {
             const { done, value } = await reader.read();
@@ -197,6 +206,7 @@ export async function streamOpenAI(
             buffer = extracted.rest;
 
             for (const event of extracted.events as ResponseStreamEvent[]) {
+                if (event.type === "response.incomplete") truncated = true;
                 if (event.response?.id) {
                     previousResponseId = event.response.id;
                 }
@@ -250,6 +260,7 @@ export async function streamOpenAI(
                 fullText += pendingText;
                 callbacks.onContentDelta?.(pendingText);
             }
+            stop = truncated ? "max_tokens" : "complete";
             break;
         }
 
@@ -261,7 +272,7 @@ export async function streamOpenAI(
         }));
     }
 
-    return { fullText };
+    return { fullText, stopReason: stop };
 }
 
 export async function completeOpenAIText(params: {

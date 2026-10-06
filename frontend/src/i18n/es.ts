@@ -91,6 +91,10 @@ export const es: DictShape<typeof pl> = {
     },
 
     chat: {
+        // Obraz w markdownie odpowiedzi NIE jest pobierany (wektor wycieku przez URL).
+        imageBlocked: "Imagen externa no cargada ({host})",
+        incompleteMaxIterations: "Respuesta incompleta: el modelo se detuvo al alcanzar su límite de pasos. Pueden faltar conclusiones - formule una pregunta más concreta o pida que continúe.",
+        incompleteMaxTokens: "Respuesta incompleta: se cortó por el límite de longitud. Pida que continúe o una versión más breve.",
         title: "Chat con Patron",
         placeholder: "Pregunte a Patron…",
         send: "Enviar",

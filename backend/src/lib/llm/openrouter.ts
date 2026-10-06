@@ -6,6 +6,7 @@
 
 import { openRouterModelId } from "./models";
 import type {
+  StopReason,
   LlmMessage,
   NormalizedToolCall,
   OpenAIToolSchema,
@@ -113,14 +114,21 @@ export function accumulateToolCallDeltas(
 
 function toNormalizedToolCall(a: ToolCallAccum): NormalizedToolCall {
   let input: Record<string, unknown> = {};
+  let argumentsInvalid = false;
   try {
     const parsed = JSON.parse(a.arguments || "{}");
     if (parsed && typeof parsed === "object" && !Array.isArray(parsed))
       input = parsed as Record<string, unknown>;
+    else argumentsInvalid = true;
   } catch {
-    input = {};
+    argumentsInvalid = true;
   }
-  return { id: a.id || a.name || "tool_call", name: a.name, input };
+  return {
+    id: a.id || a.name || "tool_call",
+    name: a.name,
+    input,
+    ...(argumentsInvalid ? { argumentsInvalid } : {}),
+  };
 }
 
 function splitSse(buffer: string): { events: unknown[]; rest: string } {
@@ -169,6 +177,7 @@ export async function streamOpenRouter(
     | { prompt_tokens?: number; completion_tokens?: number; cost?: number }
     | undefined;
 
+  let stop: StopReason = "max_iterations";
   for (let iter = 0; iter < maxIter; iter++) {
     const response = await fetch(OPENROUTER_URL, {
       method: "POST",
@@ -229,6 +238,7 @@ export async function streamOpenRouter(
 
     const calls = [...toolAcc.values()].map(toNormalizedToolCall);
     if (finish !== "tool_calls" || calls.length === 0 || !runTools) {
+      stop = finish === "length" ? "max_tokens" : "complete";
       break;
     }
 
@@ -254,6 +264,7 @@ export async function streamOpenRouter(
 
   return {
     fullText,
+    stopReason: stop,
     usage: capturedUsage
       ? {
           promptTokens: capturedUsage.prompt_tokens ?? null,

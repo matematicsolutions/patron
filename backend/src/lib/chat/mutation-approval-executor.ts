@@ -27,12 +27,15 @@ type Db = ReturnType<typeof createServerSupabase>;
  */
 function withCounts(
     requested: number,
-    applied: number,
     errors: { index: number; reason: string }[],
     base: Record<string, unknown>,
 ): ExecutorResult {
-    const failed = Math.max(requested - applied, errors.length, 0);
-    const counts = { requested: Math.max(requested, applied + failed), applied, failed };
+    // Liczymy od listy WEJSCIA i bledow per indeks, nie od adnotacji: jedna zmiana
+    // bywa kilkoma adnotacjami, wiec "applied = liczba adnotacji" zawyzalo wynik
+    // (z galezi fix/kurs-aies-fala1, 2a9f28d).
+    const failed = Math.min(requested, new Set(errors.map((e) => e.index)).size);
+    const applied = Math.max(0, requested - failed);
+    const counts = { requested, applied, failed };
     return {
         ok: true,
         counts,
@@ -68,7 +71,7 @@ export async function executeStagedTool(
         }
         const r = await runEditDocument({ documentId, userId, edits, db });
         if (!r.ok) return { ok: false, error: r.error };
-        return withCounts(edits.length, r.annotations.length, r.errors, {
+        return withCounts(edits.length, r.errors, {
             document_id: documentId,
             version_id: r.version_id,
             version_number: r.version_number,
@@ -85,7 +88,7 @@ export async function executeStagedTool(
         }
         const r = await runAddComments({ documentId, userId, comments, db });
         if (!r.ok) return { ok: false, error: r.error };
-        return withCounts(comments.length, r.annotations.length, r.errors, {
+        return withCounts(comments.length, r.errors, {
             document_id: documentId,
             version_id: r.version_id,
             version_number: r.version_number,

@@ -1201,6 +1201,7 @@ export default function ProjectAssistantChatPage({ params }: Props) {
                                             annotations={msg.annotations}
                                             mcpCitations={msg.mcpCitations}
                                                 mcpGrounding={msg.mcpGrounding}
+                                                incomplete={msg.incomplete}
                                             onCitationClick={
                                                 handleCitationClick
                                             }

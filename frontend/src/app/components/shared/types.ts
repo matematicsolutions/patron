@@ -237,6 +237,11 @@ export interface PATRONMessage {
    * `error` = grounding sie nie odpalil (UI pokazuje "nie zweryfikowano").
    */
   mcpGrounding?: PATRONMcpGrounding;
+  /**
+   * Odpowiedz przerwana limitem petli modelu albo dlugosci (backend StopReason).
+   * Brak pola = pelna albo nieznana (starsze wiadomosci) - bez baneru.
+   */
+  incomplete?: PATRONIncompleteReason;
   events?: AssistantEvent[];
   /** Set when streaming failed; rendered as a red error block. */
   error?: string;
@@ -577,3 +582,6 @@ export interface TabularReviewDetailOut {
   cells: TabularCell[];
   documents: PATRONDocument[];
 }
+
+/** Powod przerwania odpowiedzi (backend: StopReason bez "complete"). */
+export type PATRONIncompleteReason = "max_iterations" | "max_tokens";
