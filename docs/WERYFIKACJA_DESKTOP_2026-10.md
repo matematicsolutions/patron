@@ -1,6 +1,6 @@
 # Weryfikacja desktop gałęzi `audyt/2026-09` (2026-10-06)
 
-Niezależna weryfikacja na Windows 11 (Node 24, Python 3.13, Ollama lokalnie) tez z [AUDYT_2026-09.md](./AUDYT_2026-09.md), [PRZEGLAD_2026-10-02.md](./PRZEGLAD_2026-10-02.md) i [NAPRAWY_2026-10-02.md](./NAPRAWY_2026-10-02.md). Punkt wyjścia: `19a0670`, 52 commity nad `main` @ `40cea92`. Każdy werdykt ma dowód: komendę z wynikiem albo plik:linia. Deklaracje sesji chmurowej sprawdzane u źródła, nie przepisywane.
+Niezależna weryfikacja na Windows 11 (Node 24, Python 3.13, Ollama lokalnie) tez z [AUDYT_2026-09.md](./AUDYT_2026-09.md), [PRZEGLAD_2026-10-02.md](./PRZEGLAD_2026-10-02.md) i [NAPRAWY_2026-10-02.md](./NAPRAWY_2026-10-02.md). Punkt wyjścia: gałąź audytu przed weryfikacją, 52 commity nad `main` @ `40cea92`. Każdy werdykt ma dowód: komendę z wynikiem albo plik:linia. Deklaracje sesji chmurowej sprawdzane u źródła, nie przepisywane.
 
 Werdykty: **OK** (zgodne, dowód), **UWAGI** (działa, ale z zastrzeżeniem), **BLOKADA** (nie działa albo przeczy deklaracji), **NIE SPRAWDZONO** (z powodem).
 
@@ -13,7 +13,7 @@ Werdykty: **OK** (zgodne, dowód), **UWAGI** (działa, ale z zastrzeżeniem), **
 | UWAGI | 11 |
 | BLOKADA | 2 |
 | NIE SPRAWDZONO (z powodem) | 3 |
-| NIE WYKONANO (czeka na decyzję WM) | 1 |
+| NIE WYKONANO (czeka na decyzję właściciela produktu) | 1 |
 
 Rozjazdów z deklaracjami sesji chmurowej: 6 (lista niżej). Wszystkie środowiskowe albo w narzędziach pomiaru, żaden nie podważa naprawy w kodzie produktu. Obie BLOKADY leżą poza zmianami gałęzi audytu (e2e i osierocona naprawa na publicznym repo) i nie blokują jej scalenia.
 
@@ -44,13 +44,13 @@ Na desktopie wykonał się też test, którego chmura nie mogła uruchomić: `cy
 | 2a.2 | **Izolacja profilu w e2e** | `e2e-smoke.cjs` przekierowuje `APPDATA`/`LOCALAPPDATA`, ale Electron na Windows bierze `userData` z systemu (FOLDERID_RoamingAppData), nie ze zmiennej. Spakowana aplikacja zapisała do rzeczywistego `%APPDATA%\patron-desktop\patron.db`, nie do profilu tymczasowego. Zdanie „czysty profil” w `e2e-smoke.cjs` i w AGENTS.md (DON'T #2) jest nieprawdziwe; każdy przebieg e2e uruchamia migracje na profilu roboczym maszyny budującej. Propozycja niżej (P2) | **BLOKADA** |
 | 2a.3 | Tajemnica + model chmurowy, domyślnie | Spakowana aplikacja, bez kluczy chmurowych w env: `GET /api/config/egress` → `privileged_cloud.allowed=false`; nowa sprawa ma domyślnie klasyfikację tajemnicy (`schema.sqlite.ts:70`); czat z modelem chmurowym → SSE `egress_blocked`: „Ta sprawa jest oznaczona jako objeta tajemnica zawodowa. Dozwolony jest wylacznie model lokalny...” | OK |
 | 2a.4 | Zgoda per sprawa i ślad | `PATCH /projects/:id/cloud-consent` → 200; następny czat przechodzi przez strażnika (dalej pada lokalnie na braku klucza Gemini, `gemini.ts:33`, zanim powstanie klient - nic nie wyszło do sieci); w `audit_log` jest `project.cloud_consent` i dwa `llm_route`. Uwaga UX: po zgodzie, bez klucza, użytkownik widzi tylko „Stream error” zamiast „brak klucza Gemini” | UWAGI |
-| 2a.5 | Karty zatwierdzeń domyślnie | Domyślna wartość potwierdzona w kodzie (`desktop/main.js:221` `PATRON_MUTATION_APPROVAL ?? 'true'`) i testami B-02/B-04 (zielone). Przebieg z czatu wymaga modelu wywołującego narzędzia; ścieżka Ollama celowo nie przekazuje narzędzi (`ollama.ts:95`, `toolCalling=false`), model chmurowy wymaga zgody WM | NIE SPRAWDZONO (powód: brak lokalnego modelu z narzędziami; chmura tylko za zgodą) |
+| 2a.5 | Karty zatwierdzeń domyślnie | Domyślna wartość potwierdzona w kodzie (`desktop/main.js:221` `PATRON_MUTATION_APPROVAL ?? 'true'`) i testami B-02/B-04 (zielone). Przebieg z czatu wymaga modelu wywołującego narzędzia; ścieżka Ollama celowo nie przekazuje narzędzi (`ollama.ts:95`, `toolCalling=false`), model chmurowy wymaga zgody właściciela produktu | NIE SPRAWDZONO (powód: brak lokalnego modelu z narzędziami; chmura tylko za zgodą) |
 | 2b | A-21 CSP | Spakowany front wysyła tylko `Content-Security-Policy-Report-Only`. Polityka ma `connect-src 'self'` (= `http://localhost:3000`), a każde wywołanie API idzie na `http://localhost:3001` (`frontend/src/lib/apiBase.ts:22`, `desktop/main.js:486`). Samo przełączenie na tryb egzekwowany odcięłoby backend. Propozycja niżej (P1) | UWAGI |
 | 2c | `smoke:surfaces` na Ollamie | Uruchomione z `ollama/llama3.2:3b` i usuniętymi z env kluczami chmurowymi (domyślny model skryptu to chmurowy Gemini, a skrypt przekazuje backendowi całe `process.env`). Upload+indeks OK, workflows OK. Tabular w skrypcie FAILED „0/8 w 0 s” - **defekt skryptu, nie produktu**: tabular bierze model z profilu (`tabularModel`), nie z ciała `/generate`, więc skrypt mierzył domyślny model chmurowy (422 `missing_api_key`; tak samo na `main`). Sonda z modelem ustawionym w profilu: 200, komórka „86.5 m2”, flaga zielona, 22 s. DOCX z czatu i research z MCP: z założenia niedostępne na modelu lokalnym (`ollama.ts:95`). Draft/refine: 200 w 90 s, 3 etapy, model 3B zgubił fakty (jakość modelu). Skrypt poprawiony (model przez profil; przerwana powierzchnia wlicza się do mianownika) | UWAGI |
 | 2d | Obszar B na Ollamie | Wymaga wywołań narzędzi (edycja jako karta, argumenty MCP); ścieżka Ollama ich nie ma. Pokrycie tylko testami B-02/B-11 (fake-LLM, zielone) | NIE SPRAWDZONO (powód jak 2a.5) |
 | 2e | B-08 komunikat | Tekst jest uczciwy (oczekiwanie, nie alarm; „nic nie wyszło do sieci”), ale **nie wskazuje, co kliknąć - bo nie ma czego**: prawnik ma znaleźć hash w dzienniku startu, ręcznie dopisać JSON `gatewayApproval` do `.patron/mcp-servers.operator.json` i zrestartować. Propozycja niżej (P3) | UWAGI |
 | 2f | RODO: `rodo-delete.ts` → eksport → `verify.py` kod 3 | `rodo-delete.ts` działa wyłącznie z klientem Supabase: na SQLite (domyślny desktop) kończy się `FATAL: brak SUPABASE_URL` i kodem 2. Testy repo podmieniają klienta na shim SQLite i wtedy ścieżka anonimizacja → eksport → `verify.py` kod 3 jest zielona (`audit-export-integrity.test.ts:324,351`), HTML/Python/produkcja zgodne (`audit-verifier-assets.test.ts`). Na desktopie Operator nie ma narzędzia RODO art. 17 dla użytkownika - zostaje `forget-case` per sprawa | UWAGI |
-| 2g | A-11 (OpenAI `store:false`) | Nie ruszane (wymaga płatnego API). Czerwony test potwierdzony (`expected undefined to be false`) | NIE SPRAWDZONO (decyzja WM) |
+| 2g | A-11 (OpenAI `store:false`) | Nieruszane (wymaga płatnego API). Czerwony test potwierdzony (`expected undefined to be false`) | NIE SPRAWDZONO (decyzja właściciela produktu) |
 
 ## Krok 3 - `fix/kurs-aies-fala1` wobec `audyt/2026-09`
 
@@ -67,9 +67,9 @@ Rekomendacja kolejności: (1) scalić `audyt/2026-09` (bezpieczeństwo, szerszy 
 | # | Punkt | Wynik | Werdykt |
 |---|---|---|---|
 | 4.1 | Czy gałąź ma coś, czego brak na `main` | 11 commitów bez odpowiednika (cherry-pick). Linie dodane przez każdy z nich porównane z całym drzewem `main`: braki to wyłącznie przepisane komentarze, dokumentacja i liczniki testów; elementy kodu z braków są na `main` (ścieżki `soffice` w `convert.ts`, `ORDER_PL/ORDER_EN` w teście parytetu, `appendLlmRouteEvent` w `tabular.ts`, `EVENT_TYPES` w `metrics.ts`/`audit-log-query.ts`). Plik tylko na gałęzi: `.mcp.json` oraz 45 plików prywatnego warsztatu (`.matematic/`, `.claude/`). Lokalna kopia gałęzi = zdalna (0/0) | OK |
-| 4.2 | Archiwum | `git bundle create` + `git bundle verify`: OK, pełna historia, głowica `20ab9be` zgodna ze zdalną. Archiwum poza repo, nie publikować (zawiera prywatny warsztat) | OK |
-| 4.3 | Usunięcie zdalnej gałęzi | Czeka na zgodę WM | NIE WYKONANO (decyzja WM) |
-| 4.4 | Skan historii jak w CI | Dziś: 3 hard (`denied_path` + 2x `denylist_hash`), wszystkie wyłącznie w `ae7875a` i `429f8d9`, osiągalnych tylko z `origin/feat/design-system-2-0`. Po usunięciu gałęzi oczekiwane 0 hard - do potwierdzenia po kroku 4.3 | UWAGI |
+| 4.2 | Archiwum | `git bundle create` + `git bundle verify`: OK, pełna historia, głowica zgodna ze zdalną. Archiwum poza repo, nie publikować (zawiera prywatny warsztat) | OK |
+| 4.3 | Usunięcie zdalnej gałęzi | Czeka na zgodę właściciela produktu | NIE WYKONANO (decyzja właściciela produktu) |
+| 4.4 | Skan historii jak w CI | Dziś: 3 hard (`denied_path` + 2x `denylist_hash`), wszystkie wyłącznie w dwóch commitach osiągalnych tylko z gałęzi `feat/design-system-2-0`. Po usunięciu gałęzi oczekiwane 0 hard - do potwierdzenia po kroku 4.3 | UWAGI |
 
 ## Przegląd tego, co jest publiczne na GitHubie (`matematicsolutions/patron`)
 
@@ -81,7 +81,7 @@ Rekomendacja kolejności: (1) scalić `audyt/2026-09` (bezpieczeństwo, szerszy 
 | G.4 | Alerty CodeQL | 24 otwarte (23 high), najstarszy 2026-05-20: m.in. `js/clear-text-logging` (tool-dispatch.ts x3, documents.ts, chat.ts), `js/path-injection` (storage.ts x2, folders.ts, documentIngest.ts), `js/tainted-format-string` (x5), `js/redos` (cytaty_pl.ts), `js/insecure-helmet-configuration`. Bez triage | UWAGI |
 | G.5 | Secret scanning | Wyłączony na repo publicznym (API: „Secret scanning is disabled”) | UWAGI |
 | G.6 | Higiena PR i gałęzi | PR #59 otwarty, a jego treść jest na `main` (0 commitów unikalnych). `feat/mutation-approval-cards` porzucona od 2026-06-29. PR #54 od zewnętrznego kontrybutora bez odpowiedzi od 2026-08-26. 8 PR Dependabota otwartych, najstarsze od 2026-08-24 | UWAGI |
-| G.7 | Konwencja commitów gałęzi audytu | 52/52 bez polskich znaków, 52/52 z `Co-Authored-By`. Inaczej niż na `main`: autor `Claude <noreply@anthropic.com>` (na `main` konto WM) i stopka `Claude-Session: <URL sesji>` (na `main` 0 wystąpień). Przy scaleniu przez merge commit obie trafią do publicznej historii | UWAGI |
+| G.7 | Konwencja commitów gałęzi audytu | 52/52 bez polskich znaków, 52/52 z `Co-Authored-By`. Inaczej niż na `main`: autor `Claude <noreply@anthropic.com>` (na `main` konto właściciela produktu) i stopka `Claude-Session: <URL sesji>` (na `main` 0 wystąpień). Przy scaleniu przez merge commit obie trafią do publicznej historii | UWAGI |
 
 ## Rozjazdy z deklaracjami sesji chmurowej
 
@@ -104,7 +104,7 @@ Kod produktu: bez zmian.
 
 ## Propozycje (bez wdrożenia)
 
-> **Stan po tej samej sesji (2026-10-06, decyzja WM „masz zielone”):** P1, P2 i P3 wdrożone na `audyt/2026-09` z testami (commity `2f90a9b`, `164e158`, `37bb4bd`); dodatkowo `rodo:delete` na SQLite (`3e48661`) i komunikat błędu czatu sprawy (`51f5c15`). P1 sprawdzona na spakowanej aplikacji na izolowanym profilu: e2e 7/7, zero naruszeń CSP na czacie, sprawach, przeglądach, konektorach, kartach, audycie i podglądzie DOCX/PDF; profil roboczy nietknięty (sha256 przed i po). P4 i scalenie `fix/kurs-aies-fala1` - osobne gałęzie po scaleniu tej (uwagi sesji chmurowej). Opisy poniżej zostają jako zapis stanu z chwili weryfikacji.
+> **Stan po tej samej sesji (2026-10-06, decyzja właściciela produktu):** P1, P2 i P3 wdrożone z testami, a obok nich `rodo:delete` na SQLite i komunikat błędu czatu sprawy; wszystko weszło na `main` w `4588598`. P1 sprawdzona na spakowanej aplikacji na izolowanym profilu: e2e 7/7, zero naruszeń CSP na czacie, sprawach, przeglądach, konektorach, kartach, audycie i podglądzie DOCX/PDF; profil roboczy nietknięty (sha256 przed i po). Gałąź `feat/design-system-2-0` usunięta po archiwizacji, skan historii jak w CI daje 0 hard. Scalenie `fix/kurs-aies-fala1` weszło w `09b7bd6`, P4 w `9eb6031`. Opisy poniżej zostają jako zapis stanu z chwili weryfikacji.
 
 **P1 - A-21, CSP egzekwowana.** Przed przełączeniem dopisać origin API do `connect-src`, inaczej front traci backend:
 
@@ -131,11 +131,11 @@ Do sprawdzenia przed wdrożeniem: konsola spakowanego Electronu na profilu, któ
 
 **P4 - przenieść naprawę pamięci z PR #58** na prywatną linię (port, rozwiązanie konfliktu z CHANGELOG, numery ADR 0153-0156 są wolne na `main`), potem zamknąć PR #58 i usunąć obie gałęzie publiczne.
 
-## Decyzje WM
+## Decyzje właściciela produktu
 
 1. Projekt zmiany Art. 5 Konstytucji ([PROJEKT_KONSTYTUCJA_ART5_2026-10.md](./PROJEKT_KONSTYTUCJA_ART5_2026-10.md)) - akceptacja i ponowny podpis.
 2. A-02 - osobny projekt; nowy zestaw ewaluacyjny od kogoś innego niż autor poprawki (zestawy 2-5 spalone). Uwaga z kroku 3: część pracy jest już na gałęzi kursu.
-3. Merge `audyt/2026-09` do `main` - i sposób: squash (autor WM, bez `Claude-Session`) czy merge commit (52 commity z autorem „Claude” i URL sesji w publicznej historii).
+3. Merge `audyt/2026-09` do `main` - i sposób: squash (autor: właściciel produktu, bez `Claude-Session`) czy merge commit (52 commity z autorem „Claude” i URL sesji w publicznej historii).
 4. Usunięcie zdalnej `feat/design-system-2-0` (archiwum gotowe i zweryfikowane).
 5. A-11 - test na żywym API OpenAI (płatne).
 6. Publiczne repo: włączenie secret scanning i push protection; triage 24 alertów CodeQL; zamknięcie PR #59; odpowiedź na PR #54; porządek w PR Dependabota.

@@ -127,7 +127,7 @@ zwrocila, czysta funkcja `buildStructureTree()` bez I/O.
 
 - `setImmediate` przesuwa start zadania za biezaca faze petli zdarzen, wiec odpowiedz HTTP
   zdazy pojsc do klienta. To naprawia wade opisana w tym ADR-ze. **Sam limit rownoleglosci
-  tego nie daje**: `await` na spelnionej obietnicy to mikro-zadanie, ktore wykona sie przed
+  tego nie daje**: `await` na spelnionej obietnicy to mikrozadanie, ktore wykona sie przed
   faza I/O (sprawdzone na obu implementacjach przy scalaniu, nie wywnioskowane).
 - semafor o gornej granicy `INDEX_CONCURRENCY` (domyslnie **2**, `PATRON_INDEX_CONCURRENCY`)
   ogranicza liczbe rownoczesnych indekserow, ktora przy imporcie Folderu Sprawy (ADR-0056)

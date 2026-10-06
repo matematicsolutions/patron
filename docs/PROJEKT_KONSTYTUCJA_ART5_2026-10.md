@@ -1,6 +1,6 @@
-# Projekt zmiany Konstytucji - Art. 5 (do decyzji WM i ponownego podpisu)
+# Projekt zmiany Konstytucji - Art. 5 (do decyzji właściciela produktu i ponownego podpisu)
 
-Status: **PROJEKT**. Nie wchodzi w życie bez decyzji WM i ponownego podpisu przez kancelarie (Sec 6.1). Tekst w `governance/CONSTITUTION.md` pozostaje bez zmian do tego czasu.
+Status: **PROJEKT**. Nie wchodzi w życie bez decyzji właściciela produktu i ponownego podpisu przez kancelarie (Sec 6.1). Tekst w `governance/CONSTITUTION.md` pozostaje bez zmian do tego czasu.
 
 ## Dlaczego
 
@@ -21,9 +21,9 @@ Od commita `a43710e` kod ma domyślnie `PATRON_ALLOW_PRIVILEGED_CLOUD=false`. Zg
 
 | Wersja | Data | Zmiana |
 |---|---|---|
-| 1.8.0 | (data podpisu) | Art. 5: zgoda na model chmurowy dla spraw objętych tajemnicą domyślnie WYŁĄCZONA (także na desktopie); zgoda per sprawa (ADR-0128) albo świadoma zgoda globalna Administratora. Zmiana wynika z audytu 2026-09 (A-01, A-02): założenie ADR-0101 „PII maskowane przed wysłaniem” nie obejmowało treści dokumentów w wynikach narzędzi i nie chroniło większości nazwisk. Wdrożone: domyślne `PATRON_ALLOW_PRIVILEGED_CLOUD=false` + bramka `desktop/scripts/egress-defaults-gate.test.cjs`; maskowanie wyników narzędzi, draftu, tytułów i tabular. Dodatkowo: karty zatwierdzeń (ADR-0137) domyślnie WŁĄCZONE (Art. 6, decyzja 2026-10-06). MINOR (zmiana egzekwowanego zachowania na bardziej restrykcyjne). Wymaga re-podpisu, bo zmienia treść zasady. |
+| 1.8.0 | (data podpisu) | Art. 5: zgoda na model chmurowy dla spraw objętych tajemnicą domyślnie WYŁĄCZONA (także na desktopie); zgoda per sprawa (ADR-0128) albo świadoma zgoda globalna Administratora. Zmiana wynika z audytu 2026-09 (A-01, A-02): założenie ADR-0101 „PII maskowane przed wysłaniem” nie obejmowało treści dokumentów w wynikach narzędzi i nie chroniło większości nazwisk. Wdrożone: domyślne `PATRON_ALLOW_PRIVILEGED_CLOUD=false` + bramka `desktop/scripts/egress-defaults-gate.test.cjs`; maskowanie wyników narzędzi, draftu, tytułów i tabular. Karty zatwierdzeń (ADR-0137) domyślnie WŁĄCZONE (Art. 6, decyzja 2026-10-06). MINOR (zmiana egzekwowanego zachowania na bardziej restrykcyjne). Wymaga re-podpisu, bo zmienia treść zasady. |
 
-## Do decyzji WM
+## Do decyzji właściciela produktu
 
 1. Akceptacja tekstu albo poprawki.
 2. Czy w tej samej wersji (1.8.0) opisać w Art. 6 domyślne włączenie kart zatwierdzeń (decyzja z 2026-10-06), czy osobnym wpisem.
