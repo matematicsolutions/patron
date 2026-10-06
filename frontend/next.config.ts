@@ -19,17 +19,24 @@ const nextConfig: NextConfig = {
     },
     // ADR-0069 (H8): naglowki bezpieczenstwa. Dokumenty klientow kancelarii nie
     // moga byc osadzane (clickjacking), a UUID sprawy nie moze wyciekac w Referer
-    // do innego origin. CSP w trybie REPORT-ONLY na start - dynamiczny podglad
-    // docx/pdf.js i Next moga generowac inline; report-only zbiera naruszenia bez
-    // psucia UI, twardy enforce po obserwacji raportow (rezerwacja).
+    // do innego origin. CSP EGZEKWOWANA od 2026-10-06 (audyt A-21): druga warstwa
+    // obrony przed eksfiltracja bez klikniecia (A-20) - img-src/connect-src bez
+    // obcych hostow. Front i API zyja na roznych portach (3000 / 3001), czyli na
+    // roznych originach: `connect-src 'self'` sam odcialby backend, wiec origin API
+    // dochodzi jawnie. headers() liczy sie przy buildzie - NEXT_PUBLIC_API_BASE_URL
+    // ustawia prepare-resources.cjs, a port backendu desktopu jest staly.
+    // script-src z 'unsafe-inline'/'unsafe-eval' zostaje dlugiem (Next + docx-preview).
     async headers() {
+        const apiOrigin = new URL(
+            process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:3001",
+        ).origin;
         const csp = [
             "default-src 'self'",
             "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
             "style-src 'self' 'unsafe-inline'",
             "img-src 'self' data: blob:",
             "font-src 'self' data:",
-            "connect-src 'self'",
+            `connect-src 'self' ${apiOrigin}`,
             "worker-src 'self' blob:",
             "frame-ancestors 'none'",
             "object-src 'none'",
@@ -50,7 +57,7 @@ const nextConfig: NextConfig = {
                         key: "Permissions-Policy",
                         value: "camera=(), microphone=(), geolocation=(), browsing-topics=()",
                     },
-                    { key: "Content-Security-Policy-Report-Only", value: csp },
+                    { key: "Content-Security-Policy", value: csp },
                 ],
             },
         ];

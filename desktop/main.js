@@ -7,6 +7,22 @@ const crypto = require('crypto');
 
 const isDev = process.argv.includes('--dev');
 
+// Izolacja profilu dla testow spakowanej aplikacji (weryfikacja 2026-10-06).
+// Na Windows Electron bierze userData z FOLDERID_RoamingAppData, NIE ze zmiennej
+// APPDATA - przekierowanie env w e2e-smoke niczego nie izolowalo i kazdy przebieg
+// pisal (migracje + wpisy audytu) do roboczego profilu maszyny. Sciezka dziala
+// tylko w jawnym trybie testu (PATRON_E2E=1) i tylko dla sciezki bezwzglednej;
+// musi poprzedzac requestSingleInstanceLock, bo blokada tez zyje w userData.
+if (process.env.PATRON_E2E === '1' && process.env.PATRON_USER_DATA_DIR) {
+  const katalogTestu = process.env.PATRON_USER_DATA_DIR;
+  if (!path.isAbsolute(katalogTestu)) {
+    console.error(`[e2e] PATRON_USER_DATA_DIR musi byc sciezka bezwzgledna: ${katalogTestu}`);
+    process.exit(2);
+  }
+  fs.mkdirSync(katalogTestu, { recursive: true });
+  app.setPath('userData', katalogTestu);
+}
+
 // D2: bez tej blokady kazde kolejne uruchomienie skrotu startowalo PELNA druga
 // instancje. Jej backend dostawal EADDRINUSE i umieral, ale okno i tak sie
 // otwieralo, bo waitForPort sprawdza tylko "czy KTOKOLWIEK odpowiada na porcie",
@@ -202,14 +218,23 @@ function backendLocalEnv() {
     PATRON_BRAIN_DIR: path.join(ud, 'brain'),
     DOWNLOAD_SIGNING_SECRET: getOrCreateSecret('download_signing_secret'),
     USER_API_KEYS_ENCRYPTION_SECRET: getOrCreateSecret('api_keys_encryption_secret'),
-    // Desktop single-user: adwokat JEST Operatorem na wlasnej maszynie. Jego wybor
-    // modelu chmurowego (np. Libra/Anthropic - glowne narzedzie prawnikow w PL) jest
-    // swiadoma zgoda na egress. Zdejmujemy domyslny twardy blok chmury dla spraw
-    // objetych tajemnica; egress POZOSTAJE w pelni audytowany (dowod AI Act art. 12),
-    // a PII jest maskowane przed wyslaniem. Kancelaria moze zaostrzyc rygor wylaczajac
-    // te zmienne (tryb serwerowy/fabryczny ich nie ustawia). Patrz ADR-0101.
+    // Desktop single-user: adwokat JEST Operatorem na wlasnej maszynie. Wybor modelu
+    // chmurowego (dostawca spoza EOG) dla spraw BEZ tajemnicy zostaje odblokowany.
+    //
+    // Sprawy objete tajemnica: domyslnie TYLKO model lokalny (audyt 2026-09, A-01).
+    // Globalna zgoda z ADR-0101 opierala sie na zalozeniu "PII jest maskowane przed
+    // wyslaniem", ktore nie obejmowalo tresci dokumentow (wyniki narzedzi) i
+    // przepuszczalo wiekszosc nazwisk. Zgoda na chmure dla KONKRETNEJ sprawy idzie
+    // przelacznikiem w ustawieniach sprawy (ADR-0128, projects.cloud_consent, slad
+    // w audit_log). Globalne wlaczenie nadal mozliwe swiadomie przez env
+    // PATRON_ALLOW_PRIVILEGED_CLOUD=true. Pilnuje tego scripts/egress-defaults-gate.test.cjs.
     ALLOW_US_PROVIDERS: process.env.ALLOW_US_PROVIDERS ?? 'true',
-    PATRON_ALLOW_PRIVILEGED_CLOUD: process.env.PATRON_ALLOW_PRIVILEGED_CLOUD ?? 'true',
+    PATRON_ALLOW_PRIVILEGED_CLOUD: process.env.PATRON_ALLOW_PRIVILEGED_CLOUD ?? 'false',
+    // Karty zatwierdzen (ADR-0137, aktualizacja 2026-10-06, audyt B-02): akcje
+    // agenta o skutkach ubocznych (edycja/generowanie/kopie dokumentu, komentarze,
+    // zapis pamieci) czekaja na zatwierdzenie czlowieka. Domyslnie wlaczone (jak
+    // w backendzie); swiadome wylaczenie: PATRON_MUTATION_APPROVAL=false.
+    PATRON_MUTATION_APPROVAL: process.env.PATRON_MUTATION_APPROVAL ?? 'true',
   };
   const dbKey = getOrCreateDbKey();
   if (dbKey) env.PATRON_DB_ENCRYPTION_KEY = dbKey;

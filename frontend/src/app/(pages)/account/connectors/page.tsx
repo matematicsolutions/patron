@@ -4,11 +4,33 @@ import { useCallback, useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { t, type TranslationKey } from "@/i18n";
 import {
+    approveConnectorGateway,
+    getConnectorGateway,
     getConnectors,
     setConnectorEnabled,
+    type ConnectorGatewayDetails,
     type ConnectorInfo,
     type ConnectorJurisdiction,
 } from "@/app/lib/patronApi";
+
+/** apiRequest rzuca Error z surowym cialem odpowiedzi - wyciagamy `detail`. */
+function szczegolBledu(err: unknown): string {
+    const surowy = err instanceof Error ? err.message : String(err);
+    try {
+        const j = JSON.parse(surowy) as { detail?: unknown };
+        if (typeof j.detail === "string") return j.detail;
+    } catch {
+        /* nie JSON */
+    }
+    return surowy;
+}
+
+type Przeglad = {
+    name: string;
+    details?: ConnectorGatewayDetails;
+    error?: string;
+    saving?: boolean;
+};
 
 const JURIS_ORDER: ConnectorJurisdiction[] = [
     "PL",
@@ -42,11 +64,69 @@ const JURIS_KEY: Record<ConnectorJurisdiction, TranslationKey> = {
     OTHER: "connectors.jurisdictionOTHER",
 };
 
+// B-08 (ADR-0158): konektor spoza zaufanego zestawu czeka na zatwierdzenie
+// Operatora albo zostal odrzucony przez bramke - picker mowi to wprost.
+const GATEWAY_KEY: Record<
+    NonNullable<ConnectorInfo["gateway"]>,
+    { badge: TranslationKey; hint: TranslationKey }
+> = {
+    awaiting_operator_approval: {
+        badge: "connectors.gatewayAwaiting",
+        hint: "connectors.gatewayAwaitingHint",
+    },
+    blocked: {
+        badge: "connectors.gatewayBlocked",
+        hint: "connectors.gatewayBlockedHint",
+    },
+};
+
 export default function ConnectorsPage() {
     const [connectors, setConnectors] = useState<ConnectorInfo[] | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [savingName, setSavingName] = useState<string | null>(null);
     const [showRestart, setShowRestart] = useState(false);
+    // B-08: przeglad i zatwierdzenie konektora czekajacego na Operatora.
+    const [przeglad, setPrzeglad] = useState<Przeglad | null>(null);
+    const [zatwierdzone, setZatwierdzone] = useState<Set<string>>(new Set());
+
+    const otworzPrzeglad = useCallback(async (name: string) => {
+        setPrzeglad({ name });
+        try {
+            const details = await getConnectorGateway(name);
+            setPrzeglad({ name, details });
+        } catch (err) {
+            const d = szczegolBledu(err);
+            setPrzeglad({
+                name,
+                error: /Admin role required/i.test(d)
+                    ? t("connectors.approveForbidden")
+                    : t("connectors.approveError").replace("{detail}", d),
+            });
+        }
+    }, []);
+
+    const zatwierdz = useCallback(async (p: Przeglad) => {
+        if (!p.details) return;
+        setPrzeglad({ ...p, saving: true, error: undefined });
+        try {
+            await approveConnectorGateway(p.name, {
+                hash: p.details.hash,
+                origin: p.details.origin,
+            });
+            setZatwierdzone((prev) => new Set(prev).add(p.name));
+            setPrzeglad(null);
+            setShowRestart(true);
+        } catch (err) {
+            const d = szczegolBledu(err);
+            setPrzeglad({
+                ...p,
+                saving: false,
+                error: /Admin role required/i.test(d)
+                    ? t("connectors.approveForbidden")
+                    : t("connectors.approveError").replace("{detail}", d),
+            });
+        }
+    }, []);
 
     useEffect(() => {
         let active = true;
@@ -153,13 +233,106 @@ export default function ConnectorsPage() {
                                                             )}
                                                         </span>
                                                     )}
+                                                    {c.gateway && (
+                                                        <span
+                                                            data-testid={`connector-gateway-${c.name}`}
+                                                            className={`rounded px-1.5 py-0.5 text-[11px] ${
+                                                                c.gateway === "blocked"
+                                                                    ? "bg-bad-soft text-bad"
+                                                                    : "bg-warn-soft text-warn"
+                                                            }`}
+                                                        >
+                                                            {t(GATEWAY_KEY[c.gateway].badge)}
+                                                        </span>
+                                                    )}
                                                 </div>
                                                 {!c.toggleable && (
                                                     <p className="mt-0.5 text-xs text-gray-400">
-                                                        {t(
-                                                            "connectors.operatorOnlyHint",
-                                                        )}
+                                                        {zatwierdzone.has(c.name)
+                                                            ? t("connectors.approveDone")
+                                                            : c.gateway
+                                                              ? t(GATEWAY_KEY[c.gateway].hint)
+                                                              : t(
+                                                                    "connectors.operatorOnlyHint",
+                                                                )}
                                                     </p>
+                                                )}
+                                                {c.gateway === "awaiting_operator_approval" &&
+                                                    !zatwierdzone.has(c.name) &&
+                                                    przeglad?.name !== c.name && (
+                                                        <button
+                                                            type="button"
+                                                            data-testid={`connector-approve-${c.name}`}
+                                                            onClick={() => otworzPrzeglad(c.name)}
+                                                            className="mt-1 text-xs font-medium text-gray-700 underline underline-offset-2 hover:text-gray-900"
+                                                        >
+                                                            {t("connectors.approveReview")}
+                                                        </button>
+                                                    )}
+                                                {przeglad?.name === c.name && (
+                                                    <div
+                                                        data-testid={`connector-review-${c.name}`}
+                                                        className="mt-2 max-w-xl rounded-lg border border-warn-soft bg-warn-soft/40 px-3 py-2 text-xs text-gray-700"
+                                                    >
+                                                        <p className="font-medium text-gray-900">
+                                                            {t("connectors.approveTitle").replace("{name}", c.name)}
+                                                        </p>
+                                                        {!przeglad.details && !przeglad.error && (
+                                                            <p className="mt-1 text-gray-500">
+                                                                {t("connectors.approveLoading")}
+                                                            </p>
+                                                        )}
+                                                        {przeglad.details && (
+                                                            <>
+                                                                <p className="mt-1">{t("connectors.approveIntro")}</p>
+                                                                {przeglad.details.unknownThirdPartyOnly ? (
+                                                                    <p className="mt-1">{t("connectors.approveUnknownOnly")}</p>
+                                                                ) : (
+                                                                    <>
+                                                                        <p className="mt-1 font-medium">
+                                                                            {t("connectors.approveFindings")}
+                                                                        </p>
+                                                                        <ul className="mt-0.5 list-disc pl-4">
+                                                                            {przeglad.details.findings.map((f, i) => (
+                                                                                <li key={i}>
+                                                                                    {f.severity}: {f.message}
+                                                                                </li>
+                                                                            ))}
+                                                                        </ul>
+                                                                    </>
+                                                                )}
+                                                                <p className="mt-1 font-mono text-[11px] text-gray-500">
+                                                                    {t("connectors.approveFingerprint").replace(
+                                                                        "{hash}",
+                                                                        przeglad.details.hash.slice(0, 16),
+                                                                    )}
+                                                                </p>
+                                                            </>
+                                                        )}
+                                                        {przeglad.error && (
+                                                            <p className="mt-1 text-bad">{przeglad.error}</p>
+                                                        )}
+                                                        <div className="mt-2 flex gap-2">
+                                                            {przeglad.details && (
+                                                                <button
+                                                                    type="button"
+                                                                    data-testid={`connector-approve-confirm-${c.name}`}
+                                                                    disabled={przeglad.saving}
+                                                                    onClick={() => zatwierdz(przeglad)}
+                                                                    className="rounded bg-gray-900 px-2.5 py-1 text-white disabled:opacity-50"
+                                                                >
+                                                                    {t("connectors.approveConfirm")}
+                                                                </button>
+                                                            )}
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => setPrzeglad(null)}
+                                                                className="rounded border border-gray-300 px-2.5 py-1"
+                                                            >
+                                                                {t("connectors.approveCancel")}
+                                                            </button>
+                                                        </div>
+                                                    </div>
                                                 )}
                                             </div>
 

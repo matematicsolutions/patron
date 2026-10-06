@@ -9,9 +9,13 @@
 "use client";
 
 import type { ReactElement } from "react";
-import { ChevronRight, ShieldAlert } from "lucide-react";
+import { ChevronRight, ShieldAlert, ShieldQuestion } from "lucide-react";
 import Link from "next/link";
-import { blockedGatewayDecisions, useMcpSecurityStatus } from "@/hooks/useMcpSecurityStatus";
+import {
+    awaitingApprovalDecisions,
+    blockedGatewayDecisions,
+    useMcpSecurityStatus,
+} from "@/hooks/useMcpSecurityStatus";
 import { t } from "@/i18n";
 
 export function McpSecurityBanner(): ReactElement | null {
@@ -19,14 +23,40 @@ export function McpSecurityBanner(): ReactElement | null {
 
     if (!visible || !status) return null;
 
-    const blocked = blockedGatewayDecisions(status);
+    // B-08: nowy konektor spoza zaufanego zestawu czekajacy na zatwierdzenie
+    // Operatora to tez `human_review`, ale nie sygnal ataku - pokazujemy go
+    // osobno, spokojniejszym tonem. Reszta blokad (denied, dryf, podobna nazwa,
+    // zatwierdzenie innej definicji) zostaje alarmem.
+    const awaiting = awaitingApprovalDecisions(status);
+    const blocked = blockedGatewayDecisions(status) - awaiting;
 
     // ADR-0149 (korekta WM 2026-08-21): STAN TRWALY nalezy do perymetru, gora
     // jest zarezerwowana na ZDARZENIE. Gora zapala sie wylacznie wtedy, gdy
     // bramka FAKTYCZNIE cos zablokowala - `denied` albo `human_review` bez
     // zatwierdzenia Operatora (dryf, podmiana plikow konektora). Tryb bramy jest
     // zawsze "enforce" (ADR-0160), wiec innych stanow baner nie rozroznia.
-    if (blocked === 0) return null;
+    if (blocked === 0 && awaiting === 0) return null;
+
+    if (blocked === 0) {
+        return (
+            <Link
+                href="/admin/audit"
+                role="status"
+                aria-live="polite"
+                aria-label={t("mcpSecurity.awaitingAriaLabel").replace("{awaiting}", String(awaiting))}
+                data-testid="mcp-security-banner"
+                data-kind="awaiting-approval"
+                className="group flex items-center gap-2 border-b border-b-border/60 border-l-[3px] border-l-warn bg-transparent px-4 py-1.5 text-[12.5px] leading-tight text-warn transition-colors hover:bg-gray-50"
+            >
+                <ShieldQuestion className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <span>{t("mcpSecurity.awaitingMessage").replace("{awaiting}", String(awaiting))}</span>
+                <span className="ml-auto inline-flex shrink-0 items-center gap-0.5 text-[11px] font-semibold underline-offset-2 group-hover:underline">
+                    {t("mcpSecurity.actionHint")}
+                    <ChevronRight className="h-3.5 w-3.5" aria-hidden="true" />
+                </span>
+            </Link>
+        );
+    }
 
     // Adnotacja, nie alarm: kolor niesie WYLACZNIE kreska po lewej i ton
     // tekstu; tlo zostaje papierem.
@@ -43,6 +73,7 @@ export function McpSecurityBanner(): ReactElement | null {
             aria-live="polite"
             aria-label={ariaLabel}
             data-testid="mcp-security-banner"
+            data-kind="blocked"
             className="group flex items-center gap-2 border-b border-b-border/60 border-l-[3px] border-l-bad bg-transparent px-4 py-1.5 text-[12.5px] leading-tight text-bad transition-colors hover:bg-gray-50"
         >
             <ShieldAlert className="h-4 w-4 shrink-0" aria-hidden="true" />

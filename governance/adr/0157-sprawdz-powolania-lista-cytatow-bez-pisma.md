@@ -125,3 +125,33 @@ Rekomendacja: A (jedna zmiana w PATRONIE, rozwiazuje klase problemu, a nie jeden
 - Tryb serwerowy: "komputer kancelarii" znaczy tam "infrastruktura kancelarii" - backend
   czyta pismo na serwerze kancelarii, na zewnatrz idzie ta sama lista.
 - Podglad starszej wersji pisma nie ma przycisku - trasa czyta wersje biezaca.
+
+## Aktualizacja 2026-10-06 - weryfikator czeka na zatwierdzenie Operatora (audyt 2026-09 B-08)
+
+Decyzja wlasciciela produktu (ADR-0158, aktualizacja 2026-10-06): konektor spoza
+`APPROVED_PATRON_CONNECTORS` - w tym weryfikator powolan - dostaje od bramy `human_review` i
+nie jest rejestrowany, dopoki Operator nie wpisze zgodnego `gatewayApproval`. Jedno
+zatwierdzenie wystarcza: zgodne `gatewayApproval` dopuszcza tez wywolania w Ring 2, wiec
+`operatorApproved` z przykladu w pkt 7 nie jest juz wymagane (istniejace wpisy dzialaja bez
+zmian). Zalecany wpis w nakladce, z odciskiem pochodzenia (B-06):
+
+```json
+{
+  "name": "repertorium",
+  "transport": "http",
+  "url": "<adres konektora z kluczem - tylko w lokalnym pliku>",
+  "trustLevel": "untrusted",
+  "gatewayApproval": { "hash": "<hash z logu startu>", "origin": "<origin z logu startu>", "approvedAt": "RRRR-MM-DD", "approvedBy": "<operator>" }
+}
+```
+
+Przed zatwierdzeniem trasa "Sprawdz powolania" zwraca jawny stan `gateway_pending` (200,
+powolania wyciagniete lokalnie, nic nie wyszlo do sieci) z polem `gatewayApproval`
+(`server`, `hash`, `origin`, `reason`: `missing` albo `hash_mismatch`) - nie `not_configured`
+i nie 500. Hash i odcisk to skroty SHA-256 bez adresu i klucza konektora. Widok pokazuje
+komunikat dla Operatora i gotowy fragment do wklejenia. `not_configured` zostaje dla braku
+konektora, konektora wylaczonego, niedostepnego albo odrzuconego (`denied`).
+
+Kroki Operatora: (1) dopisz wpis bez `gatewayApproval` i uruchom PATRON; (2) przejrzyj
+zastrzezenia bramy w dzienniku startu (`[MCP-SECURITY] Server "repertorium" BLOCKED ...`);
+(3) wpisz podany `gatewayApproval` (hash + origin) i uruchom PATRON ponownie.

@@ -9,6 +9,7 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { McpStatus } from "@/hooks/useMcpSecurityStatus";
+import { t } from "@/i18n";
 
 const mcp = vi.hoisted(() => ({
     visible: true,
@@ -84,5 +85,32 @@ describe("McpSecurityBanner - stan trwaly do perymetru, zdarzenie na gore", () =
         mcp.status = null;
         render(<McpSecurityBanner />);
         expect(screen.queryByTestId("mcp-security-banner")).toBeNull();
+    });
+
+    it("B-08: nowy konektor czekajacy na zatwierdzenie = oczekiwanie (spokojny ton), nie alarm", () => {
+        mcp.status = status(0, 2);
+        mcp.status.audit_summary_24h.awaiting_operator_approval = 2;
+        render(<McpSecurityBanner />);
+        const banner = screen.getByTestId("mcp-security-banner");
+        expect(banner.getAttribute("data-kind")).toBe("awaiting-approval");
+        expect(banner.textContent).toContain(t("mcpSecurity.awaitingMessage").replace("{awaiting}", "2"));
+        expect(banner.textContent).not.toContain("{");
+        expect(banner.className).not.toContain("text-bad");
+        expect(banner.getAttribute("href")).toBe("/admin/audit");
+    });
+
+    it("B-08: oczekiwanie obok prawdziwej blokady - alarm wygrywa i liczy tylko blokady", () => {
+        mcp.status = status(1, 2);
+        mcp.status.audit_summary_24h.awaiting_operator_approval = 1;
+        render(<McpSecurityBanner />);
+        const banner = screen.getByTestId("mcp-security-banner");
+        expect(banner.getAttribute("data-kind")).toBe("blocked");
+        expect(banner.textContent).toContain(t("mcpSecurity.blockedMessage").replace("{blocked}", "2"));
+    });
+
+    it("B-08: starszy backend bez pola awaiting - zachowanie jak dotad", () => {
+        mcp.status = status(0, 2);
+        render(<McpSecurityBanner />);
+        expect(screen.getByTestId("mcp-security-banner").getAttribute("data-kind")).toBe("blocked");
     });
 });

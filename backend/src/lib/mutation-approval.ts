@@ -34,11 +34,16 @@ export type MutationApprovalStatus = "pending" | "approved" | "rejected";
  * Narzedzia objete stagingiem (akcje agenta o skutkach ubocznych na tresci
  * dokumentu). US1: edit/generate. US3 (ADR-0137): + add_comments. `resolve_*` /
  * `export_*` to akcje CZLOWIEKA (trasy), nie narzedzia agenta - poza zakresem.
+ * Audyt 2026-09 B-04: + replicate_document (nowe dokumenty w sprawie) i
+ * remember (trwaly zapis pamieci agenta) - kazda akcja agenta o trwalym
+ * skutku zapisu przechodzi przez te sama bramke.
  */
 export type StagedToolName =
     | "edit_document"
     | "generate_docx"
-    | "add_comments";
+    | "add_comments"
+    | "replicate_document"
+    | "remember";
 
 export interface MutationApproval {
     id: string;
@@ -71,18 +76,25 @@ export interface StageMutationInput {
 /**
  * Tryb stagingu mutacji (US3, polityka low-risk/high-stakes). Env
  * `PATRON_MUTATION_APPROVAL`:
- *   - "off" / brak / inne  -> off  (zero stagingu; domyslnie, zero zmiany zachowania)
- *   - "true" / "all"       -> all  (stage KAZDA akcje wyjsciowa)
- *   - "high-stakes"        -> high-stakes (stage tylko sprawy high-stakes; fail-closed)
- * "true" zachowane jako alias "all" (back-compat z US1/US2).
+ *   - brak / "true" / "all" / inne -> all  (stage KAZDA akcje wyjsciowa; DOMYSLNIE)
+ *   - "high-stakes"                 -> high-stakes (stage tylko sprawy high-stakes; fail-closed)
+ *   - "false" / "off" / "0" / "no"  -> off  (zero stagingu; tylko swiadome wylaczenie)
+ *
+ * Aktualizacja 2026-10-06 (ADR-0137, decyzja wlasciciela produktu; audyt
+ * 2026-09 B-02): karty zatwierdzen sa WLACZONE DOMYSLNIE. Brak zmiennej albo
+ * wartosc nierozpoznana (literowka) = `all` - bramka zapisu jest fail-closed,
+ * wiec nieczytelna konfiguracja nie moze jej po cichu wylaczyc. Wylaczenie
+ * wymaga jawnego `PATRON_MUTATION_APPROVAL=false`.
  */
 export type MutationStagingMode = "off" | "all" | "high-stakes";
 
+const MUTATION_APPROVAL_OFF_VALUES = new Set(["false", "off", "0", "no"]);
+
 export function mutationStagingMode(): MutationStagingMode {
     const v = (process.env.PATRON_MUTATION_APPROVAL ?? "").trim().toLowerCase();
-    if (v === "true" || v === "all") return "all";
+    if (MUTATION_APPROVAL_OFF_VALUES.has(v)) return "off";
     if (v === "high-stakes" || v === "high_stakes") return "high-stakes";
-    return "off";
+    return "all";
 }
 
 /** Czy staging w ogole aktywny (back-compat; = tryb != off). */
@@ -242,12 +254,61 @@ export async function getApprovalById(
     return rowToApproval(data as Record<string, unknown>);
 }
 
+/**
+ * Liczby wykonania narzedzia wielopozycyjnego (edit_document: zmiany,
+ * add_comments: komentarze). Same liczby - bez tresci dokumentu, wiec moga
+ * isc do audit_log.
+ */
+export interface ExecutionCounts {
+    /** Ile pozycji czlowiek zatwierdzil. */
+    requested: number;
+    /** Ile weszlo do dokumentu. */
+    applied: number;
+    /** Ile NIE weszlo (requested - applied, zgodnie z bledami silnika). */
+    failed: number;
+}
+
 /** Wynik wykonania oryginalnego narzedzia (wstrzykiwany executor). */
 export interface ExecutorResult {
     ok: boolean;
     error?: string;
     /** Dowolny wynik narzedzia do oddania wolajacemu (np. download_url). */
     result?: unknown;
+    /**
+     * Liczby dla narzedzi wielopozycyjnych. ok=true przy failed > 0 to
+     * wykonanie CZESCIOWE (audyt C-08): czlowiek zatwierdzil N pozycji,
+     * weszlo mniej - karta i audit_log musza to odnotowac.
+     */
+    counts?: ExecutionCounts;
+    /**
+     * Powody pozycji, ktore nie weszly (indeks w zatwierdzonej liscie).
+     * Moga cytowac fragment dokumentu - trafiaja na karte (ktora i tak
+     * trzyma tool_payload), NIGDY do audit_log.
+     */
+    failures?: { index: number; reason: string }[];
+}
+
+/** Czy wykonanie powiodlo sie tylko czesciowo (ok, ale czesc pozycji nie weszla). */
+export function isPartialExecution(execution: ExecutorResult): boolean {
+    return execution.ok && !!execution.counts && execution.counts.failed > 0;
+}
+
+/**
+ * Tekst na karte (kolumna execution_error) dla wykonania czesciowego. Karta
+ * zostaje `approved` z executed_at - to wlasnie para executed_at +
+ * execution_error oznacza "wykonana czesciowo" (bez nowego statusu w CHECK).
+ */
+export function partialExecutionSummary(execution: ExecutorResult): string {
+    const c = execution.counts ?? { requested: 0, applied: 0, failed: 0 };
+    const reasons = (execution.failures ?? [])
+        .map((f) => `#${f.index + 1}: ${f.reason}`)
+        .join("; ");
+    return (
+        `Wykonano czesciowo: zastosowano ${c.applied} z ${c.requested}, ` +
+        `nie zastosowano ${c.failed}` +
+        (reasons ? ` (${reasons})` : "") +
+        "."
+    );
 }
 
 export type MutationExecutor = (
@@ -270,30 +331,82 @@ async function writeDecisionAudit(
     decision: "approved" | "rejected",
     executed: boolean,
     executionError: string | null,
+    counts?: ExecutionCounts,
 ): Promise<void> {
     // Minimalizacja (RODO / Konstytucja Art. 7): bez tresci/argumentow mutacji.
+    // Wykonanie czesciowe (C-08): tylko LICZBY (requested/applied/failed) i
+    // flaga partial - nigdy powody ani fragmenty dokumentu.
+    const payload: Record<string, unknown> = {
+        approval_id: card.id,
+        tool_name: card.tool_name,
+        decision,
+        executed,
+        execution_error_present: executionError !== null,
+    };
+    if (decision === "approved") {
+        payload.partial = executed && !!counts && counts.failed > 0;
+        if (counts) {
+            payload.requested = counts.requested;
+            payload.applied = counts.applied;
+            payload.failed = counts.failed;
+        }
+    }
     await appendAuditEvent(db, {
         event_type: MUTATION_APPROVAL_EVENT_TYPE,
         actor_user_id: actorId,
         chat_id: card.chat_id,
         document_id: card.document_id,
-        payload: {
-            approval_id: card.id,
-            tool_name: card.tool_name,
-            decision,
-            executed,
-            execution_error_present: executionError !== null,
-        },
+        payload,
     });
+}
+
+/**
+ * Atomowe przejscie `pending` -> decyzja (compare-and-swap, audyt 2026-09 C-06).
+ * UPDATE z warunkiem `status = 'pending'` i RETURNING (`.select`): wygrywa
+ * DOKLADNIE jedno zadanie. Kazde inne (rownolegle approve, approve || reject)
+ * dostaje 409 i niczego nie wykonuje ani nie audytuje. Blad zapisu = 500
+ * fail-closed, tez bez wykonania.
+ */
+async function claimPending(
+    db: Db,
+    card: MutationApproval,
+    userId: string,
+    values: Record<string, unknown>,
+): Promise<DecisionResult> {
+    const { data, error } = await db
+        .from("mutation_approvals")
+        .update({ ...values, updated_at: new Date().toISOString() })
+        .eq("id", card.id)
+        .eq("user_id", userId)
+        .eq("status", "pending")
+        .select("id");
+    if (error) {
+        return {
+            ok: false,
+            status: 500,
+            error: `Nie udalo sie zapisac decyzji: ${error.message}`,
+        };
+    }
+    const changed = Array.isArray(data) ? data.length : 0;
+    if (changed !== 1) {
+        return {
+            ok: false,
+            status: 409,
+            error: "Karta zostala juz rozstrzygnieta (rownolegla decyzja).",
+        };
+    }
+    return { ok: true };
 }
 
 /**
  * Zatwierdza karte i WYKONUJE oryginalne narzedzie przez `executor`. Fail-closed:
  *   - actor musi byc czlowiekiem,
- *   - karta musi istniec (scoped do usera) i byc `pending`.
+ *   - karta musi istniec (scoped do usera) i byc `pending`,
+ *   - przejscie pending -> approved musi sie udac ATOMOWO (claimPending).
  * Sekwencja: oznacz `approved` -> wykonaj -> zapisz executed_at / execution_error.
  * Audit (decision=approved) zawsze po probie wykonania - z flaga `executed`.
- * Zwraca status HTTP-friendly (404 brak karty, 409 nie-pending, 403 nie-czlowiek).
+ * Zwraca status HTTP-friendly (404 brak karty, 409 nie-pending lub przegrany
+ * wyscig, 403 nie-czlowiek, 500 blad zapisu decyzji).
  */
 export async function approveMutationApproval(
     db: Db,
@@ -313,23 +426,16 @@ export async function approveMutationApproval(
         };
     }
 
-    // Guard przejscia = getApprovalById(pending) powyzej. UWAGA: w trybie
-    // SERWEROWYM (multi-proces) zostaje mikro-race dwoch rownoleglych approve
-    // tej samej karty (oba czytaja pending zanim ktorykolwiek zapisze) -> ryzyko
-    // podwojnego wykonania. Tryb DESKTOP (single-user, ADR-0053) tego nie ma.
-    // Pelny fix wymaga atomic compare-and-swap (affected-rows) - shim go nie
-    // eksponuje; rezerwacja na warstwe serwerowa. `eq(status,pending)` zaweza okno.
-    const now = new Date().toISOString();
-    await db
-        .from("mutation_approvals")
-        .update({
-            status: "approved",
-            approved_at: now,
-            approved_by: params.actorId,
-            updated_at: now,
-        })
-        .eq("id", card.id)
-        .eq("status", "pending");
+    // Odczyt powyzej daje czytelne 404/409, ale NIE jest guardem przejscia:
+    // dwa rownolegle zadania moga oba przeczytac 'pending' (tryb serwerowy,
+    // Postgres przez siec - audyt C-06 zmierzyl 2 wykonania narzedzia i 2
+    // decyzje w audit_log dla jednej karty). Guardem jest atomowy CAS.
+    const claim = await claimPending(db, card, params.userId, {
+        status: "approved",
+        approved_at: new Date().toISOString(),
+        approved_by: params.actorId,
+    });
+    if (!claim.ok) return claim;
 
     let execution: ExecutorResult;
     try {
@@ -338,12 +444,19 @@ export async function approveMutationApproval(
         execution = { ok: false, error: e instanceof Error ? e.message : String(e) };
     }
 
+    // Wykonanie czesciowe (C-08): karta zostaje `approved` z executed_at, ale
+    // execution_error niesie "zastosowano N z M" + powody - nie pelny sukces.
+    const executionError = execution.ok
+        ? isPartialExecution(execution)
+            ? partialExecutionSummary(execution)
+            : null
+        : (execution.error ?? "unknown");
     const executedAt = new Date().toISOString();
     await db
         .from("mutation_approvals")
         .update({
             executed_at: execution.ok ? executedAt : null,
-            execution_error: execution.ok ? null : (execution.error ?? "unknown"),
+            execution_error: executionError,
             updated_at: executedAt,
         })
         .eq("id", card.id);
@@ -354,7 +467,8 @@ export async function approveMutationApproval(
         params.actorId,
         "approved",
         execution.ok,
-        execution.ok ? null : (execution.error ?? "unknown"),
+        executionError,
+        execution.counts,
     );
 
     const updated = await getApprovalById(db, params.userId, card.id);
@@ -382,15 +496,14 @@ export async function rejectMutationApproval(
         };
     }
 
-    const now = new Date().toISOString();
-    await db
-        .from("mutation_approvals")
-        .update({
-            status: "rejected",
-            rejection_reason: params.reason?.trim() || null,
-            updated_at: now,
-        })
-        .eq("id", card.id);
+    // Ten sam atomowy CAS co w approve (audyt C-06): bez warunku na status
+    // reject nadpisywal karte juz zatwierdzona i WYKONANA na 'rejected', a
+    // audit_log dostawal dwie sprzeczne decyzje dla jednej karty.
+    const claim = await claimPending(db, card, params.userId, {
+        status: "rejected",
+        rejection_reason: params.reason?.trim() || null,
+    });
+    if (!claim.ok) return claim;
 
     await writeDecisionAudit(db, card, params.actorId, "rejected", false, null);
 

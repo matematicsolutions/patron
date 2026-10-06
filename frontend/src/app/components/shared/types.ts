@@ -170,6 +170,8 @@ export type AssistantEvent =
         download_url: string;
         annotations: PATRONEditAnnotation[];
         error?: string;
+        /** Edits that were NOT applied (partial success, audit D-10). */
+        errors?: { index: number; reason: string }[];
         isStreaming?: boolean;
     }
   | {
@@ -183,6 +185,30 @@ export type AssistantEvent =
         error?: string;
         isStreaming?: boolean;
     }
+  /**
+   * Audyt 2026-09 D-14: blok <CITATIONS> byl w odpowiedzi, ale cytaty (czesc lub
+   * calosc) przepadly przy parsowaniu. Backend: pole `parse_error` eventu SSE
+   * `citations` + to zdarzenie w utrwalonych events (przetrwa reload).
+   */
+  | {
+        type: "citations_parse_failed";
+        reason: "invalid_json" | "not_array" | "unterminated" | "invalid_records";
+        dropped: number;
+    }
+  /**
+   * Audyt 2026-09 D-07: konektor MCP zwrocil blad w tej turze. Backend: event
+   * SSE `{ type: "mcp_error", server, tool }` (bez tresci bledu), utrwalany.
+   * B-03: `reason: "input_security"` - wynik konektora wstrzymany przez kontrole
+   * bezpieczenstwa wejscia (tryb enforce), a nie awaria.
+   */
+  | { type: "mcp_error"; server: string; tool: string; reason?: "input_security" }
+  /**
+   * ADR-0137 (aktualizacja 2026-10-06, audyt B-02): akcja agenta o skutkach
+   * ubocznych zostala wstrzymana na karcie zatwierdzenia i NIE zostala jeszcze
+   * wykonana. Backend: SSE `{ type: "mutation_staged", tool, approval_id }`,
+   * utrwalany. UI kieruje do skrzynki kart (/account/approval-cards).
+   */
+  | { type: "mutation_staged"; tool: string; approval_id: string }
   | { type: "content"; text: string; isStreaming?: boolean };
 
 export interface PATRONMessage {
@@ -478,18 +504,42 @@ export interface TabularCellGrounding {
   status: "verified" | "modified" | "unverified" | "needs_review";
 }
 
+// Audyt 2026-09, D-15: obecne tylko, gdy model nie dostal calego dokumentu
+// (backend routes/tabular.ts `coverageFor`, limit tekstu na jedno wywolanie).
+export interface TabularCellCoverage {
+  truncated: true;
+  chars_sent: number;
+  chars_total: number;
+}
+
+export interface TabularCellContent {
+  summary: string;
+  flag?: "green" | "grey" | "yellow" | "red";
+  reasoning?: string;
+  grounding?: TabularCellGrounding;
+  coverage?: TabularCellCoverage;
+}
+
+/** Powod bledu komorki znany z SSE `cell_update` albo z 422 regenerate-cell. */
+export type TabularCellErrorReason = "document_no_text";
+
 export interface TabularCell {
   id: string;
   review_id: string;
   document_id: string;
   column_index: number;
-  content: {
-    summary: string;
-    flag?: "green" | "grey" | "yellow" | "red";
-    reasoning?: string;
-    grounding?: TabularCellGrounding;
-  } | null;
+  content: TabularCellContent | null;
   status: "pending" | "generating" | "done" | "error";
+  /**
+   * Tylko po stronie klienta (nie w bazie): powod bledu z biezacego przebiegu.
+   * D-11: dokument bez tekstu i bez OCR nie idzie do modelu.
+   */
+  error_reason?: TabularCellErrorReason;
+  /**
+   * Tylko po stronie klienta: SSE `document_truncated` dla dokumentu komorki.
+   * Komorka `done` niesie to samo w `content.coverage`.
+   */
+  document_coverage?: TabularCellCoverage;
   created_at: string;
   /** ADR-0126: human-review komorki - decyzja prawnika (null = nieprzejrzana). */
   review_action?: "approved" | "rejected" | "corrected" | null;

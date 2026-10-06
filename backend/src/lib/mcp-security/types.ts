@@ -44,6 +44,12 @@ export interface McpFinding {
     message: string;
     /** Surowy fragment wzbudzajacy podejrzenie - przyciety do 200 znakow. */
     sample?: string;
+    /**
+     * Czego dotyczy finding dryfu: brak = definicja narzedzi, "origin" = odcisk
+     * pochodzenia konektora (komenda/args/host; B-06 / R-MCP-01). Zatwierdzenie
+     * Operatora (ADR-0158) musi przy dryfie pochodzenia wskazac nowy odcisk.
+     */
+    subject?: "origin";
 }
 
 /**
@@ -53,10 +59,20 @@ export interface McpFinding {
 export interface McpServerDefinition {
     name: string;
     transport: "stdio" | "http";
+    /**
+     * Komenda, args i URL w postaci z konfiguracji (PRZED rozwiazaniem sciezek
+     * wzgledem katalogu instalacji) - z nich liczony jest odcisk pochodzenia.
+     */
     command?: string;
     args?: string[];
     url?: string;
     tools: McpToolDefinition[];
+    /**
+     * Skad pochodzi wpis konektora (ADR-0166): plik instalatora albo nakladka
+     * Operatora. Zaufanie manifestu wydania (ADR-0162) dostaje tylko "installer";
+     * brak pola = nie z instalatora (fail-closed).
+     */
+    configSource?: "installer" | "operator-overlay";
 }
 
 /**
@@ -109,8 +125,9 @@ export interface McpServerScanResult {
     /** Decyzja PATRON dla tego konektora. */
     action: McpAction;
     /**
-     * Wpis baseline dla aktualnej definicji, wersjonowany (`v2:<sha256>`, ADR-0159) -
-     * do zapisu jako nowy baseline, jezeli konektor zostal zarejestrowany.
+     * Wpis baseline dla aktualnej definicji, wersjonowany (`v2:<sha256>|o:<sha256>`:
+     * hash definicji ADR-0159 + odcisk pochodzenia B-06) - do zapisu jako nowy
+     * baseline, jezeli konektor zostal zarejestrowany.
      */
     currentHash: string;
 }

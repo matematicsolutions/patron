@@ -273,3 +273,37 @@ describe("runDefensePipeline - pseudonimizacja egress (H14)", () => {
     expect(seen[0]).toContain(PESEL);
   });
 });
+
+describe("runDefensePipeline - osoby, adresy i pole context (audyt 2026-09, A-04)", () => {
+  const PESEL = "85071202931"; // syntetyczny, poprawna suma kontrolna
+  const capture = () => {
+    const sent: string[] = [];
+    const llm = async (p: { systemPrompt?: string; user: string }) => {
+      sent.push(`${p.systemPrompt ?? ""}\n${p.user}`);
+      return "Poprawiony draft.";
+    };
+    return { sent, llm };
+  };
+
+  it("osoba po kotwicy i adres nie wychodza do modelu chmurowego", async () => {
+    const { sent, llm } = capture();
+    await runDefensePipeline(
+      "Powod Pan Jan Testowy, zam. ul. Kwiatowa 5, 00-950 Warszawa, wnosi o zaplate.",
+      { model: "openrouter/google/gemini-3-flash-preview", stages: ["recenzent"] },
+      llm as never,
+    );
+    expect(sent.join("\n")).not.toContain("Jan Testowy");
+    expect(sent.join("\n")).not.toContain("Kwiatowa 5");
+  });
+
+  it("PESEL w polu context nie wychodzi, a wynik jest odmaskowany", async () => {
+    const { sent, llm } = capture();
+    const r = await runDefensePipeline(
+      "Wnosze o oddalenie powodztwa.",
+      { model: "openrouter/google/gemini-3-flash-preview", stages: ["recenzent"], context: `Klient: PESEL ${PESEL}` },
+      llm as never,
+    );
+    expect(sent.join("\n")).not.toContain(PESEL);
+    expect(r.final).toBe("Poprawiony draft.");
+  });
+});

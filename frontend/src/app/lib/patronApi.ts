@@ -16,6 +16,7 @@ import type {
     PATRONMessage,
     PATRONProject,
     PATRONWorkflow,
+    TabularCellContent,
     TabularReview,
     TabularReviewDetailOut,
 } from "@/app/components/shared/types";
@@ -114,9 +115,20 @@ export interface SkillEntry {
     source: string;
     egress: "no-egress" | "cloud-allowed";
     publisher: string | null;
+    /** true tylko po kryptograficznej weryfikacji podpisu (dzis: wbudowane). */
     signed: boolean;
+    /**
+     * B-10: "unverified" = paczka ma pole podpisu, ale Patron go nie weryfikuje.
+     * Opcjonalne - starszy backend pola nie zwraca.
+     */
+    signature_status?: "builtin" | "absent" | "unverified";
     builtin: boolean;
     enabled: boolean;
+}
+
+/** Odpowiedz importu: wpis + czy skill czeka na zgode na egress (B-10). */
+export interface SkillImportResult extends SkillEntry {
+    requires_egress_consent?: boolean;
 }
 
 export interface SkillsList {
@@ -128,11 +140,14 @@ export async function listSkills(): Promise<SkillsList> {
     return apiRequest<SkillsList>("/skills");
 }
 
-export async function importSkill(manifest: unknown): Promise<SkillEntry> {
-    return apiRequest<SkillEntry>("/skills/import", {
+export async function importSkill(
+    manifest: unknown,
+    confirmEgress?: boolean,
+): Promise<SkillImportResult> {
+    return apiRequest<SkillImportResult>("/skills/import", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ manifest }),
+        body: JSON.stringify({ manifest, confirm_egress: confirmEgress === true }),
     });
 }
 
@@ -181,11 +196,47 @@ export interface ConnectorInfo {
     jurisdiction: ConnectorJurisdiction;
     trustLevel?: "trusted" | "untrusted";
     operatorApproved?: boolean;
+    /**
+     * Stan bramy MCP (B-08 / ADR-0158): konektor spoza zaufanego zestawu czeka
+     * na zatwierdzenie Operatora albo zostal odrzucony. Brak = nic do zgloszenia.
+     */
+    gateway?: "awaiting_operator_approval" | "blocked";
 }
 
 export async function getConnectors(): Promise<ConnectorInfo[]> {
     const res = await apiRequest<{ connectors: ConnectorInfo[] }>("/connectors");
     return res.connectors;
+}
+
+/**
+ * B-08 / ADR-0158: zastrzezenia bramy MCP dla konektora czekajacego na
+ * Operatora i wartosci, ktore zatwierdza (hash definicji + odcisk pochodzenia).
+ * Tylko Operator (backend: requireAuth + requireAdmin).
+ */
+export interface ConnectorGatewayDetails {
+    gatewayAction: "allowed" | "audit" | "human_review" | "denied";
+    approval: "not_needed" | "approved" | "missing" | "hash_mismatch" | "not_overridable";
+    unknownThirdPartyOnly: boolean;
+    hash: string;
+    origin: string;
+    findings: { detector: string; severity: string; message: string }[];
+}
+
+export async function getConnectorGateway(name: string): Promise<ConnectorGatewayDetails> {
+    return apiRequest<ConnectorGatewayDetails>(
+        `/connectors/${encodeURIComponent(name)}/gateway`,
+    );
+}
+
+export async function approveConnectorGateway(
+    name: string,
+    approval: { hash: string; origin: string },
+): Promise<{ ok: true; restartRequired: true; approvedAt: string }> {
+    return apiRequest(`/connectors/${encodeURIComponent(name)}/gateway-approval`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(approval),
+    });
 }
 
 export async function setConnectorEnabled(
@@ -237,7 +288,10 @@ export async function listApprovalCards(): Promise<ApprovalCard[]> {
 export async function approveCard(id: string): Promise<{
     approval: ApprovalCard;
     executed: boolean;
+    /** Wykonanie czesciowe (C-08): czesc zatwierdzonych pozycji nie weszla. */
+    partial?: boolean;
     execution_error: string | null;
+    /** edit_document / add_comments: requested, applied, failed, partial, errors[]. */
     result: unknown;
 }> {
     return apiRequest(
@@ -339,8 +393,27 @@ export async function updateProject(
     });
 }
 
+/**
+ * Kasacja sprawy (backend: forgetCase, RODO art. 17). Pelny sukces = 204.
+ * Porazka czesciowa (plik zablokowany przez inny program, blad zapisu bazy,
+ * brak sladu w audit_log) wraca jako 500 z `{ detail, failures, ... }`
+ * (audyt D-03/D-04) - rzucamy Error z czytelnym `detail`, zeby widok mogl go
+ * pokazac zamiast surowego JSON-a.
+ */
 export async function deleteProject(projectId: string): Promise<void> {
-    await apiRequest(`/projects/${projectId}`, { method: "DELETE" });
+    try {
+        await apiRequest(`/projects/${projectId}`, { method: "DELETE" });
+    } catch (e) {
+        const raw = e instanceof Error ? e.message : String(e);
+        let detail = raw;
+        try {
+            const body = JSON.parse(raw) as { detail?: unknown };
+            if (typeof body.detail === "string" && body.detail) detail = body.detail;
+        } catch {
+            /* odpowiedz nie-JSON - zostaje surowy tekst */
+        }
+        throw new Error(detail);
+    }
 }
 
 /**
@@ -760,11 +833,14 @@ export async function deleteChat(chatId: string): Promise<void> {
 export async function generateChatTitle(
     chatId: string,
     message: string,
+    model?: string | null,
 ): Promise<{ title: string }> {
+    // `model` = model rozmowy: przy lokalnym backend nie wysyla tresci do chmury
+    // po tytul (audyt 2026-09, E-03).
     return apiRequest<{ title: string }>(`/chat/${chatId}/generate-title`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message }),
+        body: JSON.stringify(model ? { message, model } : { message }),
     });
 }
 
@@ -851,6 +927,11 @@ export async function refineDraft(payload: {
     adwokat_mode?: AdwokatMode;
     model?: string;
     context?: string;
+    /**
+     * Sprawa, z ktorej pochodzi tekst (audyt 2026-09, A-05). Straznik egress
+     * backendu klasyfikuje wtedy wywolanie po sprawie, a nie jako "internal".
+     */
+    project_id?: string;
 }): Promise<DraftRefineResult> {
     return apiRequest<DraftRefineResult>("/draft/refine", {
         method: "POST",
@@ -1120,11 +1201,8 @@ export async function regenerateTabularCell(
     reviewId: string,
     documentId: string,
     columnIndex: number,
-): Promise<{
-    summary: string;
-    flag: "green" | "grey" | "yellow" | "red";
-    reasoning: string;
-}> {
+): Promise<TabularCellContent> {
+    // 422 {code:"document_no_text"} (audyt D-11) - patrz tabularStream.ts.
     return apiRequest(`/tabular-review/${reviewId}/regenerate-cell`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

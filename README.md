@@ -42,8 +42,9 @@ Everything below ran end-to-end on 2026-08-23 against a real model on synthetic 
 - **Drafting** - generate a new .docx from the chat, or run a whole pleading through a review,
   devil's advocate and language pass before it leaves the firm.
 - **Workflows** - saved prompts and column sets you reuse across cases.
-- **Human-in-the-loop for agent writes** (optional, ADR-0137): edits and generated files can be
-  staged as approval cards; nothing is written until a human approves.
+- **Human-in-the-loop for agent writes** (on by default, ADR-0137; `PATRON_MUTATION_APPROVAL=false`
+  switches it off): edits, generated files, copies, comments and memory writes are staged as
+  approval cards; nothing is written until a human approves.
 - **An audit trail a third party can verify** - every model interaction hash-chained with a Merkle
   root, built for record-keeping duties such as AI Act art. 12 where they apply; exportable as a ZIP that ships its own verifier (a browser page and a
   Python script), so a court, the DPA or the client can check it without this repository (ADR-0142).

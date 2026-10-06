@@ -51,6 +51,33 @@ export interface LlmRouteAuditInput {
      * ktorego da sie zrekonstruowac przebieg, a nie samego faktu wywolania.
      */
     scope?: string | null;
+    /**
+     * Przebieg tury (audyt 2026-09, C-01/C-03): wynik wywolania i nazwy wywolanych
+     * narzedzi z liczbami - bez argumentow i bez tresci wynikow. `tool.call` jako
+     * osobny event_type wymaga 5 luster i migracji z rejestru numerow; do tego
+     * czasu slad narzedzi niesie llm_route tej tury.
+     */
+    outcome?: "ok" | "error";
+    errorClass?: string | null;
+    toolCalls?: Record<string, number> | null;
+    /**
+     * Audyt 2026-09 B-04: zapisy pamieci trwalej agenta (remember) wykonane w
+     * tej turze bez karty zatwierdzenia - rodzaj zakresu, akcja, dlugosci i
+     * skrot identyfikatora wpisu, bez tresci. Pole w istniejacym zdarzeniu
+     * (bez nowego event_type, jak tool_calls z C-01).
+     */
+    memoryWrites?: ReadonlyArray<object> | null;
+    /**
+     * Audyt 2026-09 A-09 / B-11: wartosci wyciete z argumentow wywolan
+     * zewnetrznych konektorow MCP w tej turze (PESEL z poprawna suma, e-mail),
+     * per kategoria - tylko liczniki, bez wartosci.
+     */
+    mcpArgsRedacted?: Record<string, number> | null;
+    /**
+     * A-09: tokeny pseudonimow kategorii osobowych (PERSON, PESEL, ADDRESS...)
+     * pozostawione jako token w argumentach MCP zamiast odtworzenia - liczniki.
+     */
+    mcpArgsTokensWithheld?: Record<string, number> | null;
 }
 
 /**
@@ -94,6 +121,21 @@ export function buildLlmRouteEvent(input: LlmRouteAuditInput): AuditEventInput {
             // rzeczywisty (AC2.3). Statyczna tabela cen to rezerwacja ADR-beta.
             cost_estimated: costUsd === null,
             latency_ms: input.latencyMs ?? null,
+            ...(input.outcome ? { outcome: input.outcome } : {}),
+            ...(input.errorClass ? { error_class: input.errorClass } : {}),
+            ...(input.toolCalls && Object.keys(input.toolCalls).length
+                ? { tool_calls: input.toolCalls }
+                : {}),
+            ...(input.memoryWrites && input.memoryWrites.length
+                ? { memory_writes: input.memoryWrites.map((w) => ({ ...w })) }
+                : {}),
+            ...(input.mcpArgsRedacted && Object.keys(input.mcpArgsRedacted).length
+                ? { mcp_args_redacted: { ...input.mcpArgsRedacted } }
+                : {}),
+            ...(input.mcpArgsTokensWithheld &&
+            Object.keys(input.mcpArgsTokensWithheld).length
+                ? { mcp_args_tokens_withheld: { ...input.mcpArgsTokensWithheld } }
+                : {}),
         },
     };
 }

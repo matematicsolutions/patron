@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, useRef, useEffect, useState } from "react";
-import ReactMarkdown from "react-markdown";
+import { SafeMarkdown } from "@/lib/markdown/SafeMarkdown";
 import remarkMath from "remark-math";
 import remarkGfm from "remark-gfm";
 import rehypeKatex from "rehype-katex";
@@ -20,6 +20,8 @@ import { EditCard, applyOptimisticResolution } from "./EditCard";
 import { McpCitationsPanel, McpGroundingBanner } from "./McpCitationsPanel";
 import { DraftRefinePanel } from "./DraftRefinePanel";
 import { PreResponseWrapper } from "../shared/PreResponseWrapper";
+import { PartialExecutionNotice } from "../shared/PartialExecutionNotice";
+import { ChatSignalNotices, isChatSignalEvent } from "../shared/ChatSignalNotice";
 import { supabase } from "@/lib/supabase";
 import { t } from "@/i18n";
 
@@ -429,7 +431,7 @@ function ReasoningBlock({
             </button>
             {showContent && (
                 <div className="mt-2 ml-[14px] text-sm text-gray-400 prose prose-sm max-w-none [&>*]:text-gray-400 [&>*]:text-sm">
-                    <ReactMarkdown
+                    <SafeMarkdown
                         remarkPlugins={[remarkGfm]}
                         components={{
                             code: ({ node, ...props }) => (
@@ -441,7 +443,7 @@ function ReasoningBlock({
                         }}
                     >
                         {text}
-                    </ReactMarkdown>
+                    </SafeMarkdown>
                 </div>
             )}
         </div>
@@ -798,11 +800,14 @@ function DocEditedBlock({
     showConnector,
     isStreaming,
     hasError,
+    partial,
 }: {
     filename: string;
     showConnector?: boolean;
     isStreaming?: boolean;
     hasError?: boolean;
+    /** Czesc edycji nie weszla (D-10) - nie pokazujemy "Edytowano" jak sukcesu. */
+    partial?: boolean;
 }) {
     return (
         <div className="flex items-start text-sm text-gray-500 relative">
@@ -813,6 +818,8 @@ function DocEditedBlock({
                 <div className="mt-2 w-1.5 h-1.5 rounded-full border border-gray-400 border-t-transparent animate-spin shrink-0" />
             ) : hasError ? (
                 <div className="mt-2 w-1.5 h-1.5 rounded-full bg-bad shrink-0" />
+            ) : partial ? (
+                <div className="mt-2 w-1.5 h-1.5 rounded-full bg-warn shrink-0" />
             ) : (
                 <div className="mt-2 w-1.5 h-1.5 rounded-full bg-ok shrink-0" />
             )}
@@ -822,7 +829,9 @@ function DocEditedBlock({
                         ? t("chat.editingActive")
                         : hasError
                           ? t("chat.editingFailed")
-                          : t("chat.editingDone")}
+                          : partial
+                            ? t("partialExecution.editingPartial")
+                            : t("chat.editingDone")}
                 </span>{" "}
                 <span>{isStreaming ? `${filename}...` : filename}</span>
             </div>
@@ -972,12 +981,13 @@ function MarkdownContent({
             ref={divRef}
             className="text-gray-900 mb-4 text-base prose prose-sm max-w-none font-text leading-[1.7] [&>p]:max-w-[68ch] [&>ul]:max-w-[68ch] [&>ol]:max-w-[68ch] [&>blockquote]:max-w-[70ch]"
         >
-            <ReactMarkdown
+            <SafeMarkdown
                 remarkPlugins={[
                     [remarkMath, { singleDollarTextMath: false }],
                     remarkGfm,
                 ]}
                 rehypePlugins={[rehypeKatex]}
+                linkClassName="text-bordeaux hover:text-bordeaux underline"
                 components={{
                     table: ({ node, ...props }) => (
                         <div className="overflow-x-auto my-4">
@@ -1190,24 +1200,13 @@ function MarkdownContent({
                             {...props}
                         />
                     ),
-                    a: ({ node, href, children, ...props }) => (
-                        <a
-                            href={href}
-                            className="text-bordeaux hover:text-bordeaux underline"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            {...props}
-                        >
-                            {children}
-                        </a>
-                    ),
                     hr: ({ node, ...props }) => (
                         <hr className="my-6 border-gray-200" {...props} />
                     ),
                 }}
             >
                 {text}
-            </ReactMarkdown>
+            </SafeMarkdown>
         </div>
     );
 }
@@ -1288,6 +1287,14 @@ interface Props {
      * edits flip their per-card UI without per-card clicks.
      */
     resolvedEditStatuses?: Record<string, "accepted" | "rejected">;
+    /**
+     * Model, ktorym prowadzono te ture (audyt 2026-09, A-05). Panel "Draft
+     * odpowiedzi" wysyla doskonalenie tym modelem, a nie domyslnym chmurowym.
+     * Brak = biezacy wybor selektora czatu (rozstrzyga DraftRefinePanel).
+     */
+    model?: string | null;
+    /** Sprawa rozmowy - straznik egress draftu klasyfikuje po niej (A-05). */
+    projectId?: string | null;
 }
 
 export function AssistantMessage({
@@ -1310,6 +1317,8 @@ export function AssistantMessage({
     isDocReloading,
     isEditReloading,
     resolvedEditStatuses,
+    model,
+    projectId,
 }: Props) {
     const messageKey = useId();
     const contentDivRef = useRef<HTMLDivElement | null>(null);
@@ -1422,6 +1431,9 @@ export function AssistantMessage({
     if (events) {
         let current: Extract<EventGroup, { kind: "pre" }> | null = null;
         events.forEach((e, i) => {
+            // Sygnaly D-14/D-07 renderujemy osobno (ChatSignalNotices), nie w
+            // zwijanym bloku pracy asystenta.
+            if (isChatSignalEvent(e)) return;
             if (e.type === "content") {
                 if (current) {
                     groups.push(current);
@@ -1570,6 +1582,7 @@ export function AssistantMessage({
                     filename={event.filename}
                     isStreaming={event.isStreaming}
                     hasError={!!event.error}
+                    partial={(event.errors?.length ?? 0) > 0}
                     showConnector={showConnector}
                 />
             );
@@ -1720,6 +1733,25 @@ export function AssistantMessage({
                                         />
                                     )),
                                 );
+                                // Czesciowy sukces (D-10): jawne "zastosowano
+                                // N z M, nie zastosowano: ..." nad kartami
+                                // zmian, poza zwijanym blokiem krokow.
+                                const partialNotices = editedEvents
+                                    .filter((e) => (e.errors?.length ?? 0) > 0)
+                                    .map((e, i) => (
+                                        <PartialExecutionNotice
+                                            key={`edit-partial-${e.document_id}-${i}`}
+                                            filename={e.filename}
+                                            note={t("partialExecution.chatNote")}
+                                            info={{
+                                                applied: e.annotations.length,
+                                                total:
+                                                    e.annotations.length +
+                                                    (e.errors?.length ?? 0),
+                                                failures: e.errors ?? [],
+                                            }}
+                                        />
+                                    ));
                                 const resolvedCount = editedEvents.reduce(
                                     (acc, e) =>
                                         acc +
@@ -1733,19 +1765,22 @@ export function AssistantMessage({
                                 // render the bare EditCard — no value in
                                 // bulk controls for a single item.
                                 if (cards.length <= 1) {
-                                    return cards;
+                                    return [...partialNotices, ...cards];
                                 }
                                 return (
-                                    <EditCardsSection
-                                        pending={pending}
-                                        filenameByDocId={filenameByDocId}
-                                        cards={cards}
-                                        resolvedCount={resolvedCount}
-                                        onViewClick={onEditViewClick}
-                                        onResolveStart={onEditResolveStart}
-                                        onResolved={handleEditResolved}
-                                        onError={onEditError}
-                                    />
+                                    <>
+                                        {partialNotices}
+                                        <EditCardsSection
+                                            pending={pending}
+                                            filenameByDocId={filenameByDocId}
+                                            cards={cards}
+                                            resolvedCount={resolvedCount}
+                                            onViewClick={onEditViewClick}
+                                            onResolveStart={onEditResolveStart}
+                                            onResolved={handleEditResolved}
+                                            onError={onEditError}
+                                        />
+                                    </>
                                 );
                             })()}
                     </div>
@@ -1767,6 +1802,8 @@ export function AssistantMessage({
                         <McpCitationsPanel citations={mcpCitations} />
                     </div>
                 )}
+
+                <ChatSignalNotices events={events} />
 
                 {isError && (
                     <div className="mt-2 flex items-start gap-2 rounded-lg border border-bad-soft bg-bad-soft px-3 py-2 text-sm text-bad">
@@ -1917,6 +1954,8 @@ export function AssistantMessage({
                 open={showDraft}
                 onClose={() => setShowDraft(false)}
                 initialText={draftText}
+                model={model}
+                projectId={projectId}
             />
         </div>
     );

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
-import ReactMarkdown from "react-markdown";
+import { SafeMarkdown } from "@/lib/markdown/SafeMarkdown";
 import remarkGfm from "remark-gfm";
 import {
     ChevronDown,
@@ -14,7 +14,8 @@ import {
 } from "lucide-react";
 import type { ColumnConfig, PATRONDocument, TabularCell } from "../shared/types";
 import { t } from "@/i18n";
-import { ReviewBadge } from "./TabularCell";
+import { CoverageNote, ReviewBadge } from "./TabularCell";
+import { cellCoverage } from "./tabularStream";
 import { preprocessCitations, type ParsedCitation } from "./citation-utils";
 import { getPillClass } from "./pillUtils";
 import { DocView } from "../shared/DocView";
@@ -441,6 +442,8 @@ export function TRSidePanel({
                             <h4 className="mb-2 text-sm font-semibold tracking-wider font-sans">
                                 Results
                             </h4>
+                            {/* Audyt 2026-09, D-15: model dostal tylko poczatek dokumentu. */}
+                            <CoverageNote coverage={cellCoverage(cell)} />
                             <div className="text-xs leading-relaxed text-slate-600">
                                 <MarkdownContent
                                     citations={summaryCitations}
@@ -533,8 +536,9 @@ function MarkdownContent({
     processed = processed.replace(/§(\d+)§/g, (_, idx) => `\`§c${idx}§\``);
 
     return (
-        <ReactMarkdown
+        <SafeMarkdown
             remarkPlugins={[remarkGfm]}
+            linkClassName="text-bordeaux hover:text-bordeaux underline"
             components={{
                 p: ({ node, ...props }) =>
                     inline ? (
@@ -563,17 +567,6 @@ function MarkdownContent({
                 ),
                 em: ({ node, ...props }) => (
                     <em className="italic" {...props} />
-                ),
-                a: ({ node, href, children, ...props }) => (
-                    <a
-                        href={href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-bordeaux hover:text-bordeaux underline"
-                        {...props}
-                    >
-                        {children}
-                    </a>
                 ),
                 code: ({ node, children: codeChildren, ...props }) => {
                     const t = String(codeChildren);
@@ -616,6 +609,6 @@ function MarkdownContent({
             }}
         >
             {processed}
-        </ReactMarkdown>
+        </SafeMarkdown>
     );
 }

@@ -11,7 +11,7 @@ import { convertedPdfKey } from "../lib/convert";
 import { checkProjectAccess } from "../lib/access";
 import { singleFileUpload } from "../lib/upload";
 import { handleDocumentUpload } from "../lib/documentIngest";
-import { forgetCase } from "../lib/rodo/forget";
+import { forgetCaseWithAudit } from "../lib/rodo/forgetWithAudit";
 import { appendAuditEvent } from "../lib/audit";
 
 export const projectsRouter = Router();
@@ -330,12 +330,13 @@ projectsRouter.delete("/:projectId", requireAuth, async (req, res) => {
   // Istniejace wpisy audit_log zostaja nietkniete (RODO art. 17 ust. 3 lit. b),
   // ale sam AKT usuniecia jest DOPISYWANY do lancucha (AI Act art. 12) - to
   // slad nalezytej starannosci, ktory docs/BAZA_WIEDZY obiecuja klientowi.
-  const report = await forgetCase(projectId, db);
-  await appendAuditEvent(db, {
-    event_type: "rodo.delete",
-    actor_user_id: userId,
-    payload: { project_id: projectId, report },
-  });
+  //
+  // D-03/D-04: porazka czesciowa (plik zablokowany przez inny program, blad
+  // zapisu bazy) albo nieudany zapis sladu w audit_log NIE jest juz 204 bez
+  // slowa - wraca 500 z raportem i lista niepowodzen (patronApi.deleteProject
+  // pokazuje `detail`). Pelny sukces nadal 204.
+  const out = await forgetCaseWithAudit(db, projectId, userId);
+  if (out.status !== 200) return void res.status(out.status).json(out.body);
   res.status(204).send();
 });
 

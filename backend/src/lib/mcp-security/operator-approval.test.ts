@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
     computeApprovalHash,
     computeDefinitionHash,
+    computeOriginFingerprint,
     resolveOperatorApproval,
     type McpServerDefinition,
 } from "./index";
@@ -75,7 +76,12 @@ describe("resolveOperatorApproval", () => {
 
     it("human_review bez zatwierdzenia = blokada z hashem do wpisania", () => {
         const d = resolveOperatorApproval("human_review", SERWER, undefined);
-        expect(d).toEqual({ status: "missing", register: false, approvalHash: hash });
+        expect(d).toEqual({
+            status: "missing",
+            register: false,
+            approvalHash: hash,
+            approvalOrigin: computeOriginFingerprint(SERWER),
+        });
     });
 
     it("human_review + zgodny hash = rejestracja", () => {
@@ -106,9 +112,55 @@ describe("resolveOperatorApproval", () => {
     });
 
     it("zatwierdzenie o zlym ksztalcie jest traktowane jak brak (fail-closed)", () => {
-        for (const zle of [true, "tak", { hash: hash.toUpperCase() }, { hash: hash.slice(1) }, { approvedBy: "op" }, null]) {
+        for (const zle of [
+            true,
+            "tak",
+            { hash: hash.toUpperCase() },
+            { hash: hash.slice(1) },
+            { approvedBy: "op" },
+            null,
+            { hash, origin: "zly" },
+            { hash, origin: null },
+        ]) {
             const d = resolveOperatorApproval("human_review", SERWER, zle);
             expect(d.register).toBe(false);
         }
+    });
+});
+
+describe("resolveOperatorApproval - pochodzenie konektora (B-06 / R-MCP-01)", () => {
+    const hash = computeApprovalHash(SERWER);
+    const origin = computeOriginFingerprint(SERWER);
+    const INNY_HOST: McpServerDefinition = { ...SERWER, url: "https://evil.invalid/mcp/klucz" };
+
+    it("dryf pochodzenia + zatwierdzenie bez odcisku (sprzed zmiany) = blokada", () => {
+        const d = resolveOperatorApproval("human_review", INNY_HOST, { hash }, { originChanged: true });
+        expect(d.status).toBe("hash_mismatch");
+        expect(d.register).toBe(false);
+        expect(d.approvalOrigin).toBe(computeOriginFingerprint(INNY_HOST));
+    });
+
+    it("dryf pochodzenia + zatwierdzenie z odciskiem nowego pochodzenia = rejestracja", () => {
+        const d = resolveOperatorApproval(
+            "human_review",
+            INNY_HOST,
+            { hash, origin: computeOriginFingerprint(INNY_HOST) },
+            { originChanged: true },
+        );
+        expect(d.status).toBe("approved");
+        expect(d.register).toBe(true);
+    });
+
+    it("zatwierdzenie z odciskiem STAREGO pochodzenia nie przepuszcza nowego", () => {
+        for (const originChanged of [true, false]) {
+            const d = resolveOperatorApproval("human_review", INNY_HOST, { hash, origin }, { originChanged });
+            expect(d.status).toBe("hash_mismatch");
+        }
+    });
+
+    it("bez dryfu pochodzenia zatwierdzenie bez odcisku dalej dziala (zatwierdzenia sprzed zmiany)", () => {
+        const d = resolveOperatorApproval("human_review", SERWER, { hash }, { originChanged: false });
+        expect(d.status).toBe("approved");
+        expect(resolveOperatorApproval("human_review", SERWER, { hash }).status).toBe("approved");
     });
 });

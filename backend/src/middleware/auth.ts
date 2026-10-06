@@ -54,6 +54,39 @@ function cacheSet(token: string, userId: string, userEmail: string): void {
   });
 }
 
+// ---------------------------------------------------------------------------
+// Audyt 2026-09, A-23: bypass SQLite tylko dla polaczen z loopback.
+// ---------------------------------------------------------------------------
+// Do 2026-10 jedyna ochrona bypassu byl bind 127.0.0.1 w index.ts, sterowany
+// zmienna PATRON_HOST. PATRON_HOST=0.0.0.0 (np. "naprawa" kontenera docker,
+// ktory domyslnie startuje jako sqlite) otwieral cale API akt w LAN bez tokenu.
+// Teraz warstwa auth ma wlasna obrone. Adres bierzemy z gniazda, NIE z req.ip:
+// przy `trust proxy` req.ip pochodzi z X-Forwarded-For, ktory ustawia klient.
+
+/** 127.0.0.0/8, ::1 i IPv4-mapped ::ffff:127.x. */
+export function isLoopbackAddress(addr: string | undefined | null): boolean {
+  if (!addr) return false;
+  const a = addr.trim().toLowerCase();
+  if (a === "::1" || a === "0:0:0:0:0:0:0:1") return true;
+  const v4 = a.startsWith("::ffff:") ? a.slice(7) : a;
+  const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(v4);
+  if (!m) return false;
+  return m.slice(1).every((o) => Number(o) <= 255) && m[1] === "127";
+}
+
+/**
+ * Jawna furtka operatora: PATRON_SQLITE_TRUST_NETWORK=true wpuszcza bez tokenu
+ * takze polaczenia spoza loopback (np. reverse proxy w innym kontenerze, ktore
+ * samo uwierzytelnia). Bez niej siec = 401.
+ */
+export function sqliteTrustsNetwork(): boolean {
+  return process.env.PATRON_SQLITE_TRUST_NETWORK === "true";
+}
+
+function sqliteBypassAllowed(req: Request): boolean {
+  return isLoopbackAddress(req.socket?.remoteAddress) || sqliteTrustsNetwork();
+}
+
 export async function requireAuth(
   req: Request,
   res: Response,
@@ -61,7 +94,18 @@ export async function requireAuth(
 ): Promise<void> {
   // Tryb sqlite (single-user desktop): auth bypass. Jeden lokalny user,
   // brak JWT, brak wywolan sieciowych. Opcjonalny PIN/Windows Hello pozniej.
+  // A-23: bypass tylko z loopback (albo z jawna furtka operatora).
   if (isSqliteBackend()) {
+    if (!sqliteBypassAllowed(req)) {
+      console.warn(
+        `[auth] odrzucono zadanie spoza loopback w trybie SQLite: ${req.method} ${req.path} (A-23)`,
+      );
+      res.status(401).json({
+        detail:
+          "Tryb lokalny (SQLite) przyjmuje zadania wylacznie z tego komputera.",
+      });
+      return;
+    }
     res.locals.userId = LOCAL_USER_ID;
     res.locals.userEmail = LOCAL_USER_EMAIL;
     res.locals.token = "local";
@@ -162,6 +206,15 @@ export function requireAdmin(
   // Tryb sqlite (single-user desktop): lokalny user jest jednoczesnie
   // Operatorem/Adminem kancelarii (to jego maszyna i dane). Grant logowany.
   if (isSqliteBackend()) {
+    // A-23: ta sama granica co w requireAuth - na wypadek trasy, ktora
+    // postawi requireAdmin bez requireAuth.
+    if (!sqliteBypassAllowed(req)) {
+      res.status(401).json({
+        detail:
+          "Tryb lokalny (SQLite) przyjmuje zadania wylacznie z tego komputera.",
+      });
+      return;
+    }
     console.warn(
       `[ADMIN] grant (single-user): ${res.locals.userEmail ?? "(local)"} -> ${req.method} ${req.path}`,
     );

@@ -69,11 +69,21 @@ function SkillCard({
                             </span>
                         )}
                         <EgressBadge egress={skill.egress} />
-                        {!skill.builtin && !skill.signed && (
-                            <span className="rounded-full bg-gray-50 px-2 py-0.5 text-[11px] text-gray-500 ring-1 ring-gray-200">
-                                {t("skillLibrary.unsigned")}
-                            </span>
-                        )}
+                        {/* B-10: pole podpisu paczki nie jest weryfikowane - mowimy
+                            to wprost, zamiast chowac etykiete "niepodpisana". */}
+                        {!skill.builtin && !skill.signed &&
+                            (skill.signature_status === "unverified" ? (
+                                <span
+                                    className="rounded-full bg-warn-soft px-2 py-0.5 text-[11px] text-warn ring-1 ring-warn"
+                                    title={t("skillLibrary.importTrust.signatureUnverifiedHint")}
+                                >
+                                    {t("skillLibrary.importTrust.signatureUnverified")}
+                                </span>
+                            ) : (
+                                <span className="rounded-full bg-gray-50 px-2 py-0.5 text-[11px] text-gray-500 ring-1 ring-gray-200">
+                                    {t("skillLibrary.unsigned")}
+                                </span>
+                            ))}
                     </div>
                     <p className="mt-1 text-sm text-gray-600">{skill.description}</p>
                 </div>
@@ -129,6 +139,7 @@ export function SkillLibraryPanel({ open, onClose }: Props) {
     const [importing, setImporting] = useState(false);
     const [busyId, setBusyId] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [notice, setNotice] = useState<string | null>(null);
     const fileRef = useRef<HTMLInputElement>(null);
 
     const reload = useCallback(async () => {
@@ -187,6 +198,7 @@ export function SkillLibraryPanel({ open, onClose }: Props) {
         if (!file) return;
         setImporting(true);
         setError(null);
+        setNotice(null);
         try {
             const raw = JSON.parse(await file.text());
             // Plik moze zawierac sam manifest albo opakowanie { manifest }.
@@ -194,7 +206,19 @@ export function SkillLibraryPanel({ open, onClose }: Props) {
                 raw && typeof raw === "object" && "manifest" in raw
                     ? (raw as { manifest: unknown }).manifest
                     : raw;
-            await importSkill(manifest);
+            // B-10: paczka z egress do chmury nie wlacza sie bez jawnej zgody
+            // (lustro bramki backendu i PATCH). Odmowa = import jako wylaczona.
+            const declaresCloud =
+                !!manifest &&
+                typeof manifest === "object" &&
+                (manifest as { egress?: unknown }).egress === "cloud-allowed";
+            const confirmEgress = declaresCloud
+                ? window.confirm(t("skillLibrary.importTrust.egressConfirm"))
+                : false;
+            const result = await importSkill(manifest, confirmEgress);
+            if (result.requires_egress_consent) {
+                setNotice(t("skillLibrary.importTrust.importedDisabled"));
+            }
             await reload();
         } catch (err) {
             const msg = err instanceof Error ? err.message : "";
@@ -238,6 +262,11 @@ export function SkillLibraryPanel({ open, onClose }: Props) {
                     {error && (
                         <div className="rounded-md bg-bad-soft px-3 py-2 text-sm text-bad ring-1 ring-bad">
                             {error}
+                        </div>
+                    )}
+                    {notice && (
+                        <div className="rounded-md bg-warn-soft px-3 py-2 text-sm text-warn ring-1 ring-warn">
+                            {notice}
                         </div>
                     )}
 

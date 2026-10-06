@@ -26,6 +26,8 @@ import { packsRouter } from "./routes/packs";
 import { citationsRouter } from "./routes/citations";
 import { configRouter } from "./routes/config";
 import { createServerSupabase, isSqliteBackend } from "./lib/supabase";
+import { createHostGuard, hostGuardEnabled } from "./middleware/host-guard";
+import { isLoopbackAddress, sqliteTrustsNetwork } from "./middleware/auth";
 import { runAutoCompute } from "./lib/audit-merkle-roots";
 import {
   parseIntervalHours,
@@ -93,6 +95,21 @@ const uploadLimiter = makeLimiter({
 
 app.disable("x-powered-by");
 app.set("trust proxy", envInt("TRUST_PROXY_HOPS", 1));
+
+// Audyt 2026-09, A-22 (DNS rebinding): PIERWSZY middleware, przed CORS,
+// limiterami i routerami. Tryb SQLite (desktop, auth bypass) zawsze; tryb
+// serwerowy tylko z PATRON_ALLOWED_HOSTS. Szczegoly: middleware/host-guard.ts.
+app.use(
+  createHostGuard({
+    enabled: hostGuardEnabled({
+      sqlite: isSqliteBackend(),
+      allowedHostsCsv: process.env.PATRON_ALLOWED_HOSTS,
+    }),
+    port: PORT,
+    allowedHostsCsv: process.env.PATRON_ALLOWED_HOSTS,
+    frontendUrl: process.env.FRONTEND_URL,
+  }),
+);
 
 app.use(
   helmet({
@@ -245,6 +262,20 @@ function startMerkleScheduler(): void {
 // Bind loopback w trybie desktop (sqlite, auth bypass) - inaczej API kancelarii
 // jest dostepne w calej sieci LAN. Tryb serwerowy zachowuje 0.0.0.0; override env.
 const HOST = process.env.PATRON_HOST ?? (isSqliteBackend() ? "127.0.0.1" : "0.0.0.0");
+// Audyt 2026-09, A-23: SQLite poza loopback nie wpuszcza nikogo z sieci bez
+// PATRON_SQLITE_TRUST_NETWORK=true (middleware/auth.ts). Mowimy o tym przy
+// starcie, zeby operator nie szukal przyczyny 401 w ciemno.
+if (
+  isSqliteBackend() &&
+  !isLoopbackAddress(HOST === "localhost" ? "127.0.0.1" : HOST) &&
+  !sqliteTrustsNetwork()
+) {
+  console.warn(
+    `[auth] PATRON_HOST=${HOST} w trybie SQLite: zadania spoza loopback dostana 401 ` +
+      "(auth bypass tylko dla 127.0.0.1/::1). Tryb serwerowy = PATRON_DB_BACKEND=supabase; " +
+      "PATRON_SQLITE_TRUST_NETWORK=true wylacza te ochrone (patrz backend/.env.example).",
+  );
+}
 app.listen(Number(PORT), HOST, () => {
   console.log(`PATRON backend running on ${HOST}:${PORT}`);
   startMerkleScheduler();

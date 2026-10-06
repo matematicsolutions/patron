@@ -16,6 +16,7 @@ import { mcpGroundingSummary } from "../lib/citation/mcp-grounding";
 import { getUserApiKeys } from "../lib/userSettings";
 import { checkProjectAccess } from "../lib/access";
 import { appendAuditEvent } from "../lib/audit";
+import { STREAM_ERROR_MAX, streamErrorEvent } from "../lib/chat/stream-error";
 
 const PROJECT_SYSTEM_PROMPT_EXTRA = `PROJECT CONTEXT:
 You are operating within a project folder that contains a collection of legal documents the user has organised for a single matter. The user's questions will usually refer to one or more documents in this project — your job is to find the relevant files to work on. Use list_documents to see what is available and fetch_documents / read_document to pull in any documents you need before answering.
@@ -193,6 +194,7 @@ projectChatRouter.post("/", requireAuth, async (req, res) => {
                 apiKeys,
                 projectId,
                 allowBudgetOverride: allow_budget_override === true,
+                chatId,
             });
 
         const annotations = extractAnnotations(
@@ -242,11 +244,10 @@ projectChatRouter.post("/", requireAuth, async (req, res) => {
                 .eq("id", chatId);
         }
     } catch (err) {
-        console.error("[project-chat/stream] error:", err);
+        console.error("[project-chat/stream] error:", String(err).slice(0, STREAM_ERROR_MAX));
         try {
-            write(
-                `data: ${JSON.stringify({ type: "error", message: "Stream error" })}\n\n`,
-            );
+            // Realny powod zamiast gluchego "Stream error" - jak w czacie ogolnym.
+            write(streamErrorEvent(err));
             write("data: [DONE]\n\n");
         } catch {
             /* ignore */

@@ -68,14 +68,23 @@ describe("validateManifest (ADR-0094)", () => {
     );
   });
 
-  it("manifestToEntry oznacza signed wg obecnosci podpisu", () => {
-    const r = validateManifest(base({ signature: "deadbeef" }));
+  it("B-10: napis w polu signature to NIE podpis - signed=false, status 'unverified'", () => {
+    const r = validateManifest(base({ signature: "deadbeef", publisher: "MateMatic" }));
     expect(r.ok).toBe(true);
     if (r.ok) {
       const entry = manifestToEntry(r.manifest, true);
-      expect(entry.signed).toBe(true);
+      expect(entry.signed).toBe(false);
+      expect(entry.signature_status).toBe("unverified");
       expect(entry.builtin).toBe(false);
       expect(entry.enabled).toBe(true);
+    }
+  });
+
+  it("B-10: paczka bez podpisu - signed=false, status 'absent'", () => {
+    const r = validateManifest(base({}));
+    expect(r.ok).toBe(true);
+    if (r.ok) {
+      expect(manifestToEntry(r.manifest, false)).toMatchObject({ signed: false, signature_status: "absent" });
     }
   });
 });
@@ -88,6 +97,7 @@ describe("BUILTIN_SKILLS", () => {
       expect(s.enabled).toBe(true);
       expect(s.source).toBe("builtin");
       expect(s.surface).toBe("draft-stage");
+      expect(s.signature_status).toBe("builtin");
     }
     expect([...BUILTIN_IDS].sort()).toEqual(["adwokat", "pisz-po-ludzku", "recenzent"]);
   });

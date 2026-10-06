@@ -112,3 +112,28 @@ prawnikowi polski napis przy portugalskim interfejsie.
   najpierw, automat po pomiarze uzycia.
 - **Wlasny format archiwum.** Odrzucone: `buildAuditExportArchive` i oba weryfikatory juz
   istnialy i juz znaly ten rodzaj pakietu.
+
+## Aktualizacja 2026-10-06 - wpisy zanonimizowane w wyciagu pakietu
+
+Wyciag pakietu deliverable moze zawierac wpisy osoby, ktora potem skorzystala
+z RODO art. 17 (np. wspolpracownik w czacie projektu, ADR-0148). Do tej pory
+taki wpis dawal 409 `excerpt_hash_mismatch`. Decyzja wlasciciela produktu:
+pakiet wychodzi, gdy kazdy niezgodny wpis obejmuje WAZNA deklaracja
+`audit.chain.legal_break` (ADR-0164) - wlasny hash zgodny, pozniejsza od
+wpisu, pole wyzerowane, a aktualna tresc daje dokladnie zadeklarowany hash
+po zerwaniu. Wtedy:
+
+- wpis niesie `legal_break: { declaration_event_id, reason, field, hash_after }`,
+  a `hash` i `prev_hash` zostaja oryginalne, wiec ogniwa wyciagu dzialaja jak
+  dotad;
+- wiersze deklaracji jada w `legal_break_declarations` - nowa czesc manifestu,
+  obecna tylko w pakiecie z zerwaniem;
+- slad `deliverable.bundle_export` z `phase: "requested"` podaje
+  `legal_breaks` i `legal_break_declaration_ids`;
+- weryfikatory daja trzeci stan (ADR-0142, aktualizacja 2026-10-06).
+
+Kazdy inny niezgodny wpis nadal zatrzymuje pakiet; odpowiedz 409 i slad
+odmowy niosa `legal_break: [{ event_id, status, declaration_event_id }]`, gdy
+deklaracja byla, ale nie wystarczyla (`old_format`, `content_differs`,
+`field_not_null`). Testy: `backend/src/routes/audit-bundle-route.test.ts`
+(prawdziwy `rodo-delete.ts` przez shim SQLite).

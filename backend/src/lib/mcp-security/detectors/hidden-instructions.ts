@@ -69,12 +69,37 @@ function scanText(
     return findings;
 }
 
+/**
+ * Wszystkie napisy `description`/`title` w drzewie inputSchema (properties,
+ * items, anyOf/oneOf/allOf, $defs...). Model czyta je przy wyborze argumentow
+ * tak samo jak opis narzedzia - instrukcja schowana w opisie parametru omijala
+ * skan (przeglad 2026-10-02, audyt B-07). Glebokosc ograniczona: schemat z
+ * pliku konektora nie moze zawiesic bramy rekursja.
+ */
+export function schemaTexts(schema: unknown, depth = 0, out: string[] = []): string[] {
+    if (depth > 12 || !schema || typeof schema !== "object") return out;
+    if (Array.isArray(schema)) {
+        for (const x of schema) schemaTexts(x, depth + 1, out);
+        return out;
+    }
+    for (const [k, v] of Object.entries(schema as Record<string, unknown>)) {
+        if ((k === "description" || k === "title") && typeof v === "string") out.push(v);
+        else if (typeof v === "object") schemaTexts(v, depth + 1, out);
+    }
+    return out;
+}
+
 export const hiddenInstructionsDetector: McpDetector = {
     name: "hidden-instructions",
     run(server: McpServerDefinition): McpFinding[] {
         const findings: McpFinding[] = [];
         for (const tool of server.tools) {
             findings.push(...scanText(tool.description, server.name, tool.name));
+            // W opisach parametrow tylko wzorce ciezkie (critical): slabsze ("you
+            // must always ...") pojawiaja sie w zwyklych instrukcjach wypelniania
+            // pola i zablokowalyby wlasne konektory (human_review) bez powodu.
+            for (const t of schemaTexts(tool.inputSchema))
+                findings.push(...scanText(t, server.name, tool.name).filter((f) => f.severity === "critical"));
         }
         return findings;
     },

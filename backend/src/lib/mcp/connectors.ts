@@ -3,17 +3,25 @@
 // Mecenas wybiera konektory MCP = wybor jurysdykcji. Picker zmienia TYLKO
 // konektory zaufanego zestawu (Ring 1, APPROVED_PATRON_CONNECTORS). Konektory
 // poza zestawem (Ring 2 / 3rd-party) sa read-only dla pickera - ich wlaczenie
-// to rola Operatora (operatorApproved w mcp-servers.json), nie mecenasa.
+// to rola Operatora (`gatewayApproval` w nakladce, ADR-0158 / B-08), nie mecenasa.
+// Picker pokazuje, ze taki konektor czeka na zatwierdzenie (pole `gateway`).
 //
 // Ta warstwa NIE dotyka MCP Security Gateway ani ring-policy - czyta decyzje
 // `decideRing` i autoryzuje toggle. I/O pliku konfiguracji jest w ./index.
 
 import { decideRing } from "./ring-policy";
 import {
+    getGatewayState,
+    isAwaitingOperatorApproval,
     listConnectorConfigs,
     setConnectorEnabledInConfig,
     type McpServerConfig,
 } from "./index";
+import {
+    APPROVED_PATRON_CONNECTORS,
+    buildScanContext,
+    typosquatDetector,
+} from "../mcp-security";
 
 export type Jurisdiction =
     | "PL"
@@ -75,14 +83,48 @@ export interface ConnectorInfo {
     jurisdiction: Jurisdiction;
     trustLevel?: "trusted" | "untrusted";
     operatorApproved?: boolean;
+    /**
+     * Stan bramy bezpieczenstwa MCP (B-08 / ADR-0158). Brak pola = nic do
+     * zgloszenia (zarejestrowany albo stan nieznany do pierwszego skanu).
+     * - awaiting_operator_approval: `human_review` bez zgodnego `gatewayApproval`;
+     * - blocked: brama odrzucila konektor (`denied`, np. nazwa myli sie z zaufana).
+     */
+    gateway?: ConnectorGatewayStatus;
+}
+
+export type ConnectorGatewayStatus = "awaiting_operator_approval" | "blocked";
+
+/**
+ * Stan bramy dla pickera. Po skanie w tym procesie - stan faktyczny. Przed nim
+ * (picker otwarty przed pierwszym czatem) - tylko to, co wiadomo bez laczenia
+ * sie z konektorem: nieznany konektor bez `gatewayApproval` na pewno czeka na
+ * Operatora (B-08), a nazwa mylaca sie z zaufana (typosquat critical) bedzie
+ * odrzucona. Konektor z wpisanym zatwierdzeniem - nieznany do skanu (hash).
+ */
+function gatewayStatusOf(cfg: McpServerConfig): ConnectorGatewayStatus | undefined {
+    const live = getGatewayState(cfg.name);
+    if (live) {
+        if (isAwaitingOperatorApproval(live)) return "awaiting_operator_approval";
+        return live.registered ? undefined : "blocked";
+    }
+    if (cfg.enabled === false) return undefined;
+    if (APPROVED_PATRON_CONNECTORS.includes(cfg.name)) return undefined;
+    if (cfg.gatewayApproval !== undefined) return undefined;
+    const typo = typosquatDetector.run(
+        { name: cfg.name, transport: cfg.transport, tools: [] },
+        buildScanContext(),
+    );
+    return typo.some((f) => f.severity === "critical") ? "blocked" : "awaiting_operator_approval";
 }
 
 function toInfo(cfg: McpServerConfig): ConnectorInfo {
     const decision = decideRing(cfg.name, {
         trustLevel: cfg.trustLevel,
         operatorApproved: cfg.operatorApproved,
+        configSource: cfg.configSource,
     });
     const ring: 1 | 2 = decision.ring === 1 ? 1 : 2;
+    const gateway = ring === 1 ? undefined : gatewayStatusOf(cfg);
     return {
         name: cfg.name,
         enabled: cfg.enabled !== false,
@@ -93,6 +135,7 @@ function toInfo(cfg: McpServerConfig): ConnectorInfo {
         ...(cfg.operatorApproved !== undefined && {
             operatorApproved: cfg.operatorApproved,
         }),
+        ...(gateway !== undefined && { gateway }),
     };
 }
 

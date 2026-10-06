@@ -3,6 +3,7 @@ import {
     CITATIONS_BLOCK_RE,
     normalizeCitation,
     parseCitations,
+    parseCitationsDetailed,
     resolveDoc,
     resolveDocLabel,
 } from "./citations";
@@ -100,6 +101,77 @@ describe("parseCitations", () => {
     it("blok ktorego JSON nie jest tablica -> puste", () => {
         const text = `<CITATIONS>{"ref":1}</CITATIONS>`;
         expect(parseCitations(text)).toEqual([]);
+    });
+});
+
+// D-14: blok <CITATIONS> z typowym bledem modelu nie moze gubic cytatow po cichu.
+describe("parseCitationsDetailed (D-14)", () => {
+    const rec = '{"ref": 1, "doc_id": "doc-0", "page": 1, "quote": "Kara umowna"}';
+    const FENCE = "`".repeat(3);
+
+    it("przecinek wiszacy w liscie -> cytat zachowany, bez bledu", () => {
+        const out = parseCitationsDetailed(`x [1].\n<CITATIONS>[${rec},]</CITATIONS>`);
+        expect(out.citations).toHaveLength(1);
+        expect(out.parseError).toBeNull();
+    });
+
+    it("przecinek wiszacy w obiekcie -> cytat zachowany", () => {
+        const out = parseCitationsDetailed(
+            '<CITATIONS>[{"ref": 1, "doc_id": "doc-0", "page": 1, "quote": "Q",}]</CITATIONS>',
+        );
+        expect(out.citations[0]).toMatchObject({ ref: 1, quote: "Q" });
+    });
+
+    it("przecinek przed ] WEWNATRZ cytatu zostaje nietkniety", () => {
+        const out = parseCitationsDetailed(
+            '<CITATIONS>[{"ref": 1, "doc_id": "doc-0", "page": 1, "quote": "a, ] b"},]</CITATIONS>',
+        );
+        expect(out.citations[0].quote).toBe("a, ] b");
+    });
+
+    it('ref jako string ("1" i "[2]") -> liczba', () => {
+        const out = parseCitationsDetailed(
+            '<CITATIONS>[{"ref": "1", "doc_id": "doc-0", "page": 1, "quote": "A"},{"ref": "[2]", "doc_id": "doc-0", "page": 1, "quote": "B"}]</CITATIONS>',
+        );
+        expect(out.citations.map((c) => c.ref)).toEqual([1, 2]);
+        expect(out.parseError).toBeNull();
+    });
+
+    it("ref jako string nieliczbowy -> rekord odrzucony z jawnym licznikiem", () => {
+        const out = parseCitationsDetailed(
+            '<CITATIONS>[{"ref": "jeden", "doc_id": "doc-0", "page": 1, "quote": "A"}]</CITATIONS>',
+        );
+        expect(out.citations).toEqual([]);
+        expect(out.parseError).toEqual({ reason: "invalid_records", dropped: 1 });
+    });
+
+    it("ogrodzenie markdown json wewnatrz bloku -> sparsowane", () => {
+        const out = parseCitationsDetailed(
+            `<CITATIONS>\n${FENCE}json\n[${rec}]\n${FENCE}\n</CITATIONS>`,
+        );
+        expect(out.citations).toHaveLength(1);
+    });
+
+    it("nienaprawialny JSON -> parseError invalid_json (nie cisza)", () => {
+        const out = parseCitationsDetailed("<CITATIONS>nie jest jsonem</CITATIONS>");
+        expect(out.citations).toEqual([]);
+        expect(out.parseError?.reason).toBe("invalid_json");
+    });
+
+    it("JSON nie-lista -> parseError not_array", () => {
+        expect(
+            parseCitationsDetailed('<CITATIONS>{"ref":1}</CITATIONS>').parseError?.reason,
+        ).toBe("not_array");
+    });
+
+    it("otwarty blok bez zamkniecia (uciete wyjscie) -> parseError unterminated", () => {
+        expect(
+            parseCitationsDetailed(`x [1]\n<CITATIONS>[${rec}`).parseError?.reason,
+        ).toBe("unterminated");
+    });
+
+    it("brak bloku -> brak bledu (model nie cytowal)", () => {
+        expect(parseCitationsDetailed("Sama proza.")).toEqual({ citations: [], parseError: null });
     });
 });
 

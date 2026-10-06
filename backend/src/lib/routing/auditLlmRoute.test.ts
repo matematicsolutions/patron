@@ -98,4 +98,28 @@ describe("buildLlmRouteEvent", () => {
         expect(p.reason).toBe("privileged-requires-local");
         expect(p.case_id).toBe("case-x");
     });
+
+    it("A-09/B-11: liczniki argumentow MCP tylko gdy niepuste; same liczby, bez wartosci", () => {
+        const base = {
+            actorUserId: "u",
+            model: "ollama/qwen3:8b",
+            provider: "ollama",
+            egress: "no-egress" as const,
+            classification: "attorney_client_privileged" as const,
+            action: "allow" as const,
+            reason: "local-no-egress" as const,
+        };
+        const empty = buildLlmRouteEvent({ ...base, mcpArgsRedacted: {}, mcpArgsTokensWithheld: {} });
+        const pe = empty.payload as Record<string, unknown>;
+        expect("mcp_args_redacted" in pe).toBe(false);
+        expect("mcp_args_tokens_withheld" in pe).toBe(false);
+        const ev = buildLlmRouteEvent({
+            ...base,
+            mcpArgsRedacted: { PESEL: 2, EMAIL: 1 },
+            mcpArgsTokensWithheld: { PERSON: 1 },
+        });
+        const p = ev.payload as Record<string, unknown>;
+        expect(p.mcp_args_redacted).toEqual({ PESEL: 2, EMAIL: 1 });
+        expect(p.mcp_args_tokens_withheld).toEqual({ PERSON: 1 });
+    });
 });

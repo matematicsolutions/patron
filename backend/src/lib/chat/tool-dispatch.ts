@@ -3,19 +3,24 @@
 // Helpery readDocumentContent / findInDocumentContent / normalize* sa prywatne dla
 // dispatchera (uzywane tylko z wnetrza runToolCalls).
 
-import { convertedPdfKey } from "../convert";
 import {
     extractDocxBodyText,
     type EditInput,
 } from "../docxTrackedChanges";
-import { loadActiveVersion } from "../documentVersions";
 import { buildDownloadUrl } from "../downloadTokens";
-import { downloadFile, storageKey, uploadFile } from "../storage";
+import { createHash } from "crypto";
+import { downloadFile } from "../storage";
 import { createServerSupabase } from "../supabase";
 import { citationReminder } from "./prompts";
 import { resolveDocLabel } from "./citations";
 import { extractPdfText } from "./pdf";
 import { boundedDocumentText } from "./document-window";
+import {
+    normalizeReplicateCount,
+    replicateDocumentCopies,
+    replicateInputToPayload,
+    type ReplicateInput,
+} from "./replicate";
 import { analyzeInput, isHardThreat, inputSecurityEnforce } from "../input-security";
 import { generateDocx } from "./docx-generate";
 import {
@@ -25,12 +30,21 @@ import {
 } from "./docx-edit";
 import { type CommentInput } from "../docxComments";
 import { retrieve } from "../retrieval/retrieval";
-import { saveMemory, listMemories, readMemory } from "../brain/store";
 import {
+    LEGACY_PERSONAL_SCOPE,
+    listMemories,
+    personalScope,
+    readMemory,
+    saveMemory,
+} from "../brain/store";
+import { isSqliteBackend } from "../supabase";
+import {
+    MUTATION_APPROVAL_EVENT_TYPE,
     shouldStageMutation,
     stageMutationApproval,
     type StagedToolName,
 } from "../mutation-approval";
+import { appendAuditEvent } from "../audit";
 import type {
     CommentAnnotation,
     DocIndex,
@@ -41,6 +55,18 @@ import type {
     WorkflowStore,
 } from "./types";
 
+/**
+ * Klasa bledu do logu operacyjnego: nazwa i kod (np. "Error:ENOENT"), bez
+ * komunikatu - ten bywa nosnikiem sciezki storage albo fragmentu tresci (R-CC-06).
+ */
+export function errorClass(err: unknown): string {
+    if (err instanceof Error) {
+        const code = (err as { code?: unknown }).code;
+        return typeof code === "string" ? `${err.name}:${code}` : err.name;
+    }
+    return typeof err;
+}
+
 async function readDocumentContent(
     docLabel: string,
     docStore: DocStore,
@@ -50,6 +76,9 @@ async function readDocumentContent(
     opts?: { emitEvents?: boolean },
 ): Promise<string> {
     const emitEvents = opts?.emitEvents ?? true;
+    // R-CC-06: log operacyjny NIE niesie nazwy pliku pisma ani storage_path
+    // (w kancelarii to czesto nazwisko klienta i rodzaj sprawy). Identyfikujemy
+    // odczyt etykieta docLabel, document_id, typem i dlugosciami.
     console.log(`[read_document] called with docLabel="${docLabel}"`);
     const docInfo = docStore.get(docLabel);
     if (!docInfo) {
@@ -59,11 +88,12 @@ async function readDocumentContent(
         );
         return "Document not found.";
     }
+    const documentId = docIndex?.[docLabel]?.document_id;
+    const logRef = `docLabel="${docLabel}" document_id=${documentId ?? "-"}`;
     console.log(
-        `[read_document] docInfo: filename="${docInfo.filename}", file_type="${docInfo.file_type}", storage_path="${docInfo.storage_path}"`,
+        `[read_document] docInfo: ${logRef} file_type="${docInfo.file_type}"`,
     );
 
-    const documentId = docIndex?.[docLabel]?.document_id;
     const emitDocRead = () => {
         if (!emitEvents) return;
         write(
@@ -96,11 +126,11 @@ async function readDocumentContent(
                 ) as ArrayBuffer;
                 sourcePath = current.storage_path;
                 console.log(
-                    `[read_document] using current version path="${sourcePath}" (bytes=${raw.byteLength})`,
+                    `[read_document] using current version (bytes=${raw.byteLength}) ${logRef}`,
                 );
             } else {
                 console.log(
-                    `[read_document] loadCurrentVersionBytes returned null for documentId="${documentId}", falling back to original storage_path`,
+                    `[read_document] loadCurrentVersionBytes returned null for ${logRef}, falling back to original upload`,
                 );
             }
         }
@@ -108,13 +138,13 @@ async function readDocumentContent(
             raw = await downloadFile(docInfo.storage_path);
             if (raw) {
                 console.log(
-                    `[read_document] fallback download from storage_path="${docInfo.storage_path}" (bytes=${raw.byteLength})`,
+                    `[read_document] fallback download of original upload (bytes=${raw.byteLength}) ${logRef}`,
                 );
             }
         }
         if (!raw) {
             console.log(
-                `[read_document] FAILED to download any bytes for docLabel="${docLabel}" (tried path="${sourcePath}")`,
+                `[read_document] FAILED to download any bytes for ${logRef} (source=${sourcePath === docInfo.storage_path ? "original" : "version"})`,
             );
             emitDocRead();
             return "Document could not be read.";
@@ -128,25 +158,25 @@ async function readDocumentContent(
             const hex = head.toString("hex");
             const ascii = head.toString("binary").replace(/[^\x20-\x7e]/g, ".");
             console.log(
-                `[read_document] magic bytes hex=${hex} ascii="${ascii}" for filename="${docInfo.filename}"`,
+                `[read_document] magic bytes hex=${hex} ascii="${ascii}" for ${logRef}`,
             );
         }
         let text: string;
         if (docInfo.file_type === "pdf") {
             text = await extractPdfText(raw);
             console.log(
-                `[read_document] pdf extracted length=${text.length} for filename="${docInfo.filename}"`,
+                `[read_document] pdf extracted length=${text.length} for ${logRef}`,
             );
         } else if (docInfo.file_type === "docx") {
             // Use the same flattening as the edit_document matcher so the
             // LLM sees exactly the characters it can anchor against.
             text = await extractDocxBodyText(Buffer.from(raw));
             console.log(
-                `[read_document] docx extractDocxBodyText length=${text.length} for filename="${docInfo.filename}"`,
+                `[read_document] docx extractDocxBodyText length=${text.length} for ${logRef}`,
             );
             if (!text) {
                 console.log(
-                    `[read_document] docx accepted-view extractor returned empty, falling back to mammoth for filename="${docInfo.filename}"`,
+                    `[read_document] docx accepted-view extractor returned empty, falling back to mammoth for ${logRef}`,
                 );
                 const mammoth = await import("mammoth");
                 const result = await mammoth.extractRawText({
@@ -154,12 +184,12 @@ async function readDocumentContent(
                 });
                 text = result.value;
                 console.log(
-                    `[read_document] docx mammoth fallback length=${text.length} for filename="${docInfo.filename}"`,
+                    `[read_document] docx mammoth fallback length=${text.length} for ${logRef}`,
                 );
             }
         } else {
             console.log(
-                `[read_document] unknown file_type="${docInfo.file_type}" for filename="${docInfo.filename}", trying mammoth`,
+                `[read_document] unknown file_type="${docInfo.file_type}" for ${logRef}, trying mammoth`,
             );
             const mammoth = await import("mammoth");
             const result = await mammoth.extractRawText({
@@ -167,13 +197,13 @@ async function readDocumentContent(
             });
             text = result.value;
             console.log(
-                `[read_document] mammoth length=${text.length} for filename="${docInfo.filename}"`,
+                `[read_document] mammoth length=${text.length} for ${logRef}`,
             );
         }
         console.log(
             // Bez fragmentu tekstu: log jest lokalny, ale tresc pisma nie ma
             // w nim czego szukac (ADR-0157; test read-document-log.test.ts).
-            `[read_document] DONE filename="${docInfo.filename}" finalTextLength=${text.length}`,
+            `[read_document] DONE ${logRef} finalTextLength=${text.length}`,
         );
 
         // ADR-0020 W4: obrona w glab. Tuz przed podaniem tresci do promptu
@@ -189,7 +219,7 @@ async function readDocumentContent(
         });
         if (isHardThreat(guard, inputSecurityEnforce())) {
             console.log(
-                `[read_document] WSTRZYMANY przez input-security action=${guard.action} filename="${docInfo.filename}"`,
+                `[read_document] WSTRZYMANY przez input-security action=${guard.action} ${logRef}`,
             );
             emitDocRead();
             return `Dokument "${docInfo.filename}" zostal wstrzymany przez kontrole bezpieczenstwa wejscia (mozliwa proba manipulacji modelem, np. wstrzykniete polecenie lub ukryta akcja). Tresc nie zostala wczytana do modelu. Zglos dokument Operatorowi/Inspektorowi do recznej oceny.`;
@@ -198,10 +228,9 @@ async function readDocumentContent(
         emitDocRead();
         return text;
     } catch (err) {
-        console.log(
-            `[read_document] THREW for docLabel="${docLabel}" filename="${docInfo.filename}":`,
-            err,
-        );
+        // Tylko klasa/kod bledu: komunikat (np. ENOENT ze sciezka storage,
+        // blad parsera z fragmentem tresci) moglby niesc nazwe pliku albo tekst.
+        console.log(`[read_document] THREW for ${logRef}:`, errorClass(err));
         if (emitEvents)
             write(
                 `data: ${JSON.stringify({ type: "doc_read", filename: docInfo.filename })}\n\n`,
@@ -449,6 +478,7 @@ export type DocEditedResult = {
     version_number: number | null;
     download_url: string;
     annotations: EditAnnotation[];
+    errors?: { index: number; reason: string }[]; // edits NOT applied (audit D-10)
 };
 
 export type DocCommentedResult = {
@@ -564,7 +594,8 @@ type StageOutcome =
  * Bramka human-in-the-loop przed wykonaniem narzedzia mutujacego (ADR-0137).
  * Gdy staging wlaczony - stage'uje akcje jako karte `pending` i sygnalizuje, ze
  * NIE nalezy jej wykonywac inline (czeka na zatwierdzenie czlowieka, AI Act
- * art. 14). Domyslnie wylaczona (env) - zero zmiany sciezki czatu do czasu UI inbox.
+ * art. 14). Domyslnie WLACZONA (aktualizacja ADR-0137 2026-10-06, audyt B-02);
+ * swiadome wylaczenie: PATRON_MUTATION_APPROVAL=false.
  */
 async function maybeStageMutation(params: {
     toolName: StagedToolName;
@@ -577,21 +608,77 @@ async function maybeStageMutation(params: {
     // Polityka US3 (ADR-0137 + ADR-0092): off/all/high-stakes (fail-closed).
     // Kontekst klasyfikatora pusty - metadane deliverable (typ/wartosc) nie sa
     // dzis dostepne na tym poziomie; high-stakes zachowuje sie jak all (rezerwacja).
-    if (!shouldStageMutation().stage) return { mode: "proceed" };
-    const card = await stageMutationApproval(params.db, {
-        userId: params.userId,
-        chatId: params.chatId,
-        documentId: params.documentId,
-        toolName: params.toolName,
-        toolPayload: params.toolPayload,
-    });
+    const decision = shouldStageMutation();
+    if (!decision.stage) return { mode: "proceed" };
+    // C-09: karta nosi czat tury. Kolumna mutation_approvals.chat_id to FK do
+    // `chats` - czat tabular (osobna tabela) albo czat, ktorego nie ma, dalby
+    // blad FK i fail-closed staging. Wtedy karta bez chat_id, a powiazanie z
+    // tura zostaje w audit_log (kolumna chat_id audytu nie jest FK).
+    const cardChatId = await chatRowExists(params.db, params.chatId, params.userId)
+        ? params.chatId
+        : null;
+    // Bramka jest domyslnie wlaczona (2026-10-06): wyjatek bazy przy zapisie karty
+    // nie moze przerwac calej tury - fail-closed jak przy bledzie zapisu (akcja
+    // NIE wykonana, model i uzytkownik dostaja komunikat).
+    let card: Awaited<ReturnType<typeof stageMutationApproval>> = null;
+    try {
+        card = await stageMutationApproval(params.db, {
+            userId: params.userId,
+            chatId: cardChatId,
+            documentId: params.documentId,
+            toolName: params.toolName,
+            toolPayload: params.toolPayload,
+        });
+    } catch (err) {
+        console.warn(
+            "[mutation-approval] stage threw:",
+            err instanceof Error ? err.name : typeof err,
+        );
+        card = null;
+    }
     if (!card) {
         return {
             mode: "error",
             error: "Nie udalo sie utworzyc karty zatwierdzenia - akcja NIE zostala wykonana. Sprobuj ponownie.",
         };
     }
+    // C-09: samo wstrzymanie zostawia slad w hash-chain (AI Act art. 12/14) -
+    // takze takie, o ktorym nikt nigdy nie zdecyduje. Istniejacy event_type
+    // decyzji z phase:"staged" (bez pola `decision` - decyzji jeszcze nie ma).
+    // Minimalizacja jak przy decyzji: bez argumentow i tresci mutacji.
+    await appendAuditEvent(params.db, {
+        event_type: MUTATION_APPROVAL_EVENT_TYPE,
+        actor_user_id: params.userId,
+        chat_id: params.chatId,
+        document_id: params.documentId,
+        payload: {
+            approval_id: card.id,
+            tool_name: params.toolName,
+            phase: "staged",
+            staging_mode: decision.mode,
+        },
+    });
     return { mode: "staged", approvalId: card.id };
+}
+
+/** Czy `chatId` to wiersz `chats` tego uzytkownika (bezpieczny cel FK karty). */
+async function chatRowExists(
+    db: ReturnType<typeof createServerSupabase>,
+    chatId: string | null,
+    userId: string,
+): Promise<boolean> {
+    if (!chatId) return false;
+    try {
+        const { data, error } = await db
+            .from("chats")
+            .select("id")
+            .eq("id", chatId)
+            .eq("user_id", userId)
+            .maybeSingle();
+        return !error && !!data;
+    } catch {
+        return false;
+    }
 }
 
 /** Tool-result dla akcji stage'owanej (model informuje usera o oczekiwaniu). */
@@ -608,6 +695,85 @@ function stagedToolResultContent(
     });
 }
 
+/**
+ * Read-time guard input-security dla tresci podawanej modelowi SPOZA
+ * read_document (ADR-0020 W4; audyt B-03/B-12 - parytet obrony). Tylko w
+ * trybie enforce (w OPEN niczego nie wstrzymujemy - jak read_document). Zwraca
+ * akcje skanu, gdy tresc ma byc wstrzymana, inaczej null.
+ */
+export function heldByInputSecurity(
+    text: string,
+    fileName?: string,
+): string | null {
+    if (!inputSecurityEnforce()) return null;
+    const scan = analyzeInput({ text, fileName });
+    return isHardThreat(scan, true) ? scan.action : null;
+}
+
+const WITHHELD_MEMORY =
+    "Wpis pamieci wstrzymany przez kontrole bezpieczenstwa wejscia (mozliwa proba manipulacji modelem). Tresc nie zostala podana modelowi; wpis wymaga recznej oceny.";
+
+const WITHHELD_SEARCH_HIT =
+    "[Tresc fragmentu wstrzymana przez kontrole bezpieczenstwa wejscia (mozliwa proba manipulacji modelem). Dokument wymaga recznej oceny Operatora/Inspektora.]";
+
+/** Akcja agenta wstrzymana na karcie zatwierdzenia w tej turze (ADR-0137). */
+export interface StagedMutationTrace {
+    tool: StagedToolName;
+    approval_id: string;
+}
+
+/**
+ * Slad zapisu pamieci trwalej do audit_log (audyt B-04) - bez tresci: rodzaj
+ * zakresu, akcja, dlugosci i skrot identyfikatora wpisu (slug z tytulu bywa
+ * nazwiskiem klienta, wiec nie idzie otwartym tekstem; skrot pozwala Operatorowi
+ * powiazac zdarzenie z plikiem w brain/).
+ */
+export interface MemoryWriteTrace {
+    scope_kind: "case" | "personal";
+    action: "created" | "updated";
+    entry_sha256: string;
+    title_chars: number;
+    body_chars: number;
+}
+
+export function memoryWriteTrace(
+    input: { scope: string; slug: string; title: string; body: string },
+    action: "created" | "updated",
+    caseScope: boolean,
+): MemoryWriteTrace {
+    return {
+        scope_kind: caseScope ? "case" : "personal",
+        action,
+        entry_sha256: createHash("sha256")
+            .update(`${input.scope}/${input.slug}`, "utf8")
+            .digest("hex")
+            .slice(0, 16),
+        title_chars: input.title.length,
+        body_chars: input.body.length,
+    };
+}
+
+/**
+ * Zakresy pamieci trwalej (ADR-0057) dla tury. Sprawa: katalog sprawy. Czat
+ * ogolny: pamiec osobista KLUCZOWANA uzytkownikiem (audyt B-05 - wczesniej
+ * wspolny katalog "personal" dla wszystkich prawnikow w trybie serwerowym).
+ * Desktop (SQLite, single-user): odczyt takze z historycznego "personal",
+ * zeby nie zgubic pamieci jedynego uzytkownika sprzed zmiany; zapis zawsze
+ * do nowego zakresu. Tryb serwerowy NIE czyta historycznego katalogu - nie da
+ * sie ustalic, czyj jest.
+ */
+function memoryScopes(
+    projectId: string | null | undefined,
+    userId: string,
+): { write: string; read: string[] } {
+    if (projectId) return { write: projectId, read: [projectId] };
+    const own = personalScope(userId);
+    return {
+        write: own,
+        read: isSqliteBackend() ? [own, LEGACY_PERSONAL_SCOPE] : [own],
+    };
+}
+
 export async function runToolCalls(
     toolCalls: ToolCall[],
     docStore: DocStore,
@@ -619,6 +785,8 @@ export async function runToolCalls(
     docIndex?: DocIndex,
     turnEditState?: TurnEditState,
     projectId?: string | null,
+    /** Kontekst tury: czat, w ktorym agent proponuje akcje (C-09 - karta i audyt). */
+    turnCtx?: { chatId?: string | null },
 ): Promise<{
     toolResults: unknown[];
     docsRead: { filename: string; document_id?: string }[];
@@ -628,8 +796,30 @@ export async function runToolCalls(
     workflowsApplied: { workflow_id: string; title: string }[];
     docsEdited: DocEditedResult[];
     docsCommented: DocCommentedResult[];
+    /** B-04: slad zapisow pamieci wykonanych inline (do llm_route tury). */
+    memoryWrites: MemoryWriteTrace[];
+    /**
+     * ADR-0137 (aktualizacja 2026-10-06, B-02): akcje wstrzymane w tej turze na
+     * karcie `pending`. Czat zamienia je na jawny sygnal SSE `mutation_staged`
+     * ("akcja czeka na zatwierdzenie - przejdz do skrzynki"), utrwalany w
+     * events wiadomosci - bez argumentow mutacji.
+     */
+    mutationsStaged: StagedMutationTrace[];
 }> {
     const toolResults: unknown[] = [];
+    const memoryWrites: MemoryWriteTrace[] = [];
+    const mutationsStaged: StagedMutationTrace[] = [];
+    // Jedno miejsce, w ktorym tura dowiaduje sie o wstrzymaniu - kazda galaz
+    // mutujaca przechodzi przez te sama bramke (maybeStageMutation).
+    const stageInTurn = async (
+        p: Parameters<typeof maybeStageMutation>[0],
+    ): Promise<StageOutcome> => {
+        const outcome = await maybeStageMutation(p);
+        if (outcome.mode === "staged") {
+            mutationsStaged.push({ tool: p.toolName, approval_id: outcome.approvalId });
+        }
+        return outcome;
+    };
     const docsRead: { filename: string; document_id?: string }[] = [];
     const docsFound: {
         filename: string;
@@ -641,6 +831,7 @@ export async function runToolCalls(
     const workflowsApplied: { workflow_id: string; title: string }[] = [];
     const docsEdited: DocEditedResult[] = [];
     const docsCommented: DocCommentedResult[] = [];
+    const turnChatId = turnCtx?.chatId ?? null;
 
     for (const tc of toolCalls) {
         let args: Record<string, unknown> = {};
@@ -651,47 +842,105 @@ export async function runToolCalls(
         }
 
         if (tc.function.name === "remember") {
-            const scope = projectId ?? "personal";
-            const title = ((args.title as string) ?? "").trim();
-            const body = ((args.body as string) ?? "").trim();
-            const type = (args.type as string) ?? "notatka";
-            const slug = ((args.slug as string) ?? title).trim();
+            // Normalizacja PRZED bramka (ADR-0137, audyt B-04): karta i sciezka
+            // inline zapisuja TEN SAM wpis (saveMemory na tych samych polach).
+            const memInput = {
+                scope: memoryScopes(projectId, userId).write,
+                title: String(args.title ?? "").trim(),
+                body: String(args.body ?? "").trim(),
+                type: typeof args.type === "string" && args.type ? args.type : "notatka",
+                slug: "",
+            };
+            memInput.slug = String(args.slug ?? memInput.title).trim();
             let content: string;
-            if (!title || !body) {
+            if (!memInput.title || !memInput.body) {
                 content = JSON.stringify({
                     error: "title i body sa wymagane",
                 });
             } else {
-                try {
-                    const r = saveMemory({ scope, slug, type, title, body });
-                    content = JSON.stringify({
-                        ok: true,
-                        action: r.action,
-                        slug: r.slug,
-                        scope: r.scope,
-                    });
-                } catch (e) {
-                    content = JSON.stringify({
-                        error: e instanceof Error ? e.message : String(e),
-                    });
+                // B-04: remember to trwaly zapis agenta - ta sama bramka
+                // human-in-the-loop co edit_document / generate_docx.
+                const memStage = await stageInTurn({
+                    toolName: "remember",
+                    userId,
+                    db,
+                    chatId: turnChatId,
+                    documentId: null,
+                    toolPayload: { ...memInput },
+                });
+                if (memStage.mode === "staged") {
+                    content = stagedToolResultContent("remember", memStage.approvalId);
+                } else if (memStage.mode === "error") {
+                    content = JSON.stringify({ error: memStage.error });
+                } else {
+                    try {
+                        const r = saveMemory(memInput);
+                        // Skrot liczony z sanityzowanych scope/slug = sciezka pliku.
+                        memoryWrites.push(
+                            memoryWriteTrace(
+                                { ...memInput, scope: r.scope, slug: r.slug },
+                                r.action,
+                                !!projectId,
+                            ),
+                        );
+                        content = JSON.stringify({
+                            ok: true,
+                            action: r.action,
+                            slug: r.slug,
+                            scope: r.scope,
+                        });
+                    } catch (e) {
+                        content = JSON.stringify({
+                            error: e instanceof Error ? e.message : String(e),
+                        });
+                    }
                 }
             }
             toolResults.push({ role: "tool", tool_call_id: tc.id, content });
         } else if (tc.function.name === "recall") {
-            const scope = projectId ?? "personal";
+            const scopes = memoryScopes(projectId, userId);
+            const scope = scopes.write;
             const slug = (args.slug as string | undefined)?.trim();
             let content: string;
             try {
                 if (slug) {
-                    const m = readMemory(scope, slug);
-                    content = m
-                        ? JSON.stringify({ slug, meta: m.meta, body: m.body })
-                        : JSON.stringify({ note: "Brak wpisu o tym slug." });
+                    let m: ReturnType<typeof readMemory> = null;
+                    for (const sc of scopes.read) {
+                        m = readMemory(sc, slug);
+                        if (m) break;
+                    }
+                    // B-03: parytet z read_document - w trybie enforce wpis pamieci
+                    // z twardym sygnalem manipulacji (zatruta pamiec trwala) nie
+                    // trafia do modelu.
+                    const held = m
+                        ? heldByInputSecurity(
+                              [m.meta.title, m.meta.description, m.body]
+                                  .filter(Boolean)
+                                  .join("\n"),
+                          )
+                        : null;
+                    content = !m
+                        ? JSON.stringify({ note: "Brak wpisu o tym slug." })
+                        : held
+                          ? JSON.stringify({ slug, withheld: true, note: WITHHELD_MEMORY })
+                          : JSON.stringify({ slug, meta: m.meta, body: m.body });
                 } else {
-                    content = JSON.stringify({
-                        scope,
-                        memories: listMemories(scope),
-                    });
+                    // Wpis z zakresu uzytkownika przeslania wpis o tym samym
+                    // slug z zakresu historycznego (desktop, B-05).
+                    const seen = new Set<string>();
+                    const memories = scopes.read.flatMap((sc) =>
+                        listMemories(sc).filter((x) => {
+                            if (seen.has(x.slug)) return false;
+                            seen.add(x.slug);
+                            return true;
+                        }),
+                    ).map((x) =>
+                        // B-03: tytul/opis wpisu tez ida do modelu.
+                        heldByInputSecurity(`${x.title}\n${x.description}`)
+                            ? { slug: x.slug, withheld: true as const, note: WITHHELD_MEMORY }
+                            : x,
+                    );
+                    content = JSON.stringify({ scope, memories });
                 }
             } catch (e) {
                 content = JSON.stringify({
@@ -722,20 +971,43 @@ export async function runToolCalls(
                 // granicy sprawy (audyt P2 #5).
                 const fnMap = new Map<string, string>();
                 const projOfDoc = new Map<string, string | null>();
+                const securityOfDoc = new Map<string, string | null>();
                 if (ids.length) {
                     const { data: docs } = await db
                         .from("documents")
-                        .select("id, filename, project_id")
+                        .select("id, filename, project_id, security_status")
                         .in("id", ids);
                     for (const d of (docs ?? []) as {
                         id: string;
                         filename: string;
                         project_id: string | null;
+                        security_status?: string | null;
                     }[]) {
                         fnMap.set(d.id, d.filename);
                         projOfDoc.set(d.id, d.project_id ?? null);
+                        securityOfDoc.set(d.id, d.security_status ?? null);
                     }
                 }
+                // B-12: read-time guard jak w read_document (ADR-0020 W4). W trybie
+                // enforce chunk dokumentu oznaczonego human_review/blocked (np.
+                // zindeksowanego wczesniej w trybie OPEN) albo chunk, ktory sam
+                // jest twardym sygnalem manipulacji, nie trafia do modelu -
+                // trafienie zostaje (proweniencja), tresc jest wstrzymana.
+                const enforce = inputSecurityEnforce();
+                const hitText = (h: { documentId: string; content: string }): {
+                    text: string;
+                    withheld?: true;
+                } => {
+                    if (!enforce) return { text: h.content };
+                    const docStatus = securityOfDoc.get(h.documentId);
+                    const held =
+                        docStatus === "human_review" ||
+                        docStatus === "blocked" ||
+                        heldByInputSecurity(h.content) !== null;
+                    return held
+                        ? { text: WITHHELD_SEARCH_HIT, withheld: true }
+                        : { text: h.content };
+                };
                 const caseProjectIds = [
                     ...new Set(
                         [...projOfDoc.values()].filter(
@@ -779,7 +1051,7 @@ export async function runToolCalls(
                         page: h.pageNo ?? null,
                         chunk_index: h.chunkIndex,
                         score: Number(h.score.toFixed(4)),
-                        text: h.content,
+                        ...hitText(h),
                     })),
                     note:
                         [
@@ -1107,11 +1379,11 @@ export async function runToolCalls(
                     reason: e.reason ? String(e.reason) : undefined,
                 }));
                 // ADR-0137: bramka human-in-the-loop przed zapisem dokumentu.
-                const stageOutcome = await maybeStageMutation({
+                const stageOutcome = await stageInTurn({
                     toolName: "edit_document",
                     userId,
                     db,
-                    chatId: null,
+                    chatId: turnChatId,
                     documentId: indexed.document_id,
                     toolPayload: {
                         doc_id: docId,
@@ -1201,6 +1473,7 @@ export async function runToolCalls(
                         version_number: result.version_number,
                         download_url: result.download_url,
                         annotations: result.annotations,
+                        ...(result.errors.length > 0 ? { errors: result.errors } : {}),
                     };
                     docsEdited.push(payload);
                     write(
@@ -1311,11 +1584,11 @@ export async function runToolCalls(
                     text: String(c.text ?? ""),
                 }));
                 // ADR-0137 (US3): bramka human-in-the-loop przed dodaniem komentarzy.
-                const stageOutcome = await maybeStageMutation({
+                const stageOutcome = await stageInTurn({
                     toolName: "add_comments",
                     userId,
                     db,
-                    chatId: null,
+                    chatId: turnChatId,
                     documentId: indexed.document_id,
                     toolPayload: {
                         doc_id: docId,
@@ -1452,10 +1725,7 @@ export async function runToolCalls(
                 args.new_filename.trim()
                     ? args.new_filename.trim()
                     : null;
-            const requestedCount =
-                typeof args.count === "number" && Number.isFinite(args.count)
-                    ? Math.max(1, Math.min(20, Math.floor(args.count)))
-                    : 1;
+            const requestedCount = normalizeReplicateCount(args.count);
             const sourceLabel =
                 resolveDocLabel(rawDocId, docStore, docIndex) ?? rawDocId;
             const sourceInfo = docStore.get(sourceLabel);
@@ -1492,258 +1762,134 @@ export async function runToolCalls(
             } else if (!projectId) {
                 fail("replicate_document is only available in project chats.");
             } else {
-                try {
-                    // Pull the active version once — every copy gets the
-                    // same starting bytes (with any accepted tracked
-                    // changes rolled in), no point re-fetching per copy.
-                    const active = await loadActiveVersion(
-                        sourceIndexed.document_id,
-                        db,
+                // Normalizacja PRZED bramka (ADR-0137, audyt B-04): karta i
+                // sciezka inline wykonuja replicateDocumentCopies na TYCH SAMYCH
+                // argumentach.
+                const replicateInput: ReplicateInput = {
+                    sourceDocumentId: sourceIndexed.document_id,
+                    sourceFilename: sourceInfo.filename,
+                    sourceFileType: sourceInfo.file_type,
+                    sourceStoragePath: sourceInfo.storage_path,
+                    requestedFilename,
+                    requestedCount,
+                    projectId,
+                };
+                const repStage = await stageInTurn({
+                    toolName: "replicate_document",
+                    userId,
+                    db,
+                    chatId: turnChatId,
+                    documentId: sourceIndexed.document_id,
+                    toolPayload: {
+                        ...replicateInputToPayload(replicateInput),
+                        // Do wyswietlenia na karcie (inbox) - nazwa zrodla.
+                        filename: sourceInfo.filename,
+                    },
+                });
+                if (repStage.mode === "staged") {
+                    write(
+                        `data: ${JSON.stringify({
+                            type: "doc_replicated",
+                            filename: sourceFilename,
+                            count: 0,
+                            copies: [],
+                            staged: true,
+                            approval_id: repStage.approvalId,
+                        })}\n\n`,
                     );
-                    const sourcePath =
-                        active?.storage_path ?? sourceInfo.storage_path;
-                    const sourcePdfPath = active?.pdf_storage_path ?? null;
-                    const raw = await downloadFile(sourcePath);
-                    const pdfBytes = sourcePdfPath
-                        ? await downloadFile(sourcePdfPath)
-                        : null;
-                    if (!raw) {
-                        fail(
-                            "Could not read the source document's bytes from storage.",
+                    toolResults.push({
+                        role: "tool",
+                        tool_call_id: tc.id,
+                        content: stagedToolResultContent(
+                            "replicate_document",
+                            repStage.approvalId,
+                        ),
+                    });
+                } else if (repStage.mode === "error") {
+                    fail(repStage.error);
+                } else {
+                    try {
+                        const rep = await replicateDocumentCopies(
+                            replicateInput,
+                            userId,
+                            db,
                         );
-                    } else {
-                        // Build N filenames. With count=1 keep the
-                        // pre-existing "(copy)" suffix; with count>1 use
-                        // numbered "(1)", "(2)" suffixes.
-                        const srcExt =
-                            sourceInfo.filename.match(/\.[^./\\]+$/)?.[0] ?? "";
-                        const baseStem = (() => {
-                            if (requestedFilename) {
-                                return requestedFilename.replace(
-                                    /\.[^./\\]+$/,
-                                    "",
-                                );
-                            }
-                            return sourceInfo.filename.replace(
-                                /\.[^./\\]+$/,
-                                "",
-                            );
-                        })();
-                        const filenames: string[] = [];
-                        for (let n = 1; n <= requestedCount; n++) {
-                            const suffix =
-                                requestedCount === 1
-                                    ? requestedFilename
-                                        ? ""
-                                        : " (copy)"
-                                    : ` (${n})`;
-                            filenames.push(`${baseStem}${suffix}${srcExt}`);
-                        }
-
-                        // Bulk insert N documents in one round-trip.
-                        const docRows = filenames.map((fn) => ({
-                            project_id: projectId,
-                            user_id: userId,
-                            filename: fn,
-                            file_type: sourceInfo.file_type,
-                            size_bytes: raw.byteLength,
-                            status: "ready",
-                        }));
-                        const { data: insertedDocs, error: docErr } = await db
-                            .from("documents")
-                            .insert(docRows)
-                            .select("id, filename");
-                        if (
-                            docErr ||
-                            !insertedDocs ||
-                            insertedDocs.length === 0
-                        ) {
-                            fail(
-                                `Failed to record replicated documents: ${docErr?.message ?? "unknown"}`,
-                            );
+                        if (!rep.ok) {
+                            fail(rep.error);
                         } else {
-                            // Preserve the request order so each row pairs
-                            // with the right filename. Supabase returns
-                            // inserted rows in the same order as the
-                            // payload.
-                            const newDocs = insertedDocs as {
-                                id: string;
+                            // Register every copy under a fresh doc-N slug so
+                            // the model can edit/read any of them in the same turn.
+                            const existingLabels = new Set(Object.keys(docIndex));
+                            let nextLabelIdx = 0;
+                            const copies: {
+                                new_filename: string;
+                                document_id: string;
+                                version_id: string;
+                            }[] = [];
+                            const toolPayloadCopies: {
+                                doc_id: string;
+                                document_id: string;
+                                version_id: string;
                                 filename: string;
-                            }[];
-                            const contentType =
-                                sourceInfo.file_type === "pdf"
-                                    ? "application/pdf"
-                                    : "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-
-                            // Parallel uploads: the doc bytes (and PDF
-                            // rendition if any) for every new copy.
-                            const uploadJobs: Promise<unknown>[] = [];
-                            const newKeys: string[] = [];
-                            const newPdfKeys: (string | null)[] = [];
-                            for (const d of newDocs) {
-                                const key = storageKey(
-                                    userId,
-                                    d.id,
-                                    d.filename,
-                                );
-                                newKeys.push(key);
-                                uploadJobs.push(
-                                    uploadFile(key, raw, contentType),
-                                );
-                                if (pdfBytes) {
-                                    const pdfKey = convertedPdfKey(
-                                        userId,
-                                        d.id,
-                                    );
-                                    newPdfKeys.push(pdfKey);
-                                    uploadJobs.push(
-                                        uploadFile(
-                                            pdfKey,
-                                            pdfBytes,
-                                            "application/pdf",
-                                        ),
-                                    );
-                                } else {
-                                    newPdfKeys.push(null);
-                                }
-                            }
-                            await Promise.all(uploadJobs);
-
-                            // Bulk insert N versions in one round-trip.
-                            const versionRows = newDocs.map((d, idx) => ({
-                                document_id: d.id,
-                                storage_path: newKeys[idx],
-                                pdf_storage_path: newPdfKeys[idx],
-                                source: "upload",
-                                version_number: 1,
-                                display_name: d.filename,
-                            }));
-                            const { data: insertedVersions, error: verErr } =
-                                await db
-                                    .from("document_versions")
-                                    .insert(versionRows)
-                                    .select("id, document_id");
-                            if (
-                                verErr ||
-                                !insertedVersions ||
-                                insertedVersions.length !== newDocs.length
-                            ) {
-                                fail(
-                                    `Failed to record replicated document versions: ${verErr?.message ?? "unknown"}`,
-                                );
-                            } else {
-                                const versionByDocId = new Map<
-                                    string,
-                                    string
-                                >();
-                                for (const v of insertedVersions as {
-                                    id: string;
-                                    document_id: string;
-                                }[]) {
-                                    versionByDocId.set(v.document_id, v.id);
-                                }
-
-                                // current_version_id has to be a per-row
-                                // value, so a single UPDATE statement
-                                // can't cover all N. Fan out in parallel
-                                // instead of sequential awaits.
-                                await Promise.all(
-                                    newDocs.map((d) =>
-                                        db
-                                            .from("documents")
-                                            .update({
-                                                current_version_id:
-                                                    versionByDocId.get(d.id),
-                                            })
-                                            .eq("id", d.id),
+                                download_url: string;
+                            }[] = [];
+                            for (const c of rep.copies) {
+                                while (existingLabels.has(`doc-${nextLabelIdx}`))
+                                    nextLabelIdx++;
+                                const slug = `doc-${nextLabelIdx}`;
+                                existingLabels.add(slug);
+                                docIndex[slug] = {
+                                    document_id: c.document_id,
+                                    filename: c.filename,
+                                };
+                                docStore.set(slug, {
+                                    storage_path: c.storage_path,
+                                    file_type: sourceInfo.file_type,
+                                    filename: c.filename,
+                                });
+                                copies.push({
+                                    new_filename: c.filename,
+                                    document_id: c.document_id,
+                                    version_id: c.version_id,
+                                });
+                                toolPayloadCopies.push({
+                                    doc_id: slug,
+                                    document_id: c.document_id,
+                                    version_id: c.version_id,
+                                    filename: c.filename,
+                                    download_url: buildDownloadUrl(
+                                        c.storage_path,
+                                        c.filename,
                                     ),
-                                );
+                                });
+                            }
 
-                                // Register every copy under a fresh doc-N
-                                // slug so the model can edit/read any of
-                                // them in the same turn.
-                                const existingLabels = new Set(
-                                    Object.keys(docIndex),
-                                );
-                                let nextLabelIdx = 0;
-                                const copies: {
-                                    new_filename: string;
-                                    document_id: string;
-                                    version_id: string;
-                                }[] = [];
-                                const toolPayloadCopies: {
-                                    doc_id: string;
-                                    document_id: string;
-                                    version_id: string;
-                                    filename: string;
-                                    download_url: string;
-                                }[] = [];
-                                for (let idx = 0; idx < newDocs.length; idx++) {
-                                    const d = newDocs[idx];
-                                    const newKey = newKeys[idx];
-                                    const versionId = versionByDocId.get(d.id);
-                                    if (!versionId) continue;
-                                    while (
-                                        existingLabels.has(
-                                            `doc-${nextLabelIdx}`,
-                                        )
-                                    )
-                                        nextLabelIdx++;
-                                    const slug = `doc-${nextLabelIdx}`;
-                                    existingLabels.add(slug);
-                                    docIndex[slug] = {
-                                        document_id: d.id,
-                                        filename: d.filename,
-                                    };
-                                    docStore.set(slug, {
-                                        storage_path: newKey,
-                                        file_type: sourceInfo.file_type,
-                                        filename: d.filename,
-                                    });
-                                    copies.push({
-                                        new_filename: d.filename,
-                                        document_id: d.id,
-                                        version_id: versionId,
-                                    });
-                                    toolPayloadCopies.push({
-                                        doc_id: slug,
-                                        document_id: d.id,
-                                        version_id: versionId,
-                                        filename: d.filename,
-                                        download_url: buildDownloadUrl(
-                                            newKey,
-                                            d.filename,
-                                        ),
-                                    });
-                                }
-
-                                write(
-                                    `data: ${JSON.stringify({
-                                        type: "doc_replicated",
-                                        filename: sourceFilename,
-                                        count: copies.length,
-                                        copies,
-                                    })}\n\n`,
-                                );
-                                docsReplicated.push({
+                            write(
+                                `data: ${JSON.stringify({
+                                    type: "doc_replicated",
                                     filename: sourceFilename,
                                     count: copies.length,
                                     copies,
-                                });
-                                toolResults.push({
-                                    role: "tool",
-                                    tool_call_id: tc.id,
-                                    content: JSON.stringify({
-                                        ok: true,
-                                        count: copies.length,
-                                        copies: toolPayloadCopies,
-                                    }),
-                                });
-                            }
+                                })}\n\n`,
+                            );
+                            docsReplicated.push({
+                                filename: sourceFilename,
+                                count: copies.length,
+                                copies,
+                            });
+                            toolResults.push({
+                                role: "tool",
+                                tool_call_id: tc.id,
+                                content: JSON.stringify({
+                                    ok: true,
+                                    count: copies.length,
+                                    copies: toolPayloadCopies,
+                                }),
+                            });
                         }
+                    } catch (e) {
+                        fail(`replicate_document failed: ${String(e)}`);
                     }
-                } catch (e) {
-                    fail(`replicate_document failed: ${String(e)}`);
                 }
             }
         } else if (tc.function.name === "generate_docx") {
@@ -1751,7 +1897,8 @@ export async function runToolCalls(
             const landscape = !!args.landscape;
             const kancelaria = !!args.kancelaria;
             console.log(
-                `[generate_docx] title="${title}" landscape=${landscape} kancelaria=${kancelaria}`,
+                // R-CC-06: tytul pisma to czesto nazwisko klienta - logujemy dlugosc.
+                `[generate_docx] titleLength=${typeof title === "string" ? title.length : 0} landscape=${landscape} kancelaria=${kancelaria}`,
             );
             const previewFilename = `${
                 title
@@ -1760,11 +1907,11 @@ export async function runToolCalls(
                     .slice(0, 64) || "document"
             }.docx`;
             // ADR-0137: bramka human-in-the-loop przed wygenerowaniem dokumentu.
-            const genStage = await maybeStageMutation({
+            const genStage = await stageInTurn({
                 toolName: "generate_docx",
                 userId,
                 db,
-                chatId: null,
+                chatId: turnChatId,
                 documentId: null,
                 toolPayload: {
                     title,
@@ -1908,6 +2055,8 @@ export async function runToolCalls(
         workflowsApplied,
         docsEdited,
         docsCommented,
+        memoryWrites,
+        mutationsStaged,
     };
 }
 

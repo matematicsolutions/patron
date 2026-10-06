@@ -87,3 +87,70 @@ z werdyktem `human_review` potrzebuje obu.
   `off`) czyta tylko `routes/security.ts` do banera; `getMcpTools` egzekwuje zawsze. Rozwiazane w
   [ADR-0160](./0160-baner-mcp-security-pokazuje-tryb-egzekwowany.md).
 - **Detektor "schema mismatch" nie zna `outputSchema`** - opcja B z ADR-0157, porzadek na pozniej.
+
+## Aktualizacja 2026-10-06 - nieznany konektor = `human_review`, jedno zatwierdzenie wystarcza (audyt 2026-09 B-08)
+
+**Decyzja wlasciciela produktu:** konektor spoza `APPROVED_PATRON_CONNECTORS` NIE jest
+rejestrowany automatycznie. Do tej pory detektor typosquat dawal mu finding `low`, scorer
+mapowal `low` na `audit`, a `getMcpTools` rejestrowal `audit` jak `allowed` - opisy i schematy
+narzedzi niezatwierdzonego serwera trafialy do listy narzedzi modelu (takze chmurowego), choc
+ring-policy odrzucala kazde wywolanie. Teraz finding "nieznany 3rd-party" ma wage `medium`,
+wiec werdykt to `human_review`: blokada do zatwierdzenia Operatora. Konektory z listy
+(instalator) i pierwsze ladowanie znanego konektora (baseline dryfu) - bez zmian.
+
+**Zmiana pkt 6 (uproszczenie).** Zgodne `gatewayApproval` (hash definicji + odcisk
+pochodzenia) dopuszcza tez wywolania narzedzi w Ring 2 (ring-policy, powod
+`operator-gateway-approval`). Jedno swiadome zatwierdzenie zamiast dwoch, bo:
+
+- dwa kroki zostawialy stan posredni "narzedzia u modelu, kazde wywolanie odrzucone" - dokladnie
+  to, co opisal B-08;
+- `gatewayApproval` jest mocniejsze niz `operatorApproved`: przypiete do definicji i pochodzenia,
+  wiec kazda zmiana narzedzi, komendy albo hosta wraca do przegladu; nieznany konektor ma przy
+  kazdym starcie werdykt `human_review`, wiec zgoda na wywolania jest zawsze przypieta do hasha.
+  `operatorApproved` to boolean, ktory przezywa kazda zmiane definicji;
+- flage ustawia WYLACZNIE brama po skanie w biezacym procesie (`gatewayApproved` w
+  `decideRing`), nigdy plik - pole o tej nazwie w nakladce niczego nie daje (test).
+
+`operatorApproved: true` dalej dziala (istniejace wpisy, np. Repertorium wg ADR-0157, nie
+wymagaja zmian), ale samo w sobie nie rejestruje nieznanego konektora - brama wymaga
+zatwierdzenia przypietego do hasha. Nazwa z listy wpisana nakladka (Ring 2, B-06) zachowuje
+sie jak dotad: werdykt bez `human_review` (np. `audit` przy pierwszym ladowaniu) nadal wymaga
+`operatorApproved` do wywolan.
+
+**Jak zatwierdzic (Operator):**
+
+1. Dopisz konektor w nakladce Operatora `~/.patron/mcp-servers.operator.json` (ADR-0166) i
+   uruchom PATRON.
+2. W dzienniku startu brama wypisuje `[MCP-SECURITY] Server "<nazwa>" BLOCKED action=human_review`,
+   liste zastrzezen i gotowy fragment `"gatewayApproval": { "hash": "...", "origin": "...", ... }`.
+   Ten sam hash i odcisk pokazuje widok "Sprawdz powolania", gdy chodzi o weryfikator (ADR-0157).
+3. Po przejrzeniu zastrzezen wpisz ten fragment (z `approvedAt` / `approvedBy`) we wpisie
+   konektora w nakladce i uruchom PATRON ponownie. To wszystko - `operatorApproved` nie jest
+   potrzebne.
+
+Widocznosc stanu: baner MCP Security (admin) pokazuje nowy konektor czekajacy na zatwierdzenie
+jako oczekiwanie (spokojny ton), a nie alarm - pod warunkiem, ze poza "nieznany 3rd-party" brama
+nie zglosila nic powyzej `low` i nie bylo zatwierdzenia innej definicji (`hash_mismatch` zostaje
+alarmem). Picker konektorow pokazuje plakietke "Czeka na zatwierdzenie". Bez nowego `event_type`
+i bez migracji: stan bierze sie z istniejacego `mcp_security.gateway` (`operator_approval.status`,
+findings) i ze skanu w biezacym procesie.
+
+## Aktualizacja 2026-10-06 - zatwierdzenie z panelu konektorow
+
+Po B-08 kazdy nowy konektor spoza zaufanego zestawu czeka na Operatora, a jedyna droga
+zatwierdzenia byla reczna edycja JSON nakladki z hashem przepisanym z dziennika startu.
+Dla kancelarii po aktualizacji to brak wykonalnej sciezki. Dodane:
+
+- `GET /connectors/:name/gateway` i `POST /connectors/:name/gateway-approval`, obie z
+  `requireAuth` + `requireAdmin` (straznik strukturalny w `gateway-approval.test.ts`);
+- serwer przyjmuje tylko `hash` i `origin` rowne biezacemu skanowi w procesie (skan
+  uruchamiany na zadanie, gdy panel otwarto przed pierwszym czatem) - inaczej 409
+  `stale_definition`; `denied` i konektor niczego nieoczekujacy - 409;
+- decyzja do lancucha audytu PRZED zapisem nakladki, fail-closed: istniejacy
+  `mcp_security.gateway` z `operator_approval.source = "operator_ui"`, `approval_origin` i
+  `actor_user_id` Operatora - bez nowego `event_type`, piec luster bez zmian;
+- zapis przez `operator-overlay.ts` (ta sama procedura co przelacznik pickera: atomowo,
+  `.bak`, tryb pliku); zatwierdzenie wchodzi w zycie po restarcie, a pozniejszy dryf
+  definicji albo pochodzenia znow blokuje (`resolveOperatorApproval` przy starcie).
+
+Reczny wpis `gatewayApproval` dalej dziala - panel zapisuje dokladnie ten sam ksztalt.

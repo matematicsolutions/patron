@@ -8,12 +8,45 @@
 
 import { runEditDocument, runAddComments } from "./docx-edit";
 import { generateDocx } from "./docx-generate";
+import { payloadToReplicateInput, replicateDocumentCopies } from "./replicate";
+import { saveMemory } from "../brain/store";
 import { createServerSupabase } from "../supabase";
 import type { EditInput } from "../docxTrackedChanges";
 import type { CommentInput } from "../docxComments";
 import type { ExecutorResult, MutationApproval } from "../mutation-approval";
 
 type Db = ReturnType<typeof createServerSupabase>;
+
+/**
+ * Wynik narzedzia wielopozycyjnego z jawnymi liczbami (audyt C-08):
+ * runEditDocument / runAddComments zwracaja ok:true, gdy weszla CHOC JEDNA
+ * pozycja, a reszte oddaja w errors[]. Executor przenosi to do `counts` /
+ * `failures` (rdzen oznacza karte i audit jako wykonanie czesciowe) oraz do
+ * `result` (requested / applied / failed / partial / errors), ktory trasa
+ * oddaje UI.
+ */
+function withCounts(
+    requested: number,
+    applied: number,
+    errors: { index: number; reason: string }[],
+    base: Record<string, unknown>,
+): ExecutorResult {
+    const failed = Math.max(requested - applied, errors.length, 0);
+    const counts = { requested: Math.max(requested, applied + failed), applied, failed };
+    return {
+        ok: true,
+        counts,
+        failures: errors,
+        result: {
+            ...base,
+            requested: counts.requested,
+            applied,
+            failed,
+            partial: failed > 0,
+            errors,
+        },
+    };
+}
 
 /**
  * Wykonuje narzedzie opisane przez zatwierdzona karte. Zwraca ExecutorResult
@@ -35,17 +68,12 @@ export async function executeStagedTool(
         }
         const r = await runEditDocument({ documentId, userId, edits, db });
         if (!r.ok) return { ok: false, error: r.error };
-        return {
-            ok: true,
-            result: {
-                document_id: documentId,
-                version_id: r.version_id,
-                version_number: r.version_number,
-                download_url: r.download_url,
-                applied: r.annotations.length,
-                errors: r.errors,
-            },
-        };
+        return withCounts(edits.length, r.annotations.length, r.errors, {
+            document_id: documentId,
+            version_id: r.version_id,
+            version_number: r.version_number,
+            download_url: r.download_url,
+        });
     }
 
     if (card.tool_name === "add_comments") {
@@ -57,17 +85,12 @@ export async function executeStagedTool(
         }
         const r = await runAddComments({ documentId, userId, comments, db });
         if (!r.ok) return { ok: false, error: r.error };
-        return {
-            ok: true,
-            result: {
-                document_id: documentId,
-                version_id: r.version_id,
-                version_number: r.version_number,
-                download_url: r.download_url,
-                applied: r.annotations.length,
-                errors: r.errors,
-            },
-        };
+        return withCounts(comments.length, r.annotations.length, r.errors, {
+            document_id: documentId,
+            version_id: r.version_id,
+            version_number: r.version_number,
+            download_url: r.download_url,
+        });
     }
 
     if (card.tool_name === "generate_docx") {
@@ -87,6 +110,53 @@ export async function executeStagedTool(
                 (r as { error?: string } | undefined)?.error ??
                 "generate_docx nie zwrocil dokumentu.",
         };
+    }
+
+    // Audyt B-04: replicate_document - ten sam rdzen co inline (replicate.ts),
+    // na argumentach znormalizowanych przed bramka i zapisanych na karcie.
+    if (card.tool_name === "replicate_document") {
+        const input = payloadToReplicateInput(p);
+        if (!input) {
+            return { ok: false, error: "Karta replicate_document niekompletna." };
+        }
+        const r = await replicateDocumentCopies(input, userId, db);
+        if (!r.ok) return { ok: false, error: r.error };
+        return {
+            ok: true,
+            result: {
+                count: r.copies.length,
+                copies: r.copies.map((c) => ({
+                    document_id: c.document_id,
+                    version_id: c.version_id,
+                    filename: c.filename,
+                })),
+            },
+        };
+    }
+
+    // Audyt B-04: remember - ten sam saveMemory na tych samych polach co inline
+    // (scope wyliczony przez serwer przy stagingu, nie przez model).
+    if (card.tool_name === "remember") {
+        const str = (v: unknown) => (typeof v === "string" ? v : "");
+        const input = {
+            scope: str(p.scope),
+            slug: str(p.slug),
+            type: str(p.type) || "notatka",
+            title: str(p.title),
+            body: str(p.body),
+        };
+        if (!input.scope || !input.title || !input.body) {
+            return { ok: false, error: "Karta remember niekompletna." };
+        }
+        try {
+            const r = saveMemory(input);
+            return {
+                ok: true,
+                result: { action: r.action, slug: r.slug, scope: r.scope },
+            };
+        } catch (e) {
+            return { ok: false, error: e instanceof Error ? e.message : String(e) };
+        }
     }
 
     return { ok: false, error: `Nieobslugiwane narzedzie: ${card.tool_name}` };

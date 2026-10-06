@@ -12,6 +12,7 @@ import {
     buildReportHtml,
     detailLines,
     fill,
+    gatewayApprovalSnippet,
     highlightSegments,
     identifierOf,
     kindLabel,
@@ -189,8 +190,19 @@ export function CitationCheckView({ documentId, onBack }: Props) {
                             </div>
                         )}
                         {note && (
-                            <div className="rounded border border-warn-soft bg-warn-soft px-3 py-2 text-gray-800">
+                            <div
+                                data-testid="citation-check-status-note"
+                                className="rounded border border-warn-soft bg-warn-soft px-3 py-2 text-gray-800"
+                            >
                                 {note}
+                                {checked.status === "gateway_pending" && checked.gatewayApproval && (
+                                    <pre
+                                        data-testid="citation-check-gateway-approval"
+                                        className="mt-2 max-h-40 overflow-auto whitespace-pre-wrap break-all rounded bg-white p-2 font-mono text-[11px]"
+                                    >
+                                        {gatewayApprovalSnippet(checked.gatewayApproval)}
+                                    </pre>
+                                )}
                             </div>
                         )}
                         <div className="rounded border border-gray-200 px-3 py-2 text-gray-700">
@@ -206,11 +218,17 @@ export function CitationCheckView({ documentId, onBack }: Props) {
                                 {fill(t("citationCheck.notSentCount"), { n: checked.notSent })}
                             </div>
                         )}
+                        {(checked.withheld ?? 0) > 0 && (
+                            <div className="text-gray-500">
+                                {fill(t("citationCheck.withheldCount"), { n: checked.withheld ?? 0 })}
+                            </div>
+                        )}
                         {checked.serverNotes.length > 0 && (
                             <details className="text-gray-500">
                                 <summary>{t("citationCheck.serverNotes")}</summary>
                                 {checked.serverNotes.map((n, i) => (
-                                    <p key={i} className="mt-1">{n}</p>
+                                    // Nota serwera to dane z zewnatrz (R-CC-04) - zawsze jako napis.
+                                    <p key={i} className="mt-1">{String(n)}</p>
                                 ))}
                             </details>
                         )}

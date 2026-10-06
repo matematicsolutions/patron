@@ -6,11 +6,13 @@ import {
   buildContentDisposition,
   downloadFile,
   deleteFile,
+  deleteFilesByPrefix,
+  errorCode,
   getSignedUrl,
   uploadFile,
   versionStorageKey,
 } from "../lib/storage";
-import { docxToPdf } from "../lib/convert";
+import { docxToPdf, convertedPdfPrefix } from "../lib/convert";
 import {
   extractTrackedChangeIds,
   resolveTrackedChange,
@@ -81,7 +83,7 @@ documentsRouter.delete("/:documentId", requireAuth, async (req, res) => {
 
   const { data: doc, error } = await db
     .from("documents")
-    .select("id")
+    .select("id, user_id")
     .eq("id", documentId)
     .eq("user_id", userId)
     .single();
@@ -90,17 +92,40 @@ documentsRouter.delete("/:documentId", requireAuth, async (req, res) => {
 
   // Storage now lives on document_versions — fan out and delete each
   // version's bytes (DOCX + PDF rendition) before dropping rows.
-  const { data: versions } = await db
+  const { data: versions, error: verErr } = await db
     .from("document_versions")
     .select("storage_path, pdf_storage_path")
     .eq("document_id", documentId);
+  if (verErr)
+    return void res.status(500).json({
+      detail: `Nie udalo sie odczytac wersji dokumentu: ${verErr.message}`,
+    });
+  const keys = (
+    (versions ?? []) as {
+      storage_path: string | null;
+      pdf_storage_path: string | null;
+    }[]
+  )
+    .flatMap((v) => [v.storage_path, v.pdf_storage_path])
+    .filter((p): p is string => typeof p === "string" && p.length > 0);
+  const failed: string[] = [];
   await Promise.all(
-    (versions ?? []).flatMap((v) =>
-      [v.storage_path, v.pdf_storage_path]
-        .filter((p): p is string => typeof p === "string" && p.length > 0)
-        .map((p) => deleteFile(p).catch(() => {})),
+    keys.map((p) =>
+      deleteFile(p).catch((e) => {
+        failed.push(errorCode(e));
+      }),
     ),
   );
+  // D-03 (parytet z "zapomnij sprawe"): plik, ktorego system nie dal usunac
+  // (EBUSY/EPERM), zostaje razem z rekordem - inaczej zostalby na dysku bez
+  // zadnej sciezki w bazie. Mecenas dostaje jawny blad i moze ponowic.
+  if (failed.length)
+    return void res.status(500).json({
+      detail:
+        `Nie udalo sie usunac ${failed.length} plik(ow) dokumentu z dysku ` +
+        "(plik zablokowany przez inny program?). Dokument pozostaje - sprobuj ponownie.",
+      failures: failed.map((error) => ({ step: "storage", error })),
+    });
   // Audyt P1 #2: tabele retrievalu/grafu (doc_chunks/vec_chunks/FTS/
   // extracted_entities/citation_graph/events) NIE maja FK do documents, wiec
   // sam DELETE rekordu zostawial osierocone chunki, embeddingi i encje PII
@@ -108,7 +133,34 @@ documentsRouter.delete("/:documentId", requireAuth, async (req, res) => {
   // Tylko tryb sqlite (tam zyje warstwa retrievalu); pamiec "brain" jest
   // per-sprawa, nie per-dokument, wiec nie ruszamy jej przy kasowaniu jednego.
   if (isSqliteBackend()) clearDocumentIndex(documentId);
-  await db.from("documents").delete().eq("id", documentId);
+  const { error: delErr } = await db
+    .from("documents")
+    .delete()
+    .eq("id", documentId);
+  if (delErr)
+    return void res
+      .status(500)
+      .json({ detail: `Nie udalo sie usunac dokumentu: ${delErr.message}` });
+  // R-TI-04: podglad PDF renderowany W TLE moze lezec na dysku, choc jego
+  // sciezki nie bylo jeszcze w document_versions. Sprzatanie po prefiksie PO
+  // usunieciu wierszy: konwersja, ktora skonczy sie pozniej, nie znajdzie juz
+  // wersji i usunie swoj plik sama (documentIngest.renderPdfInBackground).
+  let sweepFailures: string[] = [];
+  try {
+    const swept = await deleteFilesByPrefix(
+      convertedPdfPrefix((doc as { user_id: string }).user_id, documentId),
+    );
+    sweepFailures = swept.failures.map((f) => f.error);
+  } catch (e) {
+    sweepFailures = [errorCode(e)];
+  }
+  if (sweepFailures.length)
+    return void res.status(500).json({
+      detail:
+        "Dokument usuniety, ale nie udalo sie usunac jego podgladu PDF z dysku " +
+        "(plik zablokowany przez inny program?).",
+      failures: sweepFailures.map((error) => ({ step: "storage", error })),
+    });
   res.status(204).send();
 });
 

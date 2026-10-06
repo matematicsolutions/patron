@@ -9,6 +9,7 @@ import {
     writeEnabledToOverlay,
 } from "./operator-overlay";
 import { listConnectorConfigs, setConnectorEnabledInConfig } from "./index";
+import { decideRing } from "./ring-policy";
 
 const SAOS = { name: "saos", transport: "stdio", command: "node", args: ["mcp-bundled/saos/dist/index.js"] };
 const ISAP = { name: "isap", transport: "stdio", command: "node", args: ["mcp-bundled/isap/dist/index.js"], enabled: true };
@@ -49,6 +50,37 @@ describe("mergeOperatorOverlay", () => {
         expect(configs.map((c) => c.name)).toEqual(["saos", "repertorium"]);
         expect(configs[1].url).toBe(WERYFIKATOR.url);
         expect(warnings).toHaveLength(3);
+    });
+});
+
+describe("pochodzenie wpisu: configSource (B-06 / R-MCP-01, ADR-0166)", () => {
+    it("wpis instalatora = installer, wpis z nakladki = operator-overlay", () => {
+        const { configs } = mergeOperatorOverlay([SAOS], [WERYFIKATOR, { name: "saos", enabled: false }]);
+        expect(configs.find((c) => c.name === "saos")?.configSource).toBe("installer");
+        expect(configs.find((c) => c.name === "repertorium")?.configSource).toBe("operator-overlay");
+    });
+
+    it("pliki nie moga podac pochodzenia - pole configSource w pliku jest nadpisywane", () => {
+        const { configs } = mergeOperatorOverlay(
+            [{ ...SAOS, configSource: "operator-overlay" }],
+            [
+                { name: "de-eli", transport: "stdio", command: "C:/obcy.exe", configSource: "installer" },
+                { name: "saos", configSource: "operator-overlay" },
+            ],
+        );
+        expect(configs.find((c) => c.name === "saos")?.configSource).toBe("installer");
+        expect(configs.find((c) => c.name === "de-eli")?.configSource).toBe("operator-overlay");
+    });
+
+    it("edycja lean: nakladka dodaje nazwe z APPROVED z obca komenda -> Ring 2, nie Ring 1", () => {
+        const { configs } = mergeOperatorOverlay(
+            [{ name: "it-eli", transport: "stdio", command: "py-runtime/python.exe", args: [] }],
+            [{ name: "de-eli", transport: "stdio", command: "C:/Users/Public/obcy.exe" }],
+        );
+        const deEli = configs.find((c) => c.name === "de-eli")!;
+        expect(decideRing(deEli.name, deEli)).toMatchObject({ ring: 2, action: "deny" });
+        const itEli = configs.find((c) => c.name === "it-eli")!;
+        expect(decideRing(itEli.name, itEli)).toMatchObject({ ring: 1, action: "allow" });
     });
 });
 
@@ -117,5 +149,43 @@ describe("wpiecie w index.ts (picker i loader)", () => {
         const jest = fs.existsSync(plikInstalatora) ? fs.readFileSync(plikInstalatora, "utf-8") : null;
         expect(jest).toBe(byl);
         expect(setConnectorEnabledInConfig("nie-ma-takiego", true).ok).toBe(false);
+    });
+});
+
+describe("odpornosc nakladki (przeglad 2026-10-02: R-MCP-03/04/05)", () => {
+    const SAOS = { name: "saos", transport: "stdio", command: "node", args: ["x.js"] };
+    const wlaczone = (c: { name: string; enabled?: unknown }[]) => c.filter((s) => s.enabled !== false).map((s) => s.name);
+
+    it("nieczytelna nakladka bez kopii: konektory instalatora startuja WYLACZONE, z ostrzezeniem", () => {
+        const inst = zapisz("mcp-servers.json", [SAOS]);
+        const nak = path.join(dir, "nak.json");
+        fs.writeFileSync(nak, '[{"name":"saos","enabled":false},]');
+        const r = readMergedConfig(inst, nak);
+        expect(wlaczone(r.configs)).toEqual([]);
+        expect(r.warnings.join(" ")).toMatch(/WYLACZONE/);
+    });
+
+    it("nieczytelna nakladka z kopia zapisana przez picker: stan z kopii", () => {
+        const inst = zapisz("mcp-servers.json", [SAOS, { ...SAOS, name: "krs" }]);
+        const nak = path.join(dir, "nak.json");
+        expect(writeEnabledToOverlay(nak, "saos", false).ok).toBe(true);
+        fs.writeFileSync(nak, "{zepsute");
+        const r = readMergedConfig(inst, nak);
+        expect(wlaczone(r.configs)).toEqual(["krs"]);
+        expect(r.warnings.join(" ")).toMatch(/kopii/);
+    });
+
+    it("enabled niebedace booleanem jest ignorowane", () => {
+        const { configs, warnings } = mergeOperatorOverlay([{ ...SAOS, enabled: false }], [{ name: "saos", enabled: "true" }]);
+        expect(wlaczone(configs)).toEqual([]);
+        expect(warnings.join(" ")).toMatch(/zly typ/);
+    });
+
+    it.skipIf(process.platform === "win32")("zapis pickera tworzy nakladke 0600 i nie poszerza istniejacego trybu", () => {
+        const nak = path.join(dir, "nak.json");
+        expect(writeEnabledToOverlay(nak, "saos", false).ok).toBe(true);
+        expect((fs.statSync(nak).mode & 0o777).toString(8)).toBe("600");
+        expect(writeEnabledToOverlay(nak, "saos", true).ok).toBe(true);
+        expect((fs.statSync(nak).mode & 0o777).toString(8)).toBe("600");
     });
 });

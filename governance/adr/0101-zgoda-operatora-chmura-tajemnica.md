@@ -58,3 +58,7 @@ Reguly desktop single-user: gospodarzem danych jest adwokat-Operator; rola "Admi
 - [ ] 2x wewnetrzny review (WM).
 - [ ] Re-podpis Konstytucji przez kancelarie (WARUNEK).
 - [ ] `next build` frontend (bez zmian frontendu w tym ADR, ale gate przed merge).
+
+## Aktualizacja 2026-10-02 (audyt 2026-09, A-01)
+
+Domyslna wartosc w `desktop/main.js` zmieniona na `PATRON_ALLOW_PRIVILEGED_CLOUD='false'`. Zalozenie tego ADR, ze zgoda zdejmuje blokade, ale nie zabezpieczenia ("PII maskowane przed wysylka"), nie trzymalo sie w kodzie: tresc dokumentow trafia do modelu przez wyniki narzedzi, ktore nie byly maskowane, a detektor przepuszczal wiekszosc nazwisk (docs/AUDYT_2026-09.md, A-01, A-02). Zgoda na chmure dla sprawy objetej tajemnica idzie teraz przelacznikiem per-sprawa (ADR-0128) albo swiadomie przez env Operatora. Bramka: `desktop/scripts/egress-defaults-gate.test.cjs` w `prepare:resources` / `build`. Do decyzji WM: aktualizacja Konstytucji Art. 5 (wersja 1.6.0 opisuje domyslnie wlaczona zgode na desktopie).

@@ -10,6 +10,7 @@ import type { createServerSupabase } from "./supabase";
 import {
     buildMerkleProof,
     buildMerkleRoot,
+    verifyMerkleProof,
     type MerkleProofStep,
 } from "./audit-merkle";
 import {
@@ -234,13 +235,37 @@ export interface ProofBundle {
     chain_block_end: number;
 }
 
+export interface ProofForEventResult {
+    ok: boolean;
+    bundle?: ProofBundle;
+    error?: string;
+    /**
+     * Rodzaj bledu dla routera: not_found (brak wpisu), no_root (zaden root nie
+     * obejmuje wpisu), root_mismatch (dowod z biezacych hashy nie odtwarza
+     * KTOREGOS z korzeni obejmujacych wpis), db_error.
+     */
+    code?: "not_found" | "no_root" | "root_mismatch" | "db_error";
+    /** Id korzeni, ktorych dowod nie odtwarza (tylko przy root_mismatch). */
+    mismatchedRootIds?: number[];
+}
+
 /**
  * Buduje proof-of-inclusion dla konkretnego eventu z audit_log.
  *
  * Workflow:
- * 1. Znajdz najnowszy root pokrywajacy event (block_start <= event_id <= block_end).
- * 2. Pobierz hash'e wszystkich eventow z tego bloku.
- * 3. Zbuduj proof do roota i zapakuj w bundle.
+ * 1. Znajdz WSZYSTKIE roots pokrywajace event (block_start <= event_id <= block_end).
+ * 2. Dla kazdego: pobierz hash'e bloku, zbuduj dowod i sprawdz, ze odtwarza
+ *    zapisany korzen. Choc jeden niezgodny -> root_mismatch (bez bundla).
+ * 3. Bundle buduje sie wobec NAJSTARSZEGO korzenia (najwczesniejsza pieczec).
+ *
+ * Dlaczego nie najnowszy (audyt 2026-09, uwaga do C-04): tabela nie ma unique na
+ * zakres, a `computeAndStoreRoot` przyjmuje dowolny zakres. Kto zmienil wpis
+ * (i przeliczyl hashe), mogl dopisac NOWY korzen nad tym samym blokiem zwykla
+ * sciezka aplikacji - wybor najnowszego dawal wtedy zgodny dowod, a stary
+ * korzen, ktory zmiane wykrywa, byl pomijany. Teraz kazdy korzen obejmujacy
+ * wpis musi sie zgadzac, a pieczec wskazywana odbiorcy to najstarsza. Granica:
+ * kto ma zapis do bazy, moze tez zmienic albo usunac sam wiersz korzenia - bez
+ * kotwicy zewnetrznej (RFC 3161, ADR-0037) tego nie wykryjemy.
  *
  * Bundle jest samowystarczalny: audytor moze offline zweryfikowac
  * przez `verifyMerkleProof(bundle.event_hash, bundle.proof, bundle.merkle_root)`.
@@ -248,7 +273,7 @@ export interface ProofBundle {
 export async function fetchProofForEvent(
     db: ReturnType<typeof createServerSupabase>,
     eventId: number,
-): Promise<{ ok: boolean; bundle?: ProofBundle; error?: string }> {
+): Promise<ProofForEventResult> {
     try {
         // 1. Znajdz event hash
         const evRes = await db
@@ -259,50 +284,81 @@ export async function fetchProofForEvent(
         if (evRes.error || !evRes.data) {
             return {
                 ok: false,
+                code: "not_found",
                 error: `audit-merkle-roots: event ${eventId} nie istnieje`,
             };
         }
         const event = evRes.data as { id: number; hash: string };
 
-        // 2. Znajdz root pokrywajacy event_id
+        // 2. Wszystkie roots pokrywajace event_id, od najstarszego
         const rootRes = await db
             .from("audit_merkle_roots")
             .select("*")
             .lte("chain_block_start", eventId)
             .gte("chain_block_end", eventId)
-            .order("computed_at", { ascending: false })
-            .limit(1)
-            .single();
-        if (rootRes.error || !rootRes.data) {
+            .order("computed_at", { ascending: true })
+            .order("id", { ascending: true });
+        if (rootRes.error) {
             return {
                 ok: false,
+                code: "db_error",
+                error: `audit-merkle-roots: odczyt korzeni nie powiodl sie: ${rootRes.error.message}`,
+            };
+        }
+        const roots = (rootRes.data ?? []) as MerkleRootRow[];
+        if (roots.length === 0) {
+            return {
+                ok: false,
+                code: "no_root",
                 error: `audit-merkle-roots: brak Merkle root pokrywajacego event ${eventId} (nie zostal jeszcze policzony)`,
             };
         }
-        const root = rootRes.data as MerkleRootRow;
 
-        // 3. Pobierz hash'e bloku i zbuduj proof
-        const hashes = await fetchHashesInBlock(
-            db,
-            root.chain_block_start,
-            root.chain_block_end,
-        );
-        const proof = buildMerkleProof(event.hash, hashes);
-
-        return {
-            ok: true,
-            bundle: {
-                event_id: event.id,
-                event_hash: event.hash,
-                proof,
-                merkle_root_id: root.id,
-                merkle_root: root.merkle_root,
-                chain_block_start: root.chain_block_start,
-                chain_block_end: root.chain_block_end,
-            },
-        };
+        // 3. Dowod wobec kazdego korzenia; bundle z najstarszego
+        let bundle: ProofBundle | undefined;
+        const mismatched: number[] = [];
+        for (const root of roots) {
+            const hashes = await fetchHashesInBlock(
+                db,
+                root.chain_block_start,
+                root.chain_block_end,
+            );
+            // Liczba lisci musi byc ta z chwili pieczeci - usuniety wiersz bloku
+            // tez jest niezgodnoscia, nawet gdy dowod dla tego wpisu by sie domknal.
+            let proof: MerkleProofStep[] | null = null;
+            if (hashes.length === root.event_count && hashes.includes(event.hash)) {
+                const p = buildMerkleProof(event.hash, hashes);
+                if (verifyMerkleProof(event.hash, p, root.merkle_root)) proof = p;
+            }
+            if (!proof) {
+                mismatched.push(root.id);
+                continue;
+            }
+            if (!bundle) {
+                bundle = {
+                    event_id: event.id,
+                    event_hash: event.hash,
+                    proof,
+                    merkle_root_id: root.id,
+                    merkle_root: root.merkle_root,
+                    chain_block_start: root.chain_block_start,
+                    chain_block_end: root.chain_block_end,
+                };
+            }
+        }
+        if (mismatched.length > 0 || !bundle) {
+            return {
+                ok: false,
+                code: "root_mismatch",
+                mismatchedRootIds: mismatched,
+                error:
+                    `audit-merkle-roots: dowod dla eventu ${eventId} nie odtwarza korzeni ${mismatched.join(", ")} - ` +
+                    "hash wpisu albo bloku zmieniono po zapieczetowaniu, albo dopisano korzen niezgodny z wczesniejszym",
+            };
+        }
+        return { ok: true, bundle };
     } catch (e) {
         const msg = e instanceof Error ? e.message : String(e);
-        return { ok: false, error: msg };
+        return { ok: false, code: "db_error", error: msg };
     }
 }

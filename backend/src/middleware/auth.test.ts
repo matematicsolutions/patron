@@ -4,8 +4,14 @@
 // supertest + mock Express (rezerwacja ADR-0042 framework testow integracyjnych).
 // Tu sprawdzamy tylko `parseAdminEmails` i `isAdminEmail` jako pure functions.
 
-import { describe, it, expect } from "vitest";
-import { parseAdminEmails, isAdminEmail } from "./auth";
+import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
+import {
+    isAdminEmail,
+    isLoopbackAddress,
+    parseAdminEmails,
+    requireAdmin,
+    requireAuth,
+} from "./auth";
 
 describe("parseAdminEmails", () => {
     it("zwraca pusty Set dla undefined / pustego stringa", () => {
@@ -84,5 +90,134 @@ describe("isAdminEmail", () => {
 
     it("zwraca false gdy whitelist pusta (Set())", () => {
         expect(isAdminEmail("admin@kancelaria.pl", new Set())).toBe(false);
+    });
+});
+
+// ---------------------------------------------------------------------------
+// Audyt 2026-09, A-23: bypass SQLite tylko dla loopback.
+// ---------------------------------------------------------------------------
+
+describe("isLoopbackAddress", () => {
+    it("127.0.0.0/8, ::1, IPv4-mapped", () => {
+        for (const a of ["127.0.0.1", "127.1.2.3", "::1", "::ffff:127.0.0.1", "0:0:0:0:0:0:0:1"]) {
+            expect(isLoopbackAddress(a)).toBe(true);
+        }
+    });
+
+    it("LAN, publiczne, puste i podrobki: false", () => {
+        for (const a of [
+            undefined,
+            null,
+            "",
+            "192.168.1.50",
+            "10.0.0.1",
+            "172.17.0.1",
+            "::ffff:192.168.1.50",
+            "0.0.0.0",
+            "128.0.0.1",
+            "127.0.0.1.atakujacy.example",
+            "127.0.0.999",
+            "localhost",
+        ]) {
+            expect(isLoopbackAddress(a)).toBe(false);
+        }
+    });
+});
+
+describe("requireAuth / requireAdmin w trybie SQLite (A-23)", () => {
+    function fakeRes() {
+        return {
+            locals: {} as Record<string, unknown>,
+            statusCode: 200,
+            status(code: number) {
+                this.statusCode = code;
+                return this;
+            },
+            json: vi.fn(),
+        };
+    }
+
+    function call(
+        mw: typeof requireAuth | typeof requireAdmin,
+        remoteAddress: string | undefined,
+        extra: Record<string, unknown> = {},
+    ) {
+        const req = {
+            method: "GET",
+            path: "/projects",
+            headers: {},
+            socket: { remoteAddress },
+            ...extra,
+        };
+        const res = fakeRes();
+        const next = vi.fn();
+        return Promise.resolve(
+            mw(req as never, res as never, next),
+        ).then(() => ({ res, next }));
+    }
+
+    const saved = {
+        db: process.env.PATRON_DB_BACKEND,
+        trust: process.env.PATRON_SQLITE_TRUST_NETWORK,
+    };
+    beforeEach(() => {
+        process.env.PATRON_DB_BACKEND = "sqlite";
+        delete process.env.PATRON_SQLITE_TRUST_NETWORK;
+        vi.spyOn(console, "warn").mockImplementation(() => {});
+    });
+    afterEach(() => {
+        if (saved.db === undefined) delete process.env.PATRON_DB_BACKEND;
+        else process.env.PATRON_DB_BACKEND = saved.db;
+        if (saved.trust === undefined) delete process.env.PATRON_SQLITE_TRUST_NETWORK;
+        else process.env.PATRON_SQLITE_TRUST_NETWORK = saved.trust;
+        vi.restoreAllMocks();
+    });
+
+    it("loopback: lokalny uzytkownik, next()", async () => {
+        const { res, next } = await call(requireAuth, "127.0.0.1");
+        expect(next).toHaveBeenCalledOnce();
+        expect(res.locals.userId).toBeTruthy();
+    });
+
+    it("IPv6 loopback i IPv4-mapped: next()", async () => {
+        expect((await call(requireAuth, "::1")).next).toHaveBeenCalledOnce();
+        expect((await call(requireAuth, "::ffff:127.0.0.1")).next).toHaveBeenCalledOnce();
+    });
+
+    it("adres LAN: 401, handler nie rusza", async () => {
+        const { res, next } = await call(requireAuth, "192.168.1.50");
+        expect(next).not.toHaveBeenCalled();
+        expect(res.statusCode).toBe(401);
+        expect(res.locals.userId).toBeUndefined();
+    });
+
+    it("brak adresu gniazda: 401 (fail-closed)", async () => {
+        const { res, next } = await call(requireAuth, undefined);
+        expect(next).not.toHaveBeenCalled();
+        expect(res.statusCode).toBe(401);
+    });
+
+    it("X-Forwarded-For / req.ip = 127.0.0.1 nie podrabia loopback", async () => {
+        const { res, next } = await call(requireAuth, "192.168.1.50", {
+            ip: "127.0.0.1",
+            headers: { "x-forwarded-for": "127.0.0.1" },
+        });
+        expect(next).not.toHaveBeenCalled();
+        expect(res.statusCode).toBe(401);
+    });
+
+    it("PATRON_SQLITE_TRUST_NETWORK=true: jawna furtka operatora wpuszcza LAN", async () => {
+        process.env.PATRON_SQLITE_TRUST_NETWORK = "true";
+        expect((await call(requireAuth, "192.168.1.50")).next).toHaveBeenCalledOnce();
+    });
+
+    it("furtka tylko dla dokladnie 'true'", async () => {
+        process.env.PATRON_SQLITE_TRUST_NETWORK = "1";
+        expect((await call(requireAuth, "192.168.1.50")).next).not.toHaveBeenCalled();
+    });
+
+    it("requireAdmin trzyma te sama granice", async () => {
+        expect((await call(requireAdmin, "192.168.1.50")).next).not.toHaveBeenCalled();
+        expect((await call(requireAdmin, "127.0.0.1")).next).toHaveBeenCalledOnce();
     });
 });

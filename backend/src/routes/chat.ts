@@ -12,10 +12,15 @@ import {
     type ChatMessage,
 } from "../lib/chatTools";
 import { mcpGroundingSummary } from "../lib/citation/mcp-grounding";
-import { completeText } from "../lib/llm";
+import { completeText, isOllamaModel } from "../lib/llm";
+import { createPseudonimMap } from "../lib/pseudonim/map";
+import { unwrap, wrapInto } from "../lib/pseudonim/wrap";
+import { plEntityDetector } from "../lib/pseudonim/plDetector";
+import { egressForModel } from "../lib/routing/egress";
 import { getUserApiKeys, getUserModelSettings } from "../lib/userSettings";
 import { checkProjectAccess } from "../lib/access";
 import { appendAuditEvent } from "../lib/audit";
+import { streamErrorEvent } from "../lib/chat/stream-error";
 import { enforceEgressGuard, appendLlmRouteEvent } from "../lib/routing";
 
 export const chatRouter = Router();
@@ -398,6 +403,28 @@ chatRouter.post("/:chatId/generate-title", requireAuth, async (req, res) => {
     if (!chat)
         return void res.status(404).json({ detail: "Chat not found" });
 
+    // E-03 (audyt 2026-09): rozmowa prowadzona modelem lokalnym nie wysyla
+    // swojej tresci do chmury tylko po to, by nazwac czat. Model rozmowy: z
+    // ciala zadania (frontend) albo z ostatniej odpowiedzi asystenta w czacie.
+    const hintedModel = typeof req.body?.model === "string" ? req.body.model : null;
+    let conversationModel = hintedModel;
+    if (!conversationModel) {
+        const { data: last } = await db
+            .from("chat_messages")
+            .select("model")
+            .eq("chat_id", chatId)
+            .eq("role", "assistant")
+            .order("created_at", { ascending: false })
+            .limit(1);
+        const m = ((last ?? []) as { model?: unknown }[]).find((r) => typeof r.model === "string")?.model;
+        conversationModel = typeof m === "string" ? m : null;
+    }
+    if (conversationModel && isOllamaModel(conversationModel)) {
+        const fallback = message.slice(0, 60);
+        await db.from("chats").update({ title: fallback }).eq("id", chatId);
+        return void res.json({ title: fallback });
+    }
+
     try {
         const { title_model, api_keys } = await getUserModelSettings(
             userId,
@@ -419,14 +446,26 @@ chatRouter.post("/:chatId/generate-title", requireAuth, async (req, res) => {
             await db.from("chats").update({ title: fallback }).eq("id", chatId);
             return void res.json({ title: fallback });
         }
+        // A-06 (audyt 2026-09): tresc wiadomosci i nazwy plikow ida do modelu
+        // spoza maszyny zamaskowane tym samym detektorem co czat; tytul wraca
+        // odmaskowany. Model lokalny i PATRON_PSEUDONIM_EGRESS=false - bez zmian.
+        const titleMap =
+            process.env.PATRON_PSEUDONIM_EGRESS !== "false" &&
+            egressForModel(title_model) !== "no-egress"
+                ? createPseudonimMap()
+                : null;
+        const outbound = titleMap
+            ? await wrapInto(titleMap, message.slice(0, 500), { llmDetector: plEntityDetector })
+            : message.slice(0, 500);
         const titleStartedAt = Date.now();
         const titleText = await completeText({
             model: title_model,
-            user: `Generate a concise title (3–6 words) for a chat in an AI Legal Platform that starts with this message. The title should describe the topic or document — do NOT include words like "Legal Assistant", "AI", "Chat", or any similar prefix. Return only the title, no quotes or punctuation.\n\nMessage: ${message.slice(0, 500)}`,
+            user: `Generate a concise title (3–6 words) for a chat in an AI Legal Platform that starts with this message. The title should describe the topic or document — do NOT include words like "Legal Assistant", "AI", "Chat", or any similar prefix. Return only the title, no quotes or punctuation.\n\nMessage: ${outbound}`,
             maxTokens: 64,
             apiKeys: api_keys,
         });
-        const title = titleText.trim() || message.slice(0, 60);
+        const rawTitle = titleMap ? unwrap(titleText, titleMap) : titleText;
+        const title = rawTitle.trim() || message.slice(0, 60);
         // ADR-0067/0095: audyt "llm_route" (allow). enforceEgressGuard zapisuje
         // TYLKO blokade - sciezke dozwolona audytuje wolajacy, bo dopiero on zna
         // latencje (kontrakt w naglowku enforceEgress.ts). Bez tego wywolanie
@@ -622,6 +661,7 @@ chatRouter.post("/", requireAuth, async (req, res) => {
                 model,
                 apiKeys,
                 projectId: resolvedProjectId,
+                chatId,
             });
 
         devLog("[chat/stream] LLM stream finished", {
@@ -683,12 +723,8 @@ chatRouter.post("/", requireAuth, async (req, res) => {
         // widzimy DLACZEGO padlo (brak klucza, model not found, 401, timeout...).
         // To infrastrukturalny komunikat providera, nie tresc akt; tniemy do 240
         // znakow na wszelki wypadek. Frontend renderuje pole `message`.
-        const reason =
-            err instanceof Error && err.message ? err.message : String(err);
         try {
-            write(
-                `data: ${JSON.stringify({ type: "error", message: `Blad generowania: ${reason}`.slice(0, 240) })}\n\n`,
-            );
+            write(streamErrorEvent(err));
             write("data: [DONE]\n\n");
         } catch {
             /* ignore */

@@ -10,11 +10,82 @@
 // odpowiedz niesie restartRequired=true.
 
 import { Router } from "express";
-import { requireAuth } from "../middleware/auth";
+import { requireAdmin, requireAuth } from "../middleware/auth";
 import { getConnectorList, toggleConnector } from "../lib/mcp/connectors";
-import { recordConnectorToggleEvent } from "../lib/mcp/audit-bridge";
+import { recordConnectorToggleEvent, recordMcpSecurityEvent } from "../lib/mcp/audit-bridge";
+import {
+    getGatewayState,
+    getMcpTools,
+    listConnectorConfigs,
+    setGatewayApprovalInConfig,
+} from "../lib/mcp";
+import { approveConnectorGateway, awaitingApprovalDetails } from "../lib/mcp/gateway-approval";
 
 export const connectorsRouter = Router();
+
+/**
+ * Stan bramy powstaje przy pierwszym getMcpTools w procesie (spawn + skan).
+ * Panel konektorow bywa otwierany przed pierwszym czatem - wtedy skanujemy tu,
+ * zeby Operator zatwierdzal hash policzony z ZYWEJ definicji, nie z pliku.
+ */
+async function stanPoSkanie(name: string) {
+    if (!getGatewayState(name)) {
+        try {
+            await getMcpTools();
+        } catch (err) {
+            console.warn(`[CONNECTORS] skan bramy przed zatwierdzeniem nie powiodl sie:`, err);
+        }
+    }
+    return getGatewayState(name);
+}
+
+// GET /connectors/:name/gateway - zastrzezenia bramy i wartosci do zatwierdzenia
+// (B-08). Tylko Operator: ta sama para middleware co inne powierzchnie admina.
+connectorsRouter.get("/:name/gateway", requireAuth, requireAdmin, async (req, res) => {
+    const { name } = req.params;
+    if (!listConnectorConfigs().some((c) => c.name === name))
+        return void res.status(404).json({ detail: `Konektor "${name}" nie znaleziony.` });
+    const details = awaitingApprovalDetails(await stanPoSkanie(name));
+    if (!details)
+        return void res.status(409).json({
+            code: "not_scanned",
+            detail: "Konektor nie byl skanowany w tej sesji (wylaczony albo nie wstal).",
+        });
+    res.json(details);
+});
+
+// POST /connectors/:name/gateway-approval  { hash, origin } - zatwierdzenie
+// werdyktu `human_review` dla TEJ definicji i TEGO pochodzenia (ADR-0158).
+connectorsRouter.post("/:name/gateway-approval", requireAuth, requireAdmin, async (req, res) => {
+    const { name } = req.params;
+    await stanPoSkanie(name);
+    const userId = (res.locals.userId as string | undefined) ?? null;
+    const label = (res.locals.userEmail as string | undefined) ?? userId ?? "operator";
+    const wynik = await approveConnectorGateway(name, req.body, { userId, label }, {
+        state: getGatewayState,
+        exists: (n) => listConnectorConfigs().some((c) => c.name === n),
+        write: setGatewayApprovalInConfig,
+        audit: ({ serverName, state, approvedAt, approvedBy, actorUserId }) =>
+            recordMcpSecurityEvent({
+                serverName,
+                action: state.gatewayAction,
+                riskScore: 0,
+                findings: state.findings,
+                operatorApproval: {
+                    status: "approved",
+                    gatewayAction: state.gatewayAction,
+                    approvalHash: state.approvalHash,
+                    approvalOrigin: state.approvalOrigin,
+                    approvedAt,
+                    approvedBy,
+                    source: "operator_ui",
+                },
+                actorUserId,
+            }),
+    });
+    if (!wynik.ok) return void res.status(wynik.status).json({ code: wynik.code, detail: wynik.detail });
+    res.json(wynik);
+});
 
 // GET /connectors
 connectorsRouter.get("/", requireAuth, (_req, res) => {

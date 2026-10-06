@@ -13,6 +13,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
     buildStatusPayload,
     countAuditActions,
+    countAwaitingOperatorApproval,
     readGatewayMode,
     type AuditCounts,
 } from "./security";
@@ -106,5 +107,41 @@ describe("buildStatusPayload", () => {
         const payload = buildStatusPayload("audit", zeroCounts);
         expect(payload.gateway.active).toBe(true);
         expect(payload.gateway.mode).toBe("audit");
+    });
+});
+
+describe("countAwaitingOperatorApproval (B-08)", () => {
+    const nowy = {
+        action: "human_review",
+        findings: [
+            { detector: "typosquat", severity: "medium", message: "nie na liscie" },
+            { detector: "drift", severity: "low", message: "pierwszy load" },
+        ],
+        operator_approval: { status: "missing" },
+    };
+
+    it("nowy 3rd-party bez zatwierdzenia = oczekiwanie", () => {
+        expect(countAwaitingOperatorApproval([{ payload: nowy }])).toBe(1);
+    });
+
+    it("dryf, podobna nazwa, tool-poisoning, hash_mismatch i denied NIE sa zwyklym oczekiwaniem", () => {
+        const rows = [
+            { payload: { ...nowy, findings: [{ detector: "drift", severity: "high" }] } },
+            { payload: { ...nowy, findings: [{ detector: "typosquat", severity: "high" }] } },
+            { payload: { ...nowy, findings: [...nowy.findings, { detector: "tool-poisoning", severity: "medium" }] } },
+            { payload: { ...nowy, operator_approval: { status: "hash_mismatch" } } },
+            { payload: { ...nowy, action: "denied" } },
+            { payload: { ...nowy, operator_approval: undefined } },
+            { payload: null },
+            { payload: { ...nowy, findings: "zly ksztalt" } },
+        ];
+        expect(countAwaitingOperatorApproval(rows)).toBe(0);
+    });
+
+    it("payload statusu: oczekiwanie jest podzbiorem human_review", () => {
+        const p = buildStatusPayload("enforce", { audit: 0, human_review: 2, denied: 1 }, 1);
+        expect(p.audit_summary_24h.awaiting_operator_approval).toBe(1);
+        expect(buildStatusPayload("enforce", { audit: 0, human_review: 0, denied: 0 }, 3).audit_summary_24h.awaiting_operator_approval).toBe(0);
+        expect(buildStatusPayload("enforce", { audit: 0, human_review: 0, denied: 0 }).audit_summary_24h.awaiting_operator_approval).toBe(0);
     });
 });

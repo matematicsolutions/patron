@@ -372,6 +372,10 @@ export function DocxView({
                     ignoreHeight: false,
                     renderChanges: true,
                     experimental: true,
+                    // Audyt 2026-09 A-24: altChunk (HTML osadzony w .docx) biblioteka
+                    // renderuje jako <iframe srcdoc> bez sandbox, w originie aplikacji.
+                    // Dokument od strony przeciwnej nie moze wykonywac HTML/JS w podgladzie.
+                    renderAltChunks: false,
                 });
                 if (cancelled) return;
                 await tagWIdsOnRenderedDom(

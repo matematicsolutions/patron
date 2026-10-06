@@ -15,8 +15,15 @@
 //     pochodza wylacznie z instalatora - nakladka nie podmieni konektora
 //     zaufanego na inny proces;
 //   - konektor spoza instalatora: caly wpis z nakladki (dalej Ring 2: brama
-//     przy starcie + ring-policy z `operatorApproved` przy kazdym wywolaniu);
+//     przy starcie - nieznana nazwa = `human_review` do zatwierdzenia
+//     `gatewayApproval`, B-08 - + ring-policy przy kazdym wywolaniu, ktora
+//     dopuszcza zgodne `gatewayApproval` albo `operatorApproved`);
 //   - wpis bez nazwy albo w zlym ksztalcie jest pomijany Z OSTRZEZENIEM.
+// Kazdy wpis wynikowy niesie `configSource` ("installer" | "operator-overlay"),
+// ustawiany TUTAJ, nie czytany z plikow (pole o tej nazwie w pliku jest
+// nadpisywane). Ring 1 (ring-policy) i zaufanie manifestu (ADR-0162) wymagaja
+// "installer" - wpis z nakladki pod nazwa z APPROVED_PATRON_CONNECTORS zostaje
+// Ring 2 (B-06 / R-MCP-01).
 
 import fs from "fs";
 import os from "os";
@@ -67,7 +74,7 @@ export function mergeOperatorOverlay(
         }
         if (indeks.has(b.name)) continue;
         indeks.set(b.name, configs.length);
-        configs.push({ ...b });
+        configs.push({ ...b, configSource: "installer" });
     }
     const widziane = new Set<string>();
     for (const o of overlay) {
@@ -84,8 +91,22 @@ export function mergeOperatorOverlay(
         if (i !== undefined) {
             const cel = { ...configs[i] } as Record<string, unknown>;
             const zrodlo = o as unknown as Record<string, unknown>;
-            for (const pole of POLA_DLA_ZAUFANYCH)
-                if (zrodlo[pole] !== undefined) cel[pole] = zrodlo[pole];
+            for (const pole of POLA_DLA_ZAUFANYCH) {
+                const v = zrodlo[pole];
+                if (v === undefined) continue;
+                // Walidacja ksztaltu (przeglad 2026-10-02, R-MCP-04): "false", null
+                // albo 0 nadpisywaly enabled:false instalatora, a loadConfig wylacza
+                // tylko przy === false - konektor startowal bez ostrzezenia.
+                const ok =
+                    pole === "enabled"
+                        ? typeof v === "boolean"
+                        : !!v && typeof v === "object" && !Array.isArray(v);
+                if (!ok) {
+                    warnings.push(`nakladka: "${o.name}" pole ${pole} ma zly typ - zignorowane`);
+                    continue;
+                }
+                cel[pole] = v;
+            }
             const zignorowane = Object.keys(zrodlo).filter(
                 (k) => k !== "name" && !(POLA_DLA_ZAUFANYCH as readonly string[]).includes(k),
             );
@@ -102,7 +123,7 @@ export function mergeOperatorOverlay(
             continue;
         }
         indeks.set(o.name, configs.length);
-        configs.push({ ...o });
+        configs.push({ ...o, configSource: "operator-overlay" });
     }
     return { configs, warnings };
 }
@@ -114,7 +135,31 @@ export function readMergedConfig(
 ): { configs: McpServerConfig[]; warnings: string[] } {
     const ostrzezenia: string[] = [];
     const bundled = czytajTablice(bundledPath, "mcp-servers.json", ostrzezenia);
-    const overlay = czytajTablice(overlayPath, "nakladka", ostrzezenia);
+    const przedNakladka = ostrzezenia.length;
+    let overlay = czytajTablice(overlayPath, "nakladka", ostrzezenia);
+    if (fs.existsSync(overlayPath) && ostrzezenia.length > przedNakladka) {
+        // Nakladka istnieje, ale jest nieczytelna (przeglad 2026-10-02, R-MCP-03).
+        // Wylaczenia z pickera zyja TYLKO w niej - pusta nakladka przywracala po
+        // cichu konektory wylaczone przez mecenasa. Najpierw ostatnia dobra kopia,
+        // a bez niej fail-closed: konektory instalatora startuja wylaczone.
+        const kopia = `${overlayPath}.bak`;
+        const zKopii: string[] = [];
+        const odczyt = fs.existsSync(kopia) ? czytajTablice(kopia, "nakladka.bak", zKopii) : null;
+        if (odczyt && zKopii.length === 0) {
+            overlay = odczyt;
+            ostrzezenia.push(`nakladka nieczytelna - uzyto ostatniej dobrej kopii ${kopia}; popraw ${overlayPath}`);
+        } else {
+            const wynik = mergeOperatorOverlay(bundled, []);
+            return {
+                configs: wynik.configs.map((c) => ({ ...c, enabled: false })),
+                warnings: [
+                    ...ostrzezenia,
+                    ...wynik.warnings,
+                    `nakladka nieczytelna i brak dobrej kopii - wszystkie konektory WYLACZONE do czasu naprawy pliku ${overlayPath} (stanu przelacznikow Operatora nie da sie ustalic)`,
+                ],
+            };
+        }
+    }
     const wynik = mergeOperatorOverlay(bundled, overlay);
     return { configs: wynik.configs, warnings: [...ostrzezenia, ...wynik.warnings] };
 }
@@ -127,6 +172,32 @@ export function writeEnabledToOverlay(
     overlayPath: string,
     name: string,
     enabled: boolean,
+): { ok: boolean; error?: string } {
+    return upsertOverlayEntry(overlayPath, name, { enabled });
+}
+
+/**
+ * Zapis zatwierdzenia bramy (`gatewayApproval`, ADR-0158) do NAKLADKI - ta sama
+ * procedura co przelacznik pickera (B-08: przycisk "Zatwierdz" zamiast recznej
+ * edycji JSON). Wartosc musi przyjsc z biezacego skanu bramy; ksztalt pilnuje
+ * tu tylko tego, zeby do pliku nie trafilo nic, czego resolveOperatorApproval
+ * i tak nie uzna (fail-closed przy odczycie zostaje).
+ */
+export function writeGatewayApprovalToOverlay(
+    overlayPath: string,
+    name: string,
+    approval: { hash: string; origin: string; approvedAt: string; approvedBy: string },
+): { ok: boolean; error?: string } {
+    const hex64 = /^[0-9a-f]{64}$/;
+    if (!hex64.test(approval.hash) || !hex64.test(approval.origin))
+        return { ok: false, error: "zatwierdzenie w zlym ksztalcie (hash/origin: 64 znaki hex)" };
+    return upsertOverlayEntry(overlayPath, name, { gatewayApproval: { ...approval } });
+}
+
+function upsertOverlayEntry(
+    overlayPath: string,
+    name: string,
+    patch: Record<string, unknown>,
 ): { ok: boolean; error?: string } {
     let lista: unknown[] = [];
     if (fs.existsSync(overlayPath)) {
@@ -141,13 +212,22 @@ export function writeEnabledToOverlay(
         }
     }
     const i = lista.findIndex((x) => maNazwe(x) && x.name === name);
-    if (i === -1) lista.push({ name, enabled });
-    else lista[i] = { ...(lista[i] as object), enabled };
+    if (i === -1) lista.push({ name, ...patch });
+    else lista[i] = { ...(lista[i] as object), ...patch };
     try {
         fs.mkdirSync(path.dirname(overlayPath), { recursive: true });
+        // Nakladka moze niesc URL z kluczem weryfikatora - nowy plik dziedziczy
+        // tryb oryginalu, a bez oryginalu 0600 (przeglad 2026-10-02, R-MCP-05).
+        const tryb = fs.existsSync(overlayPath) ? fs.statSync(overlayPath).mode & 0o777 : 0o600;
         const tmp = `${overlayPath}.tmp`;
-        fs.writeFileSync(tmp, `${JSON.stringify(lista, null, 2)}\n`, "utf-8");
+        const tresc = `${JSON.stringify(lista, null, 2)}\n`;
+        fs.writeFileSync(tmp, tresc, { encoding: "utf-8", mode: tryb });
+        fs.chmodSync(tmp, tryb);
         fs.renameSync(tmp, overlayPath);
+        // Ostatnia dobra kopia na wypadek recznej edycji, ktora zepsuje plik (R-MCP-03).
+        const kopia = `${overlayPath}.bak`;
+        fs.writeFileSync(kopia, tresc, { encoding: "utf-8", mode: tryb });
+        fs.chmodSync(kopia, tryb);
         return { ok: true };
     } catch (err) {
         return { ok: false, error: `write error: ${String(err)}` };

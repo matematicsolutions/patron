@@ -3,6 +3,7 @@
 // Wyciagniete z chatTools.ts w ramach refactoru Faza 2.3 iteracja 2.
 
 import {
+    type StreamChatResult,
     streamChatWithTools,
     resolveModel,
     DEFAULT_MAIN_MODEL,
@@ -23,16 +24,19 @@ import {
     PseudonimStreamUnwrapper,
     plEntityDetector,
     unwrap,
+    wrapToolResultInto,
+    prepareMcpToolArgs,
 } from "../pseudonim";
 import type { PseudonimMap } from "../pseudonim";
 import { createServerSupabase } from "../supabase";
 
 /**
- * Rekurencyjnie odwraca tokeny pseudonimow w argumentach wywolania narzedzia.
- * Model widzi swiat zamaskowany (egress), ale narzedzia pracuja na danych
- * LOKALNYCH, ktore zamaskowane nigdy nie byly - token w argumencie jest wiec
- * zawsze bledem. `unwrap` podmienia tylko ZNANE tokeny, wiec dla zwyklego
- * tekstu jest to no-op.
+ * Rekurencyjnie odwraca tokeny pseudonimow w argumentach wywolania narzedzia
+ * LOKALNEGO. Model widzi swiat zamaskowany (egress), ale narzedzia lokalne
+ * pracuja na danych, ktore zamaskowane nigdy nie byly - token w argumencie jest
+ * wiec zawsze bledem. `unwrap` podmienia tylko ZNANE tokeny, wiec dla zwyklego
+ * tekstu jest to no-op. Narzedzia ZEWNETRZNYCH konektorow MCP tego nie dostaja -
+ * patrz `prepareMcpToolArgs` (A-09 / B-11).
  */
 function odtworzTokeny(wartosc: unknown, map: PseudonimMap): unknown {
     if (typeof wartosc === "string") return unwrap(wartosc, map);
@@ -46,7 +50,30 @@ function odtworzTokeny(wartosc: unknown, map: PseudonimMap): unknown {
     }
     return wartosc;
 }
-import { CITATIONS_OPEN_TAG, parseCitations, resolveDoc } from "./citations";
+
+/**
+ * Czy wywolanie idzie do ZEWNETRZNEGO konektora MCP. Konwencja nazw
+ * `serwer__narzedzie` liczy sie niezaleznie od rejestru: nazwa w tym ksztalcie
+ * nigdy nie jest narzedziem lokalnym, wiec w razie watpliwosci argumenty
+ * dostaja ostrzejsze traktowanie (fail-closed).
+ */
+function isMcpBoundTool(name: string | undefined): boolean {
+    if (!name) return false;
+    return name.includes("__") || isMcpTool(name);
+}
+
+function addCounts(
+    target: Record<string, number>,
+    add: Record<string, number>,
+): void {
+    for (const [k, v] of Object.entries(add)) target[k] = (target[k] ?? 0) + v;
+}
+import {
+    CITATIONS_OPEN_TAG,
+    parseCitationsDetailed,
+    resolveDoc,
+    type CitationsParseError,
+} from "./citations";
 import { groundCitationsByRef } from "./ground-citations";
 import { makeJudge } from "../citation/judge";
 import type { GroundingResult } from "../citation/grounding";
@@ -57,7 +84,12 @@ import {
     type McpSourceText,
 } from "../citation/mcp-grounding";
 import { TOOLS, WORKFLOW_TOOLS } from "./tools";
-import { runToolCalls, type TurnEditState } from "./tool-dispatch";
+import {
+    heldByInputSecurity,
+    runToolCalls,
+    type MemoryWriteTrace,
+    type TurnEditState,
+} from "./tool-dispatch";
 import type {
     ChatMessage,
     CommentAnnotation,
@@ -71,6 +103,20 @@ import type {
 
 type AssistantEvent =
     | { type: "reasoning"; text: string }
+    // D-14: blok <CITATIONS> byl, ale cytaty (czesc lub calosc) przepadly przy
+    // parsowaniu - jawny sygnal w UI i po przeladowaniu czatu, nie cisza.
+    | {
+          type: "citations_parse_failed";
+          reason: CitationsParseError["reason"];
+          dropped: number;
+      }
+    // D-07: konektor MCP zwrocil blad w tej turze (ECONNREFUSED, timeout, 5xx).
+    // Bez tresci bledu - tylko ktory konektor i narzedzie.
+    // B-03: reason "input_security" - wynik wstrzymany przez read-time guard.
+    | { type: "mcp_error"; server: string; tool: string; reason?: "input_security" }
+    // ADR-0137 (aktualizacja 2026-10-06): akcja agenta wstrzymana na karcie
+    // zatwierdzenia - UI kieruje do skrzynki kart. Bez argumentow mutacji.
+    | { type: "mutation_staged"; tool: string; approval_id: string }
     | { type: "doc_read"; filename: string; document_id?: string }
     | {
           type: "doc_find";
@@ -108,6 +154,8 @@ type AssistantEvent =
           version_number: number | null;
           download_url: string;
           annotations: EditAnnotation[];
+          /** Edycje NIE zastosowane (audyt D-10) - musza przetrwac przeladowanie czatu. */
+          errors?: { index: number; reason: string }[];
       }
     | {
           type: "doc_commented";
@@ -144,6 +192,11 @@ export async function runLLMStream(params: {
      * sprawy (decyzja logowana do audit jako cost_cap action=override).
      */
     allowBudgetOverride?: boolean;
+    /**
+     * Czat tej tury - trafia do llm_route i decyzji straznika, zeby ture dalo
+     * sie odtworzyc z audit_log po czacie (audyt 2026-09, C-02).
+     */
+    chatId?: string | null;
 }): Promise<{
     fullText: string;
     events: AssistantEvent[];
@@ -213,6 +266,8 @@ export async function runLLMStream(params: {
     // wywolanie razem z kluczami kart, ktore z niego powstaly (nie tylko nowych -
     // duplikat karty z kolejnego wywolania nadal wskazuje na to samo zrodlo).
     const mcpSources: McpSourceText[] = [];
+    // D-07: konektory, ktore w tej turze zwrocily blad (dedup per server|tool).
+    const mcpErrorKeys = new Set<string>();
     let fullText = "";
     let iterText = "";
     let iterVisibleText = "";
@@ -220,6 +275,10 @@ export async function runLLMStream(params: {
     // konwersacja idzie zamaskowana do chmury. null = brak maskowania (lokalny
     // model lub dane publiczne) -> przeplyw bez zmian.
     let unwrapper: PseudonimStreamUnwrapper | null = null;
+    // Osobny unwrapper dla strumienia rozumowania (reasoning_delta) - ta sama
+    // mapa, ale wlasny bufor (token rozciety na granicy chunkow rozumowania nie
+    // moze sie zmieszac z buforem tresci odpowiedzi).
+    let reasoningUnwrapper: PseudonimStreamUnwrapper | null = null;
     // Ta sama mapa, ale do odwracania ARGUMENTOW NARZEDZI (nie tylko strumienia
     // odpowiedzi). Maskowanie istnieje wylacznie na potrzeby egressu - dane
     // lokalne nigdy nie sa zamaskowane, wiec narzedzie musi dostac oryginal.
@@ -342,6 +401,7 @@ export async function runLLMStream(params: {
         model: selectedModel,
         projectId,
         actorUserId: userId,
+        chatId: params.chatId ?? null,
     });
     if (!guard.allowed) {
         const msg =
@@ -374,11 +434,32 @@ export async function runLLMStream(params: {
         outboundSystemPrompt = wrapped.systemPrompt;
         outboundMessages = wrapped.messages;
         unwrapper = new PseudonimStreamUnwrapper(wrapped.map);
+        reasoningUnwrapper = new PseudonimStreamUnwrapper(wrapped.map);
         pseudonimMap = wrapped.map;
     }
 
     const routeStartedAt = Date.now();
-    const streamResult = await streamChatWithTools({
+    // C-01: nazwy wywolanych narzedzi (bez argumentow i wynikow) do llm_route.
+    const toolCallCounts: Record<string, number> = {};
+    // B-04: zapisy pamieci trwalej wykonane inline w tej turze (bez tresci).
+    const memoryWrites: MemoryWriteTrace[] = [];
+    // A-09 / B-11: liczniki (bez wartosci) dla argumentow MCP tej tury.
+    const mcpArgsRedacted: Record<string, number> = {};
+    const mcpArgsTokensWithheld: Record<string, number> = {};
+    const routeAudit = {
+        actorUserId: userId,
+        chatId: params.chatId ?? null,
+        caseId: projectId ?? null,
+        model: selectedModel,
+        provider: guard.provider,
+        egress: guard.decision.egress,
+        classification: guard.decision.classification,
+        action: "allow" as const,
+        reason: guard.decision.reason,
+    };
+    let streamResult: StreamChatResult;
+    try {
+    streamResult = await streamChatWithTools({
         model: selectedModel,
         systemPrompt: outboundSystemPrompt,
         messages: outboundMessages,
@@ -396,13 +477,26 @@ export async function runLLMStream(params: {
                 iterText += delta;
                 streamVisibleContent(delta);
             },
-            onReasoningDelta: (delta) => {
+            onReasoningDelta: (rawDelta) => {
+                // Rozumowanie modelu chmurowego tez operuje na tokenach (takze z
+                // wynikow narzedzi, A-01) - uzytkownik widzi oryginaly.
+                const delta = reasoningUnwrapper
+                    ? reasoningUnwrapper.push(rawDelta)
+                    : rawDelta;
+                if (!delta) return;
                 iterReasoning += delta;
                 write(
                     `data: ${JSON.stringify({ type: "reasoning_delta", text: delta })}\n\n`,
                 );
             },
             onReasoningBlockEnd: () => {
+                const tail = reasoningUnwrapper ? reasoningUnwrapper.flush() : "";
+                if (tail) {
+                    iterReasoning += tail;
+                    write(
+                        `data: ${JSON.stringify({ type: "reasoning_delta", text: tail })}\n\n`,
+                    );
+                }
                 if (!iterReasoning) return;
                 events.push({ type: "reasoning", text: iterReasoning });
                 write(
@@ -430,18 +524,39 @@ export async function runLLMStream(params: {
             // Emit any text the model produced before this tool turn so the
             // UI sees it before the tool results stream in.
             flushText();
+            for (const c of calls) {
+                const n = (c as { function?: { name?: string }; name?: string }).function?.name
+                    ?? (c as { name?: string }).name
+                    ?? "unknown";
+                toolCallCounts[n] = (toolCallCounts[n] ?? 0) + 1;
+            }
 
-            const toolCalls: ToolCall[] = calls.map((c) => ({
-                id: c.id,
-                function: {
-                    name: c.name,
-                    arguments: JSON.stringify(
-                        pseudonimMap
-                            ? odtworzTokeny(c.input, pseudonimMap)
-                            : c.input,
-                    ),
-                },
-            }));
+            const toolCalls: ToolCall[] = calls.map((c) => {
+                // A-09 / B-11 (decyzja 2026-10-06): argumenty dla ZEWNETRZNEGO
+                // konektora MCP (`serwer__narzedzie`) - odtwarzamy tylko
+                // ORG/NIP/REGON/KRS, kategorie osobowe zostaja tokenem, a PESEL i
+                // e-mail (takze wpisane doslownie, spoza mapy) sa wycinane.
+                // Narzedzia lokalne dostaja pelne odtworzenie (edycja DOCX musi
+                // trafic w oryginalny tekst).
+                let input: unknown;
+                if (isMcpBoundTool(c.name)) {
+                    const prepared = prepareMcpToolArgs(c.input, pseudonimMap);
+                    addCounts(mcpArgsRedacted, prepared.redacted);
+                    addCounts(mcpArgsTokensWithheld, prepared.tokensWithheld);
+                    input = prepared.args;
+                } else {
+                    input = pseudonimMap
+                        ? odtworzTokeny(c.input, pseudonimMap)
+                        : c.input;
+                }
+                return {
+                    id: c.id,
+                    function: {
+                        name: c.name,
+                        arguments: JSON.stringify(input),
+                    },
+                };
+            });
             const {
                 toolResults,
                 docsRead,
@@ -451,6 +566,8 @@ export async function runLLMStream(params: {
                 workflowsApplied,
                 docsEdited,
                 docsCommented,
+                memoryWrites: batchMemoryWrites,
+                mutationsStaged,
             } = await runToolCalls(
                 toolCalls,
                 docStore,
@@ -462,7 +579,21 @@ export async function runLLMStream(params: {
                 docIndex,
                 turnEditState,
                 projectId,
+                { chatId: params.chatId ?? null },
             );
+            memoryWrites.push(...batchMemoryWrites);
+            // ADR-0137 (aktualizacja 2026-10-06, B-02): akcja wstrzymana na karcie
+            // to jawny sygnal dla uzytkownika ("czeka na zatwierdzenie - przejdz
+            // do skrzynki"), utrwalany w events wiadomosci. Bez argumentow mutacji.
+            for (const m of mutationsStaged) {
+                const ev = {
+                    type: "mutation_staged" as const,
+                    tool: m.tool,
+                    approval_id: m.approval_id,
+                };
+                events.push(ev);
+                write(`data: ${JSON.stringify(ev)}\n\n`);
+            }
             for (const r of docsRead) {
                 events.push({
                     type: "doc_read",
@@ -512,6 +643,7 @@ export async function runLLMStream(params: {
                     version_number: e.version_number,
                     download_url: e.download_url,
                     annotations: e.annotations,
+                    errors: e.errors,
                 });
             }
             for (const e of docsCommented) {
@@ -554,25 +686,60 @@ export async function runLLMStream(params: {
                             /* ignore */
                         }
                         const mcpResult = await runMcpTool(c.function.name, args);
-                        resultByCallId.set(c.id, mcpResult.text);
+                        const sep = c.function.name.indexOf("__");
+                        const server = sep > 0 ? c.function.name.slice(0, sep) : c.function.name;
+                        const tool = sep > 0 ? c.function.name.slice(sep + 2) : "";
+                        // B-03: parytet obrony z read_document (ADR-0020 W4). W trybie
+                        // enforce wynik konektora (lub jego upstreamu - rejestry
+                        // publiczne niosa tresc stron) z twardym sygnalem manipulacji
+                        // NIE trafia do modelu. Model dostaje komunikat, uzytkownik
+                        // jawny sygnal; tekst nie jest tez zrodlem groundingu (ADR-0146:
+                        // zrodlo = to, co model faktycznie widzial).
+                        const heldAction = mcpResult.isError
+                            ? null
+                            : heldByInputSecurity(mcpResult.text ?? "");
+                        resultByCallId.set(
+                            c.id,
+                            heldAction
+                                ? JSON.stringify({
+                                      error: `Wynik narzedzia "${c.function.name}" zostal wstrzymany przez kontrole bezpieczenstwa wejscia (mozliwa proba manipulacji modelem w tresci zrodla). Tresc nie zostala podana modelowi. Poinformuj uzytkownika, ze zrodlo wymaga recznej weryfikacji.`,
+                                  })
+                                : mcpResult.text,
+                        );
                         if (mcpResult.citations.length > 0) {
                             appendMcpCitations(mcpResult.citations);
                         }
                         // ADR-0146: zrodlo do groundingu (bledy konektora pomijamy -
                         // komunikat bledu nie jest tekstem zrodla).
-                        if (!mcpResult.isError) {
-                            const sep = c.function.name.indexOf("__");
+                        if (!mcpResult.isError && !heldAction) {
                             mcpSources.push({
-                                server: sep > 0 ? c.function.name.slice(0, sep) : c.function.name,
-                                tool: sep > 0 ? c.function.name.slice(sep + 2) : "",
+                                server,
+                                tool,
                                 text: mcpResult.text ?? "",
                                 citationKeys: mcpResult.citations.map(mcpCitationKey),
                             });
+                        } else {
+                            // D-07: awaria konektora (ECONNREFUSED, timeout, 5xx, odmowa
+                            // ring policy) byla widoczna tylko dla modelu. Uzytkownik
+                            // dostaje jawny sygnal: ktory konektor i narzedzie - bez
+                            // tresci bledu (moze niesc argumenty zapytania).
+                            // B-03: wstrzymanie przez input-security - ten sam sygnal z
+                            // powodem "input_security".
+                            const reason = heldAction ? ("input_security" as const) : undefined;
+                            const key = `${server}|${tool}|${reason ?? ""}`;
+                            if (!mcpErrorKeys.has(key)) {
+                                mcpErrorKeys.add(key);
+                                const ev = reason
+                                    ? { type: "mcp_error" as const, server, tool, reason }
+                                    : { type: "mcp_error" as const, server, tool };
+                                events.push(ev);
+                                write(`data: ${JSON.stringify(ev)}\n\n`);
+                            }
                         }
                     }),
             );
 
-            return toolCalls.map((c) => ({
+            const results = toolCalls.map((c) => ({
                 tool_use_id: c.id,
                 content:
                     resultByCallId.get(c.id) ??
@@ -580,30 +747,91 @@ export async function runLLMStream(params: {
                         error: `Tool '${c.function.name}' is not available.`,
                     }),
             }));
+
+            // Audyt A-01 (P0): wyniki narzedzi (tresc akt, fragmenty RAG, pamiec,
+            // komorki tabeli, wyniki MCP) ida do modelu przez TE SAMA pseudonimizacje
+            // co konwersacja - wspolna, rozszerzana mapa. Model lokalny / dane
+            // publiczne (pseudonimMap null): bez zmian. Kolejnosc jest deterministyczna
+            // (po kolei, nie rownolegle), wiec numeracja tokenow jest powtarzalna.
+            // Wszystko PO STRONIE SERWERA zostaje oryginalne: zdarzenia SSE i
+            // persystencja (docsRead/docsEdited/...), zrodla groundingu MCP
+            // (mcpSources, ADR-0146) i grounding cytatow dokumentowych (ADR-0005,
+            // czyta docStore) - model cytuje tokeny, unwrapper oddaje oryginal w
+            // fullText, a ten porownujemy z oryginalnym tekstem.
+            if (pseudonimMap) {
+                for (const r of results) {
+                    try {
+                        r.content = await wrapToolResultInto(pseudonimMap, r.content, {
+                            llmDetector: plEntityDetector,
+                        });
+                    } catch (err) {
+                        // Fail-closed: niezamaskowana tresc nie moze wyjsc do chmury.
+                        // Logujemy tylko klase bledu - komunikat (np. SyntaxError
+                        // JSON w Node 20+) moze niesc fragment tresci akt (por. A-10).
+                        console.warn(
+                            "[stream] maskowanie wyniku narzedzia nie powiodlo sie:",
+                            err instanceof Error ? err.name : typeof err,
+                        );
+                        r.content = JSON.stringify({
+                            error: "Wynik narzedzia wstrzymany: pseudonimizacja przed wyslaniem do modelu chmurowego nie powiodla sie.",
+                        });
+                    }
+                }
+            }
+            return results;
         },
     });
+    } catch (err) {
+        // C-03: tura zakonczona bledem providera tez zostawia slad - wywolanie
+        // (i ewentualny egress) nastapilo. Klasa bledu, bez komunikatu (moze
+        // niesc fragment tresci).
+        await appendLlmRouteEvent(db, {
+            ...routeAudit,
+            latencyMs: Date.now() - routeStartedAt,
+            outcome: "error",
+            errorClass: err instanceof Error ? err.name : typeof err,
+            toolCalls: toolCallCounts,
+            memoryWrites,
+            mcpArgsRedacted,
+            mcpArgsTokensWithheld,
+        });
+        throw err;
+    }
 
     flushText();
 
     // ADR-0067: per-call audit po zakonczeniu wywolania (decyzja allow) z realnym
     // kosztem (OpenRouter) i latencja. Dowod nalezytej starannosci AI Act art. 12.
     await appendLlmRouteEvent(db, {
-        actorUserId: userId,
-        caseId: projectId ?? null,
-        model: selectedModel,
-        provider: guard.provider,
-        egress: guard.decision.egress,
-        classification: guard.decision.classification,
-        action: "allow",
-        reason: guard.decision.reason,
+        ...routeAudit,
         latencyMs: Date.now() - routeStartedAt,
         usage: streamResult.usage,
+        outcome: "ok",
+        toolCalls: toolCallCounts,
+        memoryWrites,
+        mcpArgsRedacted,
+        mcpArgsTokensWithheld,
     });
 
     // Parse and emit citations from <CITATIONS> block
+    // D-14: parser tolerancyjny (przecinek wiszacy, ref jako string) + diagnoza.
+    // Gdy blok byl, a cytaty przepadly, event `citations` niesie `parse_error`,
+    // a zdarzenie `citations_parse_failed` trafia do utrwalanych events.
+    const parsedDetailed = buildCitations ? null : parseCitationsDetailed(fullText);
+    const citationsParseError = parsedDetailed?.parseError ?? null;
+    if (citationsParseError) {
+        console.warn(
+            `[stream] blok <CITATIONS> nie w pelni sparsowany: reason=${citationsParseError.reason} dropped=${citationsParseError.dropped}`,
+        );
+        events.push({
+            type: "citations_parse_failed",
+            reason: citationsParseError.reason,
+            dropped: citationsParseError.dropped,
+        });
+    }
     const citations = buildCitations
         ? buildCitations(fullText)
-        : parseCitations(fullText).map((c) => {
+        : (parsedDetailed?.citations ?? []).map((c) => {
               const docInfo = resolveDoc(c.doc_id, docIndex);
               return {
                   ref: c.ref,
@@ -668,7 +896,12 @@ export async function runLLMStream(params: {
         groundingForClient[Number(ref)] = entry;
     }
     write(
-        `data: ${JSON.stringify({ type: "citations", citations, grounding: groundingForClient })}\n\n`,
+        `data: ${JSON.stringify({
+            type: "citations",
+            citations,
+            grounding: groundingForClient,
+            ...(citationsParseError ? { parse_error: citationsParseError } : {}),
+        })}\n\n`,
     );
     // Cytaty z serwerow MCP (np. SAOS) - osobny event, zeby panel UI
     // mogl je renderowac jako "Powiazane zrodla" obok dokumentowych.
@@ -707,7 +940,11 @@ export async function runLLMStream(params: {
         } catch (err) {
             // Grounding doradczy nie moze wywrocic odpowiedzi - ale brak werdyktu
             // tez nie moze byc cichy: UI dostaje jawny sygnal "nie zweryfikowano".
-            console.warn("[stream] mcp grounding failed:", String(err).slice(0, 200));
+            // R-CC-06: tylko klasa bledu - komunikat moze niesc fragment cytatu.
+            console.warn(
+                "[stream] mcp grounding failed:",
+                err instanceof Error ? err.name : typeof err,
+            );
             write(
                 `data: ${JSON.stringify({ type: "mcp_grounding", error: "grounding_failed" })}\n\n`,
             );

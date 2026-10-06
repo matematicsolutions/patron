@@ -7,28 +7,11 @@
 import { Router } from "express";
 import { requireAuth } from "../middleware/auth";
 import { createServerSupabase, isSqliteBackend } from "../lib/supabase";
-import { forgetCase, type ForgetReport } from "../lib/rodo/forget";
-import { appendAuditEvent } from "../lib/audit";
+import { forgetCaseWithAudit } from "../lib/rodo/forgetWithAudit";
 
-/**
- * Buduje payload audytowy dla zdarzenia rodo.delete. Czysta funkcja (testowalna
- * bez Express/Supabase - wzorzec security.ts buildStatusPayload). Bez PII:
- * wylacznie project_id + liczniki z raportu kasacji.
- */
-export function buildRodoDeleteAuditPayload(
-  projectId: string,
-  report: ForgetReport,
-): Record<string, unknown> {
-  return {
-    project_id: projectId,
-    documents: report.documents,
-    chats: report.chats,
-    tabular_reviews: report.tabularReviews,
-    rag_cleared: report.ragCleared,
-    storage_files_deleted: report.storageFilesDeleted,
-    brain_cleared: report.brainCleared,
-  };
-}
+// Payload audytowy rodo.delete zyje obok wspolnej sciezki kasacji (lib/rodo);
+// re-eksport zachowuje dotychczasowy import (rodo.test.ts).
+export { buildRodoDeleteAuditPayload } from "../lib/rodo/forgetWithAudit";
 
 export const rodoRouter = Router();
 
@@ -67,16 +50,8 @@ rodoRouter.post("/forget-case", requireAuth, async (req, res) => {
   }
 
   try {
-    const report = await forgetCase(project_id, db);
-    // Slad nieodwracalnej kasacji RODO art. 17 w hash-chain (AI Act art. 12).
-    // forget.ts celowo NIE tyka audit_log (naglowek modulu); tu dopisujemy
-    // wpis o samej kasacji. Payload bez PII - tylko project_id + liczniki z raportu.
-    await appendAuditEvent(db, {
-      event_type: "rodo.delete",
-      actor_user_id: userId,
-      payload: buildRodoDeleteAuditPayload(project_id, report),
-    });
-    res.json(report);
+    const out = await forgetCaseWithAudit(db, project_id, userId);
+    res.status(out.status).json(out.body);
   } catch (e) {
     res.status(500).json({ detail: `Forget failed: ${String(e)}` });
   }

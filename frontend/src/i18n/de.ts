@@ -743,6 +743,13 @@ export const de: DictShape<typeof pl> = {
         toggleError: "Der Status des Skills konnte nicht geändert werden.",
         removeError: "Der Skill konnte nicht entfernt werden.",
         close: "Schließen",
+        // B-10: import paczki - zgoda na egress i stan podpisu.
+        importTrust: {
+            egressConfirm: "Dieses Paket gibt an, Inhalte über Ihren Rechner hinaus (in die Cloud) senden zu können. Es gilt das Berufsgeheimnis. Skill direkt nach dem Import aktivieren? Abbrechen = deaktiviert importieren.",
+            importedDisabled: "Der Skill wurde deaktiviert importiert, weil er Inhalte in die Cloud senden kann. Aktivieren Sie ihn bewusst über den Schalter.",
+            signatureUnverified: "Signatur nicht geprüft",
+            signatureUnverifiedHint: "Das Paket enthält ein Signaturfeld, aber Patron prüft Paketsignaturen noch nicht. Der Herausgeber ist eine Angabe des Paketautors, keine Bestätigung.",
+        },
     },
 
     connectors: {

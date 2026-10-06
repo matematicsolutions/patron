@@ -24,9 +24,9 @@ from pre_push_gate import ZERO, jest_publiczny, sprawdz  # noqa: E402
 from publication_gate import stem_hash  # noqa: E402
 
 
-def nip_testowy() -> str:
+def nip_testowy(start: int = 123456780) -> str:
     wagi = [6, 5, 7, 2, 3, 4, 5, 6, 7]
-    for poczatek in range(123456780, 123456999):
+    for poczatek in range(start, start + 1000):
         d = [int(c) for c in str(poczatek)]
         k = sum(w * x for w, x in zip(wagi, d)) % 11
         if k != 10:
@@ -59,7 +59,8 @@ class BramkaPrePush(unittest.TestCase):
         self._git("symbolic-ref", "HEAD", "refs/heads/main")
         (self.root / ".git" / "info" / "exclude").write_text(".publication-gate.json\n", encoding="utf-8")
         (self.root / ".publication-gate.json").write_text(
-            json.dumps({"deny_term_hashes": [stem_hash("kowalsk")]}), encoding="utf-8")
+            json.dumps({"deny_term_hashes": [stem_hash("kowalsk")],
+                        "deny_paths": [".matematic/", ".claude/"]}), encoding="utf-8")
         self.baza = self._commit("README.md", "czysto\n", "init")
         self._git("remote", "add", "mat", str(self.publiczne))
         self._git("remote", "add", "origin", str(self.prywatne))
@@ -172,6 +173,135 @@ class BramkaPrePush(unittest.TestCase):
         self._commit("docs/a.md", "czysto\n", "docs: zmiana")
         r = push()
         self.assertEqual(r.returncode, 0, r.stderr)
+
+    # --- R-TI-07 (2026-10-02): sondy backend/audit-2609/sondy/ jako testy -------
+
+    def test_a_plik_z_prywatnego_warsztatu_blokuje(self):
+        sha = self._commit(".matematic/releases/x/README.md", "plan wydania\n", "docs: notatka")
+        rc, out = self._push(sha)
+        self.assertEqual(rc, 1, out)
+        self.assertIn("denied_path", out)
+
+    def test_b_git_mv_z_dopisanym_numerem_blokuje(self):
+        # Plik dosc duzy, by git uznal zmiane za rename (status R), nie D + A.
+        tresc = "".join(f"linia {i} tresci publicznej\n" for i in range(40))
+        self._git("update-ref", "refs/remotes/mat/main", self._commit("docs/duzy.md", tresc, "duzy"))
+        self._git("mv", "docs/duzy.md", "CZYTAJ.md")
+        (self.root / "CZYTAJ.md").write_text(f"{tresc}numer {nip_testowy()}\n", encoding="utf-8")
+        self._git("add", "-A")
+        self._git("commit", "-q", "-m", "przenies")
+        rc, out = self._push(self._git("rev-parse", "HEAD"))
+        self.assertEqual(rc, 1, out)
+        self.assertIn("CZYTAJ.md", out)
+
+    def test_c_numer_w_rozwiazaniu_merge_blokuje(self):
+        self._git("checkout", "-q", "-b", "x")
+        self._commit("docs/x.md", "x\n", "x")
+        self._git("checkout", "-q", "main")
+        self._commit("docs/y.md", "y\n", "y")
+        subprocess.run(["git", "-C", str(self.root), "merge", "-q", "--no-commit", "--no-ff", "x"],
+                       capture_output=True)
+        (self.root / "docs" / "y.md").write_text(f"y\nnumer {nip_testowy()}\n", encoding="utf-8")
+        self._git("add", "-A")
+        self._git("commit", "-q", "-m", "Merge branch x")
+        rc, out = self._push(self._git("rev-parse", "HEAD"))
+        self.assertEqual(rc, 1, out)
+        self.assertIn("docs/y.md", out)
+
+    def test_d_blad_odczytu_historii_blokuje(self):
+        sha = self._commit("docs/a.md", "zwykla zmiana\n", "docs: zmiana")
+        blob = self._git("rev-parse", f"{sha}:docs/a.md")
+        obj = self.root / ".git" / "objects" / blob[:2] / blob[2:]
+        obj.chmod(0o644)  # Windows: obiekt gita jest tylko-do-odczytu
+        obj.unlink()
+        rc, out = self._push(sha)
+        self.assertEqual(rc, 1, out)
+        self.assertIn("history scan FAILED", out)
+
+    def _tag(self, nazwa: str, msg: str, cel: str, data: str | None = None) -> str:
+        import os
+        env = {**os.environ, "GIT_COMMITTER_DATE": data} if data else None
+        subprocess.run(["git", "-C", str(self.root), "-c", "user.name=t", "-c", "user.email=t@t",
+                        "-c", "advice.nestedTag=false", "tag", "-a", nazwa, "-m", msg, cel], check=True, env=env)
+        return self._git("rev-parse", f"refs/tags/{nazwa}")
+
+    def _push_tagu(self, sha: str, nazwa: str):
+        linia = f"refs/tags/{nazwa} {sha} refs/tags/{nazwa} {ZERO}\n"
+        return sprawdz(self.root, "mat", str(self.publiczne), linia, self.env)
+
+    def test_e_tresc_tagu_adnotowanego_blokuje(self):
+        sha = self._tag("v9", "Wydanie dla kancelarii Kowalskiego", self.baza)
+        rc, out = self._push_tagu(sha, "v9")
+        self.assertEqual(rc, 1, out)
+        self.assertIn("tresc tagow", out)
+        self.assertNotIn("kowalsk", out.lower())   # nazwy nigdy nie drukujemy
+
+    def test_e_tag_na_tag_tez_jest_rozwijany(self):
+        wew = self._tag("wew", "Wydanie dla Kowalskiej", self.baza)
+        zew = self._tag("zew", "czysty opis", wew)
+        rc, out = self._push_tagu(zew, "zew")
+        self.assertEqual(rc, 1, out)
+
+    def test_e_czysty_tag_przechodzi_a_czas_w_naglowku_to_nie_numer(self):
+        # Znacznik czasu tagu (10 cyfr) wybrany tak, by mial poprawna sume NIP:
+        # naglowek tagu nie jest trescia i nie moze blokowac.
+        czas = int(nip_testowy(175900000))
+        sha = self._tag("v10", "Wydanie 1.4.0", self.baza, f"@{czas} +0000")
+        self.assertIn(str(czas), self._git("cat-file", "tag", sha))
+        rc, out = self._push_tagu(sha, "v10")
+        self.assertEqual(rc, 0, out)
+
+    def test_e_tag_na_blob_blokuje(self):
+        blob = self._git("rev-parse", f"{self.baza}:README.md")
+        sha = self._tag("plik", "opis", blob)
+        rc, out = self._push_tagu(sha, "plik")
+        self.assertEqual(rc, 1, out)
+        self.assertIn("blob", out)
+
+    def test_nazwa_galezi_z_denylisty_blokuje(self):
+        sha = self._commit("docs/a.md", "zwykla zmiana\n", "docs: zmiana")
+        linia = f"refs/heads/main {sha} refs/heads/dla-kowalskiej {ZERO}\n"
+        rc, out = sprawdz(self.root, "mat", str(self.publiczne), linia, self.env)
+        self.assertEqual(rc, 1, out)
+
+    def test_f_numer_sklejony_z_litera_a_f_blokuje(self):
+        sha = self._commit("docs/a.md", f"klient id=a{nip_testowy()}\n", "docs: notatka")
+        rc, out = self._push(sha)
+        self.assertEqual(rc, 1, out)
+
+    def _origin_z_pushurl_publicznym(self, prywatny_stan: str) -> None:
+        self._git("config", "--add", "remote.origin.pushurl", str(self.prywatne))
+        self._git("config", "--add", "remote.origin.pushurl", str(self.publiczne))
+        self._git("update-ref", "refs/remotes/origin/main", prywatny_stan)
+
+    def test_g_pushurl_publiczny_bierze_stan_z_remote_publicznego(self):
+        # origin pobiera z PRYWATNEGO; jego refy maja commit z numerem, ktorego
+        # na publicznym nie ma. Bramka ma wziac refy 'mat' (url publiczny).
+        prywatny = self._commit("notatki/klient.md", f"numer {nip_testowy()}\n", "notatka")
+        self._origin_z_pushurl_publicznym(prywatny)
+        sha = self._commit("README.md", "czysto 2\n", "popraw readme")
+        rc, out = self._push(sha, remote="origin", url=str(self.publiczne))
+        self.assertEqual(rc, 1, out)
+        self.assertIn("notatki/klient.md", out)
+
+    def test_g_pushurl_publiczny_bez_remote_publicznego_blokuje(self):
+        prywatny = self._commit("docs/a.md", "zwykla zmiana\n", "docs: zmiana")
+        self._origin_z_pushurl_publicznym(prywatny)
+        self._git("remote", "remove", "mat")
+        rc, out = self._push(prywatny, remote="origin", url=str(self.publiczne))
+        self.assertEqual(rc, 1, out)
+        self.assertIn("pobiera z innego adresu", out)
+
+    def test_g_rozne_zapisy_tego_samego_adresu_to_jeden_remote(self):
+        from pre_push_gate import _norm
+        warianty = ("git@github.com:matematicsolutions/patron.git",
+                    "ssh://git@github.com/matematicsolutions/patron",
+                    "https://github.com/MateMaticSolutions/patron.git/")
+        self.assertEqual({_norm(u) for u in warianty}, {"github.com/matematicsolutions/patron"})
+
+    def test_nieczytelna_linia_refow_blokuje(self):
+        rc, out = sprawdz(self.root, "mat", str(self.publiczne), "smiec\n", self.env)
+        self.assertEqual(rc, 1, out)
 
     def test_obejscie_tylko_swiadome_i_glosne(self):
         sha = self._commit("docs/a.md", f"numer {nip_testowy()}\n", "wip")

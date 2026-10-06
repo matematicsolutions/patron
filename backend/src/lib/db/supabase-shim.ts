@@ -603,17 +603,31 @@ class Query implements PromiseLike<Result> {
     const { sql: where, params } = this.buildWhere();
     if (cols.length === 0) return { data: this.wantReturning ? [] : null, error: null };
     const setSql = cols.map((c) => `${c} = ?`).join(", ");
+    if (!this.wantReturning) {
+      try {
+        this.db
+          .prepare(`update ${this.table} set ${setSql}${where}`)
+          .run(...setParams, ...params);
+      } catch (e) {
+        return { data: null, error: toPgError(e) };
+      }
+      return { data: null, error: null };
+    }
+    // `.update().eq().select()` = UPDATE ... RETURNING, jak w PostgREST: wiersze
+    // FAKTYCZNIE zmienione przez ten UPDATE. Wczesniej shim robil ponowny SELECT
+    // z tym samym WHERE - filtr na kolumnie, ktora UPDATE zmienia (np.
+    // eq("status","pending") przy set status='approved'), dawal wtedy pusty
+    // wynik mimo zmiany, a compare-and-swap (audyt C-06) nie mial na czym stac.
+    let rows: Row[];
     try {
-      this.db
-        .prepare(`update ${this.table} set ${setSql}${where}`)
-        .run(...setParams, ...params);
+      rows = this.db
+        .prepare(
+          `update ${this.table} set ${setSql}${where} returning ${this.selectCols}`,
+        )
+        .all(...setParams, ...params) as Row[];
     } catch (e) {
       return { data: null, error: toPgError(e) };
     }
-    if (!this.wantReturning) return { data: null, error: null };
-    const rows = this.db
-      .prepare(`select ${this.selectCols} from ${this.table}${where}`)
-      .all(...params) as Row[];
     return this.applySingle(rows.map((r) => fromRow(this.table, r) as Row));
   }
 

@@ -18,6 +18,7 @@ import {
   PutObjectCommand,
   GetObjectCommand,
   DeleteObjectCommand,
+  ListObjectsV2Command,
 } from "@aws-sdk/client-s3";
 import { getSignedUrl as awsGetSignedUrl } from "@aws-sdk/s3-request-presigner";
 import fs from "fs";
@@ -148,18 +149,124 @@ export async function downloadFile(key: string): Promise<ArrayBuffer | null> {
 // Delete
 // ---------------------------------------------------------------------------
 
-export async function deleteFile(key: string): Promise<void> {
+/**
+ * Usuwa plik spod klucza. Zwraca `true`, gdy plik zostal usuniety, `false`, gdy
+ * go juz nie bylo (ENOENT - idempotentnie). KAZDY inny blad RZUCA.
+ *
+ * Do 2026-10 tryb fs polykal kazdy blad unlink jako "ENOENT" (audyt D-03): plik
+ * zablokowany przez inny proces (EBUSY/EPERM na Windows - antywirus, indeksator,
+ * kopia zapasowa) zostawal na dysku, a "zapomnij sprawe" raportowala go jako
+ * usuniety i kasowala rekord, ktory byl jedyna droga do niego. Wolajacy MUSI
+ * teraz zdecydowac, co zrobic z porazka.
+ *
+ * Tryb r2: S3 DeleteObject nie mowi, czy obiekt istnial - zwraca `true`.
+ */
+export async function deleteFile(key: string): Promise<boolean> {
   if (STORAGE_MODE === "fs") {
     try {
       await fs.promises.unlink(fsPathForKey(key));
-    } catch {
-      /* ENOENT - juz nie istnieje, ignoruj */
+      return true;
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException)?.code === "ENOENT") return false;
+      throw e;
     }
-    return;
   }
-  if (!r2Configured) return;
+  if (!r2Configured) return false;
   const client = getClient();
   await client.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: key }));
+  return true;
+}
+
+export interface PrefixDeleteResult {
+  /** Liczba usunietych obiektow (w trybie fs: wpisow katalogu pasujacych do prefiksu). */
+  deleted: number;
+  /** Klucze, ktorych nie udalo sie usunac, z powodem. */
+  failures: { key: string; error: string }[];
+}
+
+/**
+ * Usuwa wszystkie obiekty, ktorych klucz zaczyna sie od `prefix` (semantyka
+ * prefiksu S3). W trybie fs: wpisy katalogu `dirname(prefix)`, ktorych nazwa
+ * zaczyna sie od `basename(prefix)` (plik albo caly podkatalog).
+ *
+ * Po co: pliki zapisywane W TLE (podglad PDF, R-TI-04) moga powstac, zanim ich
+ * sciezka trafi do bazy - kasowanie wylacznie po sciezkach z document_versions
+ * ich nie widzi. Prefiks lapie je niezaleznie od stanu bazy.
+ *
+ * Nie rzuca na pojedynczym obiekcie - porazki wraca w `failures`. Rzuca tylko na
+ * niedozwolonym prefiksie (pusty, traversal) albo bledzie listowania.
+ */
+export async function deleteFilesByPrefix(
+  prefix: string,
+): Promise<PrefixDeleteResult> {
+  const out: PrefixDeleteResult = { deleted: 0, failures: [] };
+  const segments = prefix.split("/").filter(Boolean);
+  // Bezpiecznik: prefiks kasujacy cale drzewo (np. "converted-pdfs/") to blad
+  // wolajacego, nie zyczenie - wymagamy co najmniej <obszar>/<user>/<nazwa>.
+  if (segments.length < 3 || prefix.endsWith("/")) {
+    throw new Error(`[storage] prefiks zbyt szeroki: ${prefix}`);
+  }
+  if (STORAGE_MODE === "fs") {
+    const full = fsPathForKey(prefix);
+    const dir = path.dirname(full);
+    const base = path.basename(full);
+    let entries: fs.Dirent[];
+    try {
+      entries = await fs.promises.readdir(dir, { withFileTypes: true });
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException)?.code === "ENOENT") return out;
+      throw e;
+    }
+    for (const entry of entries) {
+      if (!entry.name.startsWith(base)) continue;
+      const target = path.join(dir, entry.name);
+      const key = [...segments.slice(0, -1), entry.name].join("/");
+      try {
+        if (entry.isDirectory()) {
+          await fs.promises.rm(target, { recursive: true });
+        } else {
+          await fs.promises.unlink(target);
+        }
+        out.deleted++;
+      } catch (e) {
+        if ((e as NodeJS.ErrnoException)?.code === "ENOENT") continue;
+        out.failures.push({ key, error: errorCode(e) });
+      }
+    }
+    return out;
+  }
+  if (!r2Configured) return out;
+  const client = getClient();
+  let token: string | undefined;
+  do {
+    const page = await client.send(
+      new ListObjectsV2Command({
+        Bucket: BUCKET,
+        Prefix: prefix,
+        ContinuationToken: token,
+      }),
+    );
+    for (const obj of page.Contents ?? []) {
+      if (!obj.Key) continue;
+      try {
+        await client.send(
+          new DeleteObjectCommand({ Bucket: BUCKET, Key: obj.Key }),
+        );
+        out.deleted++;
+      } catch (e) {
+        out.failures.push({ key: obj.Key, error: errorCode(e) });
+      }
+    }
+    token = page.IsTruncated ? page.NextContinuationToken : undefined;
+  } while (token);
+  return out;
+}
+
+/** Krotki opis bledu do raportu: kod systemowy (EBUSY/EPERM) albo komunikat. */
+export function errorCode(e: unknown): string {
+  const code = (e as NodeJS.ErrnoException | undefined)?.code;
+  if (typeof code === "string" && code) return code;
+  return e instanceof Error ? e.message : String(e);
 }
 
 // ---------------------------------------------------------------------------

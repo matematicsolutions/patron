@@ -15,6 +15,7 @@ import { completeText, type UserApiKeys } from "../llm";
 import { egressForModel } from "../routing/egress";
 import { createPseudonimMap } from "../pseudonim/map";
 import { wrapInto, unwrap } from "../pseudonim/wrap";
+import { plEntityDetector } from "../pseudonim/plDetector";
 
 export type AdwokatMode = "strona-przeciwna" | "sad" | "prokurator";
 export type DefenseStage = "recenzent" | "adwokat" | "pisz-po-ludzku";
@@ -265,14 +266,20 @@ export async function runDefensePipeline(
   // H14 (ADR-0068): maskuj PII PRZED wyjsciem do chmury. Pipeline robi do 3
   // wywolan LLM na drogim modelu - draft z PESEL/NIP nie moze isc jawnie do
   // dostawcy chmurowego. Model lokalny (no-egress, pilotaz Ollama) pomijany.
-  // Wylacznik PATRON_PSEUDONIM_EGRESS=false. Imiona LLM-noop = dlug FAZA 1 (B1).
+  // Wylacznik PATRON_PSEUDONIM_EGRESS=false. Osoby/spolki/adresy: ten sam
+  // deterministyczny detektor co czat (plEntityDetector) - wczesniej draft szedl
+  // z detektorem noop, a pole `context` bez zadnego maskowania (audyt 2026-09, A-04).
   const mask =
     process.env.PATRON_PSEUDONIM_EGRESS !== "false" &&
     egressForModel(config.model) !== "no-egress";
   const map = mask ? createPseudonimMap() : null;
+  const wrapOpts = { llmDetector: plEntityDetector };
   // `current` plynie zamaskowany przez wszystkie etapy (wspolna mapa = spojne
   // tokeny); output kazdego etapu pokazujemy odwrocony.
-  let current = map ? await wrapInto(map, draft) : draft;
+  let current = map ? await wrapInto(map, draft, wrapOpts) : draft;
+  if (map && config.context) {
+    config = { ...config, context: await wrapInto(map, config.context, wrapOpts) };
+  }
   const results: StageResult[] = [];
   // Zadania = wbudowane etapy (w kolejnosci) + custom etapy z paczek PO nich.
   // Custom etapy ida przez ten sam zamaskowany `current` (wspolna mapa PII).

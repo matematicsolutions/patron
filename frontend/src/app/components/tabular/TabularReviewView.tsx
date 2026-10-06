@@ -25,6 +25,10 @@ import type {
     TabularReview,
 } from "../shared/types";
 import { AddColumnModal } from "./AddColumnModal";
+import {
+    applyTabularStreamEvent,
+    regenerateErrorReason,
+} from "./tabularStream";
 import { AddDocumentsModal } from "../shared/AddDocumentsModal";
 import { AddProjectDocsModal } from "../shared/AddProjectDocsModal";
 import { PeopleModal } from "../shared/PeopleModal";
@@ -249,26 +253,40 @@ export function TRView({ reviewId, projectId }: Props) {
             setCells((prev) =>
                 prev.map((c) =>
                     c.document_id === docId && c.column_index === colIndex
-                        ? { ...c, status: "done" as const, content: result }
+                        ? {
+                              ...c,
+                              status: "done" as const,
+                              content: result,
+                              error_reason: undefined,
+                          }
                         : c,
                 ),
             );
             setExpandedCell((prev) =>
                 prev
-                    ? { ...prev, status: "done" as const, content: result }
+                    ? {
+                          ...prev,
+                          status: "done" as const,
+                          content: result,
+                          error_reason: undefined,
+                      }
                     : null,
             );
         } catch (err) {
             console.error("Regeneration failed", err);
+            // D-11: 422 document_no_text niesie powod - komorka mowi, czemu.
+            const reason = regenerateErrorReason(err);
             setCells((prev) =>
                 prev.map((c) =>
                     c.document_id === docId && c.column_index === colIndex
-                        ? { ...c, status: "error" as const }
+                        ? { ...c, status: "error" as const, error_reason: reason }
                         : c,
                 ),
             );
             setExpandedCell((prev) =>
-                prev ? { ...prev, status: "error" as const } : null,
+                prev
+                    ? { ...prev, status: "error" as const, error_reason: reason }
+                    : null,
             );
         }
     }
@@ -389,21 +407,10 @@ export function TRView({ reviewId, projectId }: Props) {
                     const dataStr = line.slice(5).trim();
                     if (dataStr === "[DONE]") break;
                     try {
-                        const data = JSON.parse(dataStr);
-                        if (data.type === "cell_update") {
-                            setCells((prev) =>
-                                prev.map((c) =>
-                                    c.document_id === data.document_id &&
-                                    c.column_index === data.column_index
-                                        ? {
-                                              ...c,
-                                              content: data.content,
-                                              status: data.status,
-                                          }
-                                        : c,
-                                ),
-                            );
-                        }
+                        const data: unknown = JSON.parse(dataStr);
+                        // cell_update (z `reason`, D-11) i document_truncated
+                        // (D-15) - jedna czysta funkcja, testowana osobno.
+                        setCells((prev) => applyTabularStreamEvent(prev, data));
                     } catch {}
                 }
             }

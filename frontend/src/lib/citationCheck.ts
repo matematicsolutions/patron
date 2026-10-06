@@ -6,6 +6,9 @@ import { getLocale, t, type TranslationKey } from "@/i18n";
 
 export type CitationKind = "signature" | "provision" | "unrecognized_act";
 
+/** Dlaczego pozycja nie wyszła: limit wywołań albo zatrzymana lokalnie (R-CC-01). */
+export type NotSentReason = "limit" | "not_court_signature" | "own_case_signature";
+
 export interface CheckedCitation {
     ref: string;
     kind: CitationKind;
@@ -21,6 +24,7 @@ export interface CheckedCitation {
     status: string;
     details: Record<string, unknown>;
     rejected_reason?: string;
+    not_sent_reason?: NotSentReason;
 }
 
 export type SentItem =
@@ -30,7 +34,7 @@ export type SentItem =
 export type CitationCheckResponse =
     | { status: "no_text"; filename: string }
     | {
-          status: "ok" | "partial" | "not_configured" | "failed" | "no_citations";
+          status: "ok" | "partial" | "not_configured" | "gateway_pending" | "failed" | "no_citations";
           filename: string;
           verifier: string;
           text: string;
@@ -39,12 +43,35 @@ export type CitationCheckResponse =
           windows: number;
           sent: SentItem[][];
           notSent: number;
+          /** Pozycje zatrzymane lokalnie (R-CC-01); brak pola = starszy backend. */
+          withheld?: number;
           asOf: string | null;
           checkedOn: string | null;
           snapshot: string | null;
           serverNotes: string[];
           failedCalls: number;
+          /**
+           * B-08 (ADR-0158): przy `gateway_pending` - wartosci, ktore Operator
+           * wpisuje w `gatewayApproval` (skroty SHA-256, bez adresu i klucza).
+           */
+          gatewayApproval?: GatewayApprovalHint;
       };
+
+export interface GatewayApprovalHint {
+    server: string;
+    hash: string;
+    origin: string;
+    reason: "missing" | "hash_mismatch";
+}
+
+/** Fragment do wklejenia we wpis konektora w nakladce Operatora (ADR-0158). */
+export function gatewayApprovalSnippet(g: GatewayApprovalHint): string {
+    return JSON.stringify(
+        { gatewayApproval: { hash: g.hash, origin: g.origin, approvedAt: "RRRR-MM-DD", approvedBy: "..." } },
+        null,
+        2,
+    );
+}
 
 export type CheckedResponse = Exclude<CitationCheckResponse, { status: "no_text" }>;
 
@@ -84,6 +111,8 @@ export function severityOf(c: Pick<CheckedCitation, "status" | "details">): Seve
     if (WARN.has(c.status)) return "warn";
     return "none";
 }
+
+const NOT_SENT_REASONS: readonly string[] = ["limit", "not_court_signature", "own_case_signature"];
 
 const KNOWN_STATUSES = [
     "found", "ambiguous", "not_in_corpus", "unknown", "act_not_in_corpus",
@@ -132,7 +161,9 @@ export function detailLines(c: CheckedCitation): string[] {
     if (Array.isArray(d.changes_after_as_of) && d.changes_after_as_of.length)
         out.push(fill(t("citationCheck.changesAfter"), { n: d.changes_after_as_of.length }));
     if (typeof d.note === "string") out.push(d.note);
-    if (c.rejected_reason) out.push(c.rejected_reason);
+    if (typeof c.rejected_reason === "string") out.push(c.rejected_reason);
+    if (c.status === "not_sent" && c.not_sent_reason && NOT_SENT_REASONS.includes(c.not_sent_reason))
+        out.push(t(`citationCheck.notSentReason.${c.not_sent_reason}` as TranslationKey));
     return out;
 }
 
@@ -208,6 +239,7 @@ export function buildReportHtml(r: CheckedResponse, generatedAt: Date): string {
         statusNote(r),
         r.withoutAct ? fill(t("citationCheck.withoutAct"), { n: r.withoutAct }) : null,
         r.notSent ? fill(t("citationCheck.notSentCount"), { n: r.notSent }) : null,
+        r.withheld ? fill(t("citationCheck.withheldCount"), { n: r.withheld }) : null,
     ].filter((x): x is string => !!x);
     return `<!doctype html>
 <html lang="${getLocale() === "pl" ? "pl" : "en"}"><head><meta charset="utf-8">
@@ -233,7 +265,7 @@ ${uwagi.map((u) => `<div class="note">${esc(u)}</div>`).join("\n")}
 <tbody>
 ${wiersze}
 </tbody></table>
-${r.serverNotes.length ? `<h2 style="font-size:15px">${esc(t("citationCheck.serverNotes"))}</h2>${r.serverNotes.map((n) => `<div class="note">${esc(n)}</div>`).join("\n")}` : ""}
+${r.serverNotes.length ? `<h2 style="font-size:15px">${esc(t("citationCheck.serverNotes"))}</h2>${r.serverNotes.map((n) => `<div class="note">${esc(String(n))}</div>`).join("\n")}` : ""}
 <h2 style="font-size:15px">${esc(t("citationCheck.reportSent"))}</h2>
 <pre>${esc(JSON.stringify(r.sent, null, 2))}</pre>
 </body></html>
@@ -241,10 +273,16 @@ ${r.serverNotes.length ? `<h2 style="font-size:15px">${esc(t("citationCheck.serv
 }
 
 /** Nota o stanie całego sprawdzenia (null, gdy wszystko sprawdzone). */
-export function statusNote(r: Pick<CheckedResponse, "status">): string | null {
+export function statusNote(
+    r: Pick<CheckedResponse, "status"> & Partial<Pick<CheckedResponse, "verifier" | "gatewayApproval">>,
+): string | null {
     switch (r.status) {
         case "not_configured":
             return t("citationCheck.statusNotConfigured");
+        case "gateway_pending":
+            return fill(t("citationCheck.statusGatewayPending"), {
+                server: r.gatewayApproval?.server ?? r.verifier ?? "",
+            });
         case "failed":
             return t("citationCheck.statusFailed");
         case "partial":

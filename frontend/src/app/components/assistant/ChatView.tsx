@@ -26,6 +26,7 @@ import type {
 } from "../shared/types";
 import { useSidebar } from "@/app/contexts/SidebarContext";
 import { invalidateDocxBytes } from "@/app/hooks/useFetchDocxBytes";
+import { modelOfTurn } from "./turnModel";
 
 interface Props {
     messages: PATRONMessage[];
@@ -571,6 +572,9 @@ export function ChatView({
                                                 resolvedEditStatuses={
                                                     resolvedEditStatuses
                                                 }
+                                                // A-05: draft z tej odpowiedzi idzie
+                                                // modelem tury (czat poza sprawa).
+                                                model={modelOfTurn(messages, i)}
                                             />
                                         )}
                                     </div>

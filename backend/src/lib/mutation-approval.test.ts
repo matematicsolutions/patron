@@ -58,15 +58,19 @@ describe("canTransition (reguly przejsc, fail-closed)", () => {
     });
 });
 
-describe("isMutationApprovalEnabled (env opt-in)", () => {
-    it("domyslnie OFF; ON tylko przy PATRON_MUTATION_APPROVAL=true", () => {
+describe("isMutationApprovalEnabled (domyslnie ON, wylacznik =false)", () => {
+    it("domyslnie ON (ADR-0137, aktualizacja 2026-10-06); OFF tylko przy jawnym false/off/0/no", () => {
         const prev = process.env.PATRON_MUTATION_APPROVAL;
         delete process.env.PATRON_MUTATION_APPROVAL;
-        expect(mod.isMutationApprovalEnabled()).toBe(false);
+        expect(mod.isMutationApprovalEnabled()).toBe(true);
+        process.env.PATRON_MUTATION_APPROVAL = "";
+        expect(mod.isMutationApprovalEnabled()).toBe(true);
         process.env.PATRON_MUTATION_APPROVAL = "true";
         expect(mod.isMutationApprovalEnabled()).toBe(true);
-        process.env.PATRON_MUTATION_APPROVAL = "1";
-        expect(mod.isMutationApprovalEnabled()).toBe(false);
+        for (const off of ["false", "FALSE", " off ", "0", "no"]) {
+            process.env.PATRON_MUTATION_APPROVAL = off;
+            expect(mod.isMutationApprovalEnabled(), off).toBe(false);
+        }
         if (prev === undefined) delete process.env.PATRON_MUTATION_APPROVAL;
         else process.env.PATRON_MUTATION_APPROVAL = prev;
     });
@@ -78,11 +82,18 @@ describe("mutationStagingMode + shouldStageMutation (US3 polityka, ADR-0092)", (
         else process.env.PATRON_MUTATION_APPROVAL = v;
     };
 
-    it("mode: brak/inne=off, true|all=all, high-stakes=high-stakes", () => {
+    it("mode: brak/inne=all (fail-closed), false|off=off, high-stakes=high-stakes", () => {
         const prev = process.env.PATRON_MUTATION_APPROVAL;
         setEnv(undefined);
-        expect(mod.mutationStagingMode()).toBe("off");
+        expect(mod.mutationStagingMode()).toBe("all");
         setEnv("1");
+        expect(mod.mutationStagingMode()).toBe("all");
+        // Literowka nie wylacza bramki zapisu po cichu.
+        setEnv("flase");
+        expect(mod.mutationStagingMode()).toBe("all");
+        setEnv("false");
+        expect(mod.mutationStagingMode()).toBe("off");
+        setEnv("off");
         expect(mod.mutationStagingMode()).toBe("off");
         setEnv("true");
         expect(mod.mutationStagingMode()).toBe("all");
@@ -93,10 +104,12 @@ describe("mutationStagingMode + shouldStageMutation (US3 polityka, ADR-0092)", (
         setEnv(prev);
     });
 
-    it("off -> nie stage; all -> stage zawsze", () => {
+    it("off -> nie stage; all (takze domyslnie) -> stage zawsze", () => {
         const prev = process.env.PATRON_MUTATION_APPROVAL;
-        setEnv(undefined);
+        setEnv("false");
         expect(mod.shouldStageMutation().stage).toBe(false);
+        setEnv(undefined);
+        expect(mod.shouldStageMutation().stage).toBe(true);
         setEnv("all");
         expect(mod.shouldStageMutation().stage).toBe(true);
         setEnv(prev);
@@ -204,6 +217,69 @@ describe("approveMutationApproval (wykonuje + audytuje)", () => {
         expect(res.card!.execution_error).toBe("dokument zmieniony");
     });
 
+    it("C-08: wykonanie czesciowe -> karta oznaczona, audit niesie same liczby", async () => {
+        const card = await mod.stageMutationApproval(db, {
+            userId: "u1",
+            documentId: docId,
+            toolName: "edit_document",
+            toolPayload: { edits: [{}, {}, {}] },
+        });
+        const res = await mod.approveMutationApproval(
+            db,
+            { id: card!.id, userId: "u1", actorId: "u1" },
+            async () => ({
+                ok: true,
+                counts: { requested: 3, applied: 1, failed: 2 },
+                failures: [
+                    { index: 1, reason: 'Could not locate find="TAJNY-FRAGMENT-1"' },
+                    { index: 2, reason: "Overlaps a previous edit in the same paragraph." },
+                ],
+                result: { applied: 1 },
+            }),
+        );
+        expect(res.ok).toBe(true);
+        expect(mod.isPartialExecution(res.execution!)).toBe(true);
+        expect(res.card!.status).toBe("approved");
+        expect(res.card!.executed_at).not.toBeNull();
+        expect(res.card!.execution_error).toMatch(/zastosowano 1 z 3/);
+        expect(res.card!.execution_error).toMatch(/#2: Could not locate/);
+
+        const { data } = await db
+            .from("audit_log")
+            .select("payload")
+            .eq("event_type", "mutation.approval.decision");
+        const payloads = (data as { payload: unknown }[]).map((r) =>
+            typeof r.payload === "string" ? JSON.parse(r.payload) : r.payload,
+        ) as Record<string, unknown>[];
+        const mine = payloads.find((p) => p.approval_id === card!.id)!;
+        expect(mine).toMatchObject({
+            executed: true,
+            partial: true,
+            execution_error_present: true,
+            requested: 3,
+            applied: 1,
+            failed: 2,
+        });
+        // Minimalizacja: powody (moga cytowac dokument) NIE ida do audit_log.
+        expect(JSON.stringify(mine)).not.toContain("TAJNY-FRAGMENT-1");
+    });
+
+    it("C-08: pelny sukces z liczbami -> execution_error null, partial=false", async () => {
+        const card = await mod.stageMutationApproval(db, {
+            userId: "u1",
+            documentId: docId,
+            toolName: "add_comments",
+            toolPayload: {},
+        });
+        const res = await mod.approveMutationApproval(
+            db,
+            { id: card!.id, userId: "u1", actorId: "u1" },
+            async () => ({ ok: true, counts: { requested: 2, applied: 2, failed: 0 }, failures: [] }),
+        );
+        expect(mod.isPartialExecution(res.execution!)).toBe(false);
+        expect(res.card!.execution_error).toBeNull();
+    });
+
     it("fail-closed: brak karty -> 404; powtorne approve -> 409; nie-czlowiek -> 403", async () => {
         expect(
             (await mod.approveMutationApproval(db, { id: "nope", userId: "u1", actorId: "u1" }, async () => ({ ok: true }))).status,
@@ -258,5 +334,139 @@ describe("rejectMutationApproval (zamyka + audytuje, bez wykonania)", () => {
         await mod.rejectMutationApproval(db, { id: card!.id, userId: "u1", actorId: "u1" });
         const second = await mod.rejectMutationApproval(db, { id: card!.id, userId: "u1", actorId: "u1" });
         expect(second.status).toBe(409);
+    });
+});
+
+// Audyt 2026-09 C-06: przejscie stanu karty musi byc ATOMOWE. Na czystym shimie
+// zapytania koncza sie w mikrozadaniach, wiec wyscig sie nie ujawnia - baze
+// serwerowa (Postgres przez siec) symuluje ten sam shim z opoznieniem I/O na
+// kazdym zapytaniu (kolejnosc i semantyka zapytan bez zmian).
+function zOpoznieniem(baza: any, ms = 3): any {
+    const owin = (q: any): any =>
+        new Proxy(q, {
+            get(t, prop) {
+                if (prop === "then") {
+                    return (ok: any, ko: any) =>
+                        new Promise((r) => setTimeout(r, ms)).then(() => t.then(ok, ko));
+                }
+                const v = t[prop];
+                if (typeof v !== "function") return v;
+                return (...args: any[]) => {
+                    const out = v.apply(t, args);
+                    return out === t ? owin(t) : out && typeof out === "object" ? owin(out) : out;
+                };
+            },
+        });
+    return { ...baza, from: (table: string) => owin(baza.from(table)) };
+}
+
+/** Decyzje karty w audit_log - bez zdarzenia stagingu (phase "staged", C-09). */
+async function decyzjeKarty(id: string): Promise<unknown[]> {
+    const { data } = await db
+        .from("audit_log")
+        .select("payload")
+        .eq("event_type", "mutation.approval.decision");
+    return (data ?? [])
+        .map((r: { payload: Record<string, unknown> }) => r.payload)
+        .filter((p: Record<string, unknown>) => p.approval_id === id && p.phase !== "staged")
+        .map((p: Record<string, unknown>) => p.decision);
+}
+
+describe("C-06: atomowe przejscie pending -> decyzja (baza z opoznieniem I/O)", () => {
+    it("dwa rownolegle approve: jedno wykonanie, przegrany 409 bez wpisu decyzji", async () => {
+        const wolna = zOpoznieniem(db);
+        const card = await mod.stageMutationApproval(db, { userId: "u1", toolName: "generate_docx", toolPayload: {} });
+        let wykonan = 0;
+        const executor = async () => {
+            wykonan++;
+            await new Promise((r) => setTimeout(r, 10));
+            return { ok: true };
+        };
+        const params = { id: card!.id, userId: "u1", actorId: "u1" };
+        const [a, b] = await Promise.all([
+            mod.approveMutationApproval(wolna, params, executor),
+            mod.approveMutationApproval(wolna, params, executor),
+        ]);
+        expect(wykonan).toBe(1);
+        expect([a.ok, b.ok].sort()).toEqual([false, true]);
+        expect((a.ok ? b : a).status).toBe(409);
+        expect(await decyzjeKarty(card!.id)).toEqual(["approved"]);
+    });
+
+    it("approve || reject: jedna decyzja, a stan karty zgodny z wykonaniem", async () => {
+        const wolna = zOpoznieniem(db);
+        const card = await mod.stageMutationApproval(db, { userId: "u1", toolName: "generate_docx", toolPayload: {} });
+        let wykonan = 0;
+        const [a, r] = await Promise.all([
+            mod.approveMutationApproval(wolna, { id: card!.id, userId: "u1", actorId: "u1" }, async () => {
+                wykonan++;
+                return { ok: true };
+            }),
+            mod.rejectMutationApproval(wolna, { id: card!.id, userId: "u1", actorId: "u1", reason: "nie" }),
+        ]);
+        expect([a.ok, r.ok].filter(Boolean)).toHaveLength(1);
+        expect((a.ok ? r : a).status).toBe(409);
+        const decyzje = await decyzjeKarty(card!.id);
+        const stan = (await mod.getApprovalById(db, "u1", card!.id))!.status;
+        if (wykonan > 0) {
+            expect(stan).toBe("approved");
+            expect(decyzje).toEqual(["approved"]);
+        } else {
+            expect(stan).toBe("rejected");
+            expect(decyzje).toEqual(["rejected"]);
+        }
+    });
+
+    it("reject ze stara migawka 'pending' nie nadpisuje karty juz zatwierdzonej", async () => {
+        const card = await mod.stageMutationApproval(db, { userId: "u1", toolName: "generate_docx", toolPayload: {} });
+        await mod.approveMutationApproval(db, { id: card!.id, userId: "u1", actorId: "u1" }, async () => ({ ok: true }));
+        // Odczyt w reject widzi 'pending' (migawka sprzed zatwierdzenia) -
+        // dokladnie okno wyscigu z C-06. Decyduje dopiero warunek w UPDATE.
+        const staraMigawka: any = {
+            ...db,
+            from: (table: string) => {
+                const q = db.from(table);
+                if (table === "mutation_approvals") {
+                    q.maybeSingle = async () => {
+                        const { data } = await db.from("mutation_approvals").select("*").eq("id", card!.id).single();
+                        return { data: { ...data, status: "pending" }, error: null };
+                    };
+                }
+                return q;
+            },
+        };
+        const res = await mod.rejectMutationApproval(staraMigawka, { id: card!.id, userId: "u1", actorId: "u1" });
+        expect(res.status).toBe(409);
+        expect((await mod.getApprovalById(db, "u1", card!.id))!.status).toBe("approved");
+        expect(await decyzjeKarty(card!.id)).toEqual(["approved"]);
+    });
+
+    it("blad zapisu decyzji: 500 fail-closed, bez wykonania i bez wpisu decyzji", async () => {
+        const card = await mod.stageMutationApproval(db, { userId: "u1", toolName: "generate_docx", toolPayload: {} });
+        const zepsuta: any = {
+            ...db,
+            from: (table: string) => {
+                const q = db.from(table);
+                if (table === "mutation_approvals") {
+                    q.update = () => {
+                        const blad: any = {
+                            eq: () => blad,
+                            select: () => Promise.resolve({ data: null, error: { message: "db down" } }),
+                        };
+                        return blad;
+                    };
+                }
+                return q;
+            },
+        };
+        let wykonan = 0;
+        const res = await mod.approveMutationApproval(zepsuta, { id: card!.id, userId: "u1", actorId: "u1" }, async () => {
+            wykonan++;
+            return { ok: true };
+        });
+        expect(res.status).toBe(500);
+        expect(wykonan).toBe(0);
+        expect(await decyzjeKarty(card!.id)).toEqual([]);
+        expect((await mod.getApprovalById(db, "u1", card!.id))!.status).toBe("pending");
     });
 });

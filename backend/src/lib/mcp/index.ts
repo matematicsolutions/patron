@@ -17,12 +17,17 @@ import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/
 import type { OpenAIToolSchema } from "../llm/types";
 import {
     APPROVED_PATRON_CONNECTORS,
+    awaitsOnlyThirdPartyApproval,
     buildScanContext,
+    isOriginDriftFinding,
     resolveOperatorApproval,
     scanMcpRegistry,
     type GatewayApproval,
+    type McpAction,
+    type McpFinding,
     type McpServerDefinition,
     type McpToolDefinition,
+    type OperatorApprovalStatus,
 } from "../mcp-security";
 import { recordMcpSecurityEvent, recordRingPolicyEvent } from "./audit-bridge";
 import { decideRing } from "./ring-policy";
@@ -30,10 +35,13 @@ import {
     operatorOverlayPath,
     readMergedConfig,
     writeEnabledToOverlay,
+    writeGatewayApprovalToOverlay,
 } from "./operator-overlay";
 import type { McpCitation, McpToolResult } from "./types";
+import { isVerifierServer, sanitizeVerifyArgs, verifierServerName, VERIFY_TOOL } from "./verifier";
 
 export type { McpCitation, McpToolResult } from "./types";
+export { verifierServerName, VERIFY_TOOL } from "./verifier";
 
 // ---------------------------------------------------------------------------
 // Config types
@@ -66,6 +74,10 @@ export interface McpServerConfig {
     // KONKRETNEJ definicji narzedzi. Niezalezne od operatorApproved (ring-policy,
     // runtime). Hash podaje log przy starcie; `denied` nie jest do zatwierdzenia.
     gatewayApproval?: GatewayApproval;
+    // B-06 / R-MCP-01 (ADR-0166): skad pochodzi wpis - ustawiane WYLACZNIE przez
+    // mergeOperatorOverlay, nigdy czytane z pliku. Ring 1 i zaufanie manifestu
+    // (ADR-0162) tylko dla "installer".
+    configSource?: "installer" | "operator-overlay";
 }
 
 // ---------------------------------------------------------------------------
@@ -81,8 +93,68 @@ const _toolRegistry = new Map<
 // w fazie 3 getMcpTools(). Czytana w runMcpTool zeby decideRing mial dostep
 // do pol trustLevel/operatorApproved konektora.
 const _serverConfigByName = new Map<string, McpServerConfig>();
+// B-08 (decyzja wlasciciela produktu 2026-10-06): serwery, ktorych werdykt
+// `human_review` Operator zatwierdzil W TYM PROCESIE zgodnym `gatewayApproval`
+// (hash definicji + odcisk pochodzenia, ADR-0158). Ustawiane WYLACZNIE w
+// getMcpTools po resolveOperatorApproval === "approved" - nigdy z pliku
+// konfiguracji, wiec pole o tej nazwie w nakladce niczego nie daje. Czytane w
+// callRegisteredTool: to jedno zatwierdzenie dopuszcza tez wywolania Ring 2.
+const _gatewayApprovedServers = new Set<string>();
+// Stan bramy per serwer z ostatniego skanu (do trasy "Sprawdz powolania" i
+// pickera konektorow): czy konektor czeka na zatwierdzenie Operatora.
+const _gatewayStateByName = new Map<string, McpGatewayState>();
 // cached list of OpenAIToolSchema[]
 let _cachedTools: OpenAIToolSchema[] | null = null;
+
+/**
+ * Stan konektora po skanie bramy przy starcie (B-08 / ADR-0158). Bez sekretow:
+ * hash definicji i odcisk pochodzenia to skroty SHA-256, adres i klucz nie
+ * wchodza.
+ */
+export interface McpGatewayState {
+    /** Werdykt skanera (przed decyzja Operatora). */
+    gatewayAction: McpAction;
+    /** Decyzja Operatora wzgledem werdyktu (resolveOperatorApproval). */
+    approval: OperatorApprovalStatus;
+    /** Czy narzedzia zostaly zarejestrowane. */
+    registered: boolean;
+    /**
+     * `human_review` wynika wylacznie z tego, ze konektor jest nieznany (nowy
+     * 3rd-party), a nie z podejrzanego sygnalu (dryf, podobna nazwa, ukryte
+     * instrukcje) - UI pokazuje "czeka na zatwierdzenie", nie alarm.
+     */
+    unknownThirdPartyOnly: boolean;
+    /** Wartosci do wpisania w `gatewayApproval` po przegladzie zastrzezen. */
+    approvalHash: string;
+    approvalOrigin: string;
+    /**
+     * Zastrzezenia skanera (te same 3 pola co w audycie, ADR-0033) - Operator
+     * widzi je w panelu konektorow PRZED zatwierdzeniem.
+     */
+    findings: ReadonlyArray<Pick<McpFinding, "detector" | "severity" | "message">>;
+}
+
+/**
+ * Konektor czeka na zatwierdzenie Operatora: werdykt `human_review` bez
+ * zgodnego `gatewayApproval` (brak albo zatwierdzenie innej definicji).
+ */
+export function isAwaitingOperatorApproval(state: McpGatewayState | undefined): boolean {
+    return (
+        !!state &&
+        !state.registered &&
+        state.gatewayAction === "human_review" &&
+        (state.approval === "missing" || state.approval === "hash_mismatch")
+    );
+}
+
+/**
+ * Stan bramy dla konektora z ostatniego skanu w tym procesie. `undefined` =
+ * konektor nie byl skanowany (brak wpisu, wylaczony, nie wstal albo
+ * getMcpTools jeszcze nie bylo wolane).
+ */
+export function getGatewayState(serverName: string): McpGatewayState | undefined {
+    return _gatewayStateByName.get(serverName);
+}
 
 // ---------------------------------------------------------------------------
 // Config loading
@@ -159,8 +231,22 @@ function mergedConfig(): McpServerConfig[] {
     return configs;
 }
 
-function loadConfig(): McpServerConfig[] {
-    return mergedConfig().filter((s) => s.enabled !== false).map(resolveStdioSpawn);
+/**
+ * Wpis do uruchomienia: `spawn` po rozwiazaniu sciezek (resolveStdioSpawn) i
+ * `declared` w postaci z konfiguracji. Odcisk pochodzenia (B-06) liczymy z
+ * `declared`: sciezki instalatora sa tam wzgledne wobec katalogu zasobow, a
+ * `node` nie jest jeszcze podmieniony na process.execPath - przeniesienie
+ * instalacji w inne miejsce nie zmienia odcisku.
+ */
+interface LoadedConfig {
+    spawn: McpServerConfig;
+    declared: McpServerConfig;
+}
+
+function loadConfig(): LoadedConfig[] {
+    return mergedConfig()
+        .filter((s) => s.enabled !== false)
+        .map((declared) => ({ declared, spawn: resolveStdioSpawn(declared) }));
 }
 
 // ---------------------------------------------------------------------------
@@ -192,6 +278,22 @@ export function setConnectorEnabledInConfig(
     return writeEnabledToOverlay(operatorOverlayPath(), name, enabled);
 }
 
+/**
+ * Zapisuje zatwierdzenie bramy (`gatewayApproval`) konektora do NAKLADKI
+ * Operatora (B-08 / ADR-0158). NIE sprawdza, czy zatwierdzenie odpowiada
+ * biezacemu skanowi - to robi connectors.ts (approveConnectorGateway).
+ * Wchodzi w zycie po restarcie (rejestracja przy starcie, getMcpTools).
+ */
+export function setGatewayApprovalInConfig(
+    name: string,
+    approval: { hash: string; origin: string; approvedAt: string; approvedBy: string },
+): { ok: boolean; error?: string } {
+    if (!mergedConfig().some((s) => s.name === name)) {
+        return { ok: false, error: `connector "${name}" not found` };
+    }
+    return writeGatewayApprovalToOverlay(operatorOverlayPath(), name, approval);
+}
+
 // ---------------------------------------------------------------------------
 // Build OpenAIToolSchema from MCP tool definition
 // ---------------------------------------------------------------------------
@@ -221,6 +323,8 @@ function mcpToolToOpenAI(
 
 interface DiscoveredServer {
     cfg: McpServerConfig;
+    /** Konfiguracja jak zapisana (przed resolveStdioSpawn) - zrodlo odcisku pochodzenia. */
+    declared?: McpServerConfig;
     client: Client;
     tools: ReadonlyArray<{ name: string; description?: string; inputSchema?: unknown }>;
     ok: boolean;
@@ -359,6 +463,7 @@ export function loadBundledDefinitions(): Map<string, string> {
 }
 
 function toMcpServerDefinition(d: DiscoveredServer): McpServerDefinition {
+    const declared = d.declared ?? d.cfg;
     const toolDefs: McpToolDefinition[] = d.tools.map((t) => ({
         name: t.name,
         description: t.description ?? "",
@@ -370,10 +475,11 @@ function toMcpServerDefinition(d: DiscoveredServer): McpServerDefinition {
     return {
         name: d.cfg.name,
         transport: d.cfg.transport,
-        command: d.cfg.command,
-        args: d.cfg.args,
-        url: d.cfg.url,
+        command: declared.command,
+        args: declared.args,
+        url: declared.url,
         tools: toolDefs,
+        ...(declared.configSource !== undefined && { configSource: declared.configSource }),
     };
 }
 
@@ -390,7 +496,10 @@ function toMcpServerDefinition(d: DiscoveredServer): McpServerDefinition {
  * PRZED registracja toolow. Decyzje:
  * - allowed: tools rejestrowane, baseline zaktualizowany
  * - audit: tools rejestrowane, findings logowane (informational)
- * - human_review / denied: tools NIE rejestrowane, warning, client zamykany
+ * - human_review: tools NIE rejestrowane, chyba ze Operator wpisal zgodne
+ *   `gatewayApproval` (ADR-0158) - wtedy rejestrowane i dopuszczone w Ring 2.
+ *   Nieznany konektor 3rd-party zawsze trafia tutaj (B-08).
+ * - denied: tools NIE rejestrowane, warning, client zamykany
  */
 export async function getMcpTools(): Promise<OpenAIToolSchema[]> {
     if (_cachedTools !== null) {
@@ -405,7 +514,9 @@ export async function getMcpTools(): Promise<OpenAIToolSchema[]> {
     }
 
     // Faza 1: collect (connect + listTools, bez registracji w _toolRegistry)
-    const discovered = await Promise.all(configs.map(connectAndDiscover));
+    const discovered = await Promise.all(
+        configs.map(async (c) => ({ ...(await connectAndDiscover(c.spawn)), declared: c.declared })),
+    );
     const ok = discovered.filter((d) => d.ok);
 
     if (ok.length === 0) {
@@ -433,6 +544,7 @@ export async function getMcpTools(): Promise<OpenAIToolSchema[]> {
             result.action,
             definitions[i],
             d.cfg.gatewayApproval,
+            { originChanged: result.findings.some(isOriginDriftFinding) },
         );
         const cfgApproval = d.cfg.gatewayApproval;
         const operatorApproval =
@@ -450,13 +562,30 @@ export async function getMcpTools(): Promise<OpenAIToolSchema[]> {
                       }),
                   };
         const action = approval.status === "approved" ? "audit" : result.action;
+        const unknownThirdPartyOnly = awaitsOnlyThirdPartyApproval(result.findings);
+        _gatewayStateByName.set(d.cfg.name, {
+            gatewayAction: result.action,
+            approval: approval.status,
+            registered: approval.register,
+            unknownThirdPartyOnly,
+            approvalHash: approval.approvalHash,
+            approvalOrigin: approval.approvalOrigin,
+            findings: result.findings.map((f) => ({
+                detector: f.detector,
+                severity: f.severity,
+                message: f.message,
+            })),
+        });
 
         if (approval.register) {
             registerTools(d.client, d.cfg.name, d.tools, d.cfg);
             newBaseline.set(d.cfg.name, result.currentHash);
             if (approval.status === "approved") {
+                // B-08: zgodne zatwierdzenie bramy (hash + pochodzenie) jest tez
+                // zgoda na wywolania w Ring 2 - jeden swiadomy krok Operatora.
+                _gatewayApprovedServers.add(d.cfg.name);
                 console.warn(
-                    `[MCP-SECURITY] Server "${d.cfg.name}" human_review ZATWIERDZONY przez Operatora (hash=${approval.approvalHash}) - narzedzia zarejestrowane.`,
+                    `[MCP-SECURITY] Server "${d.cfg.name}" human_review ZATWIERDZONY przez Operatora (hash=${approval.approvalHash}) - narzedzia zarejestrowane, wywolania dopuszczone (Ring 2, ADR-0027/0158).`,
                 );
             }
             if (action === "audit" || result.findings.length > 0) {
@@ -483,8 +612,17 @@ export async function getMcpTools(): Promise<OpenAIToolSchema[]> {
                     );
                 });
             }
-            for (const t of d.tools) {
-                tools.push(mcpToolToOpenAI(d.cfg.name, t));
+            // R-CC-07 (ADR-0157): narzedzia serwera weryfikatora powolan sa
+            // zarejestrowane (trasa "Sprawdz powolania" ich potrzebuje), ale NIE
+            // trafiaja do listy narzedzi modelu czatu - tryb `text` wyslalby cale pismo.
+            if (isVerifierServer(d.cfg.name)) {
+                console.log(
+                    `[MCP] "${d.cfg.name}" to weryfikator powolan (ADR-0157) - narzedzia niedostepne dla czatu.`,
+                );
+            } else {
+                for (const t of d.tools) {
+                    tools.push(mcpToolToOpenAI(d.cfg.name, t));
+                }
             }
         } else {
             console.warn(
@@ -498,8 +636,10 @@ export async function getMcpTools(): Promise<OpenAIToolSchema[]> {
             if (approval.status === "missing" || approval.status === "hash_mismatch") {
                 // Sciezka decyzji dla czlowieka (ADR-0158): po przegladzie findings
                 // Operator wpisuje ten hash - i tylko ta definicja przechodzi.
+                // B-08: to JEDYNY krok - zgodne zatwierdzenie bramy dopuszcza tez
+                // wywolania Ring 2 (operatorApproved nie jest juz potrzebne).
                 console.warn(
-                    `[MCP-SECURITY]   ${approval.status === "hash_mismatch" ? "Zatwierdzenie w mcp-servers.json dotyczy INNEJ definicji (narzedzia sie zmienily). " : ""}Po przegladzie findings Operator moze zatwierdzic te definicje: "gatewayApproval": { "hash": "${approval.approvalHash}", "approvedAt": "RRRR-MM-DD", "approvedBy": "..." } w mcp-servers.json.`,
+                    `[MCP-SECURITY]   ${unknownThirdPartyOnly ? "Nowy konektor spoza zaufanego zestawu czeka na zatwierdzenie Operatora (B-08). " : ""}${approval.status === "hash_mismatch" ? "Zatwierdzenie w nakladce Operatora dotyczy INNEJ definicji albo innego pochodzenia konektora (narzedzia, komenda lub host sie zmienily). " : ""}Po przegladzie findings Operator zatwierdza te definicje w panelu "Konektory prawa" (przycisk "Przejrzyj i zatwierdz") albo recznie JEDNYM wpisem: "gatewayApproval": { "hash": "${approval.approvalHash}", "origin": "${approval.approvalOrigin}", "approvedAt": "RRRR-MM-DD", "approvedBy": "..." } we wpisie konektora w nakladce Operatora ${operatorOverlayPath()} (mcp-servers.json z katalogu instalacji kasuje aktualizacja, ADR-0166), potem restart PATRONa. To zatwierdzenie dopuszcza tez wywolania narzedzi (Ring 2) - osobne operatorApproved nie jest potrzebne.`,
                 );
             }
             // ADR-0033: propagacja decyzji Gateway do audit hash-chain.
@@ -530,10 +670,38 @@ export async function getMcpTools(): Promise<OpenAIToolSchema[]> {
 
 /**
  * Returns true when the given tool name belongs to an MCP server
- * (i.e. was registered via getMcpTools).
+ * (i.e. was registered via getMcpTools) AND is a chat tool. Narzedzia serwera
+ * weryfikatora powolan (R-CC-07) nie sa narzedziami czatu - model, ktory poda
+ * ich nazwe mimo braku w schemacie, nie dostaje wywolania.
  */
 export function isMcpTool(name: string): boolean {
-    return _toolRegistry.has(name);
+    const entry = _toolRegistry.get(name);
+    return !!entry && !isVerifierServer(entry.serverName);
+}
+
+/** Czy weryfikator powolan (`<serwer>__verify_citations`) jest zarejestrowany. */
+export function hasCitationVerifier(): boolean {
+    return _toolRegistry.has(`${verifierServerName()}__${VERIFY_TOOL}`);
+}
+
+/**
+ * Jedyne wejscie do `verify_citations` (trasa "Sprawdz powolania", ADR-0157).
+ * Argumenty przechodza przez biala liste trybu listy (`sanitizeVerifyArgs`):
+ * `text` i kazde inne pole nie wychodza, niezaleznie od tego, co poda wolajacy.
+ */
+export async function runCitationVerifier(
+    input: Record<string, unknown>,
+): Promise<McpToolResult> {
+    const name = `${verifierServerName()}__${VERIFY_TOOL}`;
+    const entry = _toolRegistry.get(name);
+    if (!entry) {
+        return {
+            text: JSON.stringify({ error: `MCP tool "${name}" is not registered.` }),
+            citations: [],
+            isError: true,
+        };
+    }
+    return callRegisteredTool(name, entry, sanitizeVerifyArgs(input));
 }
 
 /**
@@ -558,7 +726,25 @@ export async function runMcpTool(
             isError: true,
         };
     }
+    // R-CC-07: serwer weryfikatora nie jest dostepny z czatu - takze wtedy, gdy
+    // model poda nazwe narzedzia, ktorej nie dostal w schemacie.
+    if (isVerifierServer(entry.serverName)) {
+        return {
+            text: JSON.stringify({
+                error: `MCP tool "${name}" is reserved for the citation check (ADR-0157) and is not available in chat.`,
+            }),
+            citations: [],
+            isError: true,
+        };
+    }
+    return callRegisteredTool(name, entry, input);
+}
 
+async function callRegisteredTool(
+    name: string,
+    entry: { client: Client; originalName: string; serverName: string },
+    input: Record<string, unknown>,
+): Promise<McpToolResult> {
     const serverName = entry.serverName;
     const toolName = entry.originalName;
 
@@ -566,7 +752,14 @@ export async function runMcpTool(
     // decideRing jest pure function; audit dziala w trybie wyslij-i-zapomnij
     // (Konstytucja Art. 8 stalosc kontraktow - porazka audit nie blokuje tool call).
     const cfg = _serverConfigByName.get(serverName);
-    const decision = decideRing(serverName, cfg);
+    // Pola ring-policy skladane jawnie: `gatewayApproved` pochodzi WYLACZNIE ze
+    // skanu w tym procesie (B-08), nigdy z pliku konfiguracji.
+    const decision = decideRing(serverName, {
+        trustLevel: cfg?.trustLevel,
+        operatorApproved: cfg?.operatorApproved,
+        configSource: cfg?.configSource,
+        gatewayApproved: _gatewayApprovedServers.has(serverName),
+    });
     void recordRingPolicyEvent({
         toolName: name,
         serverName,
@@ -580,7 +773,7 @@ export async function runMcpTool(
 
     if (decision.action === "deny") {
         console.warn(
-            `[RING-POLICY] Tool "${name}" DENIED (ring=${decision.ring}, reason=${decision.reason}). Add operatorApproved=true in mcp-servers.json to allow.`,
+            `[RING-POLICY] Tool "${name}" DENIED (ring=${decision.ring}, reason=${decision.reason}). Add operatorApproved=true to its entry in the operator overlay ${operatorOverlayPath()} to allow (the installer copy of mcp-servers.json is replaced on update, ADR-0166).`,
         );
         return {
             text: JSON.stringify({

@@ -10,9 +10,13 @@ import type { ConnectorInfo } from "@/app/lib/patronApi";
 
 const getConnectors = vi.fn();
 const setConnectorEnabled = vi.fn();
+const getConnectorGateway = vi.fn();
+const approveConnectorGateway = vi.fn();
 vi.mock("@/app/lib/patronApi", () => ({
     getConnectors: (...a: unknown[]) => getConnectors(...a),
     setConnectorEnabled: (...a: unknown[]) => setConnectorEnabled(...a),
+    getConnectorGateway: (...a: unknown[]) => getConnectorGateway(...a),
+    approveConnectorGateway: (...a: unknown[]) => approveConnectorGateway(...a),
 }));
 
 import ConnectorsPage from "./page";
@@ -31,6 +35,8 @@ function conn(over: Partial<ConnectorInfo>): ConnectorInfo {
 beforeEach(() => {
     getConnectors.mockReset();
     setConnectorEnabled.mockReset();
+    getConnectorGateway.mockReset();
+    approveConnectorGateway.mockReset();
 });
 
 describe("ConnectorsPage - picker konektorow (ADR-0133)", () => {
@@ -104,5 +110,92 @@ describe("ConnectorsPage - picker konektorow (ADR-0133)", () => {
         getConnectors.mockResolvedValueOnce([]);
         render(<ConnectorsPage />);
         await screen.findByText(t("connectors.empty"));
+    });
+
+    it("B-08: konektor czekajacy na zatwierdzenie Operatora ma plakietke i wskazowke (nie 'atak')", async () => {
+        getConnectors.mockResolvedValue([
+            conn({ name: "repertorium", toggleable: false, ring: 2, jurisdiction: "OTHER", gateway: "awaiting_operator_approval" }),
+            conn({ name: "saoss", toggleable: false, ring: 2, jurisdiction: "OTHER", gateway: "blocked" }),
+            conn({ name: "vendor-x", toggleable: false, ring: 2, jurisdiction: "OTHER" }),
+        ]);
+        render(<ConnectorsPage />);
+        await screen.findByText("repertorium");
+        expect(screen.getByTestId("connector-gateway-repertorium").textContent).toBe(t("connectors.gatewayAwaiting"));
+        expect(screen.getByText(t("connectors.gatewayAwaitingHint"))).toBeTruthy();
+        expect(screen.getByTestId("connector-gateway-saoss").textContent).toBe(t("connectors.gatewayBlocked"));
+        expect(screen.getByText(t("connectors.gatewayBlockedHint"))).toBeTruthy();
+        // Bez stanu bramy - dotychczasowa wskazowka.
+        expect(screen.queryByTestId("connector-gateway-vendor-x")).toBeNull();
+        expect(screen.getByText(t("connectors.operatorOnlyHint"))).toBeTruthy();
+    });
+
+    const H = "a".repeat(64);
+    const O = "b".repeat(64);
+    const czekajacy = () =>
+        conn({ name: "repertorium", toggleable: false, ring: 2, jurisdiction: "OTHER", gateway: "awaiting_operator_approval" });
+
+    it("B-08: przycisk tylko przy konektorze czekajacym; zatwierdzenie odsyla hash i origin z przegladu", async () => {
+        getConnectors.mockResolvedValue([
+            czekajacy(),
+            conn({ name: "saoss", toggleable: false, ring: 2, jurisdiction: "OTHER", gateway: "blocked" }),
+        ]);
+        getConnectorGateway.mockResolvedValue({
+            gatewayAction: "human_review", approval: "missing", unknownThirdPartyOnly: true,
+            hash: H, origin: O, findings: [],
+        });
+        approveConnectorGateway.mockResolvedValue({ ok: true, restartRequired: true, approvedAt: "x" });
+        render(<ConnectorsPage />);
+        await screen.findByText("repertorium");
+        expect(screen.queryByTestId("connector-approve-saoss")).toBeNull();
+        await act(async () => {
+            fireEvent.click(screen.getByTestId("connector-approve-repertorium"));
+        });
+        expect(getConnectorGateway).toHaveBeenCalledWith("repertorium");
+        await screen.findByText(t("connectors.approveUnknownOnly"));
+        expect(screen.getByText(t("connectors.approveFingerprint").replace("{hash}", H.slice(0, 16)))).toBeTruthy();
+        expect(approveConnectorGateway).not.toHaveBeenCalled(); // nic bez klikniecia "Zatwierdzam"
+        await act(async () => {
+            fireEvent.click(screen.getByTestId("connector-approve-confirm-repertorium"));
+        });
+        expect(approveConnectorGateway).toHaveBeenCalledWith("repertorium", { hash: H, origin: O });
+        await screen.findByText(t("connectors.approveDone"));
+        expect(screen.getByText(t("connectors.restartNote"))).toBeTruthy();
+        expect(screen.queryByTestId("connector-approve-repertorium")).toBeNull();
+    });
+
+    it("B-08: zastrzezenia bramy sa pokazane; odmowa serwera (nieaktualna definicja) nie udaje sukcesu", async () => {
+        getConnectors.mockResolvedValue([czekajacy()]);
+        getConnectorGateway.mockResolvedValue({
+            gatewayAction: "human_review", approval: "hash_mismatch", unknownThirdPartyOnly: false,
+            hash: H, origin: O,
+            findings: [{ detector: "drift", severity: "high", message: "zmienil sie opis narzedzia" }],
+        });
+        approveConnectorGateway.mockRejectedValue(
+            new Error(JSON.stringify({ code: "stale_definition", detail: "Definicja zmienila sie" })),
+        );
+        render(<ConnectorsPage />);
+        await screen.findByText("repertorium");
+        await act(async () => {
+            fireEvent.click(screen.getByTestId("connector-approve-repertorium"));
+        });
+        await screen.findByText("high: zmienil sie opis narzedzia");
+        await act(async () => {
+            fireEvent.click(screen.getByTestId("connector-approve-confirm-repertorium"));
+        });
+        await screen.findByText(t("connectors.approveError").replace("{detail}", "Definicja zmienila sie"));
+        expect(screen.queryByText(t("connectors.approveDone"))).toBeNull();
+        expect(screen.queryByText(t("connectors.restartNote"))).toBeNull();
+    });
+
+    it("B-08: brak roli Operatora -> czytelna odmowa", async () => {
+        getConnectors.mockResolvedValue([czekajacy()]);
+        getConnectorGateway.mockRejectedValue(new Error(JSON.stringify({ detail: "Admin role required" })));
+        render(<ConnectorsPage />);
+        await screen.findByText("repertorium");
+        await act(async () => {
+            fireEvent.click(screen.getByTestId("connector-approve-repertorium"));
+        });
+        await screen.findByText(t("connectors.approveForbidden"));
+        expect(screen.queryByTestId("connector-approve-confirm-repertorium")).toBeNull();
     });
 });

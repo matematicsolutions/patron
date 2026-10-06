@@ -276,9 +276,35 @@ export function appendAuditEvent(
     db: ReturnType<typeof createServerSupabase>,
     event: AuditEventInput,
 ): Promise<{ ok: boolean; row?: PreparedAuditRow; error?: string }> {
-    const run = appendQueue.then(() => appendAuditEventNow(db, event));
+    const run = appendQueue.then(() => withAppendTimeout(appendAuditEventNow(db, event)));
     appendQueue = run.catch(() => undefined);
     return run;
+}
+
+/**
+ * Limit czasu jednego zapisu w kolejce (przeglad 2026-10-02, R-AC-03). Bez niego
+ * jedno zawieszone zapytanie (fetch supabase-js nie ma timeoutu) blokowalo na
+ * zawsze kazdy kolejny zapis audytu w procesie - takze sciezki fail-closed.
+ * Po przekroczeniu: ok:false i kolejka idzie dalej. Spozniony insert, jesli
+ * jednak dojdzie, zlapie straznik prev_hash i petla ponowien kolejnego zapisu.
+ */
+export function auditAppendTimeoutMs(): number {
+    const v = Number(process.env.PATRON_AUDIT_APPEND_TIMEOUT_MS);
+    return Number.isFinite(v) && v > 0 ? v : 4_000;
+}
+
+function withAppendTimeout(
+    p: Promise<{ ok: boolean; row?: PreparedAuditRow; error?: string }>,
+): Promise<{ ok: boolean; row?: PreparedAuditRow; error?: string }> {
+    const ms = auditAppendTimeoutMs();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const limit = new Promise<{ ok: boolean; error: string }>((resolve) => {
+        timer = setTimeout(() => {
+            console.warn(`[audit] insert timeout after ${ms} ms`);
+            resolve({ ok: false, error: `audit append timeout after ${ms} ms` });
+        }, ms);
+    });
+    return Promise.race([p, limit]).finally(() => clearTimeout(timer));
 }
 
 async function appendAuditEventNow(

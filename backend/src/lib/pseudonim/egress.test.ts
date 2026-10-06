@@ -4,6 +4,7 @@ import {
     PseudonimStreamUnwrapper,
 } from "./egress";
 import { unwrap } from "./wrap";
+import { plEntityDetector } from "./plDetector";
 
 // PESEL z poprawna checksuma (walidator je sprawdza). 44051401458 to znany
 // testowy PESEL przechodzacy walidacje.
@@ -45,6 +46,69 @@ describe("wrapConversation - wspolna mapa", () => {
             { role: "user", content: "Jaka jest stawka VAT?" },
         ]);
         expect(messages[0].content).toBe("Jaka jest stawka VAT?");
+    });
+});
+
+// Audyt 2026-09 A-03: oryginal rozpoznany raz (po kotwicy) jest maskowany w
+// CALEJ konwersacji - takze tam, gdzie stoi bez kotwicy, w obie strony.
+describe("wrapConversation - propagacja znanych oryginalow (A-03)", () => {
+    const opts = { llmDetector: plEntityDetector };
+
+    it("osoba z kotwica w 1. wiadomosci nie wychodzi jawnie w kolejnej", async () => {
+        const w = await wrapConversation(
+            "Jestes asystentem kancelarii.",
+            [
+                { role: "user", content: "Klientem jest Pan Jan Testowy." },
+                { role: "assistant", content: "Rozumiem." },
+                { role: "user", content: "Czy Jan Testowy moze zlozyc apelacje?" },
+            ],
+            opts,
+        );
+        expect(w.messages[0]!.content).not.toContain("Jan Testowy");
+        expect(w.messages[2]!.content).not.toContain("Jan Testowy");
+        const token = w.map.byOriginal.get("Jan Testowy")!;
+        expect(w.messages[2]!.content).toContain(token);
+        expect(unwrap(w.messages[2]!.content, w.map)).toBe(
+            "Czy Jan Testowy moze zlozyc apelacje?",
+        );
+    });
+
+    it("propagacja wstecz: osoba bez kotwicy WCZESNIEJ niz z kotwica, takze w system prompcie i historii asystenta", async () => {
+        const w = await wrapConversation(
+            "Sprawa dotyczy Jan Testowy.",
+            [
+                { role: "user", content: "Co z Jan Testowy?" },
+                // historia asystenta zapisywana po odmaskowaniu (bez kotwic)
+                { role: "assistant", content: "Jan Testowy ma termin do piatku." },
+                { role: "user", content: "Mocodawca to Pan Jan Testowy." },
+            ],
+            opts,
+        );
+        expect(w.systemPrompt).not.toContain("Jan Testowy");
+        for (const m of w.messages) expect(m.content).not.toContain("Jan Testowy");
+        expect(new Set(w.map.tokens.map((t) => t.token)).size).toBe(w.map.tokens.length);
+    });
+
+    it("kontrola negatywna: brak kotwicy nigdzie -> bez propagacji (nie wymysla encji)", async () => {
+        const w = await wrapConversation(
+            "Sys.",
+            [{ role: "user", content: "Czy Jan Testowy moze zlozyc apelacje?" }],
+            opts,
+        );
+        expect(w.map.tokens).toHaveLength(0);
+        expect(w.messages[0]!.content).toBe("Czy Jan Testowy moze zlozyc apelacje?");
+    });
+
+    it("oryginal wewnatrz innego slowa nie wyzwala maskowania (granica slowa)", async () => {
+        const w = await wrapConversation(
+            "Sys.",
+            [
+                { role: "user", content: "Klientem jest Pan Jan Testowy." },
+                { role: "user", content: "Spolka XJan TestowyX nie jest strona." },
+            ],
+            opts,
+        );
+        expect(w.messages[1]!.content).toBe("Spolka XJan TestowyX nie jest strona.");
     });
 });
 

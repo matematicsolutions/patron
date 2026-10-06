@@ -5,15 +5,24 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const getMcpTools = vi.fn();
-const isMcpTool = vi.fn();
+const hasCitationVerifier = vi.fn();
+const runCitationVerifier = vi.fn();
 const runMcpTool = vi.fn();
-vi.mock("../mcp", () => ({
-    getMcpTools: (...a: unknown[]) => getMcpTools(...a),
-    isMcpTool: (...a: unknown[]) => isMcpTool(...a),
-    runMcpTool: (...a: unknown[]) => runMcpTool(...a),
-}));
+const getGatewayState = vi.fn();
+vi.mock("../mcp", async (importOriginal) => {
+    // isAwaitingOperatorApproval jest czysta - test mierzy te sama regule co produkcja.
+    const prawdziwy = await importOriginal<typeof import("../mcp")>();
+    return {
+        getMcpTools: (...a: unknown[]) => getMcpTools(...a),
+        hasCitationVerifier: (...a: unknown[]) => hasCitationVerifier(...a),
+        runCitationVerifier: (...a: unknown[]) => runCitationVerifier(...a),
+        runMcpTool: (...a: unknown[]) => runMcpTool(...a),
+        getGatewayState: (...a: unknown[]) => getGatewayState(...a),
+        isAwaitingOperatorApproval: prawdziwy.isAwaitingOperatorApproval,
+    };
+});
 
-import { resolveVerifyToolCall, verifierServerName, VERIFY_TOOL } from "./connector";
+import { resolveVerifyToolCall, verifierPendingApproval, verifierServerName } from "./connector";
 
 const ENV = "PATRON_CITATION_VERIFIER_SERVER";
 let poprzedni: string | undefined;
@@ -22,8 +31,10 @@ beforeEach(() => {
     poprzedni = process.env[ENV];
     delete process.env[ENV];
     getMcpTools.mockReset().mockResolvedValue([]);
-    isMcpTool.mockReset();
+    hasCitationVerifier.mockReset();
+    runCitationVerifier.mockReset();
     runMcpTool.mockReset();
+    getGatewayState.mockReset();
 });
 afterEach(() => {
     if (poprzedni === undefined) delete process.env[ENV];
@@ -50,25 +61,62 @@ describe("verifierServerName", () => {
 
 describe("resolveVerifyToolCall", () => {
     it("narzedzie nie zarejestrowane (brak konektora albo blokada bramy) = null", async () => {
-        isMcpTool.mockReturnValue(false);
+        hasCitationVerifier.mockReturnValue(false);
         expect(await resolveVerifyToolCall()).toBeNull();
-        expect(isMcpTool).toHaveBeenCalledWith(`repertorium__${VERIFY_TOOL}`);
+        expect(hasCitationVerifier).toHaveBeenCalled();
     });
 
     it("blad przy ladowaniu konektorow = null, nie wyjatek", async () => {
         getMcpTools.mockRejectedValue(new Error("brak sieci"));
         expect(await resolveVerifyToolCall()).toBeNull();
-        expect(isMcpTool).not.toHaveBeenCalled();
+        expect(hasCitationVerifier).not.toHaveBeenCalled();
     });
 
-    it("wola WLASNIE serwer z env i oddaje text / structured / isError", async () => {
-        process.env[ENV] = "weryfikator-2";
-        isMcpTool.mockReturnValue(true);
-        runMcpTool.mockResolvedValue({ text: "{}", citations: [], structured: { ok: 1 }, isError: undefined });
+    it("wola wejscie weryfikatora (R-CC-07), nie sciezke czatu, i oddaje text / structured / isError", async () => {
+        hasCitationVerifier.mockReturnValue(true);
+        runCitationVerifier.mockResolvedValue({ text: "{}", citations: [], structured: { ok: 1 }, isError: undefined });
         const call = await resolveVerifyToolCall();
         expect(call).not.toBeNull();
         const r = await call!({ citations: [] });
-        expect(runMcpTool).toHaveBeenCalledWith(`weryfikator-2__${VERIFY_TOOL}`, { citations: [] });
+        expect(runCitationVerifier).toHaveBeenCalledWith({ citations: [] });
+        expect(runMcpTool).not.toHaveBeenCalled();
         expect(r).toEqual({ text: "{}", structured: { ok: 1 }, isError: undefined });
+    });
+});
+
+describe("verifierPendingApproval (B-08)", () => {
+    const stan = (o: Record<string, unknown>) => ({
+        gatewayAction: "human_review",
+        approval: "missing",
+        registered: false,
+        unknownThirdPartyOnly: true,
+        approvalHash: "a".repeat(64),
+        approvalOrigin: "b".repeat(64),
+        ...o,
+    });
+
+    it("human_review bez zatwierdzenia: wartosci do wpisania dla serwera weryfikatora", () => {
+        getGatewayState.mockReturnValue(stan({}));
+        expect(verifierPendingApproval()).toEqual({
+            server: "repertorium",
+            hash: "a".repeat(64),
+            origin: "b".repeat(64),
+            reason: "missing",
+        });
+        expect(getGatewayState).toHaveBeenCalledWith("repertorium");
+    });
+
+    it("zatwierdzenie innej definicji: reason hash_mismatch", () => {
+        getGatewayState.mockReturnValue(stan({ approval: "hash_mismatch" }));
+        expect(verifierPendingApproval()?.reason).toBe("hash_mismatch");
+    });
+
+    it("nie czeka: brak skanu, denied, zarejestrowany", () => {
+        getGatewayState.mockReturnValue(undefined);
+        expect(verifierPendingApproval()).toBeNull();
+        getGatewayState.mockReturnValue(stan({ gatewayAction: "denied", approval: "not_overridable" }));
+        expect(verifierPendingApproval()).toBeNull();
+        getGatewayState.mockReturnValue(stan({ approval: "approved", registered: true }));
+        expect(verifierPendingApproval()).toBeNull();
     });
 });

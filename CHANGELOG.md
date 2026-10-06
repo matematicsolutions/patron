@@ -9,6 +9,149 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ### Naprawione
 
+- **Decyzje wlasciciela produktu (2026-10-06).**
+  - Karty zatwierdzen (ADR-0137) WLACZONE DOMYSLNIE dla edit_document, generate_docx,
+    add_comments, replicate_document i remember; wylacznik `PATRON_MUTATION_APPROVAL=false`.
+    Czat pokazuje "akcja czeka na zatwierdzenie" z linkiem do skrzynki (zdarzenie SSE
+    `mutation_staged`). Nieudany zapis karty nie przerywa tury.
+  - Argumenty zewnetrznych konektorow MCP: odtwarzane tylko ORG, NIP, REGON, KRS; osoby,
+    PESEL, adresy, e-mail, telefony zostaja tokenami. PESEL i e-mail wycinane z argumentow
+    MCP niezaleznie od mapy (takze przy modelu lokalnym); liczniki w llm_route (A-09, B-11).
+  - Nieznany konektor MCP (spoza zestawu Patrona) czeka na zatwierdzenie Operatora
+    (`gatewayApproval` z hash + origin w nakladce); jedno zatwierdzenie wystarcza do
+    wywolan w Ring 2. "Sprawdz powolania" pokazuje stan `gateway_pending` z gotowym wpisem;
+    baner i panel konektorow pokazuja "czeka na zatwierdzenie" zamiast alarmu (B-08).
+    UWAGA przy aktualizacji: istniejacy konektor 3rd-party z samym `operatorApproved`
+    wymaga zatwierdzenia - Operator robi to w panelu "Konektory prawa" przyciskiem
+    "Przejrzyj i zatwierdz" (zastrzezenia bramy na ekranie, decyzja w lancuchu audytu,
+    restart). Reczny wpis `gatewayApproval` w nakladce dalej dziala.
+- **Zatwierdzenie konektora z panelu (B-08, weryfikacja desktop 2026-10-06).** Do tej pory
+  jedyna droga byla reczna edycja JSON nakladki z hashem z dziennika startu - po
+  aktualizacji kancelaria tracila konektor bez wykonalnej sciezki powrotu. Nowe trasy
+  Operatora (`requireAuth` + `requireAdmin`): `GET /connectors/:name/gateway` (zastrzezenia
+  bramy, hash definicji, odcisk pochodzenia) i `POST /connectors/:name/gateway-approval`.
+  Serwer przyjmuje tylko hash i odcisk rowne biezacemu skanowi (inaczej 409
+  `stale_definition`), `denied` nie do zatwierdzenia, decyzja idzie do lancucha audytu
+  PRZED zapisem nakladki (`mcp_security.gateway`, `operator_approval.source=operator_ui`,
+  aktor = Operator; bez nowego `event_type`). Zapis ta sama procedura co przelacznik
+  pickera (atomowo, `.bak`, tryb pliku). Pozniejszy dryf definicji albo pochodzenia znow
+  blokuje.
+- **RODO art. 17 (`rodo:delete`) dziala na desktopie (SQLite).** Skrypt znal tylko klienta
+  Supabase i na domyslnej instalacji konczyl sie "FATAL: brak SUPABASE_URL" kodem 2; zielone
+  byly wylacznie testy podmieniajace klienta na shim. Teraz tryb SQLite idzie przez te sama
+  warstwe bazy co backend (`PATRON_DB_BACKEND=sqlite`, `PATRON_DB_PATH`); test uruchamia
+  prawdziwy proces na syntetycznej bazie: anonimizacja, deklaracja `audit.chain.legal_break`,
+  weryfikator lancucha kod 3 (UWAGI z mocy prawa), a zmiana tresci po fakcie - kod 1.
+  Ograniczenie: narzedzie wymaga kopii zrodel (w spakowanej aplikacji nie ma `tsx`); w
+  aplikacji nie ma jeszcze przycisku. "Zapomnij sprawe" usuwa dane sprawy, ale nie
+  anonimizuje wpisow dziennika z uzytkownikiem Patrona (docs/INSTALACJA.md, punkt 5).
+- **Czat sprawy mowi, co padlo.** Zamiast gluchego "Stream error" (np. po zgodzie na model
+  chmurowy bez klucza) - ten sam komunikat z przyczyna co czat ogolny; jedno zrodlo
+  zdarzenia w `lib/chat/stream-error.ts`.
+- **CSP egzekwowana (A-21).** `Content-Security-Policy` zamiast `-Report-Only`; origin API
+  w `connect-src` (front :3000 i API :3001 to rozne originy - samo wymuszenie odcieloby
+  backend). Test w glownej suicie pilnuje originu API.
+- **e2e spakowanej aplikacji na naprawde izolowanym profilu.** Electron na Windows
+  ignoruje przekierowanie `APPDATA`, wiec kazdy przebieg `e2e:smoke` pisal do profilu
+  roboczego maszyny. Teraz `PATRON_E2E=1` + `PATRON_USER_DATA_DIR`, a e2e sprawdza, ze baza
+  powstala w profilu testu i ze profil roboczy jest nietkniety.
+  - Eksport audytu i pakiet dowodowy wydaja wpis zanonimizowany na podstawie RODO art. 17
+    ze znacznikiem `legal_break` i dolaczona deklaracja; weryfikatory w archiwum maja trzeci
+    werdykt "OK - zerwanie z mocy prawa", kod wyjscia 3. Deklaracja w starym formacie nadal
+    blokuje eksport (409 z `legal_break.status`).
+  - Projekt zmiany Art. 5 Konstytucji (docs/PROJEKT_KONSTYTUCJA_ART5_2026-10.md) i nota dla
+    uzytkownikow (docs/NOTA_WYDANIA_2026-10.md) - do decyzji i podpisu.
+
+- **Czwarta fala napraw.** Odcisk pochodzenia konektora MCP (komenda/host) w baseline -
+  podmiana komendy konektora o zaufanej nazwie daje human_review; Ring 1 tylko dla
+  konektora z pliku instalatora, wpis nakladki pod zaufana nazwa to Ring 2 (B-06,
+  R-MCP-01; zatwierdzenie Operatora moze niesc `origin`). Podpis skilla bez weryfikacji
+  nie daje `signed`; import skilla cloud-allowed bez zgody = wylaczony (B-10).
+  Zatwierdzanie/odrzucanie kart atomowe, druga decyzja = 409 (C-06). Osoba rozpoznana
+  raz w rozmowie maskowana we wszystkich wiadomosciach (A-03). Bramka parytetu egressu
+  na AST (wrappery, importy namespace/dynamiczne, komentarze). Komunikaty bramy MCP
+  wskazuja nakladke Operatora (R-MCP-06).
+
+- **Trzecia fala napraw (przeglad 2026-10-02).** Logi bez nazw plikow i sciezek (R-CC-06);
+  jawny sygnal zgubionych przypisow i awarii konektora MCP zamiast ciszy (D-14, D-07);
+  karta zatwierdzenia z chat_id i slad wstrzymania w audit_log (C-09); pamiec osobista
+  per uzytkownik (B-05); read-time guard input-security w search_corpus, wyniku MCP
+  i recall w trybie enforce (B-12, B-03); `replicate_document` i `remember` przez bramke
+  kart zatwierdzen (B-04); panel draftu wysyla model rozmowy i sprawe, `/draft/refine`
+  bez modelu = 400 i sprawdza dostep do sprawy (A-05); workflow karny osiagalny z UI
+  (D-13); ligatury PDF nie przesuwaja podswietlenia powolan (R-CC-05). Stan i lista
+  otwartych: [docs/NAPRAWY_2026-10-02.md](./docs/NAPRAWY_2026-10-02.md).
+
+- **Tresc akt z narzedzi czatu idzie do modelu chmurowego zamaskowana (audyt 2026-09, A-01, P0).**
+  Wyniki read_document, fetch_documents, get_document_text, find_in_document,
+  search_corpus, recall, read_table_cells i konektorow MCP przechodza ta sama
+  pseudonimizacje co rozmowa (wspolna mapa); odpowiedz i rozumowanie sa odmaskowane,
+  grounding cytatow porownuje z oryginalem, edycje DOCX wykonuja sie na oryginalach.
+  Nieudane maskowanie wstrzymuje wynik narzedzia. Model lokalny bez zmian.
+- **Maskowanie tez w /draft/refine (z polem context), w tytule czatu i w tabular (A-04,
+  A-06, A-07).** Rozmowa na modelu lokalnym nie wysyla tresci do chmury po tytul (E-03).
+- **Kanaly wycieku bez klikniecia (A-20, A-22, A-23).** Obrazy w markdown z odpowiedzi
+  modelu nie sa ladowane (wspolny SafeMarkdown, linki tylko http/https/mailto). Backend
+  w trybie SQLite odrzuca obcy naglowek Host (421) i zadania zmieniajace stan z obcym
+  Origin (403); bypass logowania tylko dla polaczen z loopback
+  (`PATRON_SQLITE_TRUST_NETWORK` jako swiadoma furtka). docker-compose startuje backend
+  w trybie Supabase.
+- **"Sprawdz powolania" (przeglad 2026-10-02).** Do weryfikatora wychodza tylko sygnatury
+  z biala lista repertoriow sadowych (adresy, numery faktur i umow, sygnatura wlasnej
+  sprawy - nie); nota o prywatnosci mowi dokladnie, co wychodzi. Narzedzia weryfikatora
+  nie sa narzedziami czatu (koniec trybu `text` z calym pismem). Znieksztalcona odpowiedz
+  serwera nie wywraca backendu; niewyslane powolanie nie zmienia sie w zielone.
+- **Bramka pre-push / publikacji.** Sprawdza deny_paths w zakresie publikacji, rename'y
+  i tresc merge'a, tresc tagow i nazwy refow; blad gita blokuje zamiast przepuszczac;
+  remote z publicznym `pushurl` i prywatnym `url` nie uchodzi za stan publiczny.
+- **Audyt tury czatu.** llm_route niesie chat_id, nazwy wywolanych narzedzi (bez
+  argumentow) i wynik tury; tura zakonczona bledem providera zostawia slad (C-01..C-03).
+- **Bramka MCP skanuje opisy parametrow narzedzi** pod katem ukrytych instrukcji (B-07).
+- **audit_log nie przechowuje nazwy pliku klienta** w zdarzeniu input_security_scan (E-05).
+
+- **Sprawy objete tajemnica domyslnie tylko z modelem lokalnym (audyt 2026-09, A-01).**
+  Desktop ustawial globalna zgode na model chmurowy dla spraw objetych tajemnica
+  (`PATRON_ALLOW_PRIVILEGED_CLOUD=true`), zakladajac, ze dane sa maskowane przed wysylka.
+  Audyt pokazal, ze tresc dokumentow trafia do modelu przez wyniki narzedzi bez maskowania,
+  a detektor przepuszczal wiekszosc nazwisk. Domyslna wartosc to teraz `false`; zgoda dla
+  konkretnej sprawy idzie przelacznikiem w ustawieniach sprawy (ADR-0128). Bramka
+  `desktop/scripts/egress-defaults-gate.test.cjs` w `prepare:resources` i `build`.
+  Notatka w ADR-0101; Konstytucja Art. 5 wymaga aktualizacji (decyzja WM).
+- **"Zapomnij sprawe" (RODO art. 17) nie udaje sukcesu i usuwa tresc wyprowadzona z akt.**
+  Usuwa tez przeglady tabelaryczne spoza sprawy z jej dokumentami, czaty ogolne
+  z zalacznikami z jej akt i karty zatwierdzen z trescia akt. Czaty INNYCH spraw sa
+  liczone w raporcie, nie kasowane. Plik zablokowany przez inny program albo blad bazy
+  daja 500 z lista niepowodzen; raport liczy tylko faktycznie usuniete elementy (D-03..D-06).
+- **Skrypt RODO a lancuch audytu.** Deklaracja `audit.chain.legal_break` zapisuje sie PRZED
+  anonimizacja, w porcjach (bez obcinania do 500), z hashem kazdego wiersza po zerwaniu;
+  weryfikator traktuje zmiane tresci zanonimizowanego wiersza jako BLOKADE. Blad zapisu
+  deklaracji przerywa skrypt z kodem bledu zamiast "OK".
+- **Eksport audytu i pakiet dowodowy.** Eksport paczki przelicza hash wpisu z tresci,
+  sprawdza poprzednika i wszystkie pasujace korzenie Merkle - zmieniony wpis daje 409
+  i slad w audycie (wczesniej wybierany byl najnowszy korzen, co pozwalalo ukryc zmiane
+  nowym korzeniem). Pakiet deliverable przechodzi wlasny weryfikator: wyciag jest
+  nieciagly z jawnie raportowanymi lukami; model i werdykty cytatow MCP sa w pakiecie.
+- **Edycja DOCX nie gubi juz elementow dokumentu.** Tabulatory, podzialy linii, odwolania
+  do przypisow, pola i inne elementy przebiegu zostaja na miejscu; edycja, ktora musialaby
+  usunac przypis, pole albo hiperlacze, jest odrzucana jawnym bledem. Edycja nie przepisuje
+  juz tekstu wygladajacego jak liczba w calym dokumencie ("0012" -> "12"). Czesciowe
+  wykonanie karty zatwierdzenia jest widoczne na karcie, w audycie (liczby) i w UI.
+- **Tabular review.** Model lokalny nie wywraca procesu backendu. Skan bez warstwy tekstu
+  bierze tekst z OCR (jak czat), a gdy go brak - komorka ma blad zamiast "Not Found"
+  ze statusem gotowe. Dokument dluzszy niz limit niesie jawny znacznik obciecia.
+  Nieudane wywolanie modelu zostawia slad `llm_route`.
+- **Podglad PDF w tle nie zostawia sieroty po usunieciu dokumentu; `.doc` czytany przez
+  LibreOffice, a brak tekstu daje blad zamiast "ready".**
+- **Podglad DOCX nie renderuje osadzonego HTML (altChunk)** jako iframe w originie aplikacji.
+- **Audyt i metryki.** Zapis audytu ma limit czasu (zawieszone zapytanie nie blokuje
+  kolejki); potwierdzenie rozwidlenia zapisuje sie raz; blad odczytu w `/metrics` daje
+  `patron_metrics_degraded 1` zamiast zer; migracja SQLite nie zaweza listy typow zdarzen
+  (baza z linii 2.0 z wpisem `legal_break` nie wywraca startu).
+- **Konektory MCP.** Nieczytelna nakladka Operatora nie wlacza po cichu konektorow
+  wylaczonych w pickerze (kopia `.bak`, bez niej konektory wylaczone z ostrzezeniem);
+  pola nakladki walidowane; zapis nie poszerza uprawnien pliku; zly wpis baseline daje
+  drift/high zamiast wywrocenia czatu.
+
 - **Aktualizacja PATRONa kasowala ustawienia konektorow (ADR-0166).** Instalator przy
   aktualizacji usuwa katalog instalacji, a razem z nim `mcp-servers.json` - z konektorami
   dopisanymi przez Operatora (np. weryfikatorem powolan), ich zatwierdzeniem bramy i

@@ -15,9 +15,10 @@
 
 import fs from "fs";
 import path from "path";
-import { uploadFile, storageKey } from "./storage";
+import { uploadFile, storageKey, deleteFile } from "./storage";
 import {
   docxToPdf,
+  docToDocx,
   convertedPdfKey,
   isLibreOfficeAvailable,
 } from "./convert";
@@ -46,6 +47,8 @@ const IMAGE_TYPES = new Set(["jpg", "jpeg", "png", "tiff", "tif", "bmp", "webp"]
 // DocxView tez go nie wyrenderuje. Do 2026-09-09 konczylo sie to CICHO - plik
 // ladowal w bazie ze statusem "ready" i po prostu znikal z zycia mecenasa.
 // Ten sam wzorzec co obrazy pod OCR: brak silnika = czyste, nazwane odrzucenie.
+// Z LibreOffice tekst `.doc` idzie przez konwersje `.doc -> .docx` (extractDocText,
+// R-TI-03); gdy i ona nie da tresci - jawny blad, nigdy "ready" bez tekstu.
 const LIBREOFFICE_TYPES = new Set(["doc"]);
 
 /**
@@ -60,22 +63,31 @@ async function renderPdfInBackground(args: {
   userId: string;
   docId: string;
   versionId: string;
-  filename: string;
   db: IngestParams["db"];
 }): Promise<void> {
-  const { content, userId, docId, versionId, filename, db } = args;
+  const { content, userId, docId, versionId, db } = args;
   if (!isLibreOfficeAvailable()) {
     // Nie probujemy i nie udajemy, ze probowalismy. Dla .docx to stan normalny
     // (DocxView renderuje bez PDF-a); .doc w ogole tu nie dojdzie, bo odpada
     // wczesniej na isAllowedType.
+    // R-CC-06: w logu operacyjnym document_id zamiast nazwy pliku pisma.
     console.info(
-      `[ingest] podglad PDF dla ${filename} pominiety: brak LibreOffice ` +
+      `[ingest] podglad PDF dla dokumentu ${docId} pominiety: brak LibreOffice ` +
         "(opcjonalny wymog zewnetrzny - docs/INSTALACJA.md)",
     );
     return;
   }
   try {
     const pdfBuf = await docxToPdf(content);
+    // R-TI-04: konwersja trwa 25-40 s, a w tym oknie dokument mogl zostac
+    // usuniety (DELETE dokumentu, "zapomnij sprawe"). Wtedy nie zapisujemy
+    // pliku, do ktorego nie prowadzilby zaden wiersz bazy.
+    if (!(await versionStillExists(db, versionId))) {
+      console.info(
+        `[ingest] podglad PDF porzucony: dokument ${docId} usuniety w trakcie konwersji`,
+      );
+      return;
+    }
     const pdfKey = convertedPdfKey(userId, docId);
     await uploadFile(
       pdfKey,
@@ -85,13 +97,66 @@ async function renderPdfInBackground(args: {
       ) as ArrayBuffer,
       "application/pdf",
     );
-    await db
+    // Wyscig miedzy sprawdzeniem a zapisem: UPDATE z RETURNING mowi, czy wiersz
+    // wersji nadal istnieje. Gdy nie - kasacja wyprzedzila nas, sprzatamy swoj
+    // plik sami. Gdy tak, a kasacja przyjdzie pozniej - sciezka jest juz w
+    // wersji, a DELETE/forget i tak sprzataja po prefiksie converted-pdfs/<u>/<doc>
+    // PO usunieciu wierszy (convertedPdfPrefix). Jedna z dwoch stron zawsze widzi plik.
+    const { data: updated, error: updErr } = await db
       .from("document_versions")
       .update({ pdf_storage_path: pdfKey })
-      .eq("id", versionId);
+      .eq("id", versionId)
+      .select("id");
+    if (updErr || !Array.isArray(updated) || updated.length === 0) {
+      await deleteFile(pdfKey).catch((e) =>
+        console.error(
+          `[ingest] nie udalo sie usunac osieroconego podgladu dokumentu ${docId}:`,
+          logErrorClass(e),
+        ),
+      );
+    }
   } catch (err) {
-    console.error(`[ingest] DOCX→PDF conversion failed for ${filename}:`, err);
+    console.error(
+      `[ingest] DOCX→PDF conversion failed for document ${docId}:`,
+      logErrorClass(err),
+    );
   }
+}
+
+/**
+ * Klasa bledu do logu operacyjnego (nazwa i kod, bez komunikatu). Komunikat
+ * bledu storage/parsera bywa nosnikiem sciezki z nazwa pliku albo fragmentu
+ * tresci pisma (R-CC-06).
+ */
+function logErrorClass(err: unknown): string {
+  if (err instanceof Error) {
+    const code = (err as { code?: unknown }).code;
+    return typeof code === "string" ? `${err.name}:${code}` : err.name;
+  }
+  return typeof err;
+}
+
+async function versionStillExists(
+  db: IngestParams["db"],
+  versionId: string,
+): Promise<boolean> {
+  const { data, error } = await db
+    .from("document_versions")
+    .select("id")
+    .eq("id", versionId);
+  // Blad odczytu: nie wiemy - zapisujemy, a UPDATE z RETURNING rozstrzygnie.
+  if (error) return true;
+  return Array.isArray(data) && data.length > 0;
+}
+
+/**
+ * Tekst binarnego `.doc` (R-TI-03): LibreOffice `.doc -> .docx`, potem ten sam
+ * parser OOXML co dla `.docx`. Bez tego `.doc` szedl prosto do parsera ZIP-a,
+ * ktory na formacie OLE pada - tekst byl pusty, a dokument i tak dostawal "ready".
+ */
+async function extractDocText(buf: Buffer): Promise<string> {
+  const docx = await docToDocx(buf);
+  return extractDocxBodyText(docx);
 }
 
 /** Zdolnosci srodowiska, od ktorych zalezy zbior przyjmowanych typow. */
@@ -258,15 +323,18 @@ export async function ingestDocument(
         { buffer: content, filename },
         {
           extractPdfText,
-          extractDocxText: extractDocxBodyText,
+          extractDocxText:
+            suffix === "doc" ? extractDocText : extractDocxBodyText,
           ocr: runOcr,
         },
       );
       scanText = conv.markdown;
     } catch (e) {
+      // R-CC-06: document_id i klasa bledu; komunikat parsera/OCR moze
+      // niesc fragment tresci, a nazwa pliku - nazwisko klienta.
       console.warn(
-        `[ingest] konwersja->MD nieudana dla ${filename}:`,
-        e instanceof Error ? e.message : String(e),
+        `[ingest] konwersja->MD nieudana dla dokumentu ${docId} (${suffix}):`,
+        logErrorClass(e),
       );
     }
     const scan = analyzeInput({
@@ -301,6 +369,31 @@ export async function ingestDocument(
             threat_level: scan.threatLevel,
             report_id: scan.reportId,
           },
+        },
+      };
+    }
+
+    // R-TI-03: `.doc` bez odczytanego tekstu NIE moze byc "ready" - nie trafi do
+    // indeksu, czat i tabular go nie zobacza, a mecenas nie ma jak sie o tym
+    // dowiedziec. Jawny blad (status "error" widoczny na liscie dokumentow +
+    // komunikat 422 przy uploadzie). Bajty nie trafiaja do storage - jak przy
+    // odrzuceniu ze skanu: rekord jest sladem proby, nie kopia akt.
+    if (suffix === "doc" && !scanText.trim()) {
+      await db
+        .from("documents")
+        .update({
+          status: "error",
+          security_status: outcome.securityStatus,
+          security_report_id: scan.reportId,
+        })
+        .eq("id", docId);
+      return {
+        httpStatus: 422,
+        body: {
+          detail:
+            "Nie udalo sie odczytac tekstu z pliku .doc (konwersja LibreOffice " +
+            "nie zwrocila tresci). Dokument nie zostal zindeksowany. Zapisz plik " +
+            "jako .docx albo PDF i wgraj ponownie.",
         },
       };
     }
@@ -369,7 +462,6 @@ export async function ingestDocument(
         userId,
         docId,
         versionId: versionRow.id as string,
-        filename,
         db,
       });
     }
@@ -380,7 +472,10 @@ export async function ingestDocument(
     // nie blokujemy odpowiedzi (dokument jest juz 'ready' i utrwalony).
     if (outcome.allowIndex && scanText.trim()) {
       void indexDocument(docId, scanText).catch((err) => {
-        console.error(`[ingest] RAG index failed for ${docId}:`, err);
+        console.error(
+          `[ingest] RAG index failed for ${docId}:`,
+          logErrorClass(err),
+        );
       });
     }
 

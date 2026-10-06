@@ -18,6 +18,7 @@ import type {
     PATRONMessage,
 } from "@/app/components/shared/types";
 import { mcpCitationKey } from "@/app/components/shared/types";
+import { readFailures } from "@/app/components/shared/PartialExecutionNotice";
 
 interface UseAssistantChatOptions {
     initialMessages?: PATRONMessage[];
@@ -813,6 +814,9 @@ export function useAssistantChat({
                                         typeof data.error === "string"
                                             ? (data.error as string)
                                             : undefined,
+                                    // Czesciowy sukces (D-10): edycje, ktore
+                                    // NIE weszly - pokazywane jawnie w UI.
+                                    errors: readFailures(data.errors),
                                     isStreaming: false,
                                 }),
                             );
@@ -930,6 +934,50 @@ export function useAssistantChat({
                                 }
                                 return updated;
                             });
+                            // Audyt D-14: cytaty przepadly przy parsowaniu bloku
+                            // <CITATIONS> - jawny sygnal zamiast ciszy.
+                            const pe = data.parse_error as
+                                | { reason?: unknown; dropped?: unknown }
+                                | undefined;
+                            if (pe && typeof pe === "object") {
+                                pushEvent({
+                                    type: "citations_parse_failed",
+                                    reason:
+                                        pe.reason === "not_array" ||
+                                        pe.reason === "unterminated" ||
+                                        pe.reason === "invalid_records"
+                                            ? pe.reason
+                                            : "invalid_json",
+                                    dropped:
+                                        typeof pe.dropped === "number"
+                                            ? pe.dropped
+                                            : 0,
+                                });
+                            }
+                            continue;
+                        }
+
+                        if (data.type === "mcp_error") {
+                            // Audyt D-07: konektor MCP padl w tej turze.
+                            pushEvent({
+                                type: "mcp_error",
+                                server: String(data.server ?? ""),
+                                tool: String(data.tool ?? ""),
+                                // B-03: wynik wstrzymany przez input-security.
+                                ...(data.reason === "input_security"
+                                    ? { reason: "input_security" as const }
+                                    : {}),
+                            });
+                            continue;
+                        }
+
+                        if (data.type === "mutation_staged") {
+                            // ADR-0137 (B-02): akcja czeka na karcie zatwierdzenia.
+                            pushEvent({
+                                type: "mutation_staged",
+                                tool: String(data.tool ?? ""),
+                                approval_id: String(data.approval_id ?? ""),
+                            });
                             continue;
                         }
 
@@ -1029,7 +1077,7 @@ export function useAssistantChat({
                     titleParts.push(
                         `Files: ${message.files.map((f) => f.filename).join(", ")}`,
                     );
-                void generateTitle(finalChatIdForTitle, titleParts.join("\n"));
+                void generateTitle(finalChatIdForTitle, titleParts.join("\n"), message.model ?? null);
             }
 
             return streamedChatId || null;

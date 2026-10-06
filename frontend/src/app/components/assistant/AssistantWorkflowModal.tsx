@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { ChevronLeft, Search, X } from "lucide-react";
-import ReactMarkdown from "react-markdown";
+import { SafeMarkdown } from "@/lib/markdown/SafeMarkdown";
 import remarkGfm from "remark-gfm";
 import type { PATRONWorkflow } from "../shared/types";
 import { listWorkflows } from "@/app/lib/patronApi";
@@ -217,7 +217,7 @@ export function AssistantWorkflowModal({
                                 </button>
                             </div>
                             <div className="flex-1 overflow-y-auto px-4 py-3 text-sm border border-gray-200 rounded-md text-gray-600 leading-relaxed font-serif bg-gray-50">
-                                <ReactMarkdown
+                                <SafeMarkdown
                                     remarkPlugins={[remarkGfm]}
                                     components={{
                                         h1: ({ children }) => (
@@ -267,7 +267,7 @@ export function AssistantWorkflowModal({
                                 >
                                     {selected.prompt_md ??
                                         "_No prompt defined._"}
-                                </ReactMarkdown>
+                                </SafeMarkdown>
                             </div>
                         </div>
                     )}

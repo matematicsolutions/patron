@@ -19,7 +19,8 @@ Design notes
   `.publication-gate.json` at the repo root or via --config.
 
 Exit codes: 0 = clean (or only warnings without --strict), 1 = hard findings,
-2 = usage/config error.
+2 = usage/config error, or git history/text could not be read (fail-closed:
+a gate that read nothing never says PASS).
 """
 from __future__ import annotations
 
@@ -229,24 +230,36 @@ def _redact(match: str) -> str:
     return m[:2] + "*" * (len(m) - 4) + m[-2:]
 
 
-_HEX_TOKEN = re.compile(r"[0-9a-fA-F]{7,}")
+_HEX_TOKEN = re.compile(r"[0-9a-fA-F]+")
+# Najkrotszy token hex, ktory uznajemy za hash. Pelny git SHA ma 40 (SHA-256: 64)
+# znakow, w prozie bywa uciety do 20 (przyklad z 2026-10-01 nizej). Najdluzszy
+# polski identyfikator to REGON-14, wiec numer sklejony z maksymalnie piecioma
+# literami a-f (`a<NIP>`, `ab<PESEL>`, `f<REGON-14>`) zostaje ponizej progu
+# i JEST sprawdzany. Skrocony SHA 7-12 znakow nie miesci w sobie numeru z
+# poprawna suma bez wyjatkowego zbiegu okolicznosci - wtedy pelny SHA w tresci.
+MIN_HASH_LEN = 20
 
 
 def _w_hashu(line: str, start: int, end: int) -> bool:
     """Ciag cyfr jest czescia hasha (git SHA, sha256): token z samych znakow
-    0-9a-f, co najmniej 7 znakow, z choc jedna litera a-f.
+    0-9a-f, co najmniej MIN_HASH_LEN znakow, z choc jedna litera a-f.
 
-    Zmierzone 2026-10-01: syntetyczny commit scalenia PR na GitHubie ("Merge
-    2deba096f6410451136b... into ...") zawieral 10 kolejnych cyfr z poprawna
-    suma NIP - i bramka zablokowala PR. Gola liczba (bez liter wokol)
-    dalej jest identyfikatorem do sprawdzenia.
+    Zmierzone 2026-10-01: syntetyczny commit scalenia PR na GitHubie (pelny SHA
+    w "Merge <sha> into <sha>") zawieral 10 kolejnych cyfr z poprawna suma NIP
+    - i bramka zablokowala PR. Gola liczba (bez liter wokol) dalej jest
+    identyfikatorem do sprawdzenia.
+
+    Zmierzone 2026-10-02 (R-TI-07): pierwsza wersja uznawala za hash KAZDY token
+    hex >= 7 znakow z litera a-f, wiec `id=a<NIP>` (litera + 10 cyfr) przechodzil
+    jako "hash". Teraz token musi miec dlugosc hasha, nie numeru z prefiksem.
     """
     while start > 0 and line[start - 1].isalnum():
         start -= 1
     while end < len(line) and line[end].isalnum():
         end += 1
     tok = line[start:end]
-    return bool(_HEX_TOKEN.fullmatch(tok)) and any(c in "abcdefABCDEF" for c in tok)
+    return (len(tok) >= MIN_HASH_LEN and bool(_HEX_TOKEN.fullmatch(tok))
+            and any(c in "abcdefABCDEF" for c in tok))
 
 
 def scan_text(path_label: str, text: str, cfg: Config) -> list[Finding]:
@@ -306,6 +319,11 @@ def _tracked_files(root: Path) -> list[Path] | None:
     return [root / rel for rel in out.split("\0") if rel]
 
 
+def denied_path_findings(rel: str, label: str, cfg: Config) -> list[Finding]:
+    """Trafienia `deny_paths` dla jednej sciezki - wspolne dla drzewa i historii."""
+    return [Finding(HARD, "denied_path", label, 0, d) for d in cfg.deny_paths if d in rel]
+
+
 def iter_tree(root: Path, cfg: Config, all_files: bool = False) -> tuple[list[Finding], int]:
     findings: list[Finding] = []
     tracked = None if all_files else _tracked_files(root)
@@ -317,13 +335,14 @@ def iter_tree(root: Path, cfg: Config, all_files: bool = False) -> tuple[list[Fi
         rel = p.relative_to(root).as_posix()
         if any(part in SKIP_DIRS for part in p.relative_to(root).parts):
             continue
+        # Sciezka zabroniona PRZED wyjatkami rozszerzen i allow_paths:
+        # `.matematic/plan.pdf` albo `.claude/x.test.ts` to dalej prywatny
+        # warsztat, choc tresci takiego pliku nie skanujemy.
+        findings.extend(denied_path_findings(rel, rel, cfg))
         if p.suffix.lower() in SKIP_EXT:
             continue
         if any(a in rel for a in cfg.allow_paths):   # allowlisted fixtures
             continue
-        for dpath in cfg.deny_paths:
-            if dpath in rel:
-                findings.append(Finding(HARD, "denied_path", rel, 0, dpath))
         try:
             if p.stat().st_size > MAX_BYTES:
                 continue
@@ -335,36 +354,131 @@ def iter_tree(root: Path, cfg: Config, all_files: bool = False) -> tuple[list[Fi
     return findings, scanned
 
 
+class HistoryScanError(RuntimeError):
+    """Skan historii sie nie odbyl. Bramka NIE moze wtedy powiedziec PASS."""
+
+
+# Wspolne opcje `git log` dla skanu historii. Kazda zamyka konkretna dziure
+# (pomiar 2026-10-02, R-TI-07 - sondy w backend/audit-2609/sondy/):
+#   --no-renames      rename to D + A z PELNA trescia pliku pod nowa sciezka.
+#                     Z wykrywaniem rename'ow `git mv` + dopisany NIP mial status R
+#                     i `--diff-filter=AM` go pomijal; a czysty rename z
+#                     allow_paths do zwyklej sciezki nie pokazalby tresci wcale.
+#   --diff-filter=ACMRT  wszystko, co zostawia tresc w drzewie (D nie publikuje).
+#   --cc              commit merge pokazuje diff kombinowany: hunki, w ktorych
+#                     wynik rozni sie od KAZDEGO rodzica - czyli tresc dodana
+#                     w rozwiazaniu merge'a. Bez tego `git log -p` merge'a nie
+#                     pokazuje wcale (NIP wpisany przy rozwiazywaniu konfliktu
+#                     przechodzil). Zwykly merge PR-a bez konfliktu daje pusty diff.
+#   prefiksy/zewnetrzne diffy przypiete - lokalny config (diff.noprefix,
+#                     diff.external, textconv) nie moze zmienic formatu, ktory parsujemy.
+_LOG_HISTORY = ["-c", "core.quotePath=false", "-c", "diff.noprefix=false",
+                "-c", "diff.mnemonicPrefix=false", "log", "--no-color", "--no-ext-diff",
+                "--no-textconv", "--src-prefix=a/", "--dst-prefix=b/", "--cc",
+                "--no-renames", "--diff-filter=ACMRT", "--format=commit:%H"]
+
+
+_COMMIT_MARK = re.compile(r"commit:(?:[0-9a-f]{40}|[0-9a-f]{64})")
+
+
+def _git_log(root: Path, *args: str) -> str:
+    """`git log` dla skanu historii; kazdy blad to HistoryScanError (fail-closed).
+
+    Zmierzone 2026-10-02: blad `git log -p` (brakujacy blob w klonie
+    --filter=blob:none bez sieci) konczyl sie komunikatem "history scan
+    unavailable" i PUSTA lista trafien - czyli PASS. Bramka, ktora nie umie
+    przeczytac historii, nie wie nic, wiec nie moze przepuscic."""
+    try:
+        r = subprocess.run(["git", "-C", str(root), *_LOG_HISTORY, *args],
+                           capture_output=True, text=True, encoding="utf-8", errors="replace")
+    except FileNotFoundError as e:
+        raise HistoryScanError(f"git not available: {e}") from e
+    if r.returncode != 0:
+        raise HistoryScanError(f"`git log {' '.join(args[:3])} ...` exited {r.returncode}: "
+                               f"{r.stderr.strip()[:500]}")
+    return r.stdout
+
+
+_C_ESCAPES = {"a": 7, "b": 8, "t": 9, "n": 10, "v": 11, "f": 12, "r": 13, '"': 34, "\\": 92}
+
+
+def _unquote_c(s: str) -> str:
+    """Sciezka w cudzyslowie z naglowka diffu gita (`"b/x\\ty.md"`, `\\303\\244`)."""
+    if len(s) < 2 or s[0] != '"' or s[-1] != '"':
+        return s
+    body, out, i = s[1:-1], bytearray(), 0
+    while i < len(body):
+        c = body[i]
+        if c == "\\" and i + 1 < len(body):
+            n = body[i + 1]
+            if n in "01234567":
+                out.append(int(body[i + 1:i + 4], 8) & 0xFF)
+                i += 4
+                continue
+            out.append(_C_ESCAPES.get(n, ord(n) if ord(n) < 128 else 63))
+            i += 2
+            continue
+        out += c.encode("utf-8")
+        i += 1
+    return out.decode("utf-8", "replace")
+
+
+def _history_paths(root: Path, cfg: Config, revs: list[str]) -> list[Finding]:
+    """`deny_paths` dla sciezek, ktore commity z zakresu DOKLADAJA do drzewa.
+
+    Tryb drzewa sprawdzal `deny_paths` od zawsze, tryb historii (--candidate,
+    czyli pre-push i CI) nie: commit dodajacy `.matematic/...` bez PII przechodzil
+    (sonda S1, 2026-10-02). `-z`, bo sciezka moze zawierac spacje i znaki nowej linii."""
+    out = _git_log(root, "--name-only", "-z", *revs)
+    findings: list[Finding] = []
+    commit = "?"
+    for tok in out.split("\0"):
+        tok = tok.lstrip("\n")
+        if not tok:
+            continue
+        if _COMMIT_MARK.fullmatch(tok):
+            commit = tok[7:14]
+            continue
+        if any(p in SKIP_DIRS for p in Path(tok).parts):
+            continue
+        findings.extend(denied_path_findings(tok, f"history@{commit}:{tok}", cfg))
+    return findings
+
+
 def iter_history(root: Path, cfg: Config, revs: list[str] | None = None) -> list[Finding]:
     """Scan added lines across git history (opt-in, slower).
 
     `revs` limits the walk (e.g. `[candidate, "--not", *public_tips]` = what a
-    publication would add); default is every ref."""
-    try:
-        diff = subprocess.run(
-            ["git", "-C", str(root), "log", "-p", "--no-color",
-             "--diff-filter=AM", "--format=commit:%H", *(revs or ["--all"])],
-            capture_output=True, text=True, check=True, encoding="utf-8",
-            errors="replace",
-        ).stdout
-    except (subprocess.CalledProcessError, FileNotFoundError) as e:
-        print(f"history scan unavailable: {e}", file=sys.stderr)
-        return []
-    findings: list[Finding] = []
-    commit, cur_path, skip = "?", "", False
+    publication would add); default is every ref. Raises HistoryScanError when
+    git cannot produce the history - never returns a silent empty list."""
+    revs = revs or ["--all"]
+    findings = _history_paths(root, cfg, revs)
+    diff = _git_log(root, "-p", *revs)
+    commit, cur_path, skip, cols = "?", "", False, 0
     for raw in diff.splitlines():
-        if raw.startswith("commit:"):
-            commit = raw[7:14]
-        elif raw.startswith("+++ "):
+        if _COMMIT_MARK.fullmatch(raw):
+            commit, cols = raw[7:14], 0
+        elif raw.startswith("diff "):
+            cols, cur_path, skip = 0, "", True   # naglowek pliku: do hunka nie ma tresci
+        elif cols == 0 and raw.startswith("+++ "):
             # Ta sama polityka co iter_tree. Bez sciezki allow_paths nie dzialalo
             # w historii: 236 z 285 trafien 2026-09-21 to syntetyczne fixtury.
-            cur_path = raw[6:] if raw.startswith("+++ b/") else ""
+            # Sciezka nierozpoznana NIE wycisza tresci - skanujemy ja pod "?".
+            sciezka = _unquote_c(raw[4:].rstrip("\t"))
+            cur_path = sciezka[2:] if sciezka.startswith("b/") else "?"
             parts = Path(cur_path).parts
             skip = (any(p in SKIP_DIRS for p in parts)
                     or Path(cur_path).suffix.lower() in SKIP_EXT
                     or any(a in cur_path for a in cfg.allow_paths))
-        elif raw.startswith("+") and not skip:
-            findings.extend(scan_text(f"history@{commit}:{cur_path}", raw[1:], cfg))
+        elif raw.startswith("@@"):
+            # "@@ ... @@" zwykly diff (1 kolumna), "@@@ ... @@@" merge z 2
+            # rodzicami (2 kolumny prefiksu) itd.
+            cols = len(raw) - len(raw.lstrip("@")) - 1
+        elif cols and not skip and raw[:cols] == "+" * cols:
+            # Tylko linie nowe wzgledem KAZDEGO rodzica. "+ " albo " +" w merge'u
+            # to tresc jednego z rodzicow - skanowana w jego wlasnym commicie
+            # (albo juz publiczna), wiec liczona drugi raz dalaby falszywe trafienia.
+            findings.extend(scan_text(f"history@{commit}:{cur_path}", raw[cols:], cfg))
     return findings
 
 
@@ -374,11 +488,9 @@ def scan_commit_msg(path: Path, cfg: Config) -> list[Finding]:
     czyli jedynym kanalem, ktorego bramka drzewa z definicji nie widzi. Tresci
     commita nie da sie potem poprawic bez przepisania historii, wiec to musi byc
     bramka WEJSCIOWA (hook `commit-msg`), nie kontrola po fakcie."""
-    try:
-        text = path.read_text(encoding="utf-8")
-    except OSError as e:
-        print(f"nie moge odczytac {path}: {e}", file=sys.stderr)
-        return []
+    # Blad odczytu leci wyzej (OSError): pusta lista trafien wygladalaby jak
+    # czysta tresc, a bramka, ktora niczego nie przeczytala, nie moze przepuscic.
+    text = path.read_text(encoding="utf-8")
     keep = [l for l in text.splitlines() if not l.lstrip().startswith("#")]
     out = scan_text(f"commit-msg:{path.name}", "\n".join(keep), cfg)
     # Konwencja organizacji (AGENTS.md): zero polskich diakrytykow w tresci
@@ -470,6 +582,30 @@ def split_baseline(findings: list[Finding], baseline: set[tuple[str, str, str]]
     return live, known
 
 
+def split_published_paths(findings: list[Finding], published: set[str]
+                          ) -> tuple[list[Finding], list[Finding]]:
+    """(zywe, juz_opublikowane) dla trafien `denied_path` z historii."""
+    live: list[Finding] = []
+    out: list[Finding] = []
+    for f in findings:
+        if (f.kind == "denied_path" and f.path.startswith("history@")
+                and f.path[len("history@"):].split(":", 1)[0] in published):
+            out.append(f)
+        else:
+            live.append(f)
+    return live, out
+
+
+def _history_failed(e: HistoryScanError) -> int:
+    """Fail-closed: skan historii, ktory sie nie odbyl, to blad, nie zielone swiatlo."""
+    print(f"history scan FAILED: {e}", file=sys.stderr)
+    print("Bramka nie przeczytala historii, wiec nie wie, co wychodzi. Typowo: brak "
+          "obiektow (klon --filter / --depth bez sieci) - `git fetch --unshallow` "
+          "albo `git fetch --refetch` i ponow.", file=sys.stderr)
+    print("RESULT: BLOCK")
+    return 2
+
+
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="MateMatic pre-publication leak scanner")
     ap.add_argument("path", nargs="?", default=".", help="repo root (default: .)")
@@ -486,6 +622,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--strict", action="store_true", help="WARN findings also fail")
     ap.add_argument("--commit-msg", type=Path, metavar="FILE",
                     help="skanuj tresc commita zamiast drzewa (hook commit-msg)")
+    ap.add_argument("--text", type=Path, metavar="FILE",
+                    help="skanuj dowolny tekst (tresc tagu adnotowanego, nazwy refow) "
+                         "tymi samymi detektorami co drzewo; bez reguly diakrytykow")
     ap.add_argument("--hash", metavar="TERM",
                     help="wypisz sha256 rdzenia TERM do wklejenia w deny_term_hashes i zakoncz")
     ap.add_argument("--allow-empty-denylist", action="store_true",
@@ -525,7 +664,19 @@ def main(argv: list[str] | None = None) -> int:
             return 2
 
     if args.commit_msg:
-        findings = scan_commit_msg(args.commit_msg, cfg)
+        try:
+            findings = scan_commit_msg(args.commit_msg, cfg)
+        except (OSError, UnicodeDecodeError) as e:
+            print(f"nie moge odczytac {args.commit_msg}: {e}\nRESULT: BLOCK", file=sys.stderr)
+            return 2
+        scanned = 1
+    elif args.text:
+        try:
+            text = args.text.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as e:   # nieprzeczytany != czysty
+            print(f"nie moge odczytac {args.text}: {e}\nRESULT: BLOCK", file=sys.stderr)
+            return 2
+        findings = scan_text(f"text:{args.text.name}", text, cfg)
         scanned = 1
     elif args.candidate:
         r = _git(root, "rev-parse", "--verify", "--quiet", f"{args.candidate}^{{commit}}")
@@ -533,12 +684,23 @@ def main(argv: list[str] | None = None) -> int:
             print(f"--candidate {args.candidate}: not a commit in this clone", file=sys.stderr)
             return 2
         revs = [r.stdout.strip(), "--not", *(public_tips or [])]
-        scanned = int(_git(root, "rev-list", "--count", *revs).stdout.strip() or 0)
-        findings = iter_history(root, cfg, revs)
+        cnt = _git(root, "rev-list", "--count", *revs)
+        if cnt.returncode != 0:
+            print(f"history scan FAILED: rev-list {args.candidate}: {cnt.stderr.strip()}\n"
+                  "RESULT: BLOCK (nie wiem, co publikacja doda)", file=sys.stderr)
+            return 2
+        scanned = int(cnt.stdout.strip() or 0)
+        try:
+            findings = iter_history(root, cfg, revs)
+        except HistoryScanError as e:
+            return _history_failed(e)
     else:
         findings, scanned = iter_tree(root, cfg, args.all_files)
         if args.history:
-            findings.extend(iter_history(root, cfg))
+            try:
+                findings.extend(iter_history(root, cfg))
+            except HistoryScanError as e:
+                return _history_failed(e)
 
     baseline = load_baseline(root)
     try:
@@ -548,7 +710,15 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     honoured = {e for e in baseline if e[0] in published}
     findings, known = split_baseline(findings, honoured)
-    history_scanned = bool(args.history or args.candidate) and not args.commit_msg
+    # Pelna historia (--history): sciezka z deny_paths w commicie JUZ osiagalnym
+    # z refa publicznego jest nieodwracalna - liczymy ja jawnie, ale nie blokuje
+    # (pomiar 2026-10-02: ~100 takich wpisow sprzed czyszczenia warsztatu). Ta sama
+    # sciezka w commicie spoza publicznego blokuje. W --candidate nic nie jest
+    # opublikowane z definicji, wiec ten podzial tam nie zachodzi.
+    paths_out: list[Finding] = []
+    if args.history and not (args.candidate or args.commit_msg or args.text):
+        findings, paths_out = split_published_paths(findings, published)
+    history_scanned = bool(args.history or args.candidate) and not (args.commit_msg or args.text)
 
     hard = [f for f in findings if f.severity == HARD]
     warn = [f for f in findings if f.severity == WARN]
@@ -558,7 +728,7 @@ def main(argv: list[str] | None = None) -> int:
     else:
         for f in findings:
             print(f"{f.severity:4} {f.kind:18} {f.path}:{f.line}  {f.excerpt}")
-        scope = ("commit message" if args.commit_msg else
+        scope = ("commit message" if args.commit_msg else "text" if args.text else
                  "commit(s) to publish" if args.candidate else
                  "all files" if args.all_files else "git-tracked files")
         print(f"\n{len(hard)} hard, {len(warn)} warn finding(s) "
@@ -568,6 +738,9 @@ def main(argv: list[str] | None = None) -> int:
                   f"{scanned} commit(s) to publish.")
         if known:   # mianownik: wyciszone liczymy jawnie, nie znikaja
             print(f"{len(known)} known historical finding(s) acknowledged in {BASELINE_FILE}.")
+        if paths_out:
+            print(f"{len(paths_out)} denied_path finding(s) in commits already reachable "
+                  f"from --public-ref (published, irreversible; not blocking).")
         if history_scanned and len(honoured) < len(baseline):
             why = ("commit not reachable from --public-ref" if public_tips is not None
                    else "no --public-ref given, so nothing counts as published")

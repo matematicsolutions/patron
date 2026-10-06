@@ -302,6 +302,13 @@ describe("scalenie odpowiedzi po ref", () => {
         expect(res.citations.filter((c) => c.status === "not_checked")).toHaveLength(6);
     });
 
+    it("konektor czeka na zatwierdzenie Operatora (B-08): gateway_pending, zero wywolan, cytaty widoczne", async () => {
+        const res = await checkDocumentCitations({ text: PISMO, callTool: null, pendingApproval: true });
+        expect(res.status).toBe("gateway_pending");
+        expect(res.sent).toEqual([]);
+        expect(res.citations.filter((c) => c.status === "not_checked")).toHaveLength(6);
+    });
+
     it("partie po 25, najwyzej MAX_CALLS wywolan; nadwyzka nazwana not_sent", async () => {
         const wiele = Array.from({ length: 120 }, (_, i) => `art. ${i + 1} k.c.;`).join("\n");
         const rozmiary: number[] = [];
@@ -363,5 +370,206 @@ describe("ksztalt odpowiedzi wg kontraktu verify_citations (identyfikatory dokum
         expect(po("385^1").status).toBe("changes_unknown");
         expect(po("385^1").details.last_change_before_as_of).toMatchObject({ data: "2000-07-01" });
         for (const c of res.citations) expect(TEKST.slice(c.offset, c.offset + c.length)).toBe(c.excerpt);
+    });
+});
+
+// ---------------------------------------------------------------------------
+// Poprawki przegladu 2026-10-02 (R-CC-01/02/03/04/08). Dane syntetyczne.
+// ---------------------------------------------------------------------------
+
+async function wyslij(text: string, odp: (items: VerifyItem[]) => unknown = () => ({ result: { citations: [] } })) {
+    const calls: VerifyItem[][] = [];
+    const res = await checkDocumentCitations({
+        text,
+        callTool: async (args) => {
+            const items = args.citations as VerifyItem[];
+            calls.push(items);
+            return { text: JSON.stringify(odp(items)) };
+        },
+    });
+    return { res, ladunek: JSON.stringify(calls) };
+}
+
+describe("R-CC-01 wychodza tylko sygnatury sadow, bez sygnatury wlasnej sprawy", () => {
+    const NAGLOWEK = [
+        "Sad Rejonowy, I Wydzial Cywilny",
+        "Sygn. akt I C 1234/25",
+        "Powod: Jan Testowy, ur. 12.03.1980, zam. ul. Polna 12/24.",
+        "Umowa nr KRD 4471/2019, faktura FV 123/2024, akt notarialny Rep. A 5678/2021,",
+        "sprawa w kancelarii pod sygn. KAN 45/2025.",
+        "Zgodnie z art. 471 k.c. oraz wyrokiem SN z dnia 12 marca 2024 r., II CSKP 1/24.",
+        "Por. wyrok NSA z 5.06.2023, I OSK 590/22, i wyrok TK z dnia 22 pazdziernika 2020 r., K 1/20.",
+    ].join("\n");
+
+    it("do sieci ida sygnatury z bialej listy i przepisy - nic wiecej", async () => {
+        const { ladunek } = await wyslij(NAGLOWEK);
+        const sygnatury = (JSON.parse(ladunek) as VerifyItem[][])
+            .flat()
+            .flatMap((i) => (i.type === "signature" ? [i.signature] : []));
+        expect(sygnatury.sort()).toEqual(["I OSK 590/22", "II CSKP 1/24", "K 1/20"]);
+        for (const zakaz of ["POLNA", "1980-03-12", "KRD", "FV 123", "A 5678", "KAN 45", "I C 1234"])
+            expect(ladunek).not.toContain(zakaz);
+        expect(ladunek).toContain('"date_in_text":"2024-03-12"');
+    });
+
+    it("zatrzymane pozycje sa widoczne lokalnie jako not_sent z powodem, nigdy zielone", async () => {
+        const { res } = await wyslij(NAGLOWEK, (items) => ({
+            result: { citations: items.map((i) => ({ ref: i.ref, status: "found" })) },
+        }));
+        const po = (s: string) => res.citations.find((c) => c.signature === s)!;
+        expect(po("I C 1234/25")).toMatchObject({ status: "not_sent", not_sent_reason: "own_case_signature" });
+        for (const s of ["POLNA 12/24", "KRD 4471/19", "FV 123/24", "A 5678/21", "KAN 45/25"])
+            expect(po(s)).toMatchObject({ status: "not_sent", not_sent_reason: "not_court_signature" });
+        expect(res.withheld).toBe(6);
+        // Zatrzymane lokalnie nie byly do sprawdzenia - wszystko wyslane sprawdzono.
+        expect(res.status).toBe("ok");
+        expect(res.notSent).toBe(0);
+    });
+
+    it("nadwyzka ponad limit ma powod 'limit' (odroznialny od zatrzymania lokalnego)", async () => {
+        const wiele = Array.from({ length: 110 }, (_, i) => `art. ${i + 1} k.c.;`).join("\n");
+        const { res } = await wyslij(wiele, (items) => ({
+            result: { citations: items.map((i) => ({ ref: i.ref, status: "found" })) },
+        }));
+        const nadwyzka = res.citations.filter((c) => c.status === "not_sent");
+        expect(nadwyzka).toHaveLength(10);
+        expect(nadwyzka.every((c) => c.not_sent_reason === "limit")).toBe(true);
+        expect(res.status).toBe("partial");
+    });
+
+    it("pismo z samymi zatrzymanymi pozycjami: nic nie wychodzi, zero wywolan", async () => {
+        const calls: unknown[] = [];
+        const res = await checkDocumentCitations({
+            text: "Sygn. akt I C 1234/25\nPowod zam. ul. Polna 12/24.",
+            callTool: async (args) => {
+                calls.push(args);
+                return { text: "{}" };
+            },
+        });
+        expect(calls).toEqual([]);
+        expect(res.status).toBe("no_citations");
+        expect(res.withheld).toBe(2);
+    });
+});
+
+describe("R-CC-03 znieksztalcona odpowiedz serwera = nieudane wywolanie, nie wyjatek", () => {
+    it.each([
+        ["null w citations", { result: { citations: [null] } }],
+        ["napis w citations", { result: { citations: ["c1"] } }],
+        ["tablica w citations", { result: { citations: [[]] } }],
+        ["citations nie-tablica", { result: { citations: { c1: "found" } } }],
+        ["rejected nie-tablica", { result: { citations: [], rejected: 5 } }],
+        ["null w rejected", { result: { citations: [], rejected: [null] } }],
+        ["result tablica", { result: [] }],
+        ["koperta tablica", []],
+        ["koperta null", null],
+    ])("%s", async (_n, odp) => {
+        const { res } = await wyslij("Podstawa: art. 471 k.c.", () => odp);
+        expect(res.status).toBe("failed");
+        expect(res.failedCalls).toBe(1);
+        expect(res.citations.every((c) => c.status === "not_checked")).toBe(true);
+    });
+
+    it("pola o zlym typie nie przechodza: status nie-napis = unknown, snapshot/daty nie-napisy pomijane", async () => {
+        const { res } = await wyslij("Podstawa: art. 471 k.c.", (items) => ({
+            snapshot: { x: 1 },
+            result: {
+                as_of: 5,
+                checked_on: ["2026"],
+                citations: items.map((i) => ({ ref: i.ref, status: { ok: true } })),
+                rejected: [{ ref: 7, index: "0", reason: { r: 1 } }],
+            },
+        }));
+        expect(res.citations[0].status).toBe("unknown");
+        expect(res.snapshot).toBeNull();
+        expect(res.checkedOn).toBeNull();
+        expect(res.asOf).toBeNull();
+        expect(res.status).toBe("failed"); // nic nie sprawdzono
+    });
+});
+
+describe("R-CC-04 noty serwera tylko jako napisy", () => {
+    it("coverage_note-obiekt jest pomijany, napis zostaje", async () => {
+        const ok = (items: VerifyItem[]) => items.map((i) => ({ ref: i.ref, status: "found" }));
+        const a = await wyslij("Podstawa: art. 471 k.c.", (items) => ({
+            result: { citations: ok(items) },
+            coverage_note: { html: "<b>x</b>" },
+        }));
+        expect(a.res.serverNotes).toEqual([]);
+        const b = await wyslij("Podstawa: art. 471 k.c.", (items) => ({
+            result: { citations: ok(items) },
+            coverage_note: "Korpus do 2026-09-30.",
+        }));
+        expect(b.res.serverNotes).toEqual(["Korpus do 2026-09-30."]);
+    });
+});
+
+describe("R-CC-08 wynik serwera tylko dla pozycji z wyslanej partii", () => {
+    it("ref niewyslany (ustawa nierozpoznana, pozycja zatrzymana, spoza partii) nie dostaje statusu", async () => {
+        const text =
+            "Sygn. akt I C 1234/25\nPodstawa: art. 5 ustawy o ochronie zabytkow i opiece nad zabytkami oraz art. 471 k.c.";
+        const { res, ladunek } = await wyslij(text, () => ({
+            result: {
+                citations: ["c1", "c2", "c3", "c99"].map((ref) => ({ ref, status: "found" })),
+                rejected: [{ ref: "c1", reason: "x" }, { index: 5, reason: "poza partia" }],
+            },
+        }));
+        const wyslane = (JSON.parse(ladunek) as VerifyItem[][]).flat().map((i) => i.ref);
+        expect(wyslane).toEqual(["c3"]);
+        expect(res.citations.find((c) => c.ref === "c1")).toMatchObject({
+            status: "not_sent",
+            not_sent_reason: "own_case_signature",
+        });
+        expect(res.citations.find((c) => c.ref === "c2")!.status).toBe("act_not_recognized");
+        expect(res.citations.find((c) => c.ref === "c3")!.status).toBe("found");
+    });
+
+    it("partie: wynik z wywolania 1 nie nadaje stanu pozycji z wywolania 2", async () => {
+        const wiele = Array.from({ length: 30 }, (_, i) => `art. ${i + 1} k.c.;`).join("\n");
+        let n = 0;
+        const res = await checkDocumentCitations({
+            text: wiele,
+            callTool: async () => {
+                n += 1;
+                // Pierwsze wywolanie "odpowiada" za wszystkie 30, drugie nie odpowiada wcale.
+                return n === 1
+                    ? {
+                          text: JSON.stringify({
+                              result: {
+                                  citations: Array.from({ length: 30 }, (_, i) => ({ ref: `c${i + 1}`, status: "found" })),
+                              },
+                          }),
+                      }
+                    : { text: "", isError: true };
+            },
+        });
+        expect(res.citations.slice(0, 25).every((c) => c.status === "found")).toBe(true);
+        expect(res.citations.slice(25).every((c) => c.status === "not_checked")).toBe(true);
+        expect(res.status).toBe("partial");
+    });
+});
+
+describe("R-CC-02 brak sprawdzenia nigdy nie jest ok", () => {
+    it("wszystkie pozycje odrzucone = failed", async () => {
+        const { res } = await wyslij("Podstawa: art. 471 k.c. oraz wyrok SN II CSKP 1/24.", (items) => ({
+            result: { citations: [], rejected: items.map((i) => ({ ref: i.ref, reason: "limit" })) },
+        }));
+        expect(res.citations.every((c) => c.status === "rejected")).toBe(true);
+        expect(res.status).toBe("failed");
+    });
+
+    it("czesc odrzucona = partial, nie ok", async () => {
+        const { res } = await wyslij("Podstawa: art. 471 k.c. oraz wyrok SN II CSKP 1/24.", (items) => ({
+            result: {
+                citations: [{ ref: items[0].ref, status: "found" }],
+                rejected: items.slice(1).map((i) => ({ ref: i.ref, reason: "signature_invalid" })),
+            },
+        }));
+        expect(res.status).toBe("partial");
+    });
+
+    it("pusta odpowiedz bez wynikow dla zadnej pozycji = failed", async () => {
+        const { res } = await wyslij("Podstawa: art. 471 k.c.");
+        expect(res.status).toBe("failed");
     });
 });

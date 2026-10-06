@@ -80,6 +80,10 @@ Pelna atrybucja w [THIRD_PARTY_INSPIRATIONS.md](../../../../THIRD_PARTY_INSPIRAT
   Od ADR-0159 formula v2: `canonicalSha256` z nazwy serwera i pelnych definicji narzedzi
   (nazwa, opis, `inputSchema`), wpisy baseline wersjonowane `v2:<hex>`, stare wpisy v1
   migrowane jednorazowo przy starcie (zgodny v1 = finding low do audytu, niezgodny = high).
+  Od B-06 / R-MCP-01 wpis niesie tez odcisk pochodzenia: `v2:<def>|o:<origin>`
+  (stdio = komenda + args z konfiguracji; http = sam schemat i host, bez sciezki i
+  zapytania). Wpis bez odcisku = jednorazowe ustalenie (low); inny odcisk = high.
+  Konektor z pliku instalatora zgodny z manifestem (ADR-0162) - odcisk tylko ustalany.
 
 ## Struktura
 
@@ -88,7 +92,7 @@ mcp-security/
   types.ts                              - definicje typow
   detectors/
     typosquat.ts                        - Levenshtein vs lista zatwierdzonych
-    drift.ts                            - hash definicji (v2, z inputSchema) vs baseline + migracja v1
+    drift.ts                            - hash definicji (v2, z inputSchema) + odcisk pochodzenia vs baseline + migracja v1
     hidden-instructions.ts              - jailbreak patterns w opisach (PL+EN)
     tool-poisoning.ts                   - permission expansion + schema mismatch
   scorer.ts                             - calculateRiskScore, decideAction

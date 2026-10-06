@@ -16,6 +16,7 @@ import {
     approveMutationApproval,
     getApprovalById,
     getPendingApprovals,
+    isPartialExecution,
     rejectMutationApproval,
 } from "../lib/mutation-approval";
 import { executeStagedTool } from "../lib/chat/mutation-approval-executor";
@@ -68,9 +69,12 @@ approvalsRouter.post("/:id/approve", requireAuth, async (req, res) => {
         }
         // Wykonanie po zatwierdzeniu moglo sie nie powiesc (np. dokument
         // zmieniony) - karta jest `approved`, ale niesie execution_error.
+        // Wykonanie CZESCIOWE (C-08): executed=true + partial=true, a
+        // result niesie requested/applied/failed i errors[] (powody).
         res.json({
             approval: result.card,
             executed: result.execution?.ok ?? false,
+            partial: result.execution ? isPartialExecution(result.execution) : false,
             execution_error: result.card?.execution_error ?? null,
             result: result.execution?.result ?? null,
         });

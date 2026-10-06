@@ -6,7 +6,7 @@
 // wzgledem tekstu akt sprawy. Deterministyczne, zero LLM, READ-ONLY. Reuzywa
 // groundCitationsByRef (prefetch tekstu dokumentu + verifyCitations).
 
-import { Router } from "express";
+import { Router, type Request, type Response } from "express";
 import { requireAuth } from "../middleware/auth";
 import { createServerSupabase } from "../lib/supabase";
 import { checkProjectAccess, ensureDocAccess } from "../lib/access";
@@ -21,6 +21,7 @@ import type { DocIndex, DocStore } from "../lib/chat/types";
 import { checkDocumentCitations } from "../lib/citation-check";
 import {
   resolveVerifyToolCall,
+  verifierPendingApproval,
   verifierServerName,
 } from "../lib/citation-check/connector";
 
@@ -103,7 +104,24 @@ citationsRouter.post("/verify", requireAuth, async (req, res) => {
 // offsetami w NIM, wiec podswietlenie nie zgaduje. Ta trasa nie loguje tresci;
 // wspolna sciezka odczytu (readDocumentContent) wypisuje do LOKALNEGO logu
 // poczatek tekstu - to zachowanie czatu, do osobnej naprawy (ADR-0157).
+//
+// R-CC-03: Express 4 nie lapie odrzuconej obietnicy z async handlera, a backend
+// nie ma `unhandledRejection` - wyjatek tutaj konczyl proces. Kazdy blad to
+// jawne "failed" (500 + status), nigdy cisza ani upadek backendu. Do logu idzie
+// tylko nazwa bledu: komunikat moze niesc sciezke pliku albo fragment danych.
 citationsRouter.post("/check-document", requireAuth, async (req, res) => {
+  try {
+    await checkDocument(req, res);
+  } catch (err) {
+    console.error(
+      `[citations] check-document nieudane: ${err instanceof Error ? err.name : typeof err}`,
+    );
+    if (!res.headersSent)
+      res.status(500).json({ status: "failed", detail: "Citation check failed" });
+  }
+});
+
+async function checkDocument(req: Request, res: Response): Promise<void> {
   const userId = res.locals.userId as string;
   const userEmail = res.locals.userEmail as string | undefined;
   const body = (req.body ?? {}) as { document_id?: unknown; as_of?: unknown };
@@ -168,11 +186,29 @@ citationsRouter.post("/check-document", requireAuth, async (req, res) => {
     return void res.json({ status: "no_text", filename: row.filename });
 
   const callTool = await resolveVerifyToolCall();
-  const result = await checkDocumentCitations({ text, callTool, asOf });
+  // B-08 (ADR-0158): konektor skonfigurowany, ale czeka na zatwierdzenie
+  // Operatora - jawny stan `gateway_pending` z wartosciami do wpisania, nie
+  // "nie podlaczony" i nie 500. Hash i odcisk to skroty SHA-256 (bez adresu i
+  // klucza konektora).
+  const pending = callTool ? null : verifierPendingApproval();
+  const result = await checkDocumentCitations({
+    text,
+    callTool,
+    asOf,
+    pendingApproval: pending !== null,
+  });
   res.json({
     ...result,
     filename: row.filename,
     verifier: verifierServerName(),
+    ...(pending && {
+      gatewayApproval: {
+        server: pending.server,
+        hash: pending.hash,
+        origin: pending.origin,
+        reason: pending.reason,
+      },
+    }),
     text,
   });
-});
+}

@@ -55,6 +55,7 @@ import type {
     PATRONProject,
 } from "@/app/components/shared/types";
 import { expandCitationToEntries } from "@/app/components/shared/types";
+import { modelOfTurn } from "@/app/components/assistant/turnModel";
 import { t } from "@/i18n";
 
 interface Props {
@@ -1217,6 +1218,10 @@ export default function ProjectAssistantChatPage({ params }: Props) {
                                             isDocReloading={(docId) =>
                                                 reloadingDocIds.has(docId)
                                             }
+                                            // A-05: draft z tej odpowiedzi idzie
+                                            // modelem tury i pod klasyfikacja sprawy.
+                                            model={modelOfTurn(messages, i)}
+                                            projectId={projectId}
                                         />
                                     ),
                                 );

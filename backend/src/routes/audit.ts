@@ -28,21 +28,26 @@ import { recordAdminAccess } from "../lib/audit-admin-access";
 import {
     buildAuditPack,
     buildAuditPackFilename,
+    checkStoredRowHash,
+    resolveLegalBreak,
+    toVerifiablePackEvent,
     type AuditPackEvent,
+    type LegalBreakResolution,
+    type StoredAuditRow,
 } from "../lib/audit-pack";
+import { LEGAL_BREAK_EVENT } from "../lib/audit-chain-verify";
 import {
     buildAuditExportArchive,
     toArchiveFilename,
 } from "../lib/audit-export-archive";
 // ADR-0152: eksport pakietu dowodowego dla deliverable (wpiecie rdzenia ADR-0066).
-import { buildAuditBundle } from "../lib/audit-bundle";
+import { annotateExcerptLinks, buildAuditBundle } from "../lib/audit-bundle";
 import {
     citationsFromAnnotations,
-    modelFromAuditRows,
+    modelForMessage,
     buildAuditBundleFilename,
-    toPackEvent,
 } from "../lib/audit-bundle-source";
-import { appendAuditEvent } from "../lib/audit";
+import { appendAuditEvent, GENESIS_HASH } from "../lib/audit";
 import {
     acknowledgeForks,
     ackHttpStatus,
@@ -99,8 +104,16 @@ auditRouter.get(
         const result = await fetchProofForEvent(db, eventId);
         if (!result.ok) {
             const error = result.error ?? "unknown_error";
-            if (error.includes("nie istnieje") || error.includes("brak Merkle root")) {
+            if (result.code === "not_found" || result.code === "no_root") {
                 res.status(404).json({ error: "not_found", detail: error });
+                return;
+            }
+            if (result.code === "root_mismatch") {
+                res.status(409).json({
+                    error: "merkle_root_mismatch",
+                    detail: error,
+                    root_ids: result.mismatchedRootIds ?? [],
+                });
                 return;
             }
             res.status(500).json({ error: "fetch_failed", detail: error });
@@ -236,6 +249,23 @@ auditRouter.get(
  *   404 - event nie istnieje LUB brak Merkle root pokrywajacego event
  *         (audytor musi poczekac na auto-trigger ADR-0036 lub manualny
  *         compute root przez admina kancelarii)
+ *   200 - takze dla wpisu zanonimizowanego na podstawie RODO art. 17, gdy
+ *         obejmuje go WAZNA deklaracja audit.chain.legal_break (ADR-0164,
+ *         decyzja wlasciciela produktu 2026-10-06): zdarzenie w paczce niesie
+ *         znacznik legal_break, a wiersz deklaracji jedzie jako
+ *         legal_break_declaration; weryfikatory daja osobny stan (verify.py: 3)
+ *   409 - ODMOWA: wpis nie przechodzi kontroli serwera (audyt 2026-09, C-04):
+ *         event_hash_mismatch   - hash przeliczony z tresci != kolumna hash i
+ *                                 brak waznej deklaracji zerwania z mocy prawa;
+ *                                 pole legal_break w odpowiedzi mowi, czemu
+ *                                 deklaracja nie wystarczyla (old_format,
+ *                                 content_differs, field_not_null)
+ *         event_parent_missing  - poprzednika (prev_hash) nie ma w dzienniku
+ *                                 albo jest pozniejszy (usuniety / wstawka)
+ *         merkle_root_mismatch  - dowod nie odtwarza ktoregos z korzeni
+ *                                 obejmujacych wpis
+ *         Odmowa zostawia slad admin.access.audit_export z phase "refused".
+ *         Paczki, ktora potwierdzalaby nienaruszonosc takiego wpisu, nie ma.
  *   500 - blad DB albo blad skladania archiwum (error: "archive_failed")
  */
 auditRouter.get(
@@ -297,30 +327,151 @@ auditRouter.get(
             return;
         }
 
-        // 2. Pobierz Merkle proof bundle (per ADR-0036)
+        // 2. Tresc wpisu kontra jego hash (audyt 2026-09, C-04). Lisciem Merkle
+        //    jest KOLUMNA hash, wiec dowod sam nie widzi zmiany payloadu, ts czy
+        //    event_type zrobionej SQL-em. Przeliczamy hash z pelnej (NIEzamaskowanej)
+        //    tresci - odbiorca tego nie zrobi, bo dostaje payload zamaskowany.
+        //    Niezgodnosc = ODMOWA, nie paczka z werdyktem: paczka jest dowodem
+        //    wydawanym na zewnatrz, a z niezgodnym wpisem nie ma czego dowodzic.
+        //    Odmowa zostawia slad w dzienniku i mowi adminowi, gdzie szukac.
+        const odmowa = async (
+            reason: "event_hash_mismatch" | "event_parent_missing" | "merkle_root_mismatch",
+            detail: string,
+            legalBreak?: { status: string; declaration_event_id: number | null },
+        ): Promise<void> => {
+            await appendAuditEvent(db, {
+                event_type: "admin.access.audit_export",
+                actor_user_id: (res.locals.userId as string | null) ?? null,
+                payload: {
+                    phase: "refused",
+                    event_id: eventId,
+                    reason,
+                    ...(legalBreak ? { legal_break: legalBreak } : {}),
+                },
+            });
+            res.status(409).json({ error: reason, detail, ...(legalBreak ? { legal_break: legalBreak } : {}) });
+        };
+
+        const stored: StoredAuditRow = {
+            id: eventRow.id,
+            ts: eventRow.ts,
+            event_type: eventRow.event_type,
+            actor_user_id: eventRow.actor_user_id,
+            chat_id: eventRow.chat_id,
+            document_id: eventRow.document_id,
+            payload: parseJson(eventRow.payload),
+            prev_hash: eventRow.prev_hash,
+            hash: eventRow.hash,
+        };
+        const hashCheck = checkStoredRowHash(stored);
+        let hashedTs = hashCheck.ts;
+        // 2a. Zerwanie z mocy prawa (ADR-0164, decyzja 2026-10-06). Wpis
+        //     zanonimizowany przez scripts/rodo-delete.ts ma hash niezgodny z
+        //     trescia z mocy prawa. Eksport idzie TYLKO, gdy obejmuje go wazna
+        //     deklaracja audit.chain.legal_break z hashem po zerwaniu, a obecna
+        //     tresc daje dokladnie ten hash (resolveLegalBreak). Inaczej odmowa
+        //     jak dotad - w tym dla deklaracji w starym formacie (uzasadnienie
+        //     przy LegalBreakResolution w lib/audit-pack.ts).
+        let zerwanie: Extract<LegalBreakResolution, { status: "verified" }> | null = null;
+        if (!hashCheck.ok) {
+            let deklaracje: StoredAuditRow[];
+            try {
+                deklaracje = await czytajDeklaracje(db, eventId);
+            } catch (e) {
+                const msg = e instanceof Error ? e.message : String(e);
+                res.status(500).json({ error: "fetch_failed", detail: msg });
+                return;
+            }
+            const r = resolveLegalBreak(stored, deklaracje);
+            if (r.status !== "verified") {
+                await odmowa(
+                    "event_hash_mismatch",
+                    opisOdmowyZerwania(`wpisu ${eventId}`, r),
+                    r.status === "none"
+                        ? undefined
+                        : { status: r.status, declaration_event_id: r.declarationEventId ?? null },
+                );
+                return;
+            }
+            zerwanie = r;
+            hashedTs = r.ts;
+        }
+
+        // 2b. Poprzednik: wiersz o hashu prev_hash musi istniec i byc wczesniejszy.
+        //     Wykrywa usuniety poprzednik (dowod Merkle bloku tego nie widzi, gdy
+        //     korzen policzono po usunieciu).
+        if (stored.prev_hash !== GENESIS_HASH) {
+            try {
+                const pr = await db
+                    .from("audit_log")
+                    .select("id")
+                    .eq("hash", stored.prev_hash)
+                    .limit(1);
+                if (pr.error) {
+                    res.status(500).json({ error: "fetch_failed", detail: pr.error.message });
+                    return;
+                }
+                const parent = (pr.data ?? [])[0] as { id: number } | undefined;
+                if (!parent || parent.id >= eventId) {
+                    await odmowa(
+                        "event_parent_missing",
+                        `Poprzednika wpisu ${eventId} (prev_hash) nie ma w dzienniku albo jest pozniejszy - ` +
+                            "wpis usunieto albo wstawiono wstecz. Stan lancucha: GET /api/audit/chain.",
+                    );
+                    return;
+                }
+            } catch (e) {
+                const msg = e instanceof Error ? e.message : String(e);
+                res.status(500).json({ error: "fetch_failed", detail: msg });
+                return;
+            }
+        }
+
+        // 3. Merkle proof bundle (ADR-0036) - zgodny z KAZDYM korzeniem
+        //    obejmujacym wpis, wskazuje najstarsza pieczec.
         const proofResult = await fetchProofForEvent(db, eventId);
         if (!proofResult.ok || !proofResult.bundle) {
             const error = proofResult.error ?? "unknown_error";
-            if (error.includes("nie istnieje") || error.includes("brak Merkle root")) {
+            if (proofResult.code === "not_found" || proofResult.code === "no_root") {
                 res.status(404).json({ error: "not_found", detail: error });
+                return;
+            }
+            if (proofResult.code === "root_mismatch") {
+                await odmowa("merkle_root_mismatch", error);
                 return;
             }
             res.status(500).json({ error: "fetch_failed", detail: error });
             return;
         }
+        if (proofResult.bundle.event_hash !== stored.hash) {
+            // Wiersz zmienil sie miedzy odczytami - nie wydajemy niespojnej paczki.
+            await odmowa(
+                "event_hash_mismatch",
+                `Hash wpisu ${eventId} zmienil sie w trakcie eksportu - sprobuj ponownie albo sprawdz lancuch.`,
+            );
+            return;
+        }
 
-        // 3. Zbuduj AuditPackEvent (payload zamaskowany server-side)
-        const packEvent: AuditPackEvent = {
-            id: eventRow.id,
-            event_type: eventRow.event_type,
-            ts: eventRow.ts,
-            actor_user_id: eventRow.actor_user_id,
-            chat_id: eventRow.chat_id,
-            document_id: eventRow.document_id,
-            hash: eventRow.hash,
-            prev_hash: eventRow.prev_hash,
-            payload_masked: maskPayload(eventRow.payload),
-        };
+        // Zdarzenie do paczki: payload zamaskowany server-side (ADR-0040); gdy
+        // maskowanie niczego nie zmienilo, flaga hash_inputs_complete pozwala
+        // odbiorcy przeliczyc hash z tresci.
+        const packEvent: AuditPackEvent = toVerifiablePackEvent(
+            stored,
+            maskPayload(stored.payload),
+            hashedTs,
+        );
+        // Wpis zerwany z mocy prawa: hash (lisc Merkle) zostaje oryginalny,
+        // znacznik mowi, ktora deklaracja i jaki hash po zerwaniu; sama
+        // deklaracja jedzie w paczce, zeby odbiorca mogl ja sprawdzic.
+        let deklaracjaWPaczce: AuditPackEvent | undefined;
+        if (zerwanie) {
+            packEvent.legal_break = zerwanie.marker;
+            deklaracjaWPaczce = toVerifiablePackEvent(
+                zerwanie.declaration,
+                maskPayload(zerwanie.declaration.payload),
+                zerwanie.declarationTs,
+            );
+        }
 
         // 4. Sklej pack z integrity SHA256
         const exportedAt = new Date().toISOString();
@@ -332,6 +483,7 @@ auditRouter.get(
             event: packEvent,
             bundle: proofResult.bundle,
             exportedAt,
+            legalBreakDeclaration: deklaracjaWPaczce,
         });
 
         // 5. Zwroc archiwum ZIP: pack + weryfikatory + instrukcja (ADR-0142).
@@ -533,7 +685,16 @@ auditRouter.post(
 //   400 - wiadomosc nie jest odpowiedzia asystenta (nie ma czego dowodzic)
 //   401 - brak/niepoprawny JWT
 //   404 - wiadomosc nie istnieje LUB brak dostepu (nie zdradzamy ktore)
+//   409 - ODMOWA (audyt 2026-09, D-01): excerpt_hash_mismatch (wpis wyciagu
+//         niezgodny z hashem i bez waznej deklaracji zerwania z mocy prawa;
+//         pole legal_break mowi, czemu deklaracja nie wystarczyla) albo
+//         excerpt_parent_missing
 //   500 - blad DB albo skladania archiwum
+//
+// Wpisy zanonimizowane na podstawie RODO art. 17 i objete WAZNA deklaracja
+// audit.chain.legal_break (ADR-0164, decyzja 2026-10-06) nie zatrzymuja pakietu:
+// niosa znacznik legal_break, deklaracje jada w legal_break_declarations (czesc
+// manifestu), a weryfikatory daja osobny stan (verify.py: kod 3).
 auditRouter.get(
     "/bundle/:messageId",
     requireAuth,
@@ -566,11 +727,12 @@ auditRouter.get(
             role: string;
             content: string | null;
             annotations: unknown;
+            created_at: string | null;
         };
         try {
             const r = await db
                 .from("chat_messages")
-                .select("id, chat_id, role, content, annotations")
+                .select("id, chat_id, role, content, annotations, created_at")
                 .eq("id", messageId)
                 .maybeSingle();
             if (r.error || !r.data) {
@@ -629,17 +791,9 @@ auditRouter.get(
 
         // 3. Wyciag hash-chain dla tego czatu (ADR-0001). Payload maskowany
         //    server-side (ADR-0040) - model czytamy z surowego, przed maskowaniem.
-        let rows: Array<{
-            id: number;
-            event_type: string;
-            ts: string;
-            actor_user_id: string | null;
-            chat_id: string | null;
-            document_id: string | null;
-            hash: string;
-            prev_hash: string;
-            payload: unknown;
-        }> = [];
+        //    Kolejnosc po id, nie po ts: id to kolejnosc w lancuchu, a dwa wpisy
+        //    z ta sama milisekunda moglyby sie przestawic (audyt 2026-09).
+        let rows: StoredAuditRow[] = [];
         try {
             const r = await db
                 .from("audit_log")
@@ -647,26 +801,174 @@ auditRouter.get(
                     "id, event_type, actor_user_id, chat_id, document_id, ts, hash, prev_hash, payload",
                 )
                 .eq("chat_id", msg.chat_id)
-                .order("ts", { ascending: true });
+                .order("id", { ascending: true });
             if (r.error) {
                 const detail = r.error.message ?? "audit_log";
                 res.status(500).json({ error: "fetch_failed", detail });
                 return;
             }
-            rows = (r.data ?? []) as typeof rows;
+            rows = ((r.data ?? []) as StoredAuditRow[]).map((row) => ({
+                ...row,
+                payload: parseJson(row.payload),
+            }));
         } catch (e) {
             const detail = e instanceof Error ? e.message : String(e);
             res.status(500).json({ error: "fetch_failed", detail });
             return;
         }
 
-        const excerpt = rows.map((r) => toPackEvent(r, maskPayload(parseJson(r.payload))));
-        const model = modelFromAuditRows(
-            rows.map((r) => ({
-                event_type: r.event_type,
-                ts: r.ts,
-                payload: parseJson(r.payload),
-            })),
+        // 3b. Kontrola wydawcy (audyt 2026-09, D-01 / C-04): kazdy wpis wyciagu
+        //     ma hash zgodny z PELNA trescia, a poprzednik spoza wyciagu istnieje
+        //     w dzienniku i jest wczesniejszy. Odbiorca nie przeliczy hasha wpisu
+        //     z payloadem zamaskowanym ani nie sprawdzi ogniwa przez luke - robi
+        //     to serwer, a przy niezgodnosci pakiet NIE wychodzi.
+        const odmowaPakietu = async (
+            reason: "excerpt_hash_mismatch" | "excerpt_parent_missing",
+            ids: number[],
+            detail: string,
+            legalBreak?: Array<{ event_id: number; status: string; declaration_event_id: number | null }>,
+        ): Promise<void> => {
+            const lb = legalBreak && legalBreak.length > 0 ? legalBreak : undefined;
+            await appendAuditEvent(db, {
+                event_type: "deliverable.bundle_export",
+                actor_user_id: userId,
+                chat_id: msg.chat_id,
+                document_id: null,
+                payload: {
+                    phase: "refused",
+                    message_id: msg.id,
+                    reason,
+                    event_ids: ids.slice(0, 50),
+                    ...(lb ? { legal_break: lb.slice(0, 50) } : {}),
+                },
+            });
+            res.status(409).json({ error: reason, detail, event_ids: ids, ...(lb ? { legal_break: lb } : {}) });
+        };
+        const hashedTs = new Map<number, string>();
+        const zlyHash: StoredAuditRow[] = [];
+        for (const row of rows) {
+            const c = checkStoredRowHash(row);
+            if (c.ok) hashedTs.set(row.id, c.ts);
+            else zlyHash.push(row);
+        }
+        // Zerwanie z mocy prawa (ADR-0164, decyzja 2026-10-06): wpis wyciagu
+        // objety wazna deklaracja idzie ze znacznikiem, a deklaracja - w pakiecie.
+        // Kazdy inny wpis z niezgodnym hashem zatrzymuje pakiet jak dotad.
+        const znaczniki = new Map<number, Extract<LegalBreakResolution, { status: "verified" }>>();
+        if (zlyHash.length > 0) {
+            let deklaracje: StoredAuditRow[];
+            try {
+                deklaracje = await czytajDeklaracje(db, Math.min(...zlyHash.map((r) => r.id)));
+            } catch (e) {
+                const detail = e instanceof Error ? e.message : String(e);
+                res.status(500).json({ error: "fetch_failed", detail });
+                return;
+            }
+            const niewyjasnione: number[] = [];
+            const statusy: Array<{ event_id: number; status: string; declaration_event_id: number | null }> = [];
+            let pierwszaOdmowa: LegalBreakResolution | null = null;
+            for (const row of zlyHash) {
+                const r = resolveLegalBreak(row, deklaracje);
+                if (r.status === "verified") {
+                    znaczniki.set(row.id, r);
+                    hashedTs.set(row.id, r.ts);
+                    continue;
+                }
+                niewyjasnione.push(row.id);
+                pierwszaOdmowa = pierwszaOdmowa ?? r;
+                if (r.status !== "none") {
+                    statusy.push({ event_id: row.id, status: r.status, declaration_event_id: r.declarationEventId ?? null });
+                }
+            }
+            if (niewyjasnione.length > 0) {
+                await odmowaPakietu(
+                    "excerpt_hash_mismatch",
+                    niewyjasnione,
+                    opisOdmowyZerwania("wpisow dziennika tej sprawy", pierwszaOdmowa!) +
+                        " Pakiet wstrzymany.",
+                    statusy,
+                );
+                return;
+            }
+        }
+        const wWyciagu = new Set(rows.map((r) => r.hash));
+        const zewnetrzni = new Map<string, number>();
+        for (const row of rows) {
+            if (row.prev_hash !== GENESIS_HASH && !wWyciagu.has(row.prev_hash)) {
+                zewnetrzni.set(row.prev_hash, row.id);
+            }
+        }
+        const brakPoprzednika: number[] = [];
+        try {
+            const hashe = [...zewnetrzni.keys()];
+            const znalezione = new Map<string, number>();
+            for (let i = 0; i < hashe.length; i += 100) {
+                const r = await db
+                    .from("audit_log")
+                    .select("id, hash")
+                    .in("hash", hashe.slice(i, i + 100));
+                if (r.error) {
+                    res.status(500).json({ error: "fetch_failed", detail: r.error.message });
+                    return;
+                }
+                for (const x of (r.data ?? []) as Array<{ id: number; hash: string }>) {
+                    znalezione.set(x.hash, x.id);
+                }
+            }
+            for (const [h, rowId] of zewnetrzni) {
+                const parentId = znalezione.get(h);
+                if (parentId === undefined || parentId >= rowId) brakPoprzednika.push(rowId);
+            }
+        } catch (e) {
+            const detail = e instanceof Error ? e.message : String(e);
+            res.status(500).json({ error: "fetch_failed", detail });
+            return;
+        }
+        if (brakPoprzednika.length > 0) {
+            await odmowaPakietu(
+                "excerpt_parent_missing",
+                brakPoprzednika.sort((a, b) => a - b),
+                "Poprzednika wpisu dziennika tej sprawy nie ma w dzienniku albo jest pozniejszy - wpis usunieto " +
+                    "albo wstawiono wstecz. Pakiet wstrzymany. Stan lancucha: GET /api/audit/chain (administrator).",
+            );
+            return;
+        }
+
+        const excerpt = annotateExcerptLinks(
+            rows.map((r) => {
+                const e = toVerifiablePackEvent(r, maskPayload(r.payload), hashedTs.get(r.id) ?? r.ts);
+                const z = znaczniki.get(r.id);
+                return z ? { ...e, legal_break: z.marker } : e;
+            }),
+        );
+        const deklaracjeWPakiecie = [
+            ...new Map([...znaczniki.values()].map((z) => [z.declaration.id, z])).values(),
+        ]
+            .sort((a, b) => a.declaration.id - b.declaration.id)
+            .map((z) => toVerifiablePackEvent(z.declaration, maskPayload(z.declaration.payload), z.declarationTs));
+
+        // Model, ktory napisal TE odpowiedz (D-02): zdarzenie asystenta dla tej
+        // wiadomosci; granica okna to nastepna odpowiedz asystenta w czacie.
+        let nextAssistantCreatedAt: string | null = null;
+        if (msg.created_at) {
+            try {
+                const n = await db
+                    .from("chat_messages")
+                    .select("created_at")
+                    .eq("chat_id", msg.chat_id)
+                    .eq("role", "assistant")
+                    .gt("created_at", msg.created_at)
+                    .order("created_at", { ascending: true })
+                    .limit(1);
+                const first = (n.data ?? [])[0] as { created_at?: string } | undefined;
+                nextAssistantCreatedAt = first?.created_at ?? null;
+            } catch {
+                nextAssistantCreatedAt = null;
+            }
+        }
+        const { model, source: modelSource } = modelForMessage(
+            rows.map((r) => ({ event_type: r.event_type, ts: r.ts, payload: r.payload })),
+            { createdAt: msg.created_at ?? null, nextAssistantCreatedAt },
         );
         const citations = citationsFromAnnotations(parseJson(msg.annotations));
         const deliverableMd = msg.content ?? "";
@@ -694,6 +996,12 @@ auditRouter.get(
                 chars: deliverableMd.length,
                 citations_total: citations.length,
                 audit_events: excerpt.length,
+                ...(znaczniki.size > 0
+                    ? {
+                          legal_breaks: znaczniki.size,
+                          legal_break_declaration_ids: deklaracjeWPakiecie.map((d) => d.id),
+                      }
+                    : {}),
                 model,
             },
         });
@@ -714,7 +1022,7 @@ auditRouter.get(
             deliverableMd,
             citations,
             auditLogExcerpt: excerpt,
-            modelVersions: { model },
+            modelVersions: { model, model_source: modelSource },
             costLog: {
                 available: false,
                 full_text_len: deliverableMd.length,
@@ -722,6 +1030,7 @@ auditRouter.get(
                 note: "Patron nie sledzi jeszcze tokenow ani kosztu per deliverable (ADR-0066).",
             },
             createdAt: exportedAt,
+            legalBreakDeclarations: deklaracjeWPakiecie,
         });
 
         const jsonFilename = buildAuditBundleFilename(msg.id, exportedAt);
@@ -746,6 +1055,54 @@ auditRouter.get(
         res.status(200).send(archive);
     },
 );
+
+/**
+ * Deklaracje zerwania z mocy prawa POZNIEJSZE od wiersza `odId` (tylko takie
+ * moga go wymieniac - ta sama regula co weryfikator lancucha). Rzuca przy
+ * bledzie odczytu - caller zwraca 500, nie paczke.
+ */
+async function czytajDeklaracje(
+    db: ReturnType<typeof createServerSupabase>,
+    odId: number,
+): Promise<StoredAuditRow[]> {
+    const r = await db
+        .from("audit_log")
+        .select("id, event_type, actor_user_id, chat_id, document_id, ts, hash, prev_hash, payload")
+        .eq("event_type", LEGAL_BREAK_EVENT)
+        .gt("id", odId)
+        .order("id", { ascending: true });
+    if (r.error) throw new Error(r.error.message ?? "audit_log: odczyt deklaracji");
+    return ((r.data ?? []) as StoredAuditRow[]).map((row) => ({ ...row, payload: parseJson(row.payload) }));
+}
+
+/** Tresc odmowy 409 dla wiersza z niezgodnym hashem - mowi, czemu deklaracja nie wystarczyla. */
+function opisOdmowyZerwania(czego: string, r: LegalBreakResolution): string {
+    const lancuch = " Stan lancucha: GET /api/audit/chain (administrator).";
+    const nr = "declarationEventId" in r && r.declarationEventId !== undefined ? `#${r.declarationEventId}` : "";
+    switch (r.status) {
+        case "old_format":
+            return (
+                `Tresc ${czego} nie zgadza sie z hashem. Obejmuje ja deklaracja zerwania z mocy prawa ${nr} w starym ` +
+                "formacie (bez affected_hashes_after) - nie da sie wykluczyc zmiany tresci po anonimizacji, wiec " +
+                "eksport jest odmowiony." + lancuch
+            );
+        case "content_differs":
+            return (
+                `Tresc ${czego} rozni sie od zadeklarowanej po zerwaniu z mocy prawa (deklaracja ${nr}) - ` +
+                "wpis zmieniono PO anonimizacji." + lancuch
+            );
+        case "field_not_null":
+            return (
+                `Tresc ${czego} nie zgadza sie z hashem, a pole nazwane w deklaracji ${nr} nie jest wyzerowane - ` +
+                "niezgodnosci nie tlumaczy anonimizacja." + lancuch
+            );
+        default:
+            return (
+                `Tresc ${czego} nie zgadza sie z hashem i nie obejmuje jej wazna deklaracja zerwania z mocy prawa ` +
+                "(audit.chain.legal_break) - wpis zmieniono po zapisie." + lancuch
+            );
+    }
+}
 
 /** SQLite trzyma JSON jako tekst, Postgres jako jsonb - przyjmujemy oba. */
 function parseJson(value: unknown): unknown {

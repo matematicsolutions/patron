@@ -28,8 +28,14 @@
 
 import "dotenv/config";
 import { createClient } from "@supabase/supabase-js";
-import { appendAuditEvent } from "../src/lib/audit";
+import { appendAuditEvent, computeAuditHash } from "../src/lib/audit";
+import { createServerSupabase, isSqliteBackend } from "../src/lib/supabase";
 
+// Tryb desktop (SQLite, domyslny): ta sama warstwa bazy co backend (shim SQLite,
+// PATRON_DB_PATH). Do 2026-10-06 skrypt znal tylko Supabase i na domyslnej
+// instalacji konczyl sie "FATAL: brak SUPABASE_URL" - obowiazek z art. 17 byl
+// niewykonalny tam, gdzie PATRON dziala najczesciej (weryfikacja desktop, R5).
+const SQLITE = isSqliteBackend();
 const SUPABASE_URL =
     process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
 const SERVICE_ROLE_KEY =
@@ -37,8 +43,11 @@ const SERVICE_ROLE_KEY =
     process.env.SUPABASE_SECRET_KEY ??
     process.env.SUPABASE_SERVICE_KEY;
 
-if (!SUPABASE_URL || !SERVICE_ROLE_KEY) {
-    console.error("FATAL: brak SUPABASE_URL / SUPABASE_SECRET_KEY w .env");
+if (!SQLITE && (!SUPABASE_URL || !SERVICE_ROLE_KEY)) {
+    console.error(
+        "FATAL: brak SUPABASE_URL / SUPABASE_SECRET_KEY w .env (tryb serwerowy). " +
+            "Desktop: ustaw PATRON_DB_BACKEND=sqlite i PATRON_DB_PATH=<sciezka do patron.db>.",
+    );
     process.exit(2);
 }
 
@@ -61,9 +70,11 @@ if (!confirm) {
     process.exit(2);
 }
 
-const db = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
-    auth: { persistSession: false },
-});
+const db = SQLITE
+    ? createServerSupabase()
+    : createClient(SUPABASE_URL!, SERVICE_ROLE_KEY!, {
+          auth: { persistSession: false },
+      });
 
 async function main() {
     console.log(`[rodo:delete] START dla user_id=${userId}`);
@@ -143,50 +154,97 @@ async function main() {
     //    verify-audit-chain raportuje wykonanie obowiazku prawnego identycznie
     //    jak sabotaz, a audytor nie ma jak ich odroznic.
     //
-    //    Dlatego NAJPIERW zbieramy id wierszy, ktore za chwile zerwiemy.
+    //    Dlatego NAJPIERW zbieramy wiersze, ktore za chwile zerwiemy, i NAJPIERW
+    //    zapisujemy deklaracje, a dopiero potem anonimizujemy (audyt 2026-10-02,
+    //    R-AC-02: odwrotna kolejnosc przy nieudanym zapisie deklaracji zostawiala
+    //    lancuch zerwany bez slowa, a skrypt i tak konczyl sie "OK" i kodem 0).
+    //    Deklaracja niesie dla kazdego wiersza hash PO anonimizacji (R-AC-01):
+    //    weryfikator uznaje zerwanie "z mocy prawa" tylko gdy tresc wiersza po
+    //    anonimizacji jest dokladnie ta zadeklarowana - inaczej deklaracja
+    //    wybielalaby kazda pozniejsza zmiane tresci. Lista nie jest obcinana -
+    //    idzie w porcjach (R-AC-07: obciecie do 500 dawalo trwala BLOKADE).
     const { data: doZerwania, error: err5a } = await db
         .from("audit_log")
-        .select("id")
+        .select("id, ts, event_type, chat_id, document_id, payload, prev_hash")
         .eq("actor_user_id", userId!)
         .order("id", { ascending: true });
     if (err5a) {
-        console.error(`[rodo:delete] audit_log odczyt zakresu err:`, err5a.message);
+        // Fail-closed: bez listy wierszy nie ma deklaracji, a bez deklaracji
+        // anonimizacja wygladalaby w weryfikatorze jak sabotaz.
+        throw new Error(`audit_log odczyt zakresu anonimizacji: ${err5a.message} - audit_log NIE zostal zanonimizowany`);
     }
-    const zerwaneIds = (doZerwania ?? []).map((r) => Number(r.id));
-
-    const { error: err5 } = await db
-        .from("audit_log")
-        .update({ actor_user_id: null })
-        .eq("actor_user_id", userId!);
-    if (err5) {
-        console.error(`[rodo:delete] audit_log anonimizacja err:`, err5.message);
-    }
-
-    // 5b. zdarzenie nazywajace zerwanie (ADR-0164). Idzie PO UPDATE: jego wlasny
-    //     wiersz ma actor_user_id = null, wiec nie lapie sie we wlasny filtr.
-    //     Payload bez danych osobowych - aktor pseudonimizowany tym samym hashem
-    //     co w rodo.delete, zeby IOD mogl powiazac oba wpisy ze zgloszeniem.
-    if (!err5 && zerwaneIds.length > 0) {
-        // Pelna lista id bywa dluga; przycinamy, ale mianownik zostaje JAWNY -
-        // milczace obciecie czyta sie potem jako "tyle bylo".
-        const LIMIT_ID = 500;
-        await appendAuditEvent(db, {
-            event_type: "audit.chain.legal_break",
+    const wiersze = (doZerwania ?? []) as Array<{
+        id: number | string;
+        ts: string;
+        event_type: string;
+        chat_id: string | null;
+        document_id: string | null;
+        payload: Record<string, unknown> | null;
+        prev_hash: string;
+    }>;
+    const zerwaneIds = wiersze.map((r) => Number(r.id));
+    const hashePo = wiersze.map((r) =>
+        computeAuditHash({
+            prev_hash: r.prev_hash,
+            ts: r.ts,
+            event_type: r.event_type,
             actor_user_id: null,
-            payload: {
-                reason: "rodo_art_17_anonymization",
-                field: "actor_user_id",
-                target_user_id_hash: hashUserId(userId!),
-                affected_count: zerwaneIds.length,
-                first_id: zerwaneIds[0],
-                last_id: zerwaneIds[zerwaneIds.length - 1],
-                affected_ids: zerwaneIds.slice(0, LIMIT_ID),
-                affected_ids_truncated: zerwaneIds.length > LIMIT_ID,
-            },
-        });
+            chat_id: r.chat_id,
+            document_id: r.document_id,
+            payload: r.payload ?? {},
+        }),
+    );
+
+    if (zerwaneIds.length > 0) {
+        // 5a. deklaracje (ADR-0164) - przed UPDATE, w porcjach. Payload bez danych
+        //     osobowych - aktor pseudonimizowany tym samym hashem co w rodo.delete,
+        //     zeby IOD mogl powiazac wpisy ze zgloszeniem.
+        const PORCJA = 500;
+        const porcje = Math.ceil(zerwaneIds.length / PORCJA);
+        for (let i = 0; i < porcje; i++) {
+            const ids = zerwaneIds.slice(i * PORCJA, (i + 1) * PORCJA);
+            const zapis = await appendAuditEvent(db, {
+                event_type: "audit.chain.legal_break",
+                actor_user_id: null,
+                payload: {
+                    reason: "rodo_art_17_anonymization",
+                    field: "actor_user_id",
+                    target_user_id_hash: hashUserId(userId!),
+                    affected_count: zerwaneIds.length,
+                    first_id: zerwaneIds[0],
+                    last_id: zerwaneIds[zerwaneIds.length - 1],
+                    part: i + 1,
+                    parts: porcje,
+                    affected_ids: ids,
+                    affected_hashes_after: hashePo.slice(i * PORCJA, (i + 1) * PORCJA),
+                    affected_ids_truncated: false,
+                },
+            });
+            if (!zapis.ok) {
+                throw new Error(
+                    `zapis audit.chain.legal_break (czesc ${i + 1}/${porcje}) nieudany: ${zapis.error ?? "nieznany blad"} - ` +
+                        `audit_log NIE zostal zanonimizowany (Postgres bez migracji 025?)`,
+                );
+            }
+        }
+
+        // 5b. anonimizacja dokladnie zadeklarowanych wierszy (po id, nie po
+        //     actor_user_id - wpis dopisany w miedzyczasie nie zostanie zerwany
+        //     bez deklaracji).
+        for (let i = 0; i < zerwaneIds.length; i += PORCJA) {
+            const { error: err5 } = await db
+                .from("audit_log")
+                .update({ actor_user_id: null })
+                .in("id", zerwaneIds.slice(i, i + PORCJA));
+            if (err5) {
+                throw new Error(
+                    `audit_log anonimizacja nieudana: ${err5.message} - deklaracja zapisana, czesc wierszy moze nie byc zanonimizowana; uruchom skrypt ponownie`,
+                );
+            }
+        }
         console.log(
             `[rodo:delete] lancuch zerwany w ${zerwaneIds.length} wierszach ` +
-                `(art. 17) - zapisano zdarzenie audit.chain.legal_break`,
+                `(art. 17) - zadeklarowany w ${porcje} zdarzeniu(ach) audit.chain.legal_break`,
         );
     }
 
@@ -205,10 +263,17 @@ async function main() {
     });
 
     console.log(`[rodo:delete] OK`);
-    console.log(`[rodo:delete] PAMIETAJ usunac z MinIO bucket:`);
-    for (const d of docList) {
-        if (d.storage_path) {
-            console.log(`  mc rm local/patron/${d.storage_path}`);
+    if (SQLITE) {
+        console.log(
+            `[rodo:delete] PAMIETAJ usunac pliki dokumentow z katalogu danych (PATRON_STORAGE_DIR):`,
+        );
+        for (const d of docList) if (d.storage_path) console.log(`  ${d.storage_path}`);
+    } else {
+        console.log(`[rodo:delete] PAMIETAJ usunac z MinIO bucket:`);
+        for (const d of docList) {
+            if (d.storage_path) {
+                console.log(`  mc rm local/patron/${d.storage_path}`);
+            }
         }
     }
 }

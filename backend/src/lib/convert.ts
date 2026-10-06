@@ -141,6 +141,31 @@ export async function docxToPdf(buffer: Buffer): Promise<Buffer> {
   return convert(normalized, ".pdf", undefined);
 }
 
+/**
+ * Binarny Word 97-2003 (`.doc`, format OLE) -> DOCX przez LibreOffice.
+ *
+ * Jedyna droga do TEKSTU `.doc`: `extractDocxBodyText` to parser ZIP-a (OOXML),
+ * wiec na pliku OLE pada (R-TI-03). Ten sam koszt co `docxToPdf` (osobny proces
+ * `soffice`, 25-40 s) - ale tu tekst jest potrzebny PRZED skanem input-security
+ * (ADR-0019), wiec konwersja nie moze isc w tle. Rzuca, gdy LibreOffice nie ma
+ * albo konwersja sie nie uda.
+ */
+export async function docToDocx(buffer: Buffer): Promise<Buffer> {
+  const convert = await getConvert();
+  return convert(buffer, ".docx", undefined);
+}
+
 export function convertedPdfKey(userId: string, docId: string): string {
   return `converted-pdfs/${userId}/${docId}.pdf`;
+}
+
+/**
+ * Prefiks WSZYSTKICH renditionow PDF dokumentu w `converted-pdfs/`: podglad z
+ * ingestu (`<doc>.pdf`, `convertedPdfKey`) i podglady wersji
+ * (`<doc>/<wersja>.pdf`, routes/documents.ts). Kasowanie dokumentu i "zapomnij
+ * sprawe" sprzataja po nim (R-TI-04), bo podglad z ingestu powstaje W TLE i moze
+ * trafic na dysk, zanim jego sciezka trafi do document_versions.
+ */
+export function convertedPdfPrefix(userId: string, docId: string): string {
+  return `converted-pdfs/${userId}/${docId}`;
 }

@@ -9,12 +9,18 @@ import {
     buildAuditPackFilename,
     canonicalJsonStringify,
     canonicalSha256,
+    checkStoredRowHash,
+    recomputePackEventHash,
+    toVerifiablePackEvent,
     verifyAuditPackIntegrity,
+    verifyPackEventBinding,
     type AuditPack,
     type AuditPackEvent,
     type AuditPackExporter,
 } from "./audit-pack";
 import type { ProofBundle } from "./audit-merkle-roots";
+import { computeAuditHash } from "./audit";
+import { maskPayload } from "./audit-pii-mask";
 
 const FIXED_EXPORTED_AT = "2026-05-27T18:00:00.000Z";
 
@@ -285,5 +291,100 @@ describe("buildAuditPackFilename", () => {
     it("fallback bez daty gdy exportedAt nieprawidlowy", () => {
         const name = buildAuditPackFilename(99, "nie-data");
         expect(name).toBe("audit-pack-event-99.json");
+    });
+});
+
+// --- audyt 2026-09, C-04: tresc wpisu kontra jego hash ----------------------
+
+describe("checkStoredRowHash (C-04)", () => {
+    const wiersz = () => {
+        const prev = "1".repeat(64);
+        const ts = "2026-09-01T10:00:00.123Z";
+        const payload = { model: "gemini-x", decision: "block" };
+        const hash = computeAuditHash({
+            prev_hash: prev,
+            ts,
+            event_type: "llm_route",
+            actor_user_id: "u1",
+            chat_id: null,
+            document_id: null,
+            payload,
+        });
+        return {
+            id: 3,
+            ts,
+            event_type: "llm_route",
+            actor_user_id: "u1" as string | null,
+            chat_id: null,
+            document_id: null,
+            payload: payload as Record<string, unknown>,
+            prev_hash: prev,
+            hash,
+        };
+    };
+
+    it("zgodny wiersz: ok, ts bez zmian", () => {
+        const w = wiersz();
+        expect(checkStoredRowHash(w)).toMatchObject({ ok: true, ts: w.ts });
+    });
+
+    it("ts w zapisie Postgresa (ta sama chwila): ok, do paczki idzie postac hashowana", () => {
+        const w = { ...wiersz(), ts: "2026-09-01T10:00:00.123+00:00" };
+        expect(checkStoredRowHash(w)).toMatchObject({ ok: true, ts: "2026-09-01T10:00:00.123Z" });
+    });
+
+    it("zmieniony payload, ts, typ, aktor: ok=false", () => {
+        expect(checkStoredRowHash({ ...wiersz(), payload: { model: "gemini-x", decision: "allow" } }).ok).toBe(false);
+        expect(checkStoredRowHash({ ...wiersz(), ts: "2026-09-01T10:00:00.124Z" }).ok).toBe(false);
+        expect(checkStoredRowHash({ ...wiersz(), event_type: "cost_cap" }).ok).toBe(false);
+        expect(checkStoredRowHash({ ...wiersz(), actor_user_id: null }).ok).toBe(false);
+    });
+
+    it("payload, ktory nie jest obiektem: ok=false, nie wyjatek", () => {
+        expect(checkStoredRowHash({ ...wiersz(), payload: "{zepsuty" }).ok).toBe(false);
+    });
+});
+
+describe("toVerifiablePackEvent + verifyPackEventBinding (C-04)", () => {
+    const prev = "2".repeat(64);
+    const ts = "2026-09-01T10:00:00.000Z";
+    const zrob = (payload: Record<string, unknown>) => {
+        const hash = computeAuditHash({ prev_hash: prev, ts, event_type: "llm_route", actor_user_id: "u1", payload });
+        return {
+            row: { id: 9, ts, event_type: "llm_route", actor_user_id: "u1", chat_id: null, document_id: null, payload, prev_hash: prev, hash },
+            hash,
+        };
+    };
+    const pack = (event: AuditPackEvent, hash: string) =>
+        buildAuditPack({
+            exporter: { user_id: null, email: null },
+            event,
+            bundle: { ...FIX_BUNDLE, event_id: 9, event_hash: hash },
+            exportedAt: "2026-09-01T11:00:00.000Z",
+        });
+
+    it("payload bez danych do maskowania: hash_inputs_complete i hash przeliczalny", () => {
+        const { row, hash } = zrob({ decision: "block", n: 1 });
+        const e = toVerifiablePackEvent(row, maskPayload(row.payload), ts);
+        expect(e.hash_inputs_complete).toBe(true);
+        expect(recomputePackEventHash(e)).toBe(hash);
+        expect(verifyPackEventBinding(pack(e, hash))).toEqual({ ok: true, recomputed: true, problems: [], legalBreak: null });
+    });
+
+    it("payload z e-mailem: zamaskowany, flaga false, wiazanie ok bez przeliczenia", () => {
+        const { row, hash } = zrob({ kontakt: "jan.testowy@example.pl" });
+        const e = toVerifiablePackEvent(row, maskPayload(row.payload), ts);
+        expect(e.hash_inputs_complete).toBe(false);
+        expect(verifyPackEventBinding(pack(e, hash))).toMatchObject({ ok: true, recomputed: false });
+    });
+
+    it("zdarzenie nie z dowodu albo tresc niezgodna z hashem: ok=false", () => {
+        const { row, hash } = zrob({ decision: "block" });
+        const e = toVerifiablePackEvent(row, maskPayload(row.payload), ts);
+        expect(verifyPackEventBinding(pack(e, "f".repeat(64))).ok).toBe(false);
+        const zmieniony = { ...e, payload_masked: { decision: "allow" } };
+        expect(verifyPackEventBinding(pack(zmieniony, hash)).problems).toContain(
+            "tresc zdarzenia nie zgadza sie z jego hashem",
+        );
     });
 });

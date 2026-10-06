@@ -1,13 +1,17 @@
 // Biblioteka umiejetnosci (ADR-0094) - endpoint REST.
 //
 //   GET    /skills            -> { builtin[], installed[] }
-//   POST   /skills/import     -> { manifest } -> waliduje + utrwala paczke
+//   POST   /skills/import     -> { manifest, confirm_egress? } -> waliduje + utrwala paczke
 //   PATCH  /skills/:id         -> { enabled, confirm_egress? } wlacz/wylacz
 //   DELETE /skills/:id         -> usun zainstalowany skill
 //
 // Skille WBUDOWANE (etapy obrony) sa read-only: nie da sie ich wylaczyc ani
 // usunac. Wlaczenie skilla deklarujacego egress do chmury (cloud-allowed)
 // wymaga jawnej zgody (confirm_egress) - twarda bramka dwoch plaszczyzn egress.
+// Dotyczy to takze IMPORTU (B-10): paczka cloud-allowed bez confirm_egress=true
+// laduje sie jako wylaczona, a odpowiedz mowi o tym jawnie
+// (requires_egress_consent: true). Pole `signature` paczki nie jest weryfikowane
+// (signed=false, signature_status "unverified").
 
 import { Router } from "express";
 import { requireAuth } from "../middleware/auth";
@@ -17,6 +21,7 @@ import { analyzeInput } from "../lib/input-security";
 import {
   listSkills,
   importSkill,
+  importRequiresEgressConsent,
   setSkillEnabled,
   removeSkill,
   getSkillRow,
@@ -37,7 +42,10 @@ skillsRouter.get("/", requireAuth, async (_req, res) => {
 
 // POST /skills/import
 skillsRouter.post("/import", requireAuth, async (req, res) => {
-  const { manifest } = req.body as { manifest?: unknown };
+  const { manifest, confirm_egress } = req.body as {
+    manifest?: unknown;
+    confirm_egress?: unknown;
+  };
   if (manifest === undefined) {
     return void res.status(400).json({ detail: "Pole 'manifest' jest wymagane." });
   }
@@ -66,8 +74,12 @@ skillsRouter.post("/import", requireAuth, async (req, res) => {
   }
   const db = createServerSupabase();
   try {
-    const entry = await importSkill(db, parsed.manifest);
-    res.status(201).json(entry);
+    const options = { confirmEgress: confirm_egress === true };
+    const entry = await importSkill(db, parsed.manifest, options);
+    res.status(201).json({
+      ...entry,
+      requires_egress_consent: importRequiresEgressConsent(parsed.manifest, options),
+    });
   } catch (e) {
     res.status(500).json({ detail: `Import nie powiodl sie: ${String(e)}` });
   }

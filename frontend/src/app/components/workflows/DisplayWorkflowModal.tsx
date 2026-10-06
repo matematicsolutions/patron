@@ -10,7 +10,7 @@ import {
     Table2,
     X,
 } from "lucide-react";
-import ReactMarkdown from "react-markdown";
+import { SafeMarkdown } from "@/lib/markdown/SafeMarkdown";
 import remarkGfm from "remark-gfm";
 import type { PATRONDocument, PATRONWorkflow } from "../shared/types";
 import { createTabularReview } from "@/app/lib/patronApi";
@@ -124,7 +124,7 @@ function SimpleProjectPicker({
 // ---------------------------------------------------------------------------
 function MarkdownBody({ content }: { content: string }) {
     return (
-        <ReactMarkdown
+        <SafeMarkdown
             remarkPlugins={[remarkGfm]}
             components={{
                 h1: ({ children }) => (
@@ -165,7 +165,7 @@ function MarkdownBody({ content }: { content: string }) {
             }}
         >
             {content}
-        </ReactMarkdown>
+        </SafeMarkdown>
     );
 }
 

@@ -5,7 +5,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { t } from "@/i18n";
-import type { CitationCheckResponse } from "@/lib/citationCheck";
+import { fill, type CitationCheckResponse } from "@/lib/citationCheck";
 
 const checkDocumentCitations = vi.fn();
 vi.mock("@/app/lib/patronApi", () => ({
@@ -107,11 +107,60 @@ describe("CitationCheckView", () => {
         await waitFor(() => expect(checkDocumentCitations).toHaveBeenCalledWith("d1", "2024-01-15"));
     });
 
+    it("R-CC-04: nota serwera nie-napis nie wywraca widoku; R-CC-01: zatrzymane pozycje nazwane", async () => {
+        checkDocumentCitations.mockResolvedValue({
+            ...ODP,
+            withheld: 1,
+            citations: [
+                ...ODP.citations,
+                {
+                    ref: "c3",
+                    kind: "signature",
+                    offset: 0,
+                    length: 0,
+                    excerpt: "Polna 12/24",
+                    occurrences: 1,
+                    signature: "POLNA 12/24",
+                    status: "not_sent",
+                    not_sent_reason: "not_court_signature",
+                    details: {},
+                },
+            ],
+            serverNotes: [{ html: "<b>x</b>" } as unknown as string],
+        });
+        const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+        render(<CitationCheckView documentId="d1" onBack={() => {}} />);
+        fireEvent.click(screen.getByText(t("citationCheck.run")));
+        await waitFor(() => screen.getByText(t("citationCheck.notInCorpusNote")));
+        errSpy.mockRestore();
+        expect(screen.getByText(t("citationCheck.notSentReason.not_court_signature"))).toBeTruthy();
+        expect(screen.getByText(fill(t("citationCheck.withheldCount"), { n: 1 }))).toBeTruthy();
+    });
+
     it("bez konektora: nota wprost, że powołań NIE sprawdzono", async () => {
         checkDocumentCitations.mockResolvedValue({ ...ODP, status: "not_configured", sent: [] });
         render(<CitationCheckView documentId="d1" onBack={() => {}} />);
         fireEvent.click(screen.getByText(t("citationCheck.run")));
         await waitFor(() => screen.getByText(t("citationCheck.statusNotConfigured")));
+        expect(screen.queryByText(t("citationCheck.privacyShowSent"))).toBeNull();
+    });
+
+    it("konektor czeka na zatwierdzenie Operatora (B-08): jawny stan i gotowy wpis gatewayApproval", async () => {
+        checkDocumentCitations.mockResolvedValue({
+            ...ODP,
+            status: "gateway_pending",
+            sent: [],
+            gatewayApproval: { server: "repertorium", hash: "a".repeat(64), origin: "b".repeat(64), reason: "missing" },
+        });
+        render(<CitationCheckView documentId="d1" onBack={() => {}} />);
+        fireEvent.click(screen.getByText(t("citationCheck.run")));
+        const nota = await waitFor(() => screen.getByTestId("citation-check-status-note"));
+        expect(nota.textContent).toContain(fill(t("citationCheck.statusGatewayPending"), { server: "repertorium" }));
+        expect(nota.textContent).not.toContain("{server}");
+        // Inny komunikat niz "nie podlaczony" - Operator wie, co zrobic.
+        expect(nota.textContent).not.toContain(t("citationCheck.statusNotConfigured"));
+        const wpis = JSON.parse(screen.getByTestId("citation-check-gateway-approval").textContent ?? "{}");
+        expect(wpis.gatewayApproval).toMatchObject({ hash: "a".repeat(64), origin: "b".repeat(64) });
         expect(screen.queryByText(t("citationCheck.privacyShowSent"))).toBeNull();
     });
 });

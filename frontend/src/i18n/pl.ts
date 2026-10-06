@@ -314,17 +314,25 @@ export const pl = {
         rerun: "Sprawdź ponownie",
         asOfLabel: "Stan prawny na dzień (opcjonalnie)",
         asOfHint: "Data zdarzenia albo wyroku. Bez daty PATRON sprawdza stan prawny na dziś. Podaną datę wysyła razem z listą powołań.",
-        privacyNote: "PATRON wysłał do weryfikatora ({server}) wyłącznie listę powołań ({n}): sygnatury, daty przy nich, akty i numery artykułów. Treść pisma nie opuściła komputera.",
+        privacyNote: "PATRON wysłał do weryfikatora ({server}) tylko listę powołań ({n}): sygnatury orzeczeń polskich sądów i trybunałów (z datą, jeśli stoi przy sygnaturze), identyfikatory aktów z numerami artykułów oraz datę stanu prawnego, jeśli ją podano. Reszty pisma nie wysłał - także adresów, numerów umów i faktur ani sygnatury tej sprawy z nagłówka. Sama lista powołań mówi jednak, na co pismo się powołuje.",
         privacyShowSent: "Pokaż dokładnie, co wysłano",
         privacyHideSent: "Ukryj wysłaną listę",
         notInCorpusNote: "„Brak w korpusie” nie dowodzi, że orzeczenie nie istnieje - korpus nie jest pełny. Sprawdź je w innym źródle, zanim uznasz powołanie za błędne.",
         statusNotConfigured: "Weryfikator powołań nie jest podłączony. PATRON wyciągnął powołania na tym komputerze, ale ich nie sprawdził. Weryfikator podłącza Operator.",
+        // Audyt 2026-09 B-08: konektor spoza zaufanego zestawu czeka na zatwierdzenie Operatora (ADR-0158).
+        statusGatewayPending: "Weryfikator powołań ({server}) jest skonfigurowany, ale czeka na zatwierdzenie Operatora - to konektor spoza zaufanego zestawu PATRONa. Nic nie wyszło do sieci; powołania wyciągnięte na tym komputerze pozostają niesprawdzone. Operator: w menu konta otwórz „Konektory prawa”, przy konektorze {server} kliknij „Przejrzyj i zatwierdź”, przejrzyj zastrzeżenia bramki i uruchom PATRON ponownie. To jedno zatwierdzenie wystarcza (wartości poniżej służą do ręcznego wpisu, gdy panel jest niedostępny).",
         statusFailed: "Nie udało się sprawdzić powołań. Serwer nie odpowiedział albo odmówił, więc poniższe powołania pozostają niesprawdzone.",
         statusPartial: "Sprawdzono część powołań - pozostałe są oznaczone jako niesprawdzone.",
         statusNoText: "Z tego pliku nie udało się odczytać tekstu, więc nie ma czego sprawdzić.",
-        statusNoCitations: "PATRON nie rozpoznał w piśmie ani sygnatury, ani przepisu ze wskazanym aktem. Pismo może mimo to coś powoływać: PATRON rozpoznaje sygnatury polskich sądów, kodeksy, często cytowane ustawy i adresy Dz.U.",
+        statusNoCitations: "PATRON nie znalazł w piśmie sygnatury orzeczenia ani przepisu ze wskazanym aktem, które mógłby wysłać do sprawdzenia. Pismo może mimo to coś powoływać: PATRON rozpoznaje sygnatury polskich sądów, kodeksy, często cytowane ustawy i adresy Dz.U.",
         withoutAct: "Przepisy bez wskazanego aktu (np. „art. 5 tej ustawy”): {n} - nie da się ich sprawdzić automatycznie.",
         notSentCount: "Jedno sprawdzenie obejmuje najwyżej 100 powołań. Pozostałych ({n}) nie wysłano.",
+        withheldCount: "Nie wysłano {n} pozycji, które tylko wyglądają jak sygnatura albo są sygnaturą tej sprawy. Są na liście z powodem.",
+        notSentReason: {
+            limit: "Ponad limit 100 powołań na jedno sprawdzenie.",
+            not_court_signature: "To nie wygląda na sygnaturę polskiego sądu (może to być adres, numer umowy albo faktury), więc PATRON tego nie wysłał. Jeśli to orzeczenie, sprawdź je samodzielnie.",
+            own_case_signature: "Sygnatura z nagłówka pisma, zapewne tej sprawy. PATRON jej nie wysyła.",
+        },
         kindSignature: "Sygnatura",
         kindProvision: "Przepis",
         kindUnrecognized: "Ustawa",
@@ -360,7 +368,7 @@ export const pl = {
             changes_unknown: "Zmiany nieznane",
             act_not_recognized: "Ustawa nierozpoznana - nie wysłano",
             not_checked: "Nie sprawdzono",
-            not_sent: "Nie wysłano (limit)",
+            not_sent: "Nie wysłano",
             rejected: "Odrzucone przez serwer",
             other: "Stan: {s}",
         },
@@ -555,6 +563,11 @@ export const pl = {
         // Akcje zbiorcze
         actions: "Akcje",
         deleteSelected: "Usuń",
+        // Kasacja sprawy niekompletna (audyt D-03/D-04) - backend zwraca 500
+        // z opisem; ten tekst jest zapasowy, gdy opisu brak.
+        deleteFailedTitle: "Nie udało się usunąć sprawy w całości",
+        deleteFailedBody:
+            "Część danych sprawy nie została usunięta. Sprawa pozostaje na liście - usuń przyczynę (np. zamknij program, który trzyma plik) i spróbuj ponownie.",
         // Stan bledu ladowania listy
         loadErrorTitle: "Sprawy",
         // Eksplorator dokumentow projektu (foldery + pliki)
@@ -936,6 +949,13 @@ export const pl = {
             sad: "Skład orzekający",
             prokurator: "Prokurator",
         },
+        // Audyt 2026-09, A-05: panel mowi, dokad pojdzie tekst (model rozmowy)
+        // i czy straznik egress sprawdzi klasyfikacje sprawy.
+        routing: {
+            model: "Model: {model}",
+            caseScoped: "klasyfikacja sprawy tej rozmowy",
+            noCase: "rozmowa poza sprawą",
+        },
     },
 
     // ---------------------------------------------------------------------
@@ -944,6 +964,9 @@ export const pl = {
     mcpSecurity: {
         blockedMessage: "MCP Security: blokady konektorów w ostatnich 24h: {blocked}. Sprawdź akta audytu.",
         blockedAriaLabel: "MCP Security Gateway: blokady konektorów w ostatnich 24h: {blocked}",
+        // B-08: nowy konektor spoza zaufanego zestawu - oczekiwanie, nie alarm.
+        awaitingMessage: "MCP Security: nowy konektor spoza zaufanego zestawu czeka na zatwierdzenie Operatora (decyzje bramki w ostatnich 24h: {awaiting}). Przejrzyj zastrzeżenia przed zatwierdzeniem.",
+        awaitingAriaLabel: "MCP Security Gateway: konektory czekające na zatwierdzenie Operatora w ostatnich 24h: {awaiting}",
         actionHint: "Zobacz akta i decyzje",
     },
 
@@ -1035,6 +1058,13 @@ export const pl = {
         toggleError: "Nie udało się zmienić stanu umiejętności.",
         removeError: "Nie udało się usunąć umiejętności.",
         close: "Zamknij",
+        // B-10: import paczki - zgoda na egress i stan podpisu.
+        importTrust: {
+            egressConfirm: "Ta paczka deklaruje, że może wysyłać treść poza Twoją maszynę (do chmury). Obowiązuje tajemnica zawodowa. Włączyć umiejętność od razu po imporcie? Anuluj = import jako wyłączona.",
+            importedDisabled: "Umiejętność zaimportowana jako wyłączona, bo może wysyłać treść do chmury. Włącz ją świadomie przełącznikiem.",
+            signatureUnverified: "podpis niezweryfikowany",
+            signatureUnverifiedHint: "Paczka ma pole podpisu, ale Patron nie weryfikuje jeszcze podpisów paczek. Wydawca to deklaracja autora paczki, nie potwierdzenie.",
+        },
     },
 
     // ---------------------------------------------------------------------
@@ -1050,6 +1080,27 @@ export const pl = {
         operatorOnly: "Tylko Operator",
         operatorOnlyHint:
             "Konektor spoza zaufanego zestawu - włącza go Operator kancelarii.",
+        gatewayAwaiting: "Czeka na zatwierdzenie",
+        gatewayAwaitingHint:
+            "Bramka bezpieczeństwa MCP nie załadowała tego konektora. Operator przegląda zastrzeżenia bramki i klika „Przejrzyj i zatwierdź”, potem uruchamia PATRON ponownie.",
+        approveReview: "Przejrzyj i zatwierdź",
+        approveTitle: "Zatwierdzenie konektora {name}",
+        approveIntro:
+            "Bramka bezpieczeństwa MCP wstrzymała ten konektor. Zatwierdzasz dokładnie tę definicję narzędzi i to pochodzenie (proces albo adres) - każda późniejsza zmiana konektora znów go zatrzyma. Decyzja trafi do dziennika audytu.",
+        approveUnknownOnly:
+            "Jedyny powód: konektor jest spoza zaufanego zestawu PATRONa. Bramka nie znalazła sygnałów manipulacji.",
+        approveFindings: "Zastrzeżenia bramki:",
+        approveFingerprint: "Odcisk definicji: {hash}",
+        approveConfirm: "Zatwierdzam",
+        approveCancel: "Anuluj",
+        approveLoading: "Wczytuję zastrzeżenia bramki...",
+        approveDone:
+            "Zatwierdzono. Konektor zacznie działać po ponownym uruchomieniu aplikacji.",
+        approveError: "Nie udało się zatwierdzić konektora: {detail}",
+        approveForbidden: "Zatwierdzać konektory może tylko Operator kancelarii.",
+        gatewayBlocked: "Zablokowany",
+        gatewayBlockedHint:
+            "Bramka bezpieczeństwa MCP odrzuciła ten konektor (np. nazwa myli się z zaufanym). Szczegóły w aktach audytu.",
         restartNote:
             "Zmiana zacznie obowiązywać po ponownym uruchomieniu aplikacji.",
         empty: "Brak skonfigurowanych konektorów.",
@@ -1090,6 +1141,24 @@ export const pl = {
             "Zatwierdzono, ale wykonanie się nie powiodło:",
         toolEditDocument: "Edycja dokumentu",
         toolGenerateDocx: "Wygenerowanie dokumentu .docx",
+        // Audyt 2026-09 B-04: kolejne akcje agenta objete karta zatwierdzenia.
+        toolReplicateDocument: "Utworzenie kopii dokumentu w sprawie",
+        toolRemember: "Zapis w pamięci trwałej asystenta",
+    },
+    // Wykonanie czesciowe edycji / komentarzy DOCX (audyt C-08 / D-10):
+    // czesc zatwierdzonych lub zleconych zmian NIE weszla do dokumentu.
+    // Wspolne dla inboxu kart zatwierdzen i panelu edycji w czacie.
+    partialExecution: {
+        title: "Wykonano częściowo",
+        summary: "Zastosowano {applied} z {total}.",
+        notAppliedLabel: "Nie zastosowano:",
+        item: "zmiana nr {n}: {reason}",
+        approvalNote:
+            "Zatwierdzono, ale do dokumentu weszła tylko część zmian. Sprawdź dokument przed dalszą pracą.",
+        chatNote:
+            "Nie wszystkie zmiany weszły do dokumentu - opis odpowiedzi może być nieścisły.",
+        editingPartial: "Edytowano częściowo",
+        documentLabel: "Dokument",
     },
     perimeter: {
         label: "Perymetr",
@@ -1113,6 +1182,42 @@ export const pl = {
         system: "System",
         light: "Jasny",
         dark: "Ciemny",
+    },
+    // ---------------------------------------------------------------------
+    // Bezpieczny markdown (audyt 2026-09, A-20): obraz z odpowiedzi modelu
+    // nie jest pobierany; link z niedozwolonym schematem jest nieaktywny.
+    // ---------------------------------------------------------------------
+    safeMarkdown: {
+        imageBlocked: "Obraz zablokowany",
+        imageBlockedTitle: "Obraz z odpowiedzi nie został pobrany: jego wczytanie wysłałoby żądanie do zewnętrznego serwera bez Twojej decyzji.",
+        linkBlocked: "Link zablokowany: niedozwolony rodzaj adresu.",
+    },
+    // ---------------------------------------------------------------------
+    // Pokrycie dokumentu w komórce tabular (audyt 2026-09, D-15 i D-11).
+    // `{sent}` i `{total}` podstawiane ręcznie (t() nie ma interpolacji).
+    // ---------------------------------------------------------------------
+    tabularCoverage: {
+        truncated: "Przeanalizowano {sent} z {total} znaków dokumentu",
+        truncatedHint: "Model dostał tylko początek dokumentu. Wynik „nie znaleziono” nie oznacza, że dalsza część dokumentu nie zawiera odpowiedzi.",
+        noText: "Brak tekstu dokumentu",
+        noTextHint: "Dokument nie ma warstwy tekstowej ani tekstu z OCR - nie było czego przeanalizować. Sprawdź, czy OCR jest dostępny, albo dodaj wersję dokumentu z tekstem.",
+    },
+    // ---------------------------------------------------------------------
+    // Jawne sygnały odpowiedzi czatu zamiast ciszy (audyt 2026-09, D-14 i D-07).
+    // `{server}`, `{tool}` i `{count}` podstawiane ręcznie (t() nie ma interpolacji).
+    // ---------------------------------------------------------------------
+    chatSignals: {
+        citationsParseFailed: "Przypisy tej odpowiedzi przyszły w nieczytelnym formacie i nie zostały wczytane ani zweryfikowane. Znaczniki [N] w tekście mogą nie mieć karty źródła - sprawdź cytaty w dokumentach.",
+        citationsDropped: "Część przypisów tej odpowiedzi ({count}) przyszła w nieczytelnym formacie i nie została wczytana ani zweryfikowana. Sprawdź cytaty bez karty źródła w dokumentach.",
+        mcpConnectorFailed: "Konektor {server} nie odpowiedział (narzędzie {tool}). Wyniki z tego źródła nie trafiły do odpowiedzi - cytaty przypisane temu źródłu nie zostały zweryfikowane.",
+        mcpResultWithheld: "Wynik konektora {server} (narzędzie {tool}) został wstrzymany przez kontrolę bezpieczeństwa wejścia - mógł zawierać próbę manipulacji modelem. Nie trafił do odpowiedzi; sprawdź to źródło ręcznie.",
+    },
+    // ADR-0137 (aktualizacja 2026-10-06, audyt B-02): karty zatwierdzen sa
+    // domyslnie wlaczone - akcja agenta o skutkach ubocznych czeka na czlowieka.
+    mutationStaged: {
+        pending: "Akcja „{action}” czeka na zatwierdzenie i nie została jeszcze wykonana.",
+        openInbox: "Przejdź do skrzynki kart zatwierdzeń",
+        toolAddComments: "Dodanie komentarzy do dokumentu",
     },
 } as const;
 

@@ -3,7 +3,7 @@
 import fs from "fs";
 import os from "os";
 import path from "path";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, onTestFinished } from "vitest";
 
 let store: typeof import("./store");
 const tmpBrain = path.join(os.tmpdir(), `patron-brain-test-${Date.now()}`);
@@ -102,6 +102,15 @@ describe("brain store: saveMemory / upsert / index", () => {
 
 describe("narzedzia remember/recall (dispatch)", () => {
   it("remember zapisuje, recall odczytuje (scope = projectId)", async () => {
+    // Sciezka inline: karty zatwierdzen (ADR-0137) sa domyslnie wlaczone od
+    // 2026-10-06, wiec ten test jawnie je wylacza (bramke testuje
+    // tool-dispatch-gate-scope.test.ts).
+    const prevApproval = process.env.PATRON_MUTATION_APPROVAL;
+    process.env.PATRON_MUTATION_APPROVAL = "false";
+    onTestFinished(() => {
+      if (prevApproval === undefined) delete process.env.PATRON_MUTATION_APPROVAL;
+      else process.env.PATRON_MUTATION_APPROVAL = prevApproval;
+    });
     const { runToolCalls } = await import("../chat/tool-dispatch");
     // remember/recall nie dotykaja db - stub wystarczy.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -159,5 +168,33 @@ describe("narzedzia remember/recall (dispatch)", () => {
     );
     expect(recalled.memories.length).toBe(1);
     expect(recalled.memories[0].title).toBe("Wartosc przedmiotu sporu");
+  });
+});
+
+// Audyt 2026-09 B-05: pamiec osobista kluczowana uzytkownikiem.
+describe("personalScope (B-05)", () => {
+  it("UUID -> czytelny segment personal-<uuid>", () => {
+    expect(store.personalScope("4f6c1a2e-0000-4000-8000-000000000001")).toBe(
+      "personal-4f6c1a2e-0000-4000-8000-000000000001",
+    );
+  });
+
+  it("rozni uzytkownicy -> rozne zakresy, rozne od historycznego 'personal'", () => {
+    const a = store.personalScope("uzytkownik-a");
+    const b = store.personalScope("uzytkownik-b");
+    expect(a).not.toBe(b);
+    expect(a).not.toBe(store.LEGACY_PERSONAL_SCOPE);
+  });
+
+  it("identyfikatory zlewajace sie po sanityzacji (wielkosc liter, znaki) -> rozne zakresy", () => {
+    expect(store.personalScope("User@A")).not.toBe(store.personalScope("user-a"));
+    expect(store.personalScope("ABC")).not.toBe(store.personalScope("abc"));
+  });
+
+  it("segment sciezki bezpieczny (bez wyjscia z katalogu) i zapis/odczyt dziala", () => {
+    const scope = store.personalScope("../.." + "/etc");
+    expect(scope).toMatch(/^personal-[a-z0-9_-]+$/);
+    store.saveMemory({ scope, slug: "x", type: "notatka", title: "T", body: "B" });
+    expect(store.readMemory(scope, "x")?.body).toBe("B");
   });
 });

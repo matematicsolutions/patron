@@ -338,6 +338,26 @@ describe("zerwanie tresci: z mocy prawa / kaskada FK / niewyjasnione (ADR-0164)"
         expect(r.verdict).toBe("blokada");
     });
 
+    it("deklaracja z hashem po zerwaniu: podmieniony payload anonimizowanego wiersza to BLOKADA (R-AC-01)", () => {
+        // Hashe po zerwaniu liczone tak jak scripts/rodo-delete.ts: wiersz z wyzerowanym polem.
+        const przed = anonymized(null);
+        const hashePo = [przed[1], przed[2]].map((r) => computeAuditHash(r));
+        const ok = anonymized({ ...decl, affected_hashes_after: hashePo });
+        expect(verifyAuditChain(ok, noGuard).verdict).toBe("uwagi");
+
+        const rows = anonymized({ ...decl, affected_hashes_after: hashePo });
+        rows[2] = { ...rows[2], payload: { n: "podmienione" } };
+        const r = verifyAuditChain(rows, noGuard);
+        expect(r.verdict).toBe("blokada");
+        expect(r.findings.filter((f) => f.ids.includes(3)).map((f) => f.kind)).toEqual(["hash_mismatch"]);
+    });
+
+    it("deklaracja w starym formacie (bez hasha po zerwaniu): UWAGI z jawna nota", () => {
+        const r = verifyAuditChain(anonymized(decl), noGuard);
+        expect(r.verdict).toBe("uwagi");
+        expect(r.findings[0].detail).toContain("starym formacie");
+    });
+
     it("obcieta lista id w deklaracji: INFO z jawnym mianownikiem", () => {
         const r = verifyAuditChain(
             anonymized({ ...decl, affected_count: 700, affected_ids_truncated: true }),

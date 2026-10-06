@@ -171,3 +171,39 @@ Produktu nie forkujemy: legalise to wydanie ewaluacyjne na Postgres/MinIO/Redis/
 Gotenberg i konkurent Patron-Desktop. Patrz THIRD_PARTY_INSPIRATIONS.md.
 
 Algorytm dowodu przynaleznosci: RFC 6962 (Laurie/Langley/Kasper, 2013).
+
+## Aktualizacja 2026-10-06 - trzeci stan werdyktu: zerwanie z mocy prawa
+
+Decyzja wlasciciela produktu: wpis dziennika zanonimizowany na podstawie RODO
+art. 17 (ADR-0164) nie blokuje juz eksportu, tylko wychodzi ze znacznikiem.
+Weryfikatory w archiwum maja przez to trzy werdykty zamiast dwoch:
+
+| Werdykt | HTML | `verify.py` | Kod Patrona |
+|---|---|---|---|
+| nienaruszony | zielony naglowek | 0 | `verdict: "ok"` |
+| zerwanie z mocy prawa | pomaranczowy naglowek "OK - zerwanie z mocy prawa (RODO art. 17), zadeklarowane zdarzeniem #N" | 3 | `verdict: "legal_break"` |
+| naruszony | czerwony naglowek | 1 | `verdict: "tampered"` |
+
+Kod 3 jest nowy celowo: automat po stronie odbiorcy, ktory sprawdza "0 albo
+nie", nie potraktuje zerwania jak czystego OK, a skrypt, ktory sprawdza "1",
+nie potraktuje go jak naruszenia.
+
+Co sprawdzaja wszystkie trzy implementacje (`checkLegalBreakMarker` w
+`backend/src/lib/audit-pack.ts`, `check_legal_break` w `verify.py`,
+`sprawdzZerwanie` w HTML):
+
+1. dowod Merkle dla ORYGINALNEGO hasha wpisu - lisc to kolumna `hash`, ktorej
+   anonimizacja nie zmienia, wiec dowod dziala bez zmian;
+2. tresc wpisu (gdy niezamaskowana) daje `legal_break.hash_after`, pole z
+   deklaracji jest wyzerowane, a `hash_after` rozni sie od hasha oryginalnego;
+3. deklaracja jedzie w artefakcie, jest zdarzeniem `audit.chain.legal_break`
+   pozniejszym od wpisu, jej hash przeliczony z tresci sie zgadza (gdy payload
+   kompletny), nazywa ten sam powod i pole, wymienia wpis i podaje dla niego
+   dokladnie ten `hash_after`. Deklaracja bez `affected_hashes_after` (stary
+   format) = naruszony.
+
+Zgodnosc trzech implementacji na stanie waznym i na kazdym rodzaju
+manipulacji (tresc po anonimizacji, niezgodny `hash_after`, zmieniona
+deklaracja, stary format, brak deklaracji) pilnuje
+`backend/src/lib/audit-verifier-assets.test.ts`. Instrukcja w archiwum
+(`CZYTAJ-TO-NAJPIERW.txt`) opisuje ten stan i kod 3.

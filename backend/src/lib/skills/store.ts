@@ -6,6 +6,7 @@ import { createServerSupabase } from "../supabase";
 import type { CustomStageSpec } from "../pipeline/defense";
 import {
   BUILTIN_SKILLS,
+  isSignatureVerified,
   manifestToEntry,
   type SkillEgress,
   type SkillEntry,
@@ -55,14 +56,36 @@ export async function getSkillRow(db: Db, id: string): Promise<SkillRow | null> 
   return (data as unknown as SkillRow) ?? null;
 }
 
+export interface ImportSkillOptions {
+  /**
+   * Jawna zgoda na egress skilla do chmury (lustro PATCH confirm_egress). Bez niej
+   * skill `cloud-allowed` jest importowany jako WYLACZONY (B-10).
+   */
+  confirmEgress?: boolean;
+}
+
+/** Czy import tego manifestu wymaga jawnej zgody na egress, zeby skill byl aktywny. */
+export function importRequiresEgressConsent(
+  manifest: SkillManifest,
+  options: ImportSkillOptions = {},
+): boolean {
+  return manifest.egress === "cloud-allowed" && options.confirmEgress !== true;
+}
+
 /**
  * Import (lub re-import) skilla z zwalidowanego manifestu. Upsert po id -
  * ponowny import tej samej umiejetnosci nadpisuje (reinstalacja). Zwraca wpis.
+ *
+ * B-10: skill `cloud-allowed` bez `confirmEgress === true` laduje sie jako
+ * wylaczony - ta sama bramka zgody, ktorej PATCH wymaga przy wlaczaniu. Takze
+ * re-import (upsert moze podmienic prompt) wymaga zgody od nowa.
  */
 export async function importSkill(
   db: Db,
   manifest: SkillManifest,
+  options: ImportSkillOptions = {},
 ): Promise<SkillEntry> {
+  const enabled = !importRequiresEgressConsent(manifest, options);
   const now = new Date().toISOString();
   const { error } = await db.from("installed_skills").upsert(
     {
@@ -73,14 +96,14 @@ export async function importSkill(
       source: manifest.source,
       egress: manifest.egress,
       manifest,
-      enabled: true,
+      enabled,
       installed_at: now,
       updated_at: now,
     },
     { onConflict: "id" },
   );
   if (error) throw new Error(error.message);
-  return manifestToEntry(manifest, true);
+  return manifestToEntry(manifest, enabled);
 }
 
 /** Wlacz/wylacz zainstalowany skill. Zwraca wpis albo null gdy nie istnieje. */
@@ -144,7 +167,8 @@ export async function loadEnabledDraftStageSkills(
       egress: r.manifest.egress,
       source: r.manifest.source,
       publisher: r.manifest.publisher,
-      signed: r.manifest.signature !== null,
+      // B-10: niezweryfikowany napis w polu signature to nie podpis.
+      signed: isSignatureVerified(r.manifest),
       promptSha256: skillPromptSha256(r.manifest.prompt),
     }));
 }

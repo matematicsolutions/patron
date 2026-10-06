@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import ReactMarkdown from "react-markdown";
+import { SafeMarkdown } from "@/lib/markdown/SafeMarkdown";
 import remarkGfm from "remark-gfm";
 import { Check, ChevronDown, Copy, Loader2, X } from "lucide-react";
 import {
@@ -13,6 +13,8 @@ import {
     type DraftStageResult,
 } from "@/app/lib/patronApi";
 import { t } from "@/i18n";
+import { readSelectedModel } from "@/app/hooks/useSelectedModel";
+import { MODELS } from "./ModelToggle";
 
 const ADWOKAT_MODES: AdwokatMode[] = [
     "strona-przeciwna",
@@ -66,12 +68,12 @@ function StageBlock({ stage }: { stage: DraftStageResult }) {
             </button>
             {open && (
                 <div className="border-t border-gray-200 px-4 py-3 text-sm font-text text-gray-700 prose prose-sm max-w-none">
-                    <ReactMarkdown
+                    <SafeMarkdown
                         remarkPlugins={[remarkGfm]}
                         components={mdComponents}
                     >
                         {stage.output || "—"}
-                    </ReactMarkdown>
+                    </SafeMarkdown>
                 </div>
             )}
         </div>
@@ -83,9 +85,36 @@ interface Props {
     onClose: () => void;
     /** Tekst wstepny - np. proza wygenerowanej odpowiedzi asystenta. */
     initialText: string;
+    /**
+     * Model rozmowy, z ktorej pochodzi tekst (audyt 2026-09, A-05). Bez niego
+     * backend bral chmurowy DEFAULT_MAIN_MODEL, z pominieciem wyboru Operatora
+     * (np. modelu lokalnego). Brak = model biezaco wybrany w selektorze czatu,
+     * nigdy cichy domyslny backendu.
+     */
+    model?: string | null;
+    /**
+     * Sprawa (projekt), z ktorej pochodzi tekst. Straznik egress klasyfikuje
+     * wtedy wywolanie po sprawie (np. tajemnica), a nie jako "internal".
+     */
+    projectId?: string | null;
 }
 
-export function DraftRefinePanel({ open, onClose, initialText }: Props) {
+/** Model, ktorym pojdzie doskonalenie: model rozmowy albo biezacy wybor czatu. */
+function effectiveDraftModel(model: string | null | undefined): string {
+    return model && model.trim() ? model : readSelectedModel();
+}
+
+function modelLabel(id: string): string {
+    return MODELS.find((m) => m.id === id)?.label ?? id;
+}
+
+export function DraftRefinePanel({
+    open,
+    onClose,
+    initialText,
+    model,
+    projectId,
+}: Props) {
     const [text, setText] = useState(initialText);
     const [mode, setMode] = useState<AdwokatMode>("strona-przeciwna");
     const [selectedStages, setSelectedStages] =
@@ -133,6 +162,9 @@ export function DraftRefinePanel({ open, onClose, initialText }: Props) {
                 adwokat_mode: mode,
                 // Kolejnosc kanoniczna niezaleznie od kolejnosci klikania checkboxow.
                 stages: ALL_STAGE_IDS.filter((s) => selectedStages.includes(s)),
+                // A-05: model rozmowy i sprawa ida JAWNIE - backend nie zgaduje.
+                model: effectiveDraftModel(model),
+                ...(projectId ? { project_id: projectId } : {}),
             });
             setResult(res);
         } catch (e) {
@@ -164,6 +196,19 @@ export function DraftRefinePanel({ open, onClose, initialText }: Props) {
                         </h2>
                         <p className="mt-0.5 text-xs text-gray-500">
                             {t("draft.subtitle")}
+                        </p>
+                        <p
+                            className="mt-1 text-[11px] text-gray-400"
+                            data-testid="draft-routing"
+                        >
+                            {t("draft.routing.model").replace(
+                                "{model}",
+                                modelLabel(effectiveDraftModel(model)),
+                            )}
+                            {" · "}
+                            {projectId
+                                ? t("draft.routing.caseScoped")
+                                : t("draft.routing.noCase")}
                         </p>
                     </div>
                     <button
@@ -272,12 +317,12 @@ export function DraftRefinePanel({ open, onClose, initialText }: Props) {
                                     </button>
                                 </div>
                                 <div className="rounded-md border border-gray-200 bg-white px-4 py-3 text-sm font-text text-gray-800 prose prose-sm max-w-none">
-                                    <ReactMarkdown
+                                    <SafeMarkdown
                                         remarkPlugins={[remarkGfm]}
                                         components={mdComponents}
                                     >
                                         {result.final || "—"}
-                                    </ReactMarkdown>
+                                    </SafeMarkdown>
                                 </div>
                             </div>
 

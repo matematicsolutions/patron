@@ -11,7 +11,15 @@
  * paragraph are presented to the matcher in *accepted view*: w:ins runs are
  * treated as normal text, w:del wrappers are invisible. When a new edit's
  * range lands on runs inside a pre-existing w:ins, the wrapper is dropped
- * (accepting that insertion) before the new change is emitted.
+ * (accepting that insertion; all of its runs are kept) before the new change
+ * is emitted.
+ *
+ * Invariant (audit D-09): an edit never removes anything it does not wrap in
+ * a w:del. Non-text content (w:tab, w:br, w:footnoteReference, w:fldChar,
+ * w:drawing, bookmarks, hyperlinks, pre-existing w:del ...) is tracked as
+ * zero-width positional elements and re-emitted in place; a deletion that
+ * would have to swallow one that a w:del cannot carry safely is refused
+ * with an explicit per-edit error instead.
  */
 
 import JSZip from "jszip";
@@ -185,15 +193,88 @@ function cloneNode<T>(n: T): T {
 // Paragraph flattening
 // ---------------------------------------------------------------------------
 
+//
+// The matcher works on `paraText`: the concatenation of every w:t in the
+// paragraph's runs (accepted view). Everything else a run or a paragraph can
+// hold - w:tab, w:br, w:footnoteReference, w:fldChar, w:drawing, bookmarks,
+// hyperlinks, pre-existing w:del ... - contributes NO characters, but it is
+// recorded as a zero-width POSITIONAL element: `pos` is the paraText offset
+// it sits at (between char pos-1 and char pos). Reconstruction (see
+// `spanTokens`) walks the touched span in document order and re-emits every
+// one of those elements at its position, so an edit never drops something it
+// did not wrap in a w:del (audit D-09).
+
+/**
+ * Run-level children that may travel inside a tracked deletion: Word itself
+ * emits them inside deleted runs, and rejecting the change restores them.
+ * Any other run child (w:footnoteReference, w:fldChar, w:instrText,
+ * w:drawing, w:commentReference, ...) blocks a deletion that would span it.
+ */
+const DELETABLE_RUN_ELEMENTS = new Set<string>([
+    "w:tab",
+    "w:br",
+    "w:cr",
+    "w:noBreakHyphen",
+    "w:softHyphen",
+    "w:sym",
+    "w:ptab",
+    "w:lastRenderedPageBreak",
+]);
+
+/**
+ * Paragraph-level zero-width range markup that may sit inside a w:del
+ * (EG_RangeMarkupElements, proofErr, perm*). Every other paragraph child
+ * (w:hyperlink, w:fldSimple, w:sdt, w:smartTag, a pre-existing w:del, ...)
+ * blocks a deletion that would span it.
+ */
+const DELETABLE_PARA_ELEMENTS = new Set<string>([
+    "w:bookmarkStart",
+    "w:bookmarkEnd",
+    "w:commentRangeStart",
+    "w:commentRangeEnd",
+    "w:proofErr",
+    "w:permStart",
+    "w:permEnd",
+    "w:moveFromRangeStart",
+    "w:moveFromRangeEnd",
+    "w:moveToRangeStart",
+    "w:moveToRangeEnd",
+    "w:customXmlInsRangeStart",
+    "w:customXmlInsRangeEnd",
+    "w:customXmlDelRangeStart",
+    "w:customXmlDelRangeEnd",
+    "w:customXmlMoveFromRangeStart",
+    "w:customXmlMoveFromRangeEnd",
+    "w:customXmlMoveToRangeStart",
+    "w:customXmlMoveToRangeEnd",
+]);
+
+type RunItem =
+    | { kind: "text"; tnIdx: number }
+    | { kind: "atom"; node: XNode; pos: number };
+
 interface RunSlot {
     childIndex: number;         // index in paragraph.children
+    rEl: XNode;                 // the source w:r (reference)
     rPr: XNode | null;          // reference (not cloned)
-    /**
-     * Per-w:t info. Slots preserve the relative order of the run's textual
-     * children. Non-textual run children (w:tab, w:br, ...) are ignored for
-     * the char stream but left in place via their surrounding w:r.
-     */
+    /** Per-w:t info, in run order. */
     textNodes: { wtEl: XNode; text: string; paraStart: number; paraEnd: number }[];
+    /**
+     * Every run child except w:rPr, in source order: w:t as `text` items,
+     * anything else (w:tab, w:br, w:footnoteReference, w:fldChar, ...) as a
+     * positional `atom`. Reconstruction replays this list, so no child of a
+     * touched run is lost.
+     */
+    items: RunItem[];
+}
+
+/** A non-text element of the paragraph, with the paraText offset it sits at. */
+interface PositionedElement {
+    pos: number;
+    name: string;
+    level: "run" | "para";
+    /** May it be carried inside a tracked deletion (w:del)? */
+    deletable: boolean;
 }
 
 interface Flattened {
@@ -203,6 +284,10 @@ interface Flattened {
     charTextNode: Int32Array; // index into slot.textNodes
     charOffset: Int32Array;   // offset within that textNode.text
     runs: RunSlot[];          // order corresponds to their paragraph position
+    /** paraText offset at which each top-level paragraph child starts. */
+    childStart: number[];
+    /** Non-text elements (run- and paragraph-level), in document order. */
+    elements: PositionedElement[];
 }
 
 function flattenParagraph(paraChildren: XNode[]): Flattened {
@@ -211,13 +296,18 @@ function flattenParagraph(paraChildren: XNode[]): Flattened {
     const charRunArr: number[] = [];
     const charTextNodeArr: number[] = [];
     const charOffsetArr: number[] = [];
+    const childStart: number[] = [];
+    const elements: PositionedElement[] = [];
 
     const processRun = (rEl: XNode, topChildIdx: number) => {
         const rKids = elChildren(rEl);
         let rPr: XNode | null = null;
         const textNodes: RunSlot["textNodes"] = [];
+        const items: RunItem[] = [];
+        const runIdx = runs.length;
         for (const rk of rKids) {
             const name = elName(rk);
+            if (!name) continue; // inter-element whitespace inside w:r
             if (name === "w:rPr") {
                 rPr = rk;
             } else if (name === "w:t") {
@@ -229,34 +319,59 @@ function flattenParagraph(paraChildren: XNode[]): Flattened {
                     paraStart: start,
                     paraEnd: start + txt.length,
                 });
-                const runIdx = runs.length;
                 const tnIdx = textNodes.length - 1;
+                items.push({ kind: "text", tnIdx });
                 paraText += txt;
                 for (let i = 0; i < txt.length; i++) {
                     charRunArr.push(runIdx);
                     charTextNodeArr.push(tnIdx);
                     charOffsetArr.push(i);
                 }
+            } else {
+                // w:tab, w:br, w:footnoteReference, w:fldChar, w:drawing ...
+                const pos = paraText.length;
+                items.push({ kind: "atom", node: rk, pos });
+                elements.push({
+                    pos,
+                    name,
+                    level: "run",
+                    deletable: DELETABLE_RUN_ELEMENTS.has(name),
+                });
             }
-            // other run children (w:tab, w:br, w:sym, …) are left alone
         }
-        runs.push({ childIndex: topChildIdx, rPr, textNodes });
+        runs.push({ childIndex: topChildIdx, rEl, rPr, textNodes, items });
+    };
+
+    const paraElement = (node: XNode) => {
+        const name = elName(node);
+        if (!name) return;
+        elements.push({
+            pos: paraText.length,
+            name,
+            level: "para",
+            deletable: DELETABLE_PARA_ELEMENTS.has(name),
+        });
     };
 
     for (let ci = 0; ci < paraChildren.length; ci++) {
+        childStart.push(paraText.length);
         const child = paraChildren[ci];
         const name = elName(child);
         if (name === "w:r") {
             processRun(child, ci);
         } else if (name === "w:ins") {
             // Accepted view: include inner runs as if bare. childIndex points
-            // at the w:ins wrapper so reconstruction can drop the wrapper
-            // whole when a new edit touches any of these runs.
+            // at the w:ins wrapper so reconstruction rewrites the wrapper
+            // whole (accepting that insertion) when a new edit touches it.
             for (const inner of elChildren(child)) {
                 if (elName(inner) === "w:r") processRun(inner, ci);
+                else paraElement(inner);
             }
+        } else if (name && name !== "w:pPr") {
+            // w:del (accepted view: its text is invisible), bookmarks,
+            // hyperlinks, fldSimple, sdt ... - zero-width positional elements.
+            paraElement(child);
         }
-        // w:del: skip entirely — accepted view excludes deleted text.
     }
 
     return {
@@ -265,6 +380,127 @@ function flattenParagraph(paraChildren: XNode[]): Flattened {
         charTextNode: Int32Array.from(charTextNodeArr),
         charOffset: Int32Array.from(charOffsetArr),
         runs,
+        childStart,
+        elements,
+    };
+}
+
+/**
+ * The first non-deletable element strictly inside (start, end) - one that a
+ * tracked deletion of [start, end) would have to swallow. Elements sitting
+ * exactly on a boundary stay outside the deletion and are kept in place.
+ */
+function blockingElementInRange(
+    flat: Flattened,
+    start: number,
+    end: number,
+): PositionedElement | null {
+    if (end - start < 2) return null;
+    for (const el of flat.elements) {
+        if (el.pos > start && el.pos < end && !el.deletable) return el;
+    }
+    return null;
+}
+
+/** One piece of a paragraph span, in document order (see `spanTokens`). */
+type SpanToken =
+    | { kind: "text"; runIdx: number; start: number; end: number }
+    | { kind: "runAtom"; runIdx: number; node: XNode; pos: number }
+    | { kind: "paraNode"; node: XNode; pos: number };
+
+/**
+ * Tokenize paragraph children [startChildIdx, endChildIdx] in document
+ * order. Text is split at every offset in `cuts`, so a text token never
+ * straddles a cut. Non-text run children come out as `runAtom`, every other
+ * paragraph child (and non-run children of a w:ins wrapper) as `paraNode`.
+ * Re-emitting all tokens loses nothing but the w:r / w:ins wrappers
+ * themselves (w:rPr is re-attached per run by `makeRunAppender`), empty w:t
+ * and inter-element whitespace inside runs.
+ */
+function spanTokens(
+    flat: Flattened,
+    paraChildren: XNode[],
+    startChildIdx: number,
+    endChildIdx: number,
+    cuts: number[],
+): SpanToken[] {
+    const runIdxByNode = new Map<XNode, number>();
+    flat.runs.forEach((r, i) => runIdxByNode.set(r.rEl, i));
+    const sortedCuts = [...new Set(cuts)].sort((a, b) => a - b);
+    const tokens: SpanToken[] = [];
+    let cur = flat.childStart[startChildIdx] ?? 0;
+
+    const pushRun = (rEl: XNode) => {
+        const runIdx = runIdxByNode.get(rEl);
+        if (runIdx === undefined) return;
+        const slot = flat.runs[runIdx];
+        for (const it of slot.items) {
+            if (it.kind === "atom") {
+                tokens.push({ kind: "runAtom", runIdx, node: it.node, pos: it.pos });
+                cur = it.pos;
+                continue;
+            }
+            const tn = slot.textNodes[it.tnIdx];
+            let a = tn.paraStart;
+            for (const c of sortedCuts) {
+                if (c <= a) continue;
+                if (c >= tn.paraEnd) break;
+                tokens.push({ kind: "text", runIdx, start: a, end: c });
+                a = c;
+            }
+            if (a < tn.paraEnd) tokens.push({ kind: "text", runIdx, start: a, end: tn.paraEnd });
+            cur = tn.paraEnd;
+        }
+    };
+
+    for (let ci = startChildIdx; ci <= endChildIdx; ci++) {
+        const child = paraChildren[ci];
+        const name = elName(child);
+        if (name === "w:r") {
+            pushRun(child);
+        } else if (name === "w:ins") {
+            for (const inner of elChildren(child)) {
+                if (elName(inner) === "w:r") pushRun(inner);
+                else tokens.push({ kind: "paraNode", node: inner, pos: cur });
+            }
+        } else {
+            tokens.push({ kind: "paraNode", node: child, pos: cur });
+        }
+    }
+    return tokens;
+}
+
+/** w:t / w:delText children for a piece of text ("\n" -> w:br, as buildRun). */
+function textRunChildren(text: string, tagName: "w:t" | "w:delText"): XNode[] {
+    const out: XNode[] = [];
+    const segments = text.split("\n");
+    for (let i = 0; i < segments.length; i++) {
+        if (i > 0) out.push(makeEl("w:br", []));
+        if (segments[i].length > 0) {
+            out.push(makeEl(tagName, [makeText(segments[i])], { "xml:space": "preserve" }));
+        }
+    }
+    return out;
+}
+
+/**
+ * Returns `append(target, runIdx, child)`: adds `child` to the run at the end
+ * of `target` when this appender opened that run for the same source run,
+ * otherwise opens a new w:r carrying the source run's w:rPr. Pushing anything
+ * else (w:ins, w:del, a marker) onto `target` closes the open run.
+ */
+function makeRunAppender(flat: Flattened) {
+    const origin = new WeakMap<XNode, number>();
+    return (target: XNode[], runIdx: number, child: XNode): void => {
+        const last = target[target.length - 1];
+        if (last && origin.get(last) === runIdx) {
+            (last["w:r"] as XNode[]).push(child);
+            return;
+        }
+        const rPr = flat.runs[runIdx]?.rPr ?? null;
+        const run = makeEl("w:r", rPr ? [cloneNode(rPr), child] : [child]);
+        origin.set(run, runIdx);
+        target.push(run);
     };
 }
 
@@ -289,6 +525,13 @@ interface PlannedChange {
     changeId: string;             // logical id (not the w:id)
     delWId?: string;              // w:id of w:del wrapper (if deletedText non-empty)
     insWId?: string;              // w:id of w:ins wrapper (if insertedText non-empty)
+    /**
+     * Pure insertion only: the anchor text sits to the LEFT of the insertion
+     * point (e.g. find="§ 1" -> replace="§ 1a"), so the w:ins goes right
+     * after char deleteStart-1, before any zero-width element (w:tab, ...)
+     * at that offset. Otherwise it goes right before char deleteStart.
+     */
+    insertLeft: boolean;
 }
 
 /**
@@ -323,6 +566,16 @@ function collapseDiff(find: string, replace: string): { deleted: string; inserte
  * Given a paragraph's children and a sorted, non-overlapping list of
  * `PlannedChange`s that fall within it, return a new children array with
  * tracked changes inserted.
+ *
+ * Every paragraph child between the first and the last touched run is
+ * re-emitted in document order (via `spanTokens`): untouched text and every
+ * non-text element (w:tab, w:br, w:footnoteReference, bookmarks, a
+ * pre-existing w:del ...) at its original position. Only text inside a
+ * planned deletion changes - it moves into a w:del as w:delText, together
+ * with any deletable zero-width element strictly inside it (planning has
+ * already refused deletions that would swallow anything else). Untouched
+ * runs of a pre-existing w:ins in the span are kept as plain runs (that
+ * insertion is accepted), never dropped.
  */
 function reconstructParagraph(
     paraChildren: XNode[],
@@ -332,165 +585,114 @@ function reconstructParagraph(
     author: string,
 ): XNode[] {
     if (plan.length === 0) return paraChildren;
+    const textLen = flat.paraText.length;
+    if (textLen === 0) return paraChildren;
+
+    // Run index of the char at `pos`, clamped into the paragraph text.
+    const runAt = (pos: number): number =>
+        flat.charRun[Math.max(0, Math.min(textLen - 1, pos))];
 
     // Determine the run-index span that edits touch.
     let firstRunIdx = flat.runs.length;
     let lastRunIdx = -1;
+    const touch = (r: number) => {
+        if (r < firstRunIdx) firstRunIdx = r;
+        if (r > lastRunIdx) lastRunIdx = r;
+    };
     for (const p of plan) {
-        for (let pos = p.deleteStart; pos < p.deleteEnd; pos++) {
-            const r = flat.charRun[pos];
-            if (r < firstRunIdx) firstRunIdx = r;
-            if (r > lastRunIdx) lastRunIdx = r;
-        }
-        // Also include the run to the left/right of a pure insertion so we
-        // can inherit its rPr.
-        if (p.deleteStart === p.deleteEnd && p.deleteStart < flat.paraText.length) {
-            const r = flat.charRun[p.deleteStart];
-            if (r < firstRunIdx) firstRunIdx = r;
-            if (r > lastRunIdx) lastRunIdx = r;
-        } else if (p.deleteStart === p.deleteEnd && p.deleteStart > 0) {
-            const r = flat.charRun[p.deleteStart - 1];
-            if (r < firstRunIdx) firstRunIdx = r;
-            if (r > lastRunIdx) lastRunIdx = r;
+        for (let pos = p.deleteStart; pos < p.deleteEnd; pos++) touch(flat.charRun[pos]);
+        // A pure insertion touches the run it inherits formatting from.
+        if (p.deleteStart === p.deleteEnd) {
+            touch(runAt(p.insertLeft && p.deleteStart > 0 ? p.deleteStart - 1 : p.deleteStart));
         }
     }
-    if (firstRunIdx > lastRunIdx) {
-        // No runs touched (edits against empty paragraph?) — nothing to do.
-        return paraChildren;
-    }
+    if (firstRunIdx > lastRunIdx) return paraChildren;
 
-    // Child-index range in paragraph.children we are going to replace.
+    // Child-index range in paragraph.children we are going to rewrite.
     const startChildIdx = flat.runs[firstRunIdx].childIndex;
     const endChildIdx = flat.runs[lastRunIdx].childIndex;
 
-    // Paragraph-text range that this run span covers.
-    const firstRun = flat.runs[firstRunIdx];
-    const lastRun = flat.runs[lastRunIdx];
-    const spanStart =
-        firstRun.textNodes.length > 0 ? firstRun.textNodes[0].paraStart : 0;
-    const spanEnd =
-        lastRun.textNodes.length > 0
-            ? lastRun.textNodes[lastRun.textNodes.length - 1].paraEnd
-            : spanStart;
+    const cuts: number[] = [];
+    for (const p of plan) cuts.push(p.deleteStart, p.deleteEnd);
+    const tokens = spanTokens(flat, paraChildren, startChildIdx, endChildIdx, cuts);
 
-    // Walk [spanStart, spanEnd) in paraText, producing a new children array.
-    const newRunGroup: XNode[] = [];
-
-    // Helper: get the rPr for the run containing paragraph offset `pos`
-    // (clamped to the touched span). Used to inherit formatting for
-    // insertions that fall exactly on a boundary.
-    const rPrForPos = (pos: number): XNode | null => {
-        if (pos < 0) pos = 0;
-        if (pos >= flat.paraText.length) pos = flat.paraText.length - 1;
-        if (pos < 0) return firstRun.rPr;
-        return flat.runs[flat.charRun[pos]].rPr;
-    };
-
-    // Emit a "normal" run fragment covering [a, b) of paraText, grouping
-    // consecutive chars that belong to the same source text node.
-    const emitNormal = (a: number, b: number) => {
-        if (a >= b) return;
-        let i = a;
-        while (i < b) {
-            const runIdx = flat.charRun[i];
-            const tnIdx = flat.charTextNode[i];
-            let j = i + 1;
-            while (
-                j < b &&
-                flat.charRun[j] === runIdx &&
-                flat.charTextNode[j] === tnIdx
-            ) {
-                j++;
-            }
-            const slot = flat.runs[runIdx];
-            const rPr = slot.rPr;
-            const slice = flat.paraText.slice(i, j);
-            newRunGroup.push(buildRun(rPr, slice, "w:t"));
-            i = j;
-        }
-    };
-
-    // Emit a w:del wrapping run fragments covering [a, b) of paraText.
-    const emitDel = (a: number, b: number, wId: string) => {
-        if (a >= b) return;
-        const inner: XNode[] = [];
-        let i = a;
-        while (i < b) {
-            const runIdx = flat.charRun[i];
-            const tnIdx = flat.charTextNode[i];
-            let j = i + 1;
-            while (
-                j < b &&
-                flat.charRun[j] === runIdx &&
-                flat.charTextNode[j] === tnIdx
-            ) {
-                j++;
-            }
-            const slot = flat.runs[runIdx];
-            const slice = flat.paraText.slice(i, j);
-            inner.push(buildRun(slot.rPr, slice, "w:delText"));
-            i = j;
-        }
-        newRunGroup.push(
-            makeEl("w:del", inner, {
-                "w:id": wId,
-                "w:author": author,
-                "w:date": now,
-            }),
-        );
-    };
-
-    // Emit a w:ins at position `pos` inheriting rPr from there.
-    const emitIns = (pos: number, text: string, wId: string) => {
-        if (!text) return;
-        const rPr = rPrForPos(pos === spanEnd ? pos - 1 : pos);
-        const run = buildRun(rPr, text, "w:t");
-        newRunGroup.push(
-            makeEl("w:ins", [run], {
-                "w:id": wId,
-                "w:author": author,
-                "w:date": now,
-            }),
-        );
-    };
-
-    let cursor = spanStart;
-    for (const p of plan) {
-        // Untouched slice before this edit
-        emitNormal(cursor, p.deleteStart);
-        // Insertion fires at the edit boundary
-        if (p.insertedText) emitIns(p.deleteStart, p.insertedText, p.insWId!);
-        // Deletion wraps the span
-        if (p.deleteEnd > p.deleteStart)
-            emitDel(p.deleteStart, p.deleteEnd, p.delWId!);
-        cursor = p.deleteEnd;
-    }
-    emitNormal(cursor, spanEnd);
-
-    // Replace only the w:r children that the edits touch; preserve any other
-    // interleaved elements (bookmarks, existing tracked-changes, w:sdt …) at
-    // their original positions.
-    const droppedChildIdx = new Set<number>();
-    for (let r = firstRunIdx; r <= lastRunIdx; r++) {
-        droppedChildIdx.add(flat.runs[r].childIndex);
-    }
-    // Any w:del wrappers that sit inside the span we're rewriting are also
-    // dropped, which accepts their deletions (their text is already absent
-    // from paraText in the accepted view).
-    for (let i = startChildIdx; i <= endChildIdx; i++) {
-        if (elName(paraChildren[i]) === "w:del") droppedChildIdx.add(i);
-    }
-    const firstDroppedIdx = startChildIdx;
-    void endChildIdx;
     const out: XNode[] = [];
-    for (let i = 0; i < paraChildren.length; i++) {
-        if (i === firstDroppedIdx) {
-            for (const n of newRunGroup) out.push(n);
+    let delInner: XNode[] | null = null;
+    const target = (): XNode[] => delInner ?? out;
+    const append = makeRunAppender(flat);
+    const trackAttrs = (wId: string) => ({ "w:id": wId, "w:author": author, "w:date": now });
+
+    // Events are keyed by position: 2*pos = "right after char pos-1" (before
+    // any zero-width element at pos), 2*pos+1 = "right before char pos"
+    // (after them). A zero-width element at pos is visited at key 2*pos, a
+    // text token starting at s at key 2*s+1.
+    type Ev = { key: number; order: number; fire: () => void };
+    const events: Ev[] = [];
+    plan.forEach((p, i) => {
+        const emitIns = () => {
+            if (!p.insertedText) return;
+            const rPrRun =
+                p.deleteStart === p.deleteEnd && p.insertLeft && p.deleteStart > 0
+                    ? runAt(p.deleteStart - 1)
+                    : runAt(p.deleteStart);
+            const run = buildRun(flat.runs[rPrRun]?.rPr ?? null, p.insertedText, "w:t");
+            out.push(makeEl("w:ins", [run], trackAttrs(p.insWId!)));
+        };
+        if (p.deleteEnd > p.deleteStart) {
+            events.push({
+                key: 2 * p.deleteStart + 1,
+                order: 2 * i + 1,
+                fire: () => {
+                    emitIns();
+                    delInner = [];
+                },
+            });
+            events.push({
+                key: 2 * p.deleteEnd,
+                order: 2 * i,
+                fire: () => {
+                    if (delInner && delInner.length > 0) {
+                        out.push(makeEl("w:del", delInner, trackAttrs(p.delWId!)));
+                    }
+                    delInner = null;
+                },
+            });
+        } else {
+            events.push({
+                key: p.insertLeft ? 2 * p.deleteStart : 2 * p.deleteStart + 1,
+                order: 2 * i + 1,
+                fire: emitIns,
+            });
         }
-        if (droppedChildIdx.has(i)) continue;
-        out.push(paraChildren[i]);
+    });
+    events.sort((a, b) => a.key - b.key || a.order - b.order);
+    let ei = 0;
+    const fireUpTo = (key: number) => {
+        while (ei < events.length && events[ei].key <= key) events[ei++].fire();
+    };
+
+    for (const t of tokens) {
+        if (t.kind === "text") {
+            fireUpTo(2 * t.start + 1);
+            const tag = delInner ? "w:delText" : "w:t";
+            for (const c of textRunChildren(flat.paraText.slice(t.start, t.end), tag)) {
+                append(target(), t.runIdx, c);
+            }
+        } else if (t.kind === "runAtom") {
+            fireUpTo(2 * t.pos);
+            append(target(), t.runIdx, t.node);
+        } else {
+            fireUpTo(2 * t.pos);
+            target().push(t.node);
+        }
     }
-    return out;
+    fireUpTo(Number.POSITIVE_INFINITY);
+
+    return [
+        ...paraChildren.slice(0, startChildIdx),
+        ...out,
+        ...paraChildren.slice(endChildIdx + 1),
+    ];
 }
 
 // ---------------------------------------------------------------------------
@@ -651,6 +853,11 @@ function createParser() {
         preserveOrder: true,
         trimValues: false,
         parseAttributeValue: false,
+        // Text MUST stay a string. With the default (true) a w:t holding only
+        // "0012", "1.50" or "1e5" is parsed as a number and serialized back
+        // as "12", "1.5", "100000" - in EVERY paragraph of the document,
+        // touched or not, outside tracked changes (audit D-09 follow-up).
+        parseTagValue: false,
         processEntities: true,
     });
 }
@@ -956,13 +1163,34 @@ export async function applyTrackedEdits(
             findEnd,
         );
 
-        const { deleted, inserted, leadingEq } = collapseDiff(
+        const { deleted, inserted, leadingEq, trailingEq } = collapseDiff(
             originalFind,
             replace,
         );
         const minStart = findStart + leadingEq;
         const minEnd = minStart + deleted.length;
         void findEnd;
+
+        // A tracked deletion may carry text and simple layout elements
+        // (w:tab, w:br, ...), but never a footnote reference, field, drawing,
+        // hyperlink or a pre-existing tracked change: refuse the edit rather
+        // than lose that element (audit D-09).
+        const blocking = blockingElementInRange(
+            paragraphs[paraIdx].flat,
+            minStart,
+            minEnd,
+        );
+        if (blocking) {
+            errors.push({
+                index: editIdx,
+                reason: `The text to replace spans a non-text element (${blocking.name}) that a tracked change cannot carry safely; nothing was changed for this edit. Edit the text before and after that element separately.`,
+            });
+            continue;
+        }
+
+        // Pure insertion: which side of the insertion point holds the anchor?
+        const insertLeft =
+            leadingEq > 0 ? true : trailingEq > 0 ? false : ctxBefore.length > 0;
 
         const changeId = `patron-${editIdx}-${Date.now()}`;
         const plan: PlannedChange = {
@@ -977,6 +1205,7 @@ export async function applyTrackedEdits(
             changeId,
             delWId: deleted ? String(nextWId++) : undefined,
             insWId: inserted ? String(nextWId++) : undefined,
+            insertLeft,
         };
 
         // Check for overlap with earlier plans in the same paragraph.
@@ -1085,7 +1314,16 @@ function resolveInTree(
                         continue;
                     } else {
                         // accept-del / reject-ins → drop the wrapper and its
-                        // inner runs entirely.
+                        // inner runs, but keep zero-width range markup
+                        // (bookmarks, comment ranges ...) that an edit may
+                        // have carried inside the w:del, so a comment or
+                        // bookmark does not lose its anchor.
+                        for (const c of elChildren(n)) {
+                            const cn = elName(c);
+                            if (cn && DELETABLE_PARA_ELEMENTS.has(cn) && cn !== "w:proofErr") {
+                                out.push(c);
+                            }
+                        }
                         continue;
                     }
                 }
@@ -1177,7 +1415,7 @@ function truncate(s: string, n: number): string {
 // docxOoxml.ts, so docxComments stops re-deriving the ~25-line anchor scan.
 // Tracked as a reservation in ADR-0077.
 
-export type { Flattened };
+export type { Flattened, SpanToken };
 export {
     elName,
     elChildren,
@@ -1195,6 +1433,9 @@ export {
     getZipEntry,
     setZipEntry,
     ensureXmlDeclaration,
+    spanTokens,
+    textRunChildren,
+    makeRunAppender,
 };
 
 // Lightweight guards used elsewhere; exported for tests.

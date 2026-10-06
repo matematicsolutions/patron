@@ -14,12 +14,15 @@ import { describe, expect, it } from "vitest";
 import { APPROVED_PATRON_CONNECTORS } from "../mcp-security";
 import { decideRing } from "./ring-policy";
 
+/** Wpis z pliku instalatora (mergeOperatorOverlay ustawia configSource). */
+const INSTALATOR = { configSource: "installer" as const };
+
 describe("decideRing (ADR-0027)", () => {
     describe("Ring 1 - trusted patron connectors", () => {
         it.each(APPROVED_PATRON_CONNECTORS)(
-            "allow dla approved konektora: %s",
+            "allow dla approved konektora z pliku instalatora: %s",
             (name) => {
-                const decision = decideRing(name);
+                const decision = decideRing(name, INSTALATOR);
                 expect(decision).toEqual({
                     ring: 1,
                     action: "allow",
@@ -28,21 +31,33 @@ describe("decideRing (ADR-0027)", () => {
             },
         );
 
-        it("Ring 1 NIE wymaga config w ogole", () => {
-            const decision = decideRing("saos");
-            expect(decision.action).toBe("allow");
-            expect(decision.ring).toBe(1);
+        it("B-06 / R-MCP-01: sama nazwa NIE wystarcza - bez pochodzenia z instalatora Ring 2 deny", () => {
+            for (const cfg of [undefined, {}, { configSource: "operator-overlay" as const }, { trustLevel: "trusted" as const }]) {
+                expect(decideRing("saos", cfg)).toEqual({
+                    ring: 2,
+                    action: "deny",
+                    reason: "trusted-name-outside-installer",
+                });
+            }
+        });
+
+        it("ADR-0166: nazwa z listy dodana nakladka + operatorApproved -> Ring 2 allow (nie Ring 1)", () => {
+            expect(decideRing("de-eli", { configSource: "operator-overlay", operatorApproved: true })).toEqual({
+                ring: 2,
+                action: "allow",
+                reason: "operator-approved-3rd-party",
+            });
         });
 
         it("Ring 1 ignoruje operatorApproved=false (nie obniza Ring 1 do deny)", () => {
-            const decision = decideRing("saos", { operatorApproved: false });
+            const decision = decideRing("saos", { ...INSTALATOR, operatorApproved: false });
             expect(decision.action).toBe("allow");
             expect(decision.ring).toBe(1);
             expect(decision.reason).toBe("trusted-patron-connector");
         });
 
         it("Ring 1 ignoruje trustLevel - decyzja na podstawie canonical list", () => {
-            const decision = decideRing("saos", { trustLevel: "untrusted" });
+            const decision = decideRing("saos", { ...INSTALATOR, trustLevel: "untrusted" });
             expect(decision.action).toBe("allow");
             expect(decision.ring).toBe(1);
         });
@@ -164,7 +179,7 @@ describe("decideRing (ADR-0027)", () => {
 
         it("decyzja nie zalezy od kolejnosci wywolan (no global state)", () => {
             const d1 = decideRing("vendor-x", { operatorApproved: true });
-            const d2 = decideRing("saos");
+            const d2 = decideRing("saos", INSTALATOR);
             const d3 = decideRing("vendor-x", { operatorApproved: true });
             expect(d1).toEqual(d3);
             expect(d2.reason).toBe("trusted-patron-connector");
@@ -173,7 +188,7 @@ describe("decideRing (ADR-0027)", () => {
 
     describe("RingReason values (kontrakt audit_log payload.reason)", () => {
         it("Ring 1 -> reason='trusted-patron-connector'", () => {
-            expect(decideRing("krs").reason).toBe("trusted-patron-connector");
+            expect(decideRing("krs", INSTALATOR).reason).toBe("trusted-patron-connector");
         });
 
         it("Ring 2 allow -> reason='operator-approved-3rd-party'", () => {
@@ -184,6 +199,33 @@ describe("decideRing (ADR-0027)", () => {
 
         it("Ring 2 deny -> reason='no-operator-approval'", () => {
             expect(decideRing("vendor-x").reason).toBe("no-operator-approval");
+        });
+
+        it("Ring 2 allow po zgodnym gatewayApproval -> reason='operator-gateway-approval' (B-08)", () => {
+            expect(decideRing("vendor-x", { gatewayApproved: true })).toEqual({
+                ring: 2,
+                action: "allow",
+                reason: "operator-gateway-approval",
+            });
+        });
+    });
+
+    describe("B-08: jedno zatwierdzenie Operatora (gatewayApproval) wystarcza", () => {
+        it("gatewayApproved=false albo brak = deny jak dotad", () => {
+            expect(decideRing("vendor-x", { gatewayApproved: false }).action).toBe("deny");
+            expect(decideRing("vendor-x", { trustLevel: "trusted" }).action).toBe("deny");
+        });
+
+        it("istniejace operatorApproved=true zachowuje swoj reason (zgodnosc wstecz)", () => {
+            expect(
+                decideRing("vendor-x", { operatorApproved: true, gatewayApproved: true }).reason,
+            ).toBe("operator-approved-3rd-party");
+        });
+
+        it("nie podnosi do Ring 1 - nazwa zaufana z nakladki zostaje Ring 2", () => {
+            expect(
+                decideRing("saos", { configSource: "operator-overlay", gatewayApproved: true }),
+            ).toEqual({ ring: 2, action: "allow", reason: "operator-gateway-approval" });
         });
     });
 
@@ -196,7 +238,7 @@ describe("decideRing (ADR-0027)", () => {
             // ring-policy dziala RUNTIME (per call). Razem - 2 warstwy obrony.
             // Ten test dokumentuje ze decideRing operuje tylko na nazwie + config,
             // NIE wykonuje skanu - to robi gateway oddzielnie.
-            const decision = decideRing("saos");
+            const decision = decideRing("saos", INSTALATOR);
             expect(decision.action).toBe("allow");
             // Gateway moglby odrzucic saos load-time (typosquat, drift, etc.) -
             // to NIE jest sprawa ring-policy. Ring-policy ufa ze do runtime
@@ -209,6 +251,12 @@ describe("decideRing (ADR-0027)", () => {
             expect(decideRing("any-name").action).toBe("deny");
             expect(decideRing("any-name", {}).action).toBe("deny");
             expect(decideRing("any-name", { trustLevel: "trusted" }).action).toBe("deny");
+            // Pochodzenie "installer" nie podnosi nazwy spoza listy do Ring 1.
+            expect(decideRing("any-name", INSTALATOR)).toEqual({
+                ring: 2,
+                action: "deny",
+                reason: "no-operator-approval",
+            });
         });
     });
 });

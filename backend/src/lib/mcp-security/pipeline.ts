@@ -13,7 +13,12 @@ import type {
     McpServerScanResult,
 } from "./types";
 import { typosquatDetector } from "./detectors/typosquat";
-import { driftDetector, computeDefinitionHash, formatBaselineEntry } from "./detectors/drift";
+import {
+    driftDetector,
+    computeDefinitionHash,
+    computeOriginFingerprint,
+    formatBaselineEntry,
+} from "./detectors/drift";
 import { hiddenInstructionsDetector } from "./detectors/hidden-instructions";
 import { toolPoisoningDetector } from "./detectors/tool-poisoning";
 import { calculateRiskScore, decideAction, toThreatLevel } from "./scorer";
@@ -94,8 +99,12 @@ export function scanMcpServer(
     const riskScore = calculateRiskScore(findings);
     const threatLevel = toThreatLevel(findings);
     const action = decideAction(findings);
-    // ADR-0159: do baseline trafia wpis wersjonowany (`v2:<hex>`).
-    const currentHash = formatBaselineEntry(computeDefinitionHash(server));
+    // ADR-0159: do baseline trafia wpis wersjonowany; od B-06 / R-MCP-01 z
+    // odciskiem pochodzenia (`v2:<def>|o:<origin>`).
+    const currentHash = formatBaselineEntry(
+        computeDefinitionHash(server),
+        computeOriginFingerprint(server),
+    );
     return {
         serverName: server.name,
         findings,

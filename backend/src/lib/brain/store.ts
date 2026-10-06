@@ -9,6 +9,7 @@
 // nalezy do modelu w czacie (narzedzie remember) lub do warstwy auto-background
 // (rezerwacja). Sciezka: PATRON_BRAIN_DIR lub %APPDATA%/PATRON/brain.
 
+import crypto from "crypto";
 import fs from "fs";
 import os from "os";
 import path from "path";
@@ -58,6 +59,29 @@ export function sanitizeSegment(value: string, fallback: string): string {
     .replace(/^-+|-+$/g, "")
     .slice(0, 80);
   return cleaned || fallback;
+}
+
+/**
+ * Historyczny zakres pamieci osobistej - JEDEN katalog dla wszystkich
+ * uzytkownikow (audyt 2026-09, B-05). Nowe zapisy ida do personalScope(userId);
+ * ten katalog jest juz tylko czytany, i to wylacznie w desktopie single-user
+ * (tam byl zawsze jeden uzytkownik, wiec to jego pamiec - nie wolno jej zgubic).
+ */
+export const LEGACY_PERSONAL_SCOPE = "personal";
+
+/**
+ * Zakres pamieci osobistej kluczowany uzytkownikiem (B-05): w trybie
+ * serwerowym prawnik B nie czyta pamieci prawnika A. Czytelny segment, gdy
+ * userId przezyje sanityzacje bez zmian (UUID); inaczej skrot SHA-256, zeby
+ * dwa rozne identyfikatory nie zlaly sie w jeden katalog (wielkosc liter,
+ * znaki spoza [a-z0-9_-], obciecie do 80 znakow).
+ */
+export function personalScope(userId: string): string {
+  const raw = (userId ?? "").toString();
+  const safe = sanitizeSegment(raw, "");
+  if (safe && safe === raw && safe.length <= 64) return `personal-${safe}`;
+  const digest = crypto.createHash("sha256").update(raw, "utf8").digest("hex");
+  return `personal-h${digest.slice(0, 40)}`;
 }
 
 function scopeDir(scope: string): string {

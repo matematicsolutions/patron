@@ -12,6 +12,7 @@ import {
 } from "../lib/chatTools";
 import {
     completeText,
+    isOllamaModel,
     providerForModel,
     streamChatWithTools,
     type Provider,
@@ -33,6 +34,10 @@ import {
     appendTabularGroundingEvent,
 } from "../lib/tabular/audit-grounding";
 import { enforceEgressGuard, appendLlmRouteEvent } from "../lib/routing";
+import { egressForModel } from "../lib/routing/egress";
+import { createPseudonimMap } from "../lib/pseudonim/map";
+import { unwrap, wrapInto } from "../lib/pseudonim/wrap";
+import { plEntityDetector } from "../lib/pseudonim/plDetector";
 import { reviewCell } from "../lib/tabular/cell-review";
 import { rozstrzygnijZakresPromptu } from "../lib/tabular/prompt-scope";
 
@@ -69,7 +74,11 @@ function providerLabel(provider: Provider): string {
     return "Gemini";
 }
 
-function missingModelApiKey(model: string, apiKeys: UserApiKeys) {
+export function missingModelApiKey(model: string, apiKeys: UserApiKeys) {
+    // Model lokalny (Ollama) nie potrzebuje klucza i nie jest w unii Provider -
+    // providerForModel rzucilby wyjatek poza try w async handlerze Express 4,
+    // co konczylo proces backendu (audyt 2026-09, D-12).
+    if (isOllamaModel(model)) return null;
     const provider = providerForModel(model);
     if (apiKeys[provider]?.trim()) return null;
     return {
@@ -1000,6 +1009,21 @@ tabularRouter.post(
             }
         }
 
+        markdown = await documentTextWithOcrFallback(db, document_id, markdown);
+        if (!markdown.trim()) {
+            // D-11: bez tekstu i bez OCR nie pytamy modelu o pusty dokument.
+            await db
+                .from("tabular_cells")
+                .update({ status: "error" })
+                .eq("review_id", reviewId)
+                .eq("document_id", document_id)
+                .eq("column_index", column_index);
+            return void res.status(422).json({
+                code: "document_no_text",
+                detail: "Dokument nie ma warstwy tekstowej ani tekstu z OCR - nie ma czego przeanalizowac.",
+            });
+        }
+
         const result = await queryTabularCell(
             tabular_model,
             doc.filename as string,
@@ -1009,6 +1033,21 @@ tabularRouter.post(
             column.tags,
             api_keys,
         );
+
+        // ADR-0067/0095: audyt "llm_route" (allow) - parytet z czatem/draftem,
+        // ten sam dowod data-residency dla AI Act art. 12. Zapis PRZED sprawdzeniem
+        // wyniku: tresc wyszla do dostawcy takze wtedy, gdy wywolanie padlo
+        // (audyt 2026-10-02, R-TI-02; ta sama regula co w /prompt).
+        await appendLlmRouteEvent(db, {
+            actorUserId: userId,
+            caseId: tabularProjectId,
+            model: tabular_model,
+            provider: guard.provider,
+            egress: guard.decision.egress,
+            classification: guard.decision.classification,
+            action: "allow",
+            reason: guard.decision.reason,
+        });
 
         if (!result) {
             await db
@@ -1034,19 +1073,6 @@ tabularRouter.post(
             documents: 1,
             aggregate: aggregateGrounding([result.grounding]),
             trigger: "regenerate_cell",
-        });
-
-        // ADR-0067/0095: audyt "llm_route" (allow) - parytet z czatem/draftem,
-        // ten sam dowod data-residency dla AI Act art. 12.
-        await appendLlmRouteEvent(db, {
-            actorUserId: userId,
-            caseId: tabularProjectId,
-            model: tabular_model,
-            provider: guard.provider,
-            egress: guard.decision.egress,
-            classification: guard.decision.classification,
-            action: "allow",
-            reason: guard.decision.reason,
         });
 
         res.json(result);
@@ -1187,6 +1213,38 @@ tabularRouter.post("/:reviewId/generate", requireAuth, async (req, res) => {
                 });
                 if (columnsToProcess.length === 0) return;
                 processedDocIds.add(docId);
+
+                markdown = await documentTextWithOcrFallback(db, docId, markdown);
+                if (!markdown.trim()) {
+                    // Brak tekstu i brak OCR: nie pytamy modelu o pusty dokument
+                    // i nie udajemy "Not Found" ze statusem done (D-11).
+                    for (const col of columnsToProcess) {
+                        const existingCell = cellMap.get(`${docId}:${col.index}`);
+                        if (existingCell) {
+                            await db
+                                .from("tabular_cells")
+                                .update({ status: "error", content: null })
+                                .eq("id", existingCell.id);
+                        } else {
+                            await db.from("tabular_cells").insert({
+                                review_id: reviewId,
+                                document_id: docId,
+                                column_index: col.index,
+                                status: "error",
+                            });
+                        }
+                        write(
+                            `data: ${JSON.stringify({ type: "cell_update", document_id: docId, column_index: col.index, content: null, status: "error", reason: "document_no_text" })}\n\n`,
+                        );
+                    }
+                    return;
+                }
+                const coverage = coverageFor(markdown);
+                if (coverage) {
+                    write(
+                        `data: ${JSON.stringify({ type: "document_truncated", document_id: docId, ...coverage })}\n\n`,
+                    );
+                }
 
                 // Mark all as generating upfront
                 for (const col of columnsToProcess) {
@@ -1640,6 +1698,7 @@ tabularRouter.post("/:reviewId/chat", requireAuth, async (req, res) => {
                 extractTabularAnnotations(text, tabularStore),
             model: tabular_model,
             apiKeys: api_keys,
+            chatId,
             // ADR-0067/0095: przekaz projectId sprawy, by enforceEgressGuard
             // klasyfikowal czat tabular wg sprawy (attorney_client_privileged),
             // a nie domyslnie jako "internal" - inaczej dane tabeli sprawy
@@ -1820,9 +1879,10 @@ async function queryTabularCell(
     format?: string,
     tags?: string[],
     apiKeys?: import("../lib/llm").UserApiKeys,
-) {
+): Promise<CellResult | null> {
     const suffix = formatPromptSuffix(format as never, tags);
     const fullPrompt = `${columnPrompt}${suffix} If not found, state "Not Found". Leave all reasoning and explanation in the "reasoning" field only.`;
+    const egress = await maskTabularEgress(model, filename, documentText);
 
     const EXTRACTION_SYSTEM = `You are a legal document analyst. Return ONLY valid JSON:
 {"summary": string, "flag": "green"|"grey"|"yellow"|"red", "reasoning": string}
@@ -1836,7 +1896,7 @@ The "summary" field must contain only the extracted value with inline citations 
         raw = await completeText({
             model,
             systemPrompt: EXTRACTION_SYSTEM,
-            user: `Document: ${filename}\n\n${documentText.slice(0, 120_000)}\n\n---\nInstruction: ${fullPrompt}`,
+            user: `Document: ${egress.filename}\n\n${egress.text}\n\n---\nInstruction: ${fullPrompt}`,
             maxTokens: 2048,
             apiKeys,
         });
@@ -1857,9 +1917,9 @@ The "summary" field must contain only the extracted value with inline citations 
             reasoning?: unknown;
         };
         const summary =
-            String(parsed.summary ?? parsed.value ?? "").trim() ||
+            egress.unmask(String(parsed.summary ?? parsed.value ?? "")).trim() ||
             "Not addressed";
-        const reasoning = String(parsed.reasoning ?? "");
+        const reasoning = egress.unmask(String(parsed.reasoning ?? ""));
         return {
             summary,
             flag: (["green", "grey", "yellow", "red"] as const).includes(
@@ -1871,13 +1931,15 @@ The "summary" field must contain only the extracted value with inline citations 
             grounding: groundCellText(summary, reasoning, documentText, {
                 cellStates: process.env.PATRON_TABULAR_CELL_STATES === "true",
             }),
+            ...(coverageFor(documentText) ? { coverage: coverageFor(documentText) } : {}),
         };
     } catch {
         return raw.trim()
             ? {
-                  summary: raw.trim().slice(0, 500),
+                  summary: egress.unmask(raw.trim()).slice(0, 500),
                   flag: "grey" as const,
                   reasoning: "",
+                  ...(coverageFor(documentText) ? { coverage: coverageFor(documentText) } : {}),
               }
             : null;
     }
@@ -1964,7 +2026,74 @@ type CellResult = {
     flag: "green" | "grey" | "yellow" | "red";
     reasoning: string;
     grounding?: TabularCellGrounding;
+    /** Obecne tylko, gdy model nie dostal calego dokumentu (audyt D-15). */
+    coverage?: DocumentCoverage;
 };
+
+/** Limit tekstu dokumentu w jednym wywolaniu tabular. */
+const TABULAR_DOC_LIMIT = 120_000;
+
+type DocumentCoverage = { truncated: true; chars_sent: number; chars_total: number };
+
+/**
+ * Jawny sygnal obciecia (audyt 2026-09, D-15): dluzsza umowa byla analizowana
+ * tylko do limitu, a komorka "Not Found" wygladala jak przeczytany dokument
+ * bez klauzuli. Komorka niesie teraz informacje, ile tekstu model dostal.
+ */
+export function coverageFor(text: string): DocumentCoverage | undefined {
+    return text.length > TABULAR_DOC_LIMIT
+        ? { truncated: true, chars_sent: TABULAR_DOC_LIMIT, chars_total: text.length }
+        : undefined;
+}
+
+/**
+ * Tekst dokumentu dla tabular: wynik ekstrakcji pliku, a gdy pusty (skan bez
+ * warstwy tekstu, .doc) - tekst z OCR zapisany przez ingest w doc_chunks, tak
+ * jak robi to czat (tool-dispatch readDocumentText). Bez tego model dostawal
+ * pusty dokument, a komorki "Not Found" mialy status done (audyt 2026-09, D-11).
+ */
+export async function documentTextWithOcrFallback(
+    db: ReturnType<typeof createServerSupabase>,
+    documentId: string,
+    extracted: string,
+): Promise<string> {
+    if (extracted.trim()) return extracted;
+    try {
+        const { data } = await db
+            .from("doc_chunks")
+            .select("content")
+            .eq("document_id", documentId)
+            .order("chunk_index", { ascending: true });
+        return ((data ?? []) as { content?: string }[])
+            .map((r) => r.content ?? "")
+            .join("\n")
+            .trim();
+    } catch {
+        return "";
+    }
+}
+/**
+ * Maskowanie tresci dokumentu przed modelem spoza maszyny (audyt 2026-09, A-07):
+ * tabular wysylal caly dokument jawnie. Ten sam detektor co czat; jedna mapa na
+ * wywolanie, wynik modelu odmaskowany PRZED groundingiem (grounding porownuje z
+ * oryginalnym tekstem). Model lokalny i PATRON_PSEUDONIM_EGRESS=false - bez zmian.
+ */
+export async function maskTabularEgress(
+    model: string,
+    filename: string,
+    documentText: string,
+): Promise<{ filename: string; text: string; unmask: (s: string) => string }> {
+    const fragment = documentText.slice(0, TABULAR_DOC_LIMIT);
+    if (process.env.PATRON_PSEUDONIM_EGRESS === "false" || egressForModel(model) === "no-egress") {
+        return { filename, text: fragment, unmask: (x) => x };
+    }
+    const map = createPseudonimMap();
+    const opts = { llmDetector: plEntityDetector };
+    const text = await wrapInto(map, fragment, opts);
+    const maskedName = await wrapInto(map, filename, opts);
+    return { filename: maskedName, text, unmask: (x) => unwrap(x, map) };
+}
+
 type Column = {
     index: number;
     name: string;
@@ -2003,7 +2132,8 @@ Rules:
 - The "summary" and "reasoning" string VALUES may use markdown (bullets, bold, italics, etc.) — escape newlines as \\n inside the JSON string. This markdown is rendered in the UI.
 - Output ONLY the JSON lines themselves. Do NOT wrap the response in markdown code fences (e.g. \`\`\`json), and do not add any preamble or summary.`;
 
-    const USER = `Document: ${filename}\n\n${documentText.slice(0, 120_000)}\n\n---\nColumns to extract:\n${columnsDesc}`;
+    const egress = await maskTabularEgress(model, filename, documentText);
+    const USER = `Document: ${egress.filename}\n\n${egress.text}\n\n---\nColumns to extract:\n${columnsDesc}`;
 
     let contentBuffer = "";
     const pending: Promise<unknown>[] = [];
@@ -2022,8 +2152,8 @@ Rules:
             const col = columns.find((c) => c.index === parsed.column_index);
             if (!col) return;
             const summary =
-                String(parsed.summary ?? "").trim() || "Not addressed";
-            const reasoning = String(parsed.reasoning ?? "");
+                egress.unmask(String(parsed.summary ?? "")).trim() || "Not addressed";
+            const reasoning = egress.unmask(String(parsed.reasoning ?? ""));
             await onResult(parsed.column_index, {
                 summary,
                 flag: (["green", "grey", "yellow", "red"] as const).includes(
@@ -2035,6 +2165,7 @@ Rules:
                 grounding: groundCellText(summary, reasoning, documentText, {
                 cellStates: process.env.PATRON_TABULAR_CELL_STATES === "true",
             }),
+                ...(coverageFor(documentText) ? { coverage: coverageFor(documentText) } : {}),
             });
         } catch {
             // malformed line — skip

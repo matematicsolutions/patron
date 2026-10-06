@@ -5,11 +5,15 @@
 //
 // Bootuje dist/win-unpacked/PATRON.exe (app.isPackaged=true, zbundlowany
 // backend/frontend, Node wbudowany w Electron) na CZYSTYM tymczasowym profilu
-// (APPDATA/LOCALAPPDATA przekierowane) i sprawdza mechanicznie:
+// i sprawdza mechanicznie:
 //   1. backend  http://localhost:3001/health -> {ok:true}
 //   2. frontend http://localhost:3000/       -> 200 + HTML
-// Po tescie ubija cale drzewo procesow (taskkill /T). Realny profil i dane
-// uzytkownika sa nietykane.
+//   3. baza powstala w profilu testu, a pliki bazy profilu roboczego sa nietkniete
+// Izolacja: PATRON_E2E=1 + PATRON_USER_DATA_DIR (main.js -> app.setPath('userData')).
+// Samo przekierowanie APPDATA/LOCALAPPDATA NIE wystarcza - Electron na Windows
+// czyta userData z systemu (do 2026-10-06 kazdy przebieg pisal do profilu
+// roboczego, a ten naglowek twierdzil, ze jest nietykany). Po tescie ubija cale
+// drzewo procesow (taskkill /T).
 //
 // Exit: 0 = stack wstal; 1 = nie wstal w timeoutcie / check FAIL;
 //       2 = brak builda (odpal: npm run build:dir) albo porty zajete.
@@ -51,6 +55,7 @@ function get(url) {
                     status: res.statusCode,
                     body,
                     location: res.headers.location,
+                    headers: res.headers,
                 }),
             );
         });
@@ -165,11 +170,25 @@ async function main() {
     console.log(`Profil tymczasowy: ${profile}`);
     console.log(`Start: ${EXE}`);
 
+    // Izolacja (weryfikacja 2026-10-06): Electron na Windows NIE czyta APPDATA z env,
+    // wiec samo przekierowanie zmiennych zostawialo userData w profilu roboczym.
+    // main.js w trybie PATRON_E2E=1 ustawia userData na PATRON_USER_DATA_DIR.
+    const userData = path.join(profile, "userData");
+    const roboczaBaza = path.join(process.env.APPDATA ?? "", "patron-desktop", "patron.db");
+    const odcisk = () =>
+        ["", "-wal", "-shm"]
+            .map((s) => roboczaBaza + s)
+            .map((f) => (fs.existsSync(f) ? `${f}:${fs.statSync(f).mtimeMs}:${fs.statSync(f).size}` : `${f}:brak`))
+            .join("|");
+    const odciskPrzed = odcisk();
+
     const child = spawn(EXE, [], {
         env: {
             ...process.env,
             APPDATA: profile,
             LOCALAPPDATA: localDir,
+            PATRON_E2E: "1",
+            PATRON_USER_DATA_DIR: userData,
         },
         stdio: "ignore",
         detached: false,
@@ -235,6 +254,38 @@ async function main() {
     );
 
     check("proces zyje do konca smoke'a", !exited);
+
+    // A-21: CSP egzekwowana w spakowanej aplikacji, z originem API w connect-src
+    // (front :3000 i API :3001 to rozne originy - bez tego polityka odcina backend).
+    const csp = String(frontFinal?.headers?.["content-security-policy"] ?? "");
+    const connectSrc = (
+        csp
+            .split(";")
+            .map((d) => d.trim())
+            .find((d) => d.startsWith("connect-src")) ?? ""
+    ).split(" ");
+    check(
+        "CSP egzekwowana, connect-src z originem API",
+        csp.length > 0 && connectSrc.includes(`http://localhost:${BACKEND_PORT}`),
+        csp ? `connect-src=${connectSrc.join(" ")}` : "brak naglowka Content-Security-Policy",
+    );
+
+    // Baza powstaje leniwie, przy pierwszym zapytaniu do danych (/health jej nie
+    // dotyka) - bez tego kontrola izolacji nie mialaby czego zobaczyc.
+    const dane = await get(`http://localhost:${BACKEND_PORT}/projects`);
+    check("backend /projects -> 200 (pierwszy dotyk bazy)", dane?.status === 200, dane ? `status=${dane.status}` : "brak odpowiedzi");
+    // Kontrola pozytywna izolacji: baza powstala w profilu testu.
+    check(
+        "baza w profilu testu (izolacja userData)",
+        fs.existsSync(path.join(userData, "patron.db")),
+        `brak ${path.join(userData, "patron.db")} - aplikacja pisze gdzie indziej`,
+    );
+    // Kontrola negatywna: pliki bazy profilu roboczego nietkniete.
+    check(
+        "profil roboczy nietkniety",
+        odcisk() === odciskPrzed,
+        `zmienione pliki ${roboczaBaza}*`,
+    );
 
     // Sprzatanie: cale drzewo (PATRON spawnuje backend/frontend jako dzieci)
     spawnSync("taskkill", ["/PID", String(child.pid), "/T", "/F"], {

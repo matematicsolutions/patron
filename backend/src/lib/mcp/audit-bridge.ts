@@ -27,7 +27,8 @@ export interface RecordMcpSecurityEventArgs {
     serverName: string;
     action: McpAction;
     riskScore: number;
-    findings: ReadonlyArray<McpFinding>;
+    // Do audytu ida tylko 3 pola (minimalizacja, ADR-0033) - tyle wymagamy.
+    findings: ReadonlyArray<Pick<McpFinding, "detector" | "severity" | "message"> & Partial<McpFinding>>;
     /**
      * ADR-0158: decyzja Operatora przy werdykcie `human_review` / `denied`.
      * `gatewayAction` to werdykt skanera; `action` wyzej to skutek (konektor
@@ -39,7 +40,16 @@ export interface RecordMcpSecurityEventArgs {
         approvalHash: string;
         approvedAt?: string;
         approvedBy?: string;
+        /**
+         * Skad decyzja: "startup" = werdykt przy rejestracji (domyslnie, pole
+         * pomijane), "operator_ui" = Operator zatwierdzil w panelu konektorow
+         * (B-08). Bez nowego event_type - piec luster zostaje bez zmian.
+         */
+        source?: "operator_ui";
+        approvalOrigin?: string;
     };
+    /** Kto podjal decyzje (zatwierdzenie z panelu). Brak = decyzja systemu. */
+    actorUserId?: string | null;
 }
 
 export interface RecordMcpSecurityEventResult {
@@ -86,7 +96,7 @@ export async function recordMcpSecurityEvent(
 
     const result = await appendAuditEvent(db, {
         event_type: MCP_SECURITY_EVENT_TYPE,
-        actor_user_id: null,
+        actor_user_id: args.actorUserId ?? null,
         chat_id: null,
         document_id: null,
         payload: {
@@ -105,6 +115,12 @@ export async function recordMcpSecurityEvent(
                     }),
                     ...(args.operatorApproval.approvedBy && {
                         approved_by: args.operatorApproval.approvedBy,
+                    }),
+                    ...(args.operatorApproval.source && {
+                        source: args.operatorApproval.source,
+                    }),
+                    ...(args.operatorApproval.approvalOrigin && {
+                        approval_origin: args.operatorApproval.approvalOrigin,
                     }),
                 },
             }),

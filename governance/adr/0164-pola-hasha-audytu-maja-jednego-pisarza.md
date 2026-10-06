@@ -111,3 +111,32 @@ lancuchu jest sygnalem powaznym.
   co trzeba, jest gorsza niz jej brak, bo daje spokoj.
 - **Odlozenie do wydania 2.0.0** - odrzucone: defekt dotyczy dowodu zgodnosci, ktory jest
   glowna teza produktu wobec kancelarii.
+
+## Aktualizacja 2026-10-06 - eksport wpisu zerwanego z mocy prawa
+
+Decyzja wlasciciela produktu (punkt 2 decyzji w `docs/NAPRAWY_2026-10-02.md`):
+eksport audytu wpisu zanonimizowanego na podstawie RODO art. 17 wychodzi ZE
+ZNACZNIKIEM "zerwanie z mocy prawa", zamiast byc odrzucanym (dotyczy
+`GET /api/audit/export/:eventId` i `GET /api/audit/bundle/:messageId`).
+
+Serwer (`resolveLegalBreak` w `backend/src/lib/audit-pack.ts`) wybiera
+deklaracje ta sama regula co weryfikator lancucha - funkcja
+`collectLegalBreakDeclarations` zostala wydzielona z `classifyContentBreaks`
+w `backend/src/lib/audit-chain-verify.ts` bez zmiany werdyktow lancucha - i
+wydaje eksport tylko wtedy, gdy deklaracja ma `affected_hashes_after`, a
+aktualna tresc wiersza daje dokladnie zadeklarowany hash.
+
+**Deklaracja w starym formacie (bez `affected_hashes_after`) = odmowa 409**,
+choc lancuch (`GET /api/audit/chain`) nadal pokazuje taki wiersz jako UWAGI.
+Powod: bez hasha po zerwaniu nie da sie odroznic samej anonimizacji od
+pozniejszej zmiany tresci tego samego wiersza (R-AC-01). Eksport jest dowodem
+wydawanym na zewnatrz; znacznik "niezweryfikowane" przenioslby na odbiorce
+rozstrzygniecie, ktorego on z pliku nie podejmie. Starej deklaracji nie da sie
+uzupelnic po fakcie - hash policzony dzis z biezacej tresci potwierdzalby
+dokladnie te zmiane, ktorej nie umiemy wykluczyc.
+
+Granica (bez zmian wobec tego ADR): deklaracja jest chroniona wlasnym hashem i
+miejscem w lancuchu, nie kotwica zewnetrzna. Kto ma zapis do bazy, moze dopisac
+na koncu lancucha spojna deklaracje wybielajaca zmiane - do tego potrzebny jest
+podpis i znacznik czasu (ADR-0037 / ADR-0049). Paczka nie niesie dowodu Merkle
+dla samej deklaracji.

@@ -743,6 +743,13 @@ export const es: DictShape<typeof pl> = {
         toggleError: "No se pudo cambiar el estado de la habilidad.",
         removeError: "No se pudo eliminar la habilidad.",
         close: "Cerrar",
+        // B-10: import paczki - zgoda na egress i stan podpisu.
+        importTrust: {
+            egressConfirm: "Este paquete declara que puede enviar contenido fuera de su equipo (a la nube). Se aplica el secreto profesional. ¿Activar la habilidad justo después de importarla? Cancelar = importarla desactivada.",
+            importedDisabled: "La habilidad se ha importado desactivada porque puede enviar contenido a la nube. Actívela de forma consciente con el interruptor.",
+            signatureUnverified: "firma no verificada",
+            signatureUnverifiedHint: "El paquete tiene un campo de firma, pero Patron aún no verifica las firmas de los paquetes. El editor es una declaración del autor, no una confirmación.",
+        },
     },
 
     connectors: {

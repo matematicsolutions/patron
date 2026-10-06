@@ -8,6 +8,9 @@
 //   2. buildVerifyItems - z kazdego cytatu buduje pozycje z BIALEJ LISTY pol:
 //      sygnatura / data przy sygnaturze albo akt + artykul, plus nieprzezroczysty
 //      `ref` ("c1", "c2"...). Zadnego wycinka pisma, zadnego offsetu, nazwy pliku.
+//      Sygnatura wychodzi tylko z symbolem repertorium z BIALEJ LISTY sadow
+//      (`repertoria.ts`, R-CC-01) i nie wychodzi sygnatura wlasnej sprawy z
+//      naglowka pisma - reszta zostaje lokalnie jako `not_sent` z powodem.
 //   3. checkDocumentCitations - partie po 25 (limit narzedzia), odpowiedz
 //      laczona po `ref` z lokalnymi offsetami. Offset zna tylko PATRON.
 //
@@ -16,6 +19,7 @@
 // nie deklaracja. Test `citation-check.test.ts` pilnuje jej na poziomie bajtow.
 
 import { cytatyZPisma, MAKS_ZNAKOW_PISMA, type CytatZPisma } from "./cytaty_pl";
+import { jestSygnaturaSadu, sygnaturyWlasnejSprawy } from "./repertoria";
 
 /** Limit narzedzia `verify_citations` na jedno wywolanie (kontrakt Repertorium). */
 export const VERIFY_BATCH = 25;
@@ -25,6 +29,16 @@ export const MAX_CALLS = 4;
 const OVERLAP = 2000;
 
 export type CitationKind = "signature" | "provision" | "unrecognized_act";
+
+/**
+ * Dlaczego pozycja NIE wychodzi do weryfikatora, choc ekstraktor ja znalazl
+ * (R-CC-01): ciag "LITERY liczba/liczba" bez symbolu repertorium sadu z bialej
+ * listy (adres, faktura, repertorium notarialne, sygnatura kancelarii) albo
+ * sygnatura wlasnej sprawy z naglowka pisma.
+ */
+export type WithheldReason = "not_court_signature" | "own_case_signature";
+/** Powod stanu `not_sent`: zatrzymane lokalnie albo ponad limit wywolan. */
+export type NotSentReason = WithheldReason | "limit";
 
 export interface LocalCitation {
     /** Nieprzezroczysty identyfikator - jedyne, co laczy wynik z pismem. */
@@ -41,6 +55,8 @@ export interface LocalCitation {
     act_id?: string;
     act_name?: string;
     article?: string | null;
+    /** Ustawione przy ekstrakcji: ta pozycja NIE wychodzi z komputera. */
+    withheld?: WithheldReason;
 }
 
 export interface LocalExtraction {
@@ -74,6 +90,57 @@ function zakresPodswietlenia(fragment: string): string {
     return skrot ? zdanie.slice(0, skrot.index + skrot[0].length) : zdanie;
 }
 
+/**
+ * R-CC-05 (przeglad 2026-10-02, ADR-0157 pkt 3 "podswietlenie nie zgaduje"):
+ * ekstraktor szuka sygnatur w `t.toUpperCase()`, a przepisow w `t.toLowerCase()`,
+ * i uzywa offsetow z tych napisow jako offsetow w `t` ("wersaliki nie zmieniaja
+ * dlugosci"). Ligatury z ekstrakcji PDF (U+FB01 "ﬁ" -> "FI", U+FB02 "ﬂ" -> "FL"),
+ * "ß" -> "SS", "İ" -> "i̇" i podobne znaki lamia to zalozenie: kazdy offset za
+ * nimi jest przesuniety, wiec podswietlenie i `excerpt` wskazuja inny fragment.
+ *
+ * `cytaty_pl.ts` jest kopia z przypietym sha (test dryfu) - nie zmieniamy go.
+ * Zamiast tego ekstraktor dostaje tekst, w ktorym kazdy taki znak zastapiono
+ * znakiem zastepczym o TEJ SAMEJ dlugosci UTF-16, dla ktorego zmiana wielkosci
+ * liter dlugosci nie zmienia. Offsety sa wtedy wspolne dla obu napisow, a
+ * excerpt i zakres podswietlenia bierzemy z ORYGINALU.
+ *
+ * Zastepnik zachowuje "literowosc" (pierwsza litera rozwiniecia: "ﬁ" -> "f",
+ * "ß" -> "s"), zeby granice slow wokol niego byly takie jak w oryginale; gdy
+ * taka litera tez nie spelnia warunku - U+FFFD.
+ */
+const ZASTEPNIK = "\uFFFD";
+const zastepnikCache = new Map<string, string>();
+
+function stalaDlugosc(ch: string): boolean {
+    return ch.toUpperCase().length === ch.length && ch.toLowerCase().length === ch.length;
+}
+
+function zastepnikZnaku(ch: string): string {
+    const cached = zastepnikCache.get(ch);
+    if (cached !== undefined) return cached;
+    let out: string;
+    if (stalaDlugosc(ch)) out = ch;
+    else if (ch.length === 1) {
+        // "ﬁ" -> "FI" -> "f"; "ß" -> "SS" -> "s"; "İ" -> (dolna "i̇") -> "i".
+        const gorna = ch.toUpperCase()[0]!;
+        const kandydaci = [gorna.toLowerCase(), gorna, ch.toLowerCase()[0]!];
+        out = kandydaci.find((k) => k.length === 1 && stalaDlugosc(k)) ?? ZASTEPNIK;
+    } else out = ZASTEPNIK.repeat(ch.length); // para surogatow: 2 jednostki UTF-16
+    zastepnikCache.set(ch, out);
+    return out;
+}
+
+/**
+ * Tekst dla ekstraktora: ta sama dlugosc UTF-16 co `text`, kazdy znak o stalej
+ * dlugosci przy toUpperCase/toLowerCase. Znaki ASCII przechodza bez sprawdzania.
+ */
+export function tekstDlaEkstraktora(text: string): string {
+    if (!/[^\x00-\x7f]/.test(text)) return text;
+    let out = "";
+    for (const ch of text) out += ch.charCodeAt(0) < 0x80 ? ch : zastepnikZnaku(ch);
+    return out;
+}
+
 /** Klucz deduplikacji - ten sam co w ekstraktorze (typ + identyfikator). */
 function keyOf(c: CytatZPisma): string {
     if (c.typ === "sygnatura") return `S|${c.sygnatura}`;
@@ -88,6 +155,9 @@ function keyOf(c: CytatZPisma): string {
  * dwa razy.
  */
 export function extractLocalCitations(text: string): LocalExtraction {
+    // R-CC-05: ekstraktor czyta tekst o stalej dlugosci przy zmianie wielkosci
+    // liter; offsety sa wspolne z `text`, z ktorego bierzemy excerpt.
+    const scan = tekstDlaEkstraktora(text);
     const step = MAKS_ZNAKOW_PISMA - OVERLAP;
     const byKey = new Map<string, LocalCitation>();
     const order: LocalCitation[] = [];
@@ -95,7 +165,7 @@ export function extractLocalCitations(text: string): LocalExtraction {
     let windows = 0;
     for (let start = 0; start === 0 || start < text.length; start += step) {
         windows += 1;
-        const part = text.slice(start, start + MAKS_ZNAKOW_PISMA);
+        const part = scan.slice(start, start + MAKS_ZNAKOW_PISMA);
         const last = start + MAKS_ZNAKOW_PISMA >= text.length;
         const ownFrom = start === 0 ? 0 : OVERLAP / 2;
         const ownTo = last ? Infinity : step + OVERLAP / 2;
@@ -113,7 +183,10 @@ export function extractLocalCitations(text: string): LocalExtraction {
                 continue;
             }
             const offset = start + c.offset;
-            const fragment = c.typ === "sygnatura" ? c.tekst : zakresPodswietlenia(c.tekst);
+            // Zakres z ORYGINALU (R-CC-05): `c.tekst` pochodzi z tekstu dla
+            // ekstraktora, ma te sama dlugosc, ale moze niesc znaki zastepcze.
+            const oryginal = text.slice(offset, offset + c.tekst.length);
+            const fragment = c.typ === "sygnatura" ? oryginal : zakresPodswietlenia(oryginal);
             const length = Math.max(0, Math.min(fragment.length, text.length - offset));
             const base = {
                 ref: "",
@@ -134,8 +207,17 @@ export function extractLocalCitations(text: string): LocalExtraction {
         if (last) break;
     }
     order.sort((a, b) => a.offset - b.offset);
+    // R-CC-01: sygnatura wychodzi tylko z repertorium sadu z bialej listy, a
+    // sygnatura wlasnej sprawy (naglowek pisma) nie wychodzi wcale. Pozycja
+    // zostaje na liscie - prawnik widzi, co zatrzymano i dlaczego.
+    const wlasne = sygnaturyWlasnejSprawy(text);
     order.forEach((c, i) => {
         c.ref = `c${i + 1}`;
+        if (c.kind !== "signature") return;
+        const kontekst = text.slice(Math.max(0, c.offset - 100), c.offset + c.length + 40);
+        if (!c.signature || !jestSygnaturaSadu(c.excerpt, kontekst))
+            c.withheld = "not_court_signature";
+        else if (wlasne.has(c.signature)) c.withheld = "own_case_signature";
     });
     return { citations: order, withoutAct, windows };
 }
@@ -144,11 +226,13 @@ export function extractLocalCitations(text: string): LocalExtraction {
  * Pozycje do wyslania - BIALA LISTA pol, budowana od zera (nie "obiekt minus
  * pola"), zeby nowe pole w LocalCitation nie moglo wyjsc po cichu.
  * `unrecognized_act` nie wychodzi: tryb listy go nie przyjmuje, a nazwa ustawy
- * spoza listy to tekst z pisma.
+ * spoza listy to tekst z pisma. Pozycja z `withheld` (R-CC-01) tez nie wychodzi -
+ * dlatego wejsciem ma byc wynik `extractLocalCitations`, ktory to pole ustawia.
  */
 export function buildVerifyItems(citations: readonly LocalCitation[]): VerifyItem[] {
     const out: VerifyItem[] = [];
     for (const c of citations) {
+        if (c.withheld) continue;
         if (c.kind === "signature" && c.signature) {
             out.push({
                 type: "signature",
@@ -198,6 +282,12 @@ export type CheckStatus =
     | "ok"
     | "partial"
     | "not_configured"
+    /**
+     * B-08 (ADR-0158): konektor weryfikatora jest skonfigurowany, ale brama MCP
+     * czeka na zatwierdzenie Operatora (`gatewayApproval`) - powolania wyciagniete
+     * lokalnie, nic nie wyszlo do sieci.
+     */
+    | "gateway_pending"
     | "failed"
     | "no_citations";
 
@@ -207,6 +297,8 @@ export interface CheckedCitation extends LocalCitation {
     details: Record<string, unknown>;
     /** Powod odrzucenia pozycji przez serwer (`rejected[].reason`). */
     rejected_reason?: string;
+    /** Przy stanie `not_sent`: zatrzymane lokalnie (R-CC-01) albo ponad limit. */
+    not_sent_reason?: NotSentReason;
 }
 
 export interface CheckResult {
@@ -218,6 +310,8 @@ export interface CheckResult {
     sent: VerifyItem[][];
     /** Pozycje nie wyslane, bo przekroczylyby MAX_CALLS. */
     notSent: number;
+    /** Pozycje zatrzymane lokalnie (R-CC-01): nie sygnatura sadu albo wlasna sprawa. */
+    withheld: number;
     asOf: string | null;
     checkedOn: string | null;
     snapshot: string | null;
@@ -227,39 +321,77 @@ export interface CheckResult {
     failedCalls: number;
 }
 
-interface Koperta {
-    result?: {
-        as_of?: string;
-        checked_on?: string;
-        citations?: Array<Record<string, unknown>>;
-        rejected?: Array<{ index?: number; ref?: string | null; reason?: string }>;
+/** Odpowiedz serwera po walidacji ksztaltu - tylko pola, ktorych uzywamy. */
+interface Odpowiedz {
+    /** `coverage_note`, gdy jest napisem (R-CC-04). */
+    note: string | null;
+    snapshot: string | null;
+    /** null = koperta bez wyniku albo z wynikiem o zlym ksztalcie. */
+    result: {
+        asOf: string | null;
+        checkedOn: string | null;
+        citations: Array<Record<string, unknown>>;
+        rejected: Array<Record<string, unknown>>;
     } | null;
-    snapshot?: string;
-    coverage_status?: string;
-    coverage_note?: string;
 }
 
-function parseKoperta(r: ToolCallResult): Koperta | null {
-    const candidate =
-        r.structured && typeof r.structured === "object" ? r.structured : null;
-    if (candidate) return candidate as Koperta;
-    try {
-        const parsed: unknown = JSON.parse(r.text);
-        return parsed && typeof parsed === "object" ? (parsed as Koperta) : null;
-    } catch {
-        return null;
+function zwyklyObiekt(v: unknown): v is Record<string, unknown> {
+    return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
+function napis(v: unknown): string | null {
+    return typeof v === "string" ? v : null;
+}
+
+/**
+ * Serwer weryfikatora jest zdalny (Ring 2, niezaufany): jego odpowiedz to dane,
+ * ktorych ksztalt sprawdzamy, zanim cokolwiek z niej przeczytamy (R-CC-03).
+ * Zly ksztalt wyniku (`citations` nie-tablica albo z elementem nie-obiektem,
+ * `rejected` nie-tablica albo z elementem nie-obiektem) = cale wywolanie
+ * nieudane - nie przyjmujemy polowy odpowiedzi, ktorej reszta jest smieciem.
+ */
+function parseOdpowiedz(r: ToolCallResult): Odpowiedz | null {
+    let koperta: unknown = zwyklyObiekt(r.structured) ? r.structured : null;
+    if (!koperta) {
+        try {
+            koperta = JSON.parse(typeof r.text === "string" ? r.text : "");
+        } catch {
+            return null;
+        }
     }
+    if (!zwyklyObiekt(koperta)) return null;
+    const out: Odpowiedz = {
+        note: napis(koperta.coverage_note),
+        snapshot: napis(koperta.snapshot),
+        result: null,
+    };
+    const w = koperta.result;
+    if (!zwyklyObiekt(w)) return out;
+    const citations = w.citations;
+    const rejected = w.rejected ?? [];
+    if (!Array.isArray(citations) || !citations.every(zwyklyObiekt)) return out;
+    if (!Array.isArray(rejected) || !rejected.every(zwyklyObiekt)) return out;
+    out.result = {
+        asOf: napis(w.as_of),
+        checkedOn: napis(w.checked_on),
+        citations,
+        rejected,
+    };
+    return out;
 }
 
 /**
  * Sprawdza cytaty pisma. `callTool === null` znaczy: konektor weryfikacji nie
- * jest skonfigurowany - zwracamy LOKALNA ekstrakcje ze stanem `not_checked`,
- * zeby prawnik zobaczyl, co pismo powoluje, i wiedzial, ze tego nie sprawdzono.
+ * jest skonfigurowany albo czeka na zatwierdzenie Operatora (`pendingApproval`,
+ * B-08) - zwracamy LOKALNA ekstrakcje ze stanem `not_checked`, zeby prawnik
+ * zobaczyl, co pismo powoluje, i wiedzial, ze tego nie sprawdzono.
  */
 export async function checkDocumentCitations(params: {
     text: string;
     callTool: VerifyToolCall | null;
     asOf?: string | null;
+    /** Przy `callTool === null`: konektor czeka na zatwierdzenie Operatora (B-08). */
+    pendingApproval?: boolean;
 }): Promise<CheckResult> {
     const { text, callTool } = params;
     const asOf = params.asOf ?? null;
@@ -277,13 +409,24 @@ export async function checkDocumentCitations(params: {
     const sentCount = batches.reduce((n, b) => n + b.length, 0);
     for (const it of items.slice(sentCount)) {
         const c = byRef.get(it.ref);
-        if (c) c.status = "not_sent";
+        if (c) {
+            c.status = "not_sent";
+            c.not_sent_reason = "limit";
+        }
+    }
+    let withheld = 0;
+    for (const c of checked) {
+        if (!c.withheld) continue;
+        c.status = "not_sent";
+        c.not_sent_reason = c.withheld;
+        withheld += 1;
     }
 
     const base = {
         withoutAct: local.withoutAct,
         windows: local.windows,
         notSent: items.length - sentCount,
+        withheld,
         asOf,
         checkedOn: null as string | null,
         snapshot: null as string | null,
@@ -292,7 +435,12 @@ export async function checkDocumentCitations(params: {
     };
 
     if (!callTool)
-        return { ...base, status: "not_configured", citations: checked, sent: [] };
+        return {
+            ...base,
+            status: params.pendingApproval ? "gateway_pending" : "not_configured",
+            citations: checked,
+            sent: [],
+        };
     if (items.length === 0)
         return { ...base, status: "no_citations", citations: checked, sent: [] };
 
@@ -302,53 +450,68 @@ export async function checkDocumentCitations(params: {
         const args: Record<string, unknown> = { citations: batch };
         if (asOf) args.as_of = asOf;
         sent.push(batch);
-        let koperta: Koperta | null = null;
+        let odp: Odpowiedz | null = null;
         try {
             const r = await callTool(args);
-            koperta = r.isError ? null : parseKoperta(r);
+            odp = r && !r.isError ? parseOdpowiedz(r) : null;
         } catch {
-            koperta = null;
+            odp = null;
         }
-        const wyniki = koperta?.result?.citations;
-        if (!koperta || !Array.isArray(wyniki)) {
+        if (odp?.note) base.serverNotes.push(odp.note);
+        const wynik = odp?.result;
+        if (!odp || !wynik) {
             base.failedCalls += 1;
-            if (koperta?.coverage_note) base.serverNotes.push(koperta.coverage_note);
             continue;
         }
-        if (koperta.coverage_note) base.serverNotes.push(koperta.coverage_note);
-        base.snapshot = koperta.snapshot ?? base.snapshot;
-        base.checkedOn = koperta.result?.checked_on ?? base.checkedOn;
-        base.asOf = koperta.result?.as_of ?? base.asOf;
-        for (const w of wyniki) {
-            const ref = typeof w.ref === "string" ? w.ref : null;
+        base.snapshot = odp.snapshot ?? base.snapshot;
+        base.checkedOn = wynik.checkedOn ?? base.checkedOn;
+        base.asOf = wynik.asOf ?? base.asOf;
+        // R-CC-08: wynik przyjmujemy WYLACZNIE dla pozycji wyslanych w tej partii.
+        // `ref` innego cytatu (niewyslanego, z innej partii, zgadniety) nie moze
+        // nadac stanu powolaniu, ktorego ten serwer w tym wywolaniu nie dostal.
+        const wPartii = new Set(batch.map((b) => b.ref));
+        for (const w of wynik.citations) {
+            const ref = typeof w.ref === "string" && wPartii.has(w.ref) ? w.ref : null;
             const c = ref ? byRef.get(ref) : undefined;
             // Wynik bez naszego `ref` (albo z cudzym) nie ma gdzie trafic w pismie -
             // nie zgadujemy po sygnaturze.
             if (!c) continue;
-            c.status = typeof w.status === "string" ? w.status : "unknown";
+            c.status = typeof w.status === "string" && w.status ? w.status : "unknown";
             const details: Record<string, unknown> = {};
             for (const f of DETAIL_FIELDS) if (w[f] !== undefined) details[f] = w[f];
             c.details = details;
         }
-        for (const rj of koperta.result?.rejected ?? []) {
+        for (const rj of wynik.rejected) {
             const ref =
                 typeof rj.ref === "string"
                     ? rj.ref
-                    : typeof rj.index === "number"
+                    : typeof rj.index === "number" && Number.isInteger(rj.index)
                       ? batch[rj.index]?.ref
                       : undefined;
-            const c = ref ? byRef.get(ref) : undefined;
+            const c = ref && wPartii.has(ref) ? byRef.get(ref) : undefined;
             if (!c) continue;
             c.status = "rejected";
             c.rejected_reason = typeof rj.reason === "string" ? rj.reason : undefined;
         }
     }
 
+    // Niesprawdzone: brak wyniku, status nieustalony, odrzucone przez serwer
+    // (R-CC-02) i nadwyzka ponad limit. Pozycje zatrzymane lokalnie (R-CC-01)
+    // nie byly do sprawdzenia - maja wlasny wiersz z powodem i licznik `withheld`.
+    const NIESPRAWDZONE = new Set(["not_checked", "unknown", "rejected"]);
     const anyMissing = checked.some(
-        (c) => c.status === "not_checked" || c.status === "unknown" || c.status === "not_sent",
+        (c) =>
+            NIESPRAWDZONE.has(c.status) ||
+            (c.status === "not_sent" && c.not_sent_reason === "limit"),
     );
+    const sentRefs = new Set(sent.flat().map((i) => i.ref));
+    const anyChecked = checked.some(
+        (c) => sentRefs.has(c.ref) && !NIESPRAWDZONE.has(c.status),
+    );
+    // Brak sprawdzenia nigdy nie jest "ok" (ADR-0146): zero sprawdzonych powolan
+    // przy udanych wywolaniach (np. serwer odrzucil wszystko) to "failed".
     const status: CheckStatus =
-        base.failedCalls === batches.length
+        base.failedCalls === batches.length || !anyChecked
             ? "failed"
             : base.failedCalls > 0 || anyMissing
               ? "partial"

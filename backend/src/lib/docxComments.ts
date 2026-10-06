@@ -43,8 +43,6 @@ import {
     elChildren,
     setChildren,
     makeEl,
-    makeText,
-    buildRun,
     flattenParagraph,
     normalizeWs,
     findUniqueAnchor,
@@ -55,6 +53,9 @@ import {
     getZipEntry,
     setZipEntry,
     ensureXmlDeclaration,
+    spanTokens,
+    textRunChildren,
+    makeRunAppender,
     type Flattened,
 } from "./docxTrackedChanges";
 
@@ -341,65 +342,67 @@ function insertCommentRanges(
         }
     }
 
-    const firstRun = flat.runs[firstRunIdx];
-    const lastRun = flat.runs[lastRunIdx];
-    const spanStart = firstRun.textNodes.length > 0 ? firstRun.textNodes[0].paraStart : 0;
-    const spanEnd =
-        lastRun.textNodes.length > 0
-            ? lastRun.textNodes[lastRun.textNodes.length - 1].paraEnd
-            : spanStart;
+    // Rebuild the touched runs split at every marker offset. `spanTokens`
+    // replays EVERY run child in document order - w:tab, w:br,
+    // w:footnoteReference, w:fldChar ... and text-less runs between the
+    // anchors - so placing a comment never drops content (audit D-09).
+    //
+    // Marker events keyed by position: 2*pos = right after char pos-1 (before
+    // any zero-width element at pos), 2*pos+1 = right before char pos. A
+    // range END (+ ref run) hugs the last anchored char, a range START the
+    // first one, so ends always emit before starts at the same offset and
+    // adjacent comments nest cleanly; a w:tab next to the anchor stays
+    // outside the range.
+    const cuts: number[] = [];
+    type Ev = { key: number; order: number; nodes: XNode[] };
+    const events: Ev[] = [];
+    comments.forEach((c, i) => {
+        cuts.push(c.start, c.end);
+        events.push({
+            key: 2 * c.end,
+            order: i,
+            nodes: [makeEl("w:commentRangeEnd", [], { "w:id": c.wId }), referenceRun(c.wId)],
+        });
+        events.push({
+            key: 2 * c.start + 1,
+            order: i,
+            nodes: [makeEl("w:commentRangeStart", [], { "w:id": c.wId })],
+        });
+    });
+    events.sort((a, b) => a.key - b.key || a.order - b.order);
 
-    // Insertion events keyed by paraText offset. Ends (+ ref runs) emit before
-    // starts at the same boundary so adjacent comments nest cleanly.
-    const startsAt = new Map<number, string[]>();
-    const endsAt = new Map<number, string[]>();
-    for (const c of comments) {
-        (startsAt.get(c.start) ?? startsAt.set(c.start, []).get(c.start)!).push(c.wId);
-        (endsAt.get(c.end) ?? endsAt.set(c.end, []).get(c.end)!).push(c.wId);
-    }
-
+    const tokens = spanTokens(flat, paraChildren, startChildIdx, endChildIdx, cuts);
     const newRunGroup: XNode[] = [];
-    let cursor = spanStart;
-
-    const emitNormal = (a: number, b: number) => {
-        if (a >= b) return;
-        let i = a;
-        while (i < b) {
-            const runIdx = flat.charRun[i];
-            const tnIdx = flat.charTextNode[i];
-            let j = i + 1;
-            while (j < b && flat.charRun[j] === runIdx && flat.charTextNode[j] === tnIdx) j++;
-            const slot = flat.runs[runIdx];
-            newRunGroup.push(buildRun(slot.rPr, flat.paraText.slice(i, j), "w:t"));
-            i = j;
+    const append = makeRunAppender(flat);
+    let ei = 0;
+    const fireUpTo = (key: number) => {
+        while (ei < events.length && events[ei].key <= key) {
+            for (const n of events[ei++].nodes) newRunGroup.push(n);
         }
     };
-
-    const boundaries = new Set<number>([...startsAt.keys(), ...endsAt.keys()]);
-    const sorted = [...boundaries].filter((o) => o >= spanStart && o <= spanEnd).sort((a, b) => a - b);
-    for (const off of sorted) {
-        emitNormal(cursor, off);
-        cursor = off;
-        for (const wId of endsAt.get(off) ?? []) {
-            newRunGroup.push(makeEl("w:commentRangeEnd", [], { "w:id": wId }));
-            newRunGroup.push(referenceRun(wId));
-        }
-        for (const wId of startsAt.get(off) ?? []) {
-            newRunGroup.push(makeEl("w:commentRangeStart", [], { "w:id": wId }));
+    for (const t of tokens) {
+        if (t.kind === "text") {
+            fireUpTo(2 * t.start + 1);
+            for (const c of textRunChildren(flat.paraText.slice(t.start, t.end), "w:t")) {
+                append(newRunGroup, t.runIdx, c);
+            }
+        } else if (t.kind === "runAtom") {
+            fireUpTo(2 * t.pos);
+            append(newRunGroup, t.runIdx, t.node);
+        } else {
+            fireUpTo(2 * t.pos);
+            newRunGroup.push(t.node);
         }
     }
-    emitNormal(cursor, spanEnd);
+    fireUpTo(Number.POSITIVE_INFINITY);
 
-    // Splice: replace the touched w:r children with newRunGroup, keep the rest.
-    const dropped = new Set<number>();
-    for (let r = firstRunIdx; r <= lastRunIdx; r++) dropped.add(flat.runs[r].childIndex);
-    const out: XNode[] = [];
-    for (let i = 0; i < paraChildren.length; i++) {
-        if (i === startChildIdx) for (const n of newRunGroup) out.push(n);
-        if (dropped.has(i)) continue;
-        out.push(paraChildren[i]);
-    }
-    return out;
+    // Splice: replace children [startChildIdx, endChildIdx] (all w:r on this
+    // path, all replayed above) with newRunGroup, keep the rest.
+    return [
+        ...paraChildren.slice(0, startChildIdx),
+        ...newRunGroup,
+        ...paraChildren.slice(endChildIdx + 1),
+    ];
 }
 
 // ---------------------------------------------------------------------------

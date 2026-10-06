@@ -1,26 +1,30 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import ReactMarkdown from "react-markdown";
+import { SafeMarkdown } from "@/lib/markdown/SafeMarkdown";
 import remarkGfm from "remark-gfm";
 import {
     AlertCircle,
     CheckCircle2,
     Expand,
+    FileX,
     PencilLine,
+    Scissors,
     ShieldAlert,
     ShieldCheck,
     ShieldQuestion,
     XCircle,
 } from "lucide-react";
-import { t } from "@/i18n";
+import { formatNumber, t } from "@/i18n";
 import type {
     ColumnConfig,
     TabularCell as TCell,
+    TabularCellCoverage,
     TabularCellGrounding,
 } from "../shared/types";
 import { preprocessCitations, type ParsedCitation } from "./citation-utils";
 import { getPillClass } from "./pillUtils";
+import { cellCoverage } from "./tabularStream";
 
 interface Props {
     cell: TCell;
@@ -119,7 +123,44 @@ export function ReviewBadge({
     );
 }
 
-// Replace citations and pills with inline-code tokens so ReactMarkdown passes
+// Audyt 2026-09, D-15: model dostal tylko poczatek dokumentu. Bez tego znacznika
+// "nie znaleziono" w komorce wygladalo jak przeczytany caly dokument.
+export function coverageLabel(coverage: TabularCellCoverage): string {
+    return t("tabularCoverage.truncated")
+        .replace("{sent}", formatNumber(coverage.chars_sent))
+        .replace("{total}", formatNumber(coverage.chars_total));
+}
+
+function CoverageBadge({ coverage }: { coverage?: TabularCellCoverage }) {
+    if (!coverage) return null;
+    const label = coverageLabel(coverage);
+    return (
+        <span
+            data-coverage-truncated=""
+            title={`${label}. ${t("tabularCoverage.truncatedHint")}`}
+            aria-label={label}
+            className="inline-flex items-center"
+        >
+            <Scissors className="h-3 w-3 shrink-0 text-warn" />
+        </span>
+    );
+}
+
+export function CoverageNote({ coverage }: { coverage?: TabularCellCoverage }) {
+    if (!coverage) return null;
+    return (
+        <div
+            data-coverage-truncated-note=""
+            className="mb-1 flex items-center gap-1 text-[10px] text-warn"
+            title={t("tabularCoverage.truncatedHint")}
+        >
+            <Scissors className="h-3 w-3 shrink-0" />
+            <span>{coverageLabel(coverage)}</span>
+        </div>
+    );
+}
+
+// Replace citations and pills with inline-code tokens so SafeMarkdown passes
 // them through its `code` component, where we render the final UI.
 function preprocessCellMarkdown(text: string): {
     processed: string;
@@ -155,8 +196,9 @@ function CellMarkdown({
     inline?: boolean;
 }) {
     return (
-        <ReactMarkdown
+        <SafeMarkdown
             remarkPlugins={[remarkGfm]}
+            linkClassName="text-bordeaux hover:text-bordeaux underline"
             components={{
                 p: ({ node, ...props }) =>
                     inline ? (
@@ -175,17 +217,6 @@ function CellMarkdown({
                     <strong className="font-semibold" {...props} />
                 ),
                 em: ({ node, ...props }) => <em className="italic" {...props} />,
-                a: ({ node, href, children, ...props }) => (
-                    <a
-                        href={href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-bordeaux hover:text-bordeaux underline"
-                        {...props}
-                    >
-                        {children}
-                    </a>
-                ),
                 code: ({ node, children, ...props }) => {
                     const t = String(children);
                     const citMatch = t.match(/^§c(\d+)§$/);
@@ -239,7 +270,7 @@ function CellMarkdown({
             }}
         >
             {text}
-        </ReactMarkdown>
+        </SafeMarkdown>
     );
 }
 
@@ -276,6 +307,22 @@ export function TabularCell({
     }
 
     if (cell.status === "error") {
+        // D-11: dokument bez tekstu i bez OCR to nie awaria modelu - mowimy
+        // wprost, czego brakuje i co z tym zrobic.
+        if (cell.error_reason === "document_no_text") {
+            return (
+                <div
+                    data-cell-error-reason="document_no_text"
+                    className="h-10 px-2 flex items-center gap-1 text-[11px] text-bad"
+                    title={t("tabularCoverage.noTextHint")}
+                >
+                    <FileX className="h-3.5 w-3.5 shrink-0" />
+                    <span className="line-clamp-1">
+                        {t("tabularCoverage.noText")}
+                    </span>
+                </div>
+            );
+        }
         return (
             <div className="h-10 flex items-center justify-center text-gray-300">
                 <AlertCircle className="h-4 w-4 text-bad" />
@@ -295,6 +342,7 @@ export function TabularCell({
             : cell.content.summary;
     const rejectedCls =
         cell.review_action === "rejected" ? "opacity-40 line-through" : "";
+    const coverage = cellCoverage(cell);
 
     const { processed, citations, pills } = preprocessCellMarkdown(
         effectiveSummary,
@@ -328,6 +376,7 @@ export function TabularCell({
                 )}
                 <GroundingBadge grounding={cell.content.grounding} />
                 <ReviewBadge action={cell.review_action} />
+                <CoverageBadge coverage={coverage} />
                 <div className={`line-clamp-1 w-full min-w-0 ml-1 ${rejectedCls}`}>
                     <CellMarkdown
                         text={collapsedDisplay}
@@ -370,6 +419,7 @@ export function TabularCell({
                                 </span>
                             </div>
                         )}
+                        <CoverageNote coverage={coverage} />
                         {cell.review_action && (
                             <div className="mb-1 flex items-center gap-1 text-[10px] text-gray-500">
                                 <ReviewBadge action={cell.review_action} />

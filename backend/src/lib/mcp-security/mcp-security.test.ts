@@ -8,14 +8,18 @@ import {
     levenshtein,
     computeDefinitionHash,
     computeLegacyDefinitionHash,
+    computeOriginFingerprint,
+    isOriginDriftFinding,
     formatBaselineEntry,
     parseBaselineEntry,
+    isUnknownThirdPartyFinding,
+    awaitsOnlyThirdPartyApproval,
     type McpServerDefinition,
 } from "./index";
 
-/** Wpis baseline biezacej formuly (ADR-0159) - tak, jak zapisuje go startup. */
+/** Wpis baseline biezacej formuly (ADR-0159 + odcisk pochodzenia B-06) - tak, jak zapisuje go startup. */
 function baselineFor(srv: McpServerDefinition): string {
-    return formatBaselineEntry(computeDefinitionHash(srv));
+    return formatBaselineEntry(computeDefinitionHash(srv), computeOriginFingerprint(srv));
 }
 
 function server(
@@ -94,13 +98,43 @@ describe("typosquatDetector przez scanMcpServer", () => {
         expect(r.action).toBe("human_review");
     });
 
-    it("nieznany 3rd-party (dist > 4) -> low human_review", () => {
+    it("nieznany 3rd-party (dist > 4) -> medium, human_review (B-08: czeka na zatwierdzenie)", () => {
         const r = scanMcpServer(server("legalrocket-cloud", "OK opis"), context);
         const typo = r.findings.find((f) => f.detector === "typosquat");
-        expect(typo?.severity).toBe("low");
-        // Akcja: low -> audit. Ale uwaga - drift jako pierwszy load tez moze dorzucic low.
-        // overall to suma. Sprawdzamy tylko ze nie jest "denied".
-        expect(r.action === "audit" || r.action === "human_review").toBe(true);
+        expect(typo?.severity).toBe("medium");
+        expect(isUnknownThirdPartyFinding(typo!)).toBe(true);
+        // Nie rejestrowany automatycznie - ani przy pierwszym loadzie, ani pozniej.
+        expect(r.action).toBe("human_review");
+        const ctxZBaseline = buildScanContext(
+            new Map([["legalrocket-cloud", baselineFor(server("legalrocket-cloud", "OK opis"))]]),
+        );
+        expect(scanMcpServer(server("legalrocket-cloud", "OK opis"), ctxZBaseline).action).toBe("human_review");
+    });
+
+    it("B-08: zatwierdzony konektor Patrona przy pierwszym loadzie bez zmian (audit, drift low)", () => {
+        const r = scanMcpServer(server("saos", "OK opis"), buildScanContext(new Map()));
+        expect(r.findings.map((f) => `${f.detector}/${f.severity}`)).toEqual(["drift/low"]);
+        expect(r.action).toBe("audit");
+    });
+
+    it("awaitsOnlyThirdPartyApproval: sam brak na liscie (+ low) tak; podejrzany sygnal nie", () => {
+        const nowy = scanMcpServer(server("legalrocket-cloud", "OK opis"), context);
+        expect(awaitsOnlyThirdPartyApproval(nowy.findings)).toBe(true);
+        // Podobna nazwa (high) to nie "czeka na zatwierdzenie".
+        const podobny = scanMcpServer(server("saos-pro", "OK opis"), context);
+        expect(podobny.action).toBe("human_review");
+        expect(awaitsOnlyThirdPartyApproval(podobny.findings)).toBe(false);
+        // Dodatkowy medium spoza typosquat (np. tool-poisoning) = nie tylko oczekiwanie.
+        expect(
+            awaitsOnlyThirdPartyApproval([
+                ...nowy.findings,
+                { detector: "tool-poisoning", severity: "medium" },
+            ]),
+        ).toBe(false);
+        // Ksztalt payloadu audytu (detector + severity) tez dziala.
+        expect(awaitsOnlyThirdPartyApproval([{ detector: "typosquat", severity: "medium" }, { detector: "drift", severity: "low" }])).toBe(true);
+        expect(awaitsOnlyThirdPartyApproval([{ detector: "drift", severity: "low" }])).toBe(false);
+        expect(awaitsOnlyThirdPartyApproval([])).toBe(false);
     });
 });
 
@@ -303,7 +337,9 @@ describe("drift: schemat wejscia i migracja baseline (ADR-0159)", () => {
 
     it("zapisywany wpis baseline jest wersjonowany", () => {
         const r = scanMcpServer(SERWER, buildScanContext());
-        expect(r.currentHash).toBe(`v2:${computeDefinitionHash(SERWER)}`);
+        expect(r.currentHash).toBe(
+            `v2:${computeDefinitionHash(SERWER)}|o:${computeOriginFingerprint(SERWER)}`,
+        );
     });
 
     it("wpis v1 zgodny -> jednorazowa migracja: low (audit, nie blokada), zapis v2", () => {
@@ -348,6 +384,11 @@ describe("drift: schemat wejscia i migracja baseline (ADR-0159)", () => {
         expect(parseBaselineEntry(h)).toEqual({ version: "v1", hash: h });
         expect(parseBaselineEntry(`v2:${h}`)).toEqual({ version: "v2", hash: h });
         expect(parseBaselineEntry(`v2:${h}x`)).toEqual({ version: "unknown" });
+        const o = "c".repeat(64);
+        expect(parseBaselineEntry(`v2:${h}|o:${o}`)).toEqual({ version: "v2", hash: h, origin: o });
+        for (const zle of [`v2:${h}|o:`, `v2:${h}|o:${o}|o:${o}`, `v2:${h}|o:${o}x`, `v2:|o:${o}`]) {
+            expect(parseBaselineEntry(zle)).toEqual({ version: "unknown" });
+        }
     });
 });
 
@@ -355,6 +396,9 @@ describe("drift: manifest definicji bundlowanych konektorow (ADR-0162)", () => {
     const SAOS: McpServerDefinition = {
         name: "saos",
         transport: "stdio",
+        command: "node",
+        args: ["mcp-bundled/saos/dist/index.js"],
+        configSource: "installer",
         tools: [{ name: "search", description: "Szuka orzeczen", inputSchema: { type: "object" } }],
     };
     const PO_AKTUALIZACJI: McpServerDefinition = {
@@ -404,5 +448,120 @@ describe("drift: manifest definicji bundlowanych konektorow (ADR-0162)", () => {
         const inny = { ...PO_AKTUALIZACJI, name: "krs" };
         const ctx = buildScanContext(new Map([["krs", baselineFor({ ...SAOS, name: "krs" })]]), undefined, manifest(SAOS));
         expect(drift(scanMcpServer(inny, ctx))[0].severity).toBe("high");
+    });
+
+    it("B-06: aktualizacja zmienia uklad/komende konektora zgodnego z manifestem -> low, nie blokada", () => {
+        const przeniesiony: McpServerDefinition = {
+            ...PO_AKTUALIZACJI,
+            command: "py-runtime/python.exe",
+            args: ["-s", "-E", "-c", "from saos.server import main; main()"],
+        };
+        const ctx = buildScanContext(new Map([["saos", baselineFor(SAOS)]]), undefined, manifest(przeniesiony));
+        const r = scanMcpServer(przeniesiony, ctx);
+        expect(drift(r).map((f) => f.severity)).toEqual(["low"]);
+        expect(r.action).toBe("audit");
+        expect(r.currentHash).toBe(baselineFor(przeniesiony));
+    });
+
+    it("B-06: manifest zgodny, definicja bez zmian, baseline bez odcisku -> low (ustalenie odcisku)", () => {
+        const ctx = buildScanContext(
+            new Map([["saos", formatBaselineEntry(computeDefinitionHash(SAOS))]]),
+            undefined,
+            manifest(SAOS),
+        );
+        expect(drift(scanMcpServer(SAOS, ctx)).map((f) => f.severity)).toEqual(["low"]);
+    });
+
+    it("B-06: wpis z nakladki Operatora nie dostaje zaufania manifestu (fail-closed)", () => {
+        for (const configSource of ["operator-overlay", undefined] as const) {
+            const zNakladki: McpServerDefinition = { ...PO_AKTUALIZACJI, configSource };
+            const ctx = buildScanContext(new Map([["saos", baselineFor(SAOS)]]), undefined, manifest(PO_AKTUALIZACJI));
+            const r = scanMcpServer(zNakladki, ctx);
+            expect(drift(r)[0].severity).toBe("high");
+            expect(drift(r)[0].message).not.toContain("manifestem");
+        }
+    });
+});
+
+describe("drift: odcisk pochodzenia konektora (B-06 / R-MCP-01)", () => {
+    const SAOS: McpServerDefinition = {
+        name: "saos",
+        transport: "stdio",
+        command: "node",
+        args: ["mcp-bundled/saos/dist/index.js"],
+        tools: [{ name: "search", description: "Szuka orzeczen", inputSchema: { type: "object" } }],
+    };
+    const drift = (r: ReturnType<typeof scanMcpServer>) => r.findings.filter((f) => f.detector === "drift");
+
+    it("podmiana komendy przy tych samych narzedziach -> drift high (origin), human_review", () => {
+        const ctx = buildScanContext(new Map([["saos", baselineFor(SAOS)]]));
+        for (const podmiana of [
+            { ...SAOS, command: "python", args: ["C:/Users/Public/evil_saos.py"] },
+            { ...SAOS, args: ["mcp-bundled/saos/dist/index.js", "--proxy", "x"] },
+        ]) {
+            const r = scanMcpServer(podmiana, ctx);
+            expect(drift(r)).toHaveLength(1);
+            expect(drift(r)[0].severity).toBe("high");
+            expect(isOriginDriftFinding(drift(r)[0])).toBe(true);
+            expect(r.action).toBe("human_review");
+        }
+    });
+
+    it("ta sama definicja i pochodzenie -> cisza", () => {
+        const ctx = buildScanContext(new Map([["saos", baselineFor(SAOS)]]));
+        expect(drift(scanMcpServer(SAOS, ctx))).toHaveLength(0);
+    });
+
+    it("wpis v2 bez odcisku (sprzed zmiany) -> jednorazowe ustalenie odcisku: low, audit; potem cisza", () => {
+        const ctx = buildScanContext(new Map([["saos", formatBaselineEntry(computeDefinitionHash(SAOS))]]));
+        const r = scanMcpServer(SAOS, ctx);
+        expect(drift(r)).toHaveLength(1);
+        expect(drift(r)[0].severity).toBe("low");
+        expect(isOriginDriftFinding(drift(r)[0])).toBe(false);
+        expect(r.action).toBe("audit");
+        expect(r.currentHash).toBe(baselineFor(SAOS));
+        const r2 = scanMcpServer(SAOS, buildScanContext(new Map([["saos", r.currentHash]])));
+        expect(drift(r2)).toHaveLength(0);
+    });
+
+    it("zmiana definicji i pochodzenia naraz -> dwa findingi high", () => {
+        const obcy: McpServerDefinition = {
+            ...SAOS,
+            command: "python",
+            tools: [{ name: "search", description: "Inny opis", inputSchema: { type: "object" } }],
+        };
+        const r = scanMcpServer(obcy, buildScanContext(new Map([["saos", baselineFor(SAOS)]])));
+        expect(drift(r).map((f) => f.severity)).toEqual(["high", "high"]);
+        expect(drift(r).filter(isOriginDriftFinding)).toHaveLength(1);
+    });
+
+    it("http: odcisk = schemat + host; sciezka, zapytanie i dane logowania (klucze) nie wchodza", () => {
+        const http: McpServerDefinition = {
+            name: "weryfikator",
+            transport: "http",
+            url: "https://api.example.invalid/mcp/KLUCZ-1?key=abc",
+            tools: [],
+        };
+        const o = computeOriginFingerprint(http);
+        expect(computeOriginFingerprint({ ...http, url: "https://API.example.invalid/inna/KLUCZ-2?key=xyz" })).toBe(o);
+        expect(computeOriginFingerprint({ ...http, url: "https://user:haslo@api.example.invalid/mcp" })).toBe(o);
+        expect(computeOriginFingerprint({ ...http, url: "https://evil.example.invalid/mcp/KLUCZ-1" })).not.toBe(o);
+        expect(computeOriginFingerprint({ ...http, url: "http://api.example.invalid/mcp/KLUCZ-1" })).not.toBe(o);
+        expect(computeOriginFingerprint({ ...http, url: "https://api.example.invalid:8443/mcp" })).not.toBe(o);
+        // Wpis baseline nie niesie zadnego fragmentu adresu.
+        const wpis = baselineFor(http);
+        for (const fragment of ["KLUCZ", "abc", "example", "mcp/"]) expect(wpis).not.toContain(fragment);
+    });
+
+    it("stdio: env (klucze konektora) nie wchodzi do odcisku; kolejnosc args tak", () => {
+        const zEnv = { ...SAOS, env: { API_KEY: "tajne" } } as McpServerDefinition;
+        expect(computeOriginFingerprint(zEnv)).toBe(computeOriginFingerprint(SAOS));
+        expect(computeOriginFingerprint({ ...SAOS, args: ["a", "b"] })).not.toBe(
+            computeOriginFingerprint({ ...SAOS, args: ["b", "a"] }),
+        );
+    });
+
+    it("hash definicji (i hash zatwierdzenia ADR-0158) nie zmienia sie od odcisku", () => {
+        expect(computeDefinitionHash({ ...SAOS, command: "python" })).toBe(computeDefinitionHash(SAOS));
     });
 });

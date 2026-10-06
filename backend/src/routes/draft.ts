@@ -1,5 +1,5 @@
 // Pipeline obrony (Invisible AI, ADR-0058) - endpoint REST.
-// POST /draft/refine { text, stages?, adwokat_mode?, model? }
+// POST /draft/refine { text, model, stages?, adwokat_mode?, project_id? }
 // Przepuszcza draft przez lancuch Recenzent -> Adwokat diabla -> Pisz po ludzku.
 
 import { Router } from "express";
@@ -8,7 +8,7 @@ import { singleFileUpload } from "../lib/upload";
 import { parseDocxRoundtrip } from "../lib/docxRoundtrip";
 import { createServerSupabase } from "../lib/supabase";
 import { getUserApiKeys } from "../lib/userApiKeys";
-import { DEFAULT_MAIN_MODEL, resolveModel } from "../lib/llm";
+import { resolveModel } from "../lib/llm";
 import {
   ALL_STAGES,
   runDefensePipeline,
@@ -21,6 +21,7 @@ import {
 } from "../lib/skills/store";
 import { partitionSkillsByEgress } from "../lib/skills/integrity";
 import { appendAuditEvent } from "../lib/audit";
+import { checkProjectAccess } from "../lib/access";
 import { enforceEgressGuard, appendLlmRouteEvent } from "../lib/routing";
 import {
   classifyHighStakes,
@@ -79,6 +80,23 @@ draftRouter.post("/refine", requireAuth, async (req, res) => {
     });
   }
 
+  // Audyt 2026-09, A-05: model musi przyjsc JAWNIE i byc znany. Dotad
+  // resolveModel(model, DEFAULT_MAIN_MODEL) zamienial brak albo literowke na
+  // chmurowy model domyslny - panel draftu nie wysylal modelu, wiec tekst z
+  // rozmowy prowadzonej modelem lokalnym szedl do chmury bez wiedzy Operatora.
+  // Fail-closed: bez znanego modelu nie ma wywolania (klient wysyla model
+  // rozmowy), zamiast cichego wyboru za Operatora.
+  const selectedModel = resolveModel(typeof model === "string" ? model : null, "");
+  if (!selectedModel) {
+    return void res.status(400).json({
+      detail:
+        typeof model === "string" && model.trim()
+          ? `Nieznany model: ${model.slice(0, 120)}. Wybierz model rozmowy i sprobuj ponownie.`
+          : "Brak modelu: doskonalenie pisma wymaga modelu rozmowy (model domyslny nie jest wybierany za Operatora).",
+      code: typeof model === "string" && model.trim() ? "model_unknown" : "model_required",
+    });
+  }
+
   const requestedStages = Array.isArray(stages)
     ? stages.filter((s): s is DefenseStage => VALID_STAGES.has(s as DefenseStage))
     : undefined;
@@ -106,7 +124,6 @@ draftRouter.post("/refine", requireAuth, async (req, res) => {
   const startedAt = Date.now();
   try {
     const apiKeys = await getUserApiKeys(userId, db);
-    const selectedModel = resolveModel(model, DEFAULT_MAIN_MODEL);
     // ADR-0131: etapy fidelity sa OPT-IN (klient wybiera w panelu). Jawna lista
     // (rowniez pusta) jest honorowana -> brak wymuszonego 3-etapowego pipeline'u
     // (latencja). Pominiecie `stages` w zadaniu = ALL_STAGES (kompatybilnosc API).
@@ -119,6 +136,18 @@ draftRouter.post("/refine", requireAuth, async (req, res) => {
     // "llm_route" (block) robi helper; tu zwracamy 403 z komunikatem PL.
     const projectId =
       typeof project_id === "string" && project_id.trim() ? project_id : null;
+    // Granica sprawy (ADR-0148): klasyfikacje i budzet bierzemy tylko ze sprawy,
+    // do ktorej uzytkownik ma dostep. Brak dostepu = 404, jak w reszcie API
+    // (istnienie cudzej sprawy to tez informacja). Przeglad 2026-10-02.
+    if (projectId) {
+      const access = await checkProjectAccess(
+        projectId,
+        userId,
+        res.locals.userEmail as string | undefined,
+        db,
+      );
+      if (!access.ok) return void res.status(404).json({ detail: "Project not found" });
+    }
     const guard = await enforceEgressGuard({
       db,
       model: selectedModel,

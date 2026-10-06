@@ -31,7 +31,8 @@ export function toThreatLevel(findings: ReadonlyArray<McpFinding>): McpSeverity 
  * Decyzja per konektor. Mapowanie threat level -> action.
  * - 0 findings: allowed
  * - tylko low (np. informational pierwszy load): audit
- * - medium: human_review
+ * - medium: human_review (m.in. nieznany 3rd-party, B-08 - czeka na
+ *   zatwierdzenie Operatora `gatewayApproval`, ADR-0158)
  * - high: human_review
  * - critical: denied
  */

@@ -343,6 +343,60 @@ export function verifyAuditChain(
     };
 }
 
+/** Wiersz zadeklarowany jako zerwany z mocy prawa - co mowi o nim deklaracja. */
+export interface LegalBreakDeclaration {
+    /** id zdarzenia `audit.chain.legal_break`, ktore wymienia wiersz. */
+    eventId: number;
+    field: string;
+    reason: string;
+    /** Hash wiersza PO zerwaniu; null w deklaracji w starym formacie. */
+    hashAfter: string | null;
+}
+
+/**
+ * Zbiera deklaracje zerwania z mocy prawa (ADR-0164): id wiersza -> pierwsza
+ * (najstarsza) deklaracja, ktora go wymienia. Deklaracja liczy sie tylko, gdy
+ * jest pozniejsza od wiersza; deklaracje o id z `excluded` (wlasny hash
+ * niezgodny z trescia) sa pomijane - podrobiona albo zmieniona deklaracja nie
+ * wybiela niczego. Wydzielone z classifyContentBreaks bez zmiany semantyki,
+ * zeby eksport paczki (routes/audit.ts) czytal deklaracje TAK SAMO jak
+ * weryfikator lancucha.
+ */
+export function collectLegalBreakDeclarations(
+    rows: ReadonlyArray<Pick<ChainRow, "id" | "event_type" | "payload">>,
+    excluded: ReadonlySet<number>,
+): Map<number, LegalBreakDeclaration> {
+    const declared = new Map<number, LegalBreakDeclaration>();
+    const sorted = [...rows].sort((a, b) => a.id - b.id);
+    for (const ev of sorted) {
+        if (ev.event_type !== LEGAL_BREAK_EVENT || excluded.has(ev.id)) continue;
+        const p = ev.payload;
+        if (!p || typeof p !== "object" || Array.isArray(p)) continue;
+        const reason = typeof p.reason === "string" ? p.reason : "nieznany powod";
+        const field = typeof p.field === "string" ? p.field : "actor_user_id";
+        const rawIds = Array.isArray(p.affected_ids) ? p.affected_ids : [];
+        // Hash wiersza PO zerwaniu, pozycja w pozycje z affected_ids (audyt
+        // 2026-10-02, R-AC-01). Bez niego deklaracja wybielala kazda pozniejsza
+        // zmiane tresci zadeklarowanego wiersza. Stare deklaracje (bez pola)
+        // pozostaja uznawane, ale z jawna uwaga.
+        const rawAfter =
+            Array.isArray(p.affected_hashes_after) && p.affected_hashes_after.length === rawIds.length
+                ? p.affected_hashes_after
+                : null;
+        rawIds.forEach((id, i) => {
+            if (!isId(id)) return;
+            const after = rawAfter && typeof rawAfter[i] === "string" ? (rawAfter[i] as string) : null;
+            if (id < ev.id && !declared.has(id)) declared.set(id, { eventId: ev.id, field, reason, hashAfter: after });
+        });
+    }
+    return declared;
+}
+
+/** Pola hasha, ktore deklaracja moze nazwac jako wyzerowane (dawne FK). */
+export function isLegalBreakField(x: string): x is (typeof FK_HASH_FIELDS)[number] {
+    return isFkHashField(x);
+}
+
 /**
  * Trojstan zerwan tresci (ADR-0164). Deklaracje czytamy wylacznie ze zdarzen,
  * ktorych wlasny hash jest poprawny - podrobiona albo zmieniona deklaracja nie
@@ -355,17 +409,13 @@ function classifyContentBreaks(
 ): ChainFinding[] {
     const out: ChainFinding[] = [];
     const broken = new Set(mismatched.map((r) => r.id));
-    const declared = new Map<number, { eventId: number; field: string; reason: string }>();
+    const declared = collectLegalBreakDeclarations(rows, broken);
     for (const ev of rows) {
         if (ev.event_type !== LEGAL_BREAK_EVENT || broken.has(ev.id)) continue;
         const p = ev.payload;
-        const reason = typeof p.reason === "string" ? p.reason : "nieznany powod";
-        const field = typeof p.field === "string" ? p.field : "actor_user_id";
-        const ids = Array.isArray(p.affected_ids) ? p.affected_ids.filter(isId) : [];
-        for (const id of ids) {
-            if (id < ev.id && !declared.has(id)) declared.set(id, { eventId: ev.id, field, reason });
-        }
         if (p.affected_ids_truncated === true) {
+            const rawIds = Array.isArray(p.affected_ids) ? p.affected_ids : [];
+            const ids = rawIds.filter(isId);
             const count = typeof p.affected_count === "number" ? p.affected_count : "?";
             out.push({
                 kind: "legal_break_truncated",
@@ -378,11 +428,33 @@ function classifyContentBreaks(
     for (const row of mismatched) {
         const d = declared.get(row.id);
         if (d && isFkHashField(d.field) && row[d.field] === null) {
+            const teraz = computeAuditHash({
+                prev_hash: row.prev_hash,
+                ts: row.ts,
+                event_type: row.event_type,
+                actor_user_id: row.actor_user_id,
+                chat_id: row.chat_id,
+                document_id: row.document_id,
+                payload: row.payload,
+            });
+            if (d.hashAfter !== null && teraz !== d.hashAfter) {
+                out.push({
+                    kind: "hash_mismatch",
+                    severity: "blokada",
+                    ids: [row.id],
+                    detail: `wiersz objety deklaracja id=${d.eventId} (${d.reason}), ale jego tresc rozni sie od zadeklarowanej po zerwaniu - modyfikacja po anonimizacji`,
+                });
+                continue;
+            }
             out.push({
                 kind: "hash_mismatch_legal_break",
                 severity: "uwagi",
                 ids: [row.id],
-                detail: `zerwanie Z MOCY PRAWA, zadeklarowane zdarzeniem id=${d.eventId} (${d.reason}, pole ${d.field})`,
+                detail:
+                    `zerwanie Z MOCY PRAWA, zadeklarowane zdarzeniem id=${d.eventId} (${d.reason}, pole ${d.field})` +
+                    (d.hashAfter === null
+                        ? " - deklaracja w starym formacie (bez hasha po zerwaniu): zmiany tresci po anonimizacji nie da sie wykluczyc"
+                        : ""),
             });
             continue;
         }

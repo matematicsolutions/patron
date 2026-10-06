@@ -189,11 +189,11 @@ export async function buildDocContext(
         }
     }
 
+    // R-CC-06: etykieta i document_id, bez nazwy pliku pisma.
     console.log(
         "[buildDocContext] available docs:",
         Object.entries(docIndex).map(([label, info]) => ({
             label,
-            filename: info.filename,
             document_id: info.document_id,
         })),
     );
@@ -282,13 +282,14 @@ export async function buildProjectDocContext(
         if (path) folderPaths.set(docLabel, path);
     }
 
+    // R-CC-06: etykieta i document_id; nazwa pliku i sciezka folderu (nazwy
+    // folderow sprawy bywaja nazwiskiem klienta) nie trafiaja do logu.
     console.log(
         "[buildProjectDocContext] available docs:",
         Object.entries(docIndex).map(([label, info]) => ({
             label,
-            filename: info.filename,
             document_id: info.document_id,
-            folder: folderPaths.get(label) ?? null,
+            in_folder: folderPaths.has(label),
         })),
     );
     return { docIndex, docStore, folderPaths };

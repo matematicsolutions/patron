@@ -23,7 +23,8 @@ export const BUILT_IN_WORKFLOWS: PATRONWorkflow[] = [
             "  2. Clause Number — the clause or schedule reference from the agreement\n" +
             "  3. Clause — a concise description of the condition precedent\n" +
             "  4. Status — leave blank (empty string) for the user to fill in\n\n" +
-            "Use the table field in the section object (not content) for each category's rows.",
+            "Use the table field in the section object (not content) for each category's rows.\n\n" +
+            "Before finalizing, double-check that every table is formatted correctly: each table must have exactly the four columns above in the same order, headers must match exactly (Index, Clause Number, Clause, Status), every row must have the same number of cells as the headers, the Index column must be sequential starting from 1 within each category, and no cells should contain stray markdown, newlines, or placeholder text (use an empty string for Status).",
         columns_config: null,
     },
     {
@@ -1240,6 +1241,53 @@ export const BUILT_IN_WORKFLOWS: PATRONWorkflow[] = [
                 prompt: "What is the employee's annual leave entitlement? State the number of days (or weeks) per year, whether this is inclusive of or in addition to public holidays, and any provisions for accrual, carry-over, or payment of untaken leave on termination.",
             },
         ],
+    },
+    {
+        // Audyt 2026-09, D-13: wbudowany workflow asystenta z backendu
+        // (backend/src/lib/builtinWorkflows.ts, ADR-0130). Bez tego wpisu byl
+        // nieosiagalny z UI. Tytul i prompt_md 1:1 z backendem - pilnuje
+        // builtinWorkflows-parity.test.ts.
+        id: "builtin-analiza-akt-karne",
+        user_id: null,
+        is_system: true,
+        created_at: "",
+        title: "Analiza akt (6-punktowa, karne)",
+        type: "assistant",
+        practice: "Litigation",
+        prompt_md:
+            "## Analiza akt sprawy karnej (6-punktowa)\n\n" +
+            "Przeanalizuj akta sprawy obecnej w tym projekcie i sporzadz ustrukturyzowana analize " +
+            "obronczowa. Pracuj WYLACZNIE na dokumentach sprawy (uzyj narzedzi przeszukania korpusu i " +
+            "odczytu dokumentow). NIE zmyslaj faktow, nazwisk ani sygnatur - jezeli czegos NIE MA w aktach, " +
+            "napisz wprost \"brak w aktach\". To projekt do redakcji przez adwokata, nie pismo gotowe.\n\n" +
+            "**Twarda dyscyplina cytatu:** kazde przywolanie tresci akt podaj jako: doslowny cytat + " +
+            "dokument (nazwa pliku) + strona (\"str. N\", jezeli dostepna proweniencja strony). Bez tego nie " +
+            "przypisuj twierdzenia do akt. Tam gdzie cytujesz orzeczenie/przepis, podaj sygnature/artykul " +
+            "doslownie.\n\n" +
+            "Struktura analizy (6 punktow):\n\n" +
+            "1. **Zarzut** — dokladna tresc zarzutu/aktu oskarzenia: kwalifikacja prawna czynu, opis czynu, " +
+            "data/miejsce/kwota, znamiona. Cytat z aktu oskarzenia + strona.\n" +
+            "2. **Dowody** — wykaz dowodow oskarzenia i obrony (zeznania, dokumenty, opinie bieglych, " +
+            "protokoly). Dla kazdego: co dowodzi i z czego to wynika (cytat + strona). Wyraznie oznacz " +
+            "**SPRZECZNOSCI i LUKI** (zeznanie vs protokol, opinia vs opinia, brak dowodu na znamie). " +
+            "Opinie bieglych przeanalizuj pod art. 201 k.p.k. (niepelnosc / niejasnosc / sprzecznosc / " +
+            "przekroczenie granic opiniowania).\n" +
+            "3. **Wyrok I instancji** — rozstrzygniecie, ustalenia faktyczne, ocena dowodow. Wychwyc " +
+            "naruszenia: swobodna vs dowolna ocena dowodow (art. 7 k.p.k.), pominiecie calokształtu " +
+            "okolicznosci (art. 410), braki uzasadnienia (art. 424), watpliwosci na niekorzysc (art. 5 §2). " +
+            "Cytat z uzasadnienia + strona.\n" +
+            "4. **Apelacja** — podniesione zarzuty odwolawcze i ich podstawy (art. 438 k.p.k.: obraza prawa " +
+            "materialnego/procesowego, blad w ustaleniach, raznca niewspolmiernosc kary). Oce na ile " +
+            "trafiaja w ustalenia z pkt 3.\n" +
+            "5. **Wyrok II instancji** — rozstrzygniecie sadu odwolawczego, ktore zarzuty uwzglednione/" +
+            "oddalone i dlaczego (cytat + strona).\n" +
+            "6. **Wskazania / dalsza linia obrony** — wnioski: niewykorzystane sprzecznosci i luki, mozliwe " +
+            "dalsze srodki (kasacja, wznowienie), ryzyka. Jezeli sprawa dotyczy tymczasowego aresztowania - " +
+            "oce n przeslanki art. 249 i 258 k.p.k. (realne uzasadnienie, indywidualizacja, dowolnosc ocen).\n\n" +
+            "Dostarcz analize w odpowiedzi (inline). Wygeneruj dokument Word TYLKO jezeli uzytkownik " +
+            "wprost o to poprosi (wtedy uzyj generate_docx). Na koncu zaproponuj 'Zweryfikuj cytaty' przed " +
+            "wykorzystaniem fragmentow w pismie.",
+        columns_config: null,
     },
 ];
 

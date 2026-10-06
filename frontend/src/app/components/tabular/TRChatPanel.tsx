@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import ReactMarkdown from "react-markdown";
+import { SafeMarkdown } from "@/lib/markdown/SafeMarkdown";
 import remarkGfm from "remark-gfm";
 import {
     X,
@@ -28,6 +28,7 @@ import type {
     ColumnConfig,
     PATRONDocument,
 } from "../shared/types";
+import { ChatSignalNotices, isChatSignalEvent } from "../shared/ChatSignalNotice";
 import { ModelToggle } from "../assistant/ModelToggle";
 import { ApiKeyMissingModal } from "../shared/ApiKeyMissingModal";
 import { PreResponseWrapper } from "../shared/PreResponseWrapper";
@@ -118,9 +119,9 @@ function ReasoningBlock({
             </button>
             {(isOpen || isStreaming) && (
                 <div className="mt-1.5 ml-[14px] text-sm text-gray-400 prose prose-sm max-w-none [&>*]:text-gray-400 [&>*]:text-sm">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    <SafeMarkdown remarkPlugins={[remarkGfm]}>
                         {text}
-                    </ReactMarkdown>
+                    </SafeMarkdown>
                 </div>
             )}
         </div>
@@ -250,6 +251,9 @@ function TRAssistantMessage({
     {
         let current: Extract<TREventGroup, { kind: "pre" }> | null = null;
         events.forEach((e, i) => {
+            // Sygnaly (np. B-02 mutation_staged) renderujemy osobno pod
+            // odpowiedzia (ChatSignalNotices), nie w zwijanym bloku pracy.
+            if (isChatSignalEvent(e)) return;
             if (e.type === "content") {
                 if (current) {
                     groups.push(current);
@@ -312,7 +316,7 @@ function TRAssistantMessage({
             key={key}
             className="prose prose-sm max-w-none text-sm leading-relaxed"
         >
-            <ReactMarkdown
+            <SafeMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={{
                     p: ({ node, ...props }) => (
@@ -368,7 +372,7 @@ function TRAssistantMessage({
                 }}
             >
                 {text}
-            </ReactMarkdown>
+            </SafeMarkdown>
         </div>
     );
 
@@ -410,6 +414,7 @@ function TRAssistantMessage({
                     })}
                 </div>
             )}
+            <ChatSignalNotices events={events} />
         </div>
     );
 }
@@ -1222,6 +1227,17 @@ export function TRChatPanel({
                                 });
                             }
                             startDrip();
+                            continue;
+                        }
+
+                        if (data.type === "mutation_staged") {
+                            // ADR-0137 (B-02): akcja agenta czeka na karcie
+                            // zatwierdzenia - jawny sygnal z linkiem do skrzynki.
+                            pushEvent({
+                                type: "mutation_staged",
+                                tool: String(data.tool ?? ""),
+                                approval_id: String(data.approval_id ?? ""),
+                            });
                             continue;
                         }
 

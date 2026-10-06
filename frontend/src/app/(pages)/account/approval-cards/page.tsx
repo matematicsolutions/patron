@@ -9,10 +9,17 @@ import {
     rejectCard,
     type ApprovalCard,
 } from "@/app/lib/patronApi";
+import {
+    PartialExecutionNotice,
+    partialFromApprovalResult,
+    type PartialExecutionInfo,
+} from "@/app/components/shared/PartialExecutionNotice";
 
 function toolLabel(name: string): string {
     if (name === "edit_document") return t("approvals.toolEditDocument");
     if (name === "generate_docx") return t("approvals.toolGenerateDocx");
+    if (name === "replicate_document") return t("approvals.toolReplicateDocument");
+    if (name === "remember") return t("approvals.toolRemember");
     return name;
 }
 
@@ -30,6 +37,12 @@ export default function ApprovalCardsPage() {
     const [busyId, setBusyId] = useState<string | null>(null);
     const [reasons, setReasons] = useState<Record<string, string>>({});
     const [execError, setExecError] = useState<string | null>(null);
+    // Wykonanie czesciowe (C-08): karta znika z inboxa, ale mecenas MUSI
+    // zobaczyc, ze czesc zatwierdzonych zmian nie weszla do dokumentu.
+    const [partial, setPartial] = useState<{
+        info: PartialExecutionInfo;
+        filename?: string;
+    } | null>(null);
 
     useEffect(() => {
         let active = true;
@@ -54,12 +67,22 @@ export default function ApprovalCardsPage() {
             setBusyId(card.id);
             setError(null);
             setExecError(null);
+            setPartial(null);
             try {
                 const res = await approveCard(card.id);
                 // Karta nie jest juz pending - znika z inboxa. Gdy wykonanie
                 // padlo po zatwierdzeniu, pokazujemy komunikat (decyzja zaszla).
                 if (!res.executed && res.execution_error) {
                     setExecError(res.execution_error);
+                }
+                // Wykonanie czesciowe: "zastosowano N z M, nie zastosowano: ...".
+                const info = partialFromApprovalResult(res.executed, res.result);
+                if (info) {
+                    const filename = card.tool_payload.filename;
+                    setPartial({
+                        info,
+                        filename: typeof filename === "string" ? filename : undefined,
+                    });
                 }
                 removeCard(card.id);
             } catch {
@@ -101,6 +124,16 @@ export default function ApprovalCardsPage() {
             {execError && (
                 <div className="mb-4 rounded-lg border border-warn-soft bg-warn-soft px-4 py-3 text-sm text-warn">
                     {t("approvals.executionErrorNote")} {execError}
+                </div>
+            )}
+
+            {partial && (
+                <div className="mb-4">
+                    <PartialExecutionNotice
+                        info={partial.info}
+                        filename={partial.filename}
+                        note={t("partialExecution.approvalNote")}
+                    />
                 </div>
             )}
 

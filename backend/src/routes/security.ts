@@ -17,6 +17,7 @@ import { Router, type Request, type Response } from "express";
 import { requireAuth, requireAdmin } from "../middleware/auth";
 import { createServerSupabase } from "../lib/supabase";
 import { recordAdminAccess } from "../lib/audit-admin-access";
+import { awaitsOnlyThirdPartyApproval } from "../lib/mcp-security";
 
 export const securityRouter = Router();
 
@@ -60,6 +61,13 @@ export interface McpStatusPayload {
     audit_summary_24h: {
         decisions_total: number;
         by_action: AuditCounts;
+        /**
+         * B-08: ile z `human_review` to nowy konektor spoza zaufanego zestawu,
+         * ktory czeka na zatwierdzenie Operatora (bez zatwierdzenia i bez
+         * podejrzanego sygnalu) - baner pokazuje je jako oczekiwanie, nie alarm.
+         * Podzbior `by_action.human_review`.
+         */
+        awaiting_operator_approval: number;
     };
 }
 
@@ -83,12 +91,42 @@ export function countAuditActions(
 }
 
 /**
+ * B-08: decyzje `human_review`, ktore sa ZWYKLYM oczekiwaniem na zatwierdzenie
+ * nowego konektora 3rd-party: brak zatwierdzenia (`operator_approval.status`
+ * = "missing") i findings wylacznie "nieznany 3rd-party" + `low`
+ * (awaitsOnlyThirdPartyApproval). Zatwierdzenie INNEJ definicji
+ * (`hash_mismatch`), dryf, podobna nazwa czy ukryte instrukcje zostaja blokada.
+ * Pure function.
+ */
+export function countAwaitingOperatorApproval(
+    rows: ReadonlyArray<{ payload: unknown }>,
+): number {
+    let n = 0;
+    for (const row of rows) {
+        const p = row.payload as {
+            action?: unknown;
+            findings?: unknown;
+            operator_approval?: { status?: unknown } | null;
+        } | null;
+        if (!p || p.action !== "human_review") continue;
+        if (p.operator_approval?.status !== "missing") continue;
+        if (!Array.isArray(p.findings)) continue;
+        const findings = p.findings.filter(
+            (f): f is { detector?: unknown; severity?: unknown } => !!f && typeof f === "object",
+        );
+        if (findings.length === p.findings.length && awaitsOnlyThirdPartyApproval(findings)) n += 1;
+    }
+    return n;
+}
+
+/**
  * Sklada McpStatusPayload z czystych wejsc. Pure function - bez IO.
  * Uzywana przez handler endpointu i przez testy.
  */
 export function buildStatusPayload(
     mode: GatewayMode,
     counts: AuditCounts,
+    awaitingOperatorApproval = 0,
 ): McpStatusPayload {
     return {
         gateway: {
@@ -99,6 +137,7 @@ export function buildStatusPayload(
         audit_summary_24h: {
             decisions_total: counts.audit + counts.human_review + counts.denied,
             by_action: counts,
+            awaiting_operator_approval: Math.min(awaitingOperatorApproval, counts.human_review),
         },
     };
 }
@@ -168,7 +207,9 @@ securityRouter.get(
             }
 
             const counts = countAuditActions(data ?? []);
-            res.status(200).json(buildStatusPayload(mode, counts));
+            res.status(200).json(
+                buildStatusPayload(mode, counts, countAwaitingOperatorApproval(data ?? [])),
+            );
         } catch (err) {
             res.status(500).json({
                 error: "internal_error",

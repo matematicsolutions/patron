@@ -118,6 +118,30 @@ describe("supabase-shim: filtry i modyfikatory", () => {
     expect(r.data.length).toBe(1);
     expect(r.data[0].encrypted_key).toBe("e2");
   });
+
+  it("update().eq().select() = RETURNING: wiersze zmienione, takze gdy filtr dotyczy zmienianej kolumny (C-06)", async () => {
+    const p = await db.from("projects").insert({ user_id: "u6", name: "stara" }).select().single();
+    // Filtr na kolumnie, ktora UPDATE zmienia - jak CAS eq("status","pending").
+    const first = await db
+      .from("projects")
+      .update({ name: "nowa" })
+      .eq("id", p.data.id)
+      .eq("name", "stara")
+      .select("id, name");
+    expect(first.error).toBeNull();
+    expect(first.data).toEqual([{ id: p.data.id, name: "nowa" }]);
+    // Drugi CAS z tym samym warunkiem: nic do zmiany -> pusta lista, nie blad.
+    const second = await db
+      .from("projects")
+      .update({ name: "inna" })
+      .eq("id", p.data.id)
+      .eq("name", "stara")
+      .select("id");
+    expect(second.error).toBeNull();
+    expect(second.data).toEqual([]);
+    const now = await db.from("projects").select("name").eq("id", p.data.id).single();
+    expect(now.data.name).toBe("nowa");
+  });
 });
 
 describe("supabase-shim: audit hash-chain", () => {

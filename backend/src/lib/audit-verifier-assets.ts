@@ -10,7 +10,14 @@
 //   - kanoniczna serializacja z audit-pack.ts (klucze sortowane, JSON.stringify)
 //   - SHA-256 nad ta serializacja
 //   - dowod przynaleznosci Merkle wg RFC 6962 (audit-merkle.ts)
-//   - ciaglosc ogniw prev_hash -> hash w wyciagu z dziennika
+//   - hash wpisu przeliczony z tresci (computeAuditHash z audit.ts), gdy wpis
+//     niesie hash_inputs_complete - audyt 2026-09, C-04 / D-01
+//   - zgodnosc zdarzenia paczki z dowodem Merkle (numer i hash)
+//   - wyciag z dziennika: ogniwa w obrebie wyciagu, luki jawnie, numery rosnace
+//     (verifyAuditExcerpt w audit-bundle.ts)
+//   - zerwanie z mocy prawa (ADR-0164, decyzja 2026-10-06): wpis ze znacznikiem
+//     legal_break i deklaracja w artefakcie (checkLegalBreakMarker w
+//     audit-pack.ts) - osobny stan werdyktu, verify.py konczy sie kodem 3
 //
 // Zgodnosc obu implementacji z kodem produkcyjnym pilnuje
 // audit-verifier-assets.test.ts (wektory kanonikalizacji + przebieg na
@@ -45,11 +52,13 @@ export const VERIFIER_HTML = String.raw`<!doctype html>
   :root {
     --tlo: #ffffff; --tekst: #1a1a1a; --slaby: #5b5b5b; --ramka: #d9d9d9;
     --pole: #f6f6f6; --ok: #1a6b32; --ok-tlo: #e8f4ec; --zle: #a11020; --zle-tlo: #fbeaec;
+    --uw: #7a4a00; --uw-tlo: #fdf3e1;
   }
   @media (prefers-color-scheme: dark) {
     :root {
       --tlo: #16181c; --tekst: #eceff3; --slaby: #a2a8b3; --ramka: #333840;
       --pole: #1e2127; --ok: #6fd08c; --ok-tlo: #16301f; --zle: #ff8b96; --zle-tlo: #341419;
+      --uw: #f2c46d; --uw-tlo: #33270f;
     }
   }
   * { box-sizing: border-box; }
@@ -76,6 +85,7 @@ export const VERIFIER_HTML = String.raw`<!doctype html>
   .werdykt p { margin: 0; font-size: .95rem; }
   .werdykt.ok { color: var(--ok); background: var(--ok-tlo); border-color: currentColor; }
   .werdykt.zle { color: var(--zle); background: var(--zle-tlo); border-color: currentColor; }
+  .werdykt.uwaga { color: var(--uw); background: var(--uw-tlo); border-color: currentColor; }
   dl.meta { display: grid; grid-template-columns: max-content 1fr; gap: .3rem 1rem; margin: 0 0 1.75rem; font-size: .92rem; }
   dl.meta dt { color: var(--slaby); }
   dl.meta dd { margin: 0; overflow-wrap: anywhere; }
@@ -86,6 +96,7 @@ export const VERIFIER_HTML = String.raw`<!doctype html>
   .znacznik { font-weight: 700; }
   .znacznik.ok { color: var(--ok); }
   .znacznik.zle { color: var(--zle); }
+  .znacznik.uwaga { color: var(--uw); }
   .krok-tytul { font-weight: 600; }
   .krok-opis { color: var(--slaby); font-size: .9rem; margin: .3rem 0 0 1.7rem; }
   .krok-opis code { font-family: ui-monospace, Consolas, monospace; font-size: .85em; overflow-wrap: anywhere; }
@@ -274,27 +285,250 @@ function sprawdzIntegralnosc(dok) {
   return { ok: policzony === integralnosc.canonical_sha256, wPliku: integralnosc.canonical_sha256, policzony: policzony };
 }
 
-function sprawdzCiaglosc(wpisy) {
-  if (!Array.isArray(wpisy) || wpisy.length < 2) {
-    return { ok: true, pominiete: true, opis: "Wyciąg ma mniej niż dwa wpisy - nie ma czego łączyć." };
+/* ---------------------------------------------------------------------------
+   Hash wpisu dziennika przeliczony z treści - ten sam wzór co w Patronie:
+   SHA-256( prev_hash + kanoniczny({ts, event_type, actor_user_id, chat_id,
+   document_id, payload}) ). Liczony tylko dla wpisów z hash_inputs_complete:
+   tam payload nie był maskowany, więc plik niesie dokładnie to, co hashowano.
+--------------------------------------------------------------------------- */
+var GENEZA = "0000000000000000000000000000000000000000000000000000000000000000";
+
+function przeliczHash(e) {
+  if (!e || typeof e !== "object" || Array.isArray(e)) return null;
+  if (typeof e.prev_hash !== "string" || typeof e.ts !== "string" || typeof e.event_type !== "string") return null;
+  var p = e.payload_masked;
+  var tresc = {
+    ts: e.ts,
+    event_type: e.event_type,
+    actor_user_id: e.actor_user_id === undefined ? null : e.actor_user_id,
+    chat_id: e.chat_id === undefined ? null : e.chat_id,
+    document_id: e.document_id === undefined ? null : e.document_id,
+    payload: (p === null || p === undefined) ? {} : p
+  };
+  return sha256Hex(e.prev_hash + kanoniczny(tresc));
+}
+
+function jestId(x) {
+  return typeof x === "number" && isFinite(x) && Math.floor(x) === x;
+}
+
+/* ---------------------------------------------------------------------------
+   Zerwanie z mocy prawa (RODO art. 17). Wpis zanonimizowany po zapisie ma
+   znacznik legal_break: jego hash (liść Merkle, ogniwo łańcucha) jest
+   ORYGINALNY, a treść - już po anonimizacji - musi dawać hash_after z
+   deklaracji audit.chain.legal_break, która jedzie w tym samym pliku.
+   Lustro checkLegalBreakMarker (Patron) i check_legal_break (verify.py).
+   Zwraca listę problemów; pusta = zerwanie potwierdzone.
+--------------------------------------------------------------------------- */
+var POLA_ZERWANIA = ["actor_user_id", "chat_id", "document_id"];
+var ZDARZENIE_ZERWANIA = "audit.chain.legal_break";
+
+function etykietaPowodu(powod) {
+  return powod === "rodo_art_17_anonymization" ? "RODO art. 17" : String(powod);
+}
+
+function sprawdzZerwanie(e, deklaracje) {
+  var nr = String(e.id), L = e.legal_break, problemy = [], h, D = null, i, x, p, powod, pole, ids, po, k;
+  var zlyFormat = "wpis " + nr + ": znacznik zerwania z mocy prawa ma zły format";
+  if (!L || typeof L !== "object" || Array.isArray(L)) return [zlyFormat];
+  if (!jestId(L.declaration_event_id) || typeof L.reason !== "string" || typeof L.field !== "string" ||
+      POLA_ZERWANIA.indexOf(L.field) < 0 || typeof L.hash_after !== "string" || !HEX64.test(L.hash_after)) {
+    return [zlyFormat];
   }
-  var i;
-  for (i = 1; i < wpisy.length; i++) {
-    if (wpisy[i].prev_hash !== wpisy[i - 1].hash) {
-      return {
-        ok: false,
-        opis: "Wpis nr " + wpisy[i].id + " wskazuje na poprzednika <code>" + wpisy[i].prev_hash +
-              "</code>, ale poprzedni wpis w pliku (nr " + wpisy[i - 1].id + ") ma hash <code>" +
-              wpisy[i - 1].hash + "</code>. Wpis ze środka usunięto albo zmieniono kolejność."
-      };
+  if (e[L.field] !== null && e[L.field] !== undefined) {
+    problemy.push("wpis " + nr + ": pole " + L.field + " nie jest wyzerowane, choć znacznik tak twierdzi");
+  }
+  if (L.hash_after === e.hash) {
+    problemy.push("wpis " + nr + ": hash po zerwaniu równy oryginalnemu - znacznik bez pokrycia");
+  }
+  if (e.hash_inputs_complete === true) {
+    h = przeliczHash(e);
+    if (h === null) problemy.push("wpis " + nr + ": niepełny - brak pól potrzebnych do przeliczenia hasha");
+    else if (h !== L.hash_after) problemy.push("wpis " + nr + ": treść różni się od zadeklarowanej po zerwaniu - zmiana po anonimizacji");
+  }
+  for (i = 0; i < deklaracje.length; i++) {
+    x = deklaracje[i];
+    if (x && typeof x === "object" && !Array.isArray(x) && x.id === L.declaration_event_id) { D = x; break; }
+  }
+  if (!D) {
+    problemy.push("wpis " + nr + ": deklaracji #" + L.declaration_event_id + " nie ma w pliku");
+    return problemy;
+  }
+  if (D.event_type !== ZDARZENIE_ZERWANIA) {
+    problemy.push("deklaracja #" + L.declaration_event_id + " nie jest zdarzeniem " + ZDARZENIE_ZERWANIA);
+  }
+  if (!jestId(e.id) || !(L.declaration_event_id > e.id)) {
+    problemy.push("deklaracja #" + L.declaration_event_id + " nie jest późniejsza od wpisu " + nr);
+  }
+  if (D.hash_inputs_complete === true) {
+    h = przeliczHash(D);
+    if (h === null) problemy.push("deklaracja #" + L.declaration_event_id + ": niepełna - brak pól potrzebnych do przeliczenia hasha");
+    else if (h !== D.hash) problemy.push("deklaracja #" + L.declaration_event_id + ": treść nie zgadza się z jej hashem - deklarację zmieniono");
+  }
+  p = D.payload_masked;
+  if (!p || typeof p !== "object" || Array.isArray(p)) {
+    problemy.push("deklaracja #" + L.declaration_event_id + ": nieczytelna treść");
+    return problemy;
+  }
+  powod = typeof p.reason === "string" ? p.reason : "nieznany powod";
+  pole = typeof p.field === "string" ? p.field : "actor_user_id";
+  if (powod !== L.reason || pole !== L.field) {
+    problemy.push("deklaracja #" + L.declaration_event_id + " nazywa inny powód albo inne pole niż znacznik wpisu " + nr);
+  }
+  ids = p.affected_ids;
+  po = p.affected_hashes_after;
+  if (!Array.isArray(ids) || !Array.isArray(po) || po.length !== ids.length) {
+    problemy.push("deklaracja #" + L.declaration_event_id + " bez hashy po zerwaniu (stary format) - zmiany treści po anonimizacji nie da się wykluczyć");
+    return problemy;
+  }
+  k = -1;
+  for (i = 0; i < ids.length; i++) {
+    if (jestId(ids[i]) && ids[i] === e.id) { k = i; break; }
+  }
+  if (k < 0) problemy.push("deklaracja #" + L.declaration_event_id + " nie wymienia wpisu " + nr);
+  else if (po[k] !== L.hash_after) problemy.push("deklaracja #" + L.declaration_event_id + " podaje inny hash po zerwaniu dla wpisu " + nr);
+  return problemy;
+}
+
+/* Opis zerwań do nagłówka: "(RODO art. 17), zadeklarowane zdarzeniem #N". */
+function opisZerwania(zerwanie) {
+  var nr = zerwanie.deklaracje.map(function (d) { return "#" + d; }).join(", ");
+  return "zerwanie z mocy prawa (" + zerwanie.powody.join(", ") + "), zadeklarowane " +
+    (zerwanie.deklaracje.length > 1 ? "zdarzeniami " : "zdarzeniem ") + nr;
+}
+
+function dodajZerwanie(zbior, L) {
+  if (zbior.deklaracje.indexOf(L.declaration_event_id) < 0) zbior.deklaracje.push(L.declaration_event_id);
+  var etykieta = etykietaPowodu(L.reason);
+  if (zbior.powody.indexOf(etykieta) < 0) zbior.powody.push(etykieta);
+}
+
+/* Wyciąg z dziennika w pakiecie dokumentu to wpisy JEDNEJ sprawy - między nimi
+   leżą zdarzenia innych spraw i systemowe, których plik nie zawiera. Ogniwo
+   sprawdzamy, gdy poprzednik jest w wyciągu; przy kolejnych numerach (albo
+   gdy wydawca zadeklarował poprzednika w wyciągu) jest ono WYMAGANE. Reszta to
+   luki - raportowane jawnie, bez werdyktu. Lustro verifyAuditExcerpt. */
+function sprawdzWyciag(wpisy, deklaracje) {
+  var problemy = [], ogniwa = 0, luki = 0, przeliczone = 0, zamaskowane = 0, zerwane = 0, z;
+  var zerwanie = { deklaracje: [], powody: [] };
+  if (!Array.isArray(wpisy)) {
+    return { ok: false, opis: "Wyciąg z dziennika nie jest listą." };
+  }
+  var znane = Object.create(null), poprzedni = null, i, e, id, h, ph;
+  for (i = 0; i < wpisy.length; i++) {
+    e = wpisy[i];
+    if (!e || typeof e !== "object" || Array.isArray(e)) { problemy.push("wpis wyciągu nie jest obiektem"); continue; }
+    id = e.id;
+    if (!jestId(id)) { problemy.push("wpis bez poprawnego numeru"); continue; }
+    if (poprzedni && !(id > poprzedni.id)) {
+      problemy.push("numery nie rosną (wpis " + id + " po " + poprzedni.id + ") - kolejność zmieniona");
     }
+    if (e.legal_break !== undefined && e.legal_break !== null) {
+      z = sprawdzZerwanie(e, deklaracje);
+      if (z.length > 0) problemy.push.apply(problemy, z);
+      else { zerwane++; dodajZerwanie(zerwanie, e.legal_break); }
+    } else if (e.hash_inputs_complete === true) {
+      h = przeliczHash(e);
+      if (h === null) problemy.push("wpis " + id + ": niepełny - brak pól potrzebnych do przeliczenia hasha");
+      else if (h !== e.hash) problemy.push("wpis " + id + ": treść nie zgadza się z hashem");
+      else przeliczone++;
+    } else {
+      zamaskowane++;
+    }
+    ph = e.prev_hash;
+    if (typeof ph === "string" && Object.prototype.hasOwnProperty.call(znane, ph)) {
+      ogniwa++;
+    } else if (ph === GENEZA) {
+      /* początek łańcucha */
+    } else if (e.parent_in_excerpt === true) {
+      problemy.push("wpis " + id + ": poprzednika zadeklarowanego w wyciągu nie ma w pliku - wpis usunięto");
+    } else if (poprzedni && id === poprzedni.id + 1) {
+      if (ph === poprzedni.prev_hash) ogniwa++;
+      else problemy.push("ogniwo między kolejnymi wpisami " + poprzedni.id + " i " + id + " przerwane");
+    } else if (poprzedni) {
+      luki++;
+    }
+    if (typeof e.hash === "string") znane[e.hash] = id;
+    poprzedni = e;
   }
-  return { ok: true, opis: "Wszystkie " + wpisy.length + " wpisów tworzy nieprzerwany łańcuch - każdy wskazuje na poprzedni." };
+  if (problemy.length > 0) {
+    return {
+      ok: false,
+      opis: "Wykryto: " + problemy.map(esc).join("; ") +
+            ". Wpis zmieniono, usunięto z wyciągu albo zmieniono kolejność."
+    };
+  }
+  var opis = "Wyciąg zawiera " + wpisy.length + " wpisów tej sprawy. Sprawdzono " + ogniwa +
+    " ogniw między wpisami wyciągu; hash " + przeliczone + " wpisów przeliczono z ich treści.";
+  if (zamaskowane > 0) {
+    opis += " " + zamaskowane + " wpisów ma treść zamaskowaną (dane osobowe) - ich hashu nie da się " +
+      "przeliczyć z tego pliku; zgodność treści z hashem sprawdził system kancelarii przed wydaniem.";
+  }
+  if (luki > 0) {
+    opis += " <strong>To wyciąg, nie pełny łańcuch:</strong> " + luki + " luk - między wpisami tej sprawy " +
+      "leżą zdarzenia innych spraw i systemowe, których plik nie zawiera; ogniw przez luki nie da się " +
+      "sprawdzić z tego pliku.";
+  }
+  if (zerwane > 0) {
+    zerwanie.deklaracje.sort(function (a, b) { return a - b; });
+    opis += " <strong>Zerwanie z mocy prawa:</strong> " + zerwane + " wpisów zanonimizowano po zapisie (" +
+      esc(zerwanie.powody.join(", ")) + "). Ich hash w łańcuchu i w ogniwach jest oryginalny, a treść zgadza się " +
+      "z hashem po zerwaniu z deklaracji " + esc(zerwanie.deklaracje.map(function (d) { return "#" + d; }).join(", ")) +
+      "; deklaracja jest w pliku, nienaruszona i wymienia te wpisy.";
+  }
+  return { ok: true, opis: opis, zerwanie: zerwane > 0 ? zerwanie : null };
+}
+
+/* Zdarzenie w paczce audytora musi być TYM, którego dotyczy dowód Merkle,
+   a gdy payload nie był maskowany - zgadzać się z własnym hashem. */
+function sprawdzZdarzenie(dok) {
+  var e = dok.event, b = dok.merkle_proof_bundle, problemy = [], przeliczony = false, h, z, dekl, zerwanie = null;
+  if (!e || typeof e !== "object" || !b || typeof b !== "object") {
+    return { ok: false, opis: "Brak sekcji <code>event</code> albo <code>merkle_proof_bundle</code>." };
+  }
+  if (e.id !== b.event_id) problemy.push("numer zdarzenia różni się od numeru w dowodzie");
+  if (e.hash !== b.event_hash) problemy.push("hash zdarzenia różni się od hasha w dowodzie");
+  if (e.legal_break !== undefined && e.legal_break !== null) {
+    dekl = dok.legal_break_declaration;
+    z = sprawdzZerwanie(e, (dekl === undefined || dekl === null) ? [] : [dekl]);
+    problemy.push.apply(problemy, z);
+    if (z.length === 0) {
+      zerwanie = { deklaracje: [e.legal_break.declaration_event_id], powody: [etykietaPowodu(e.legal_break.reason)] };
+    }
+  } else if (e.hash_inputs_complete === true) {
+    h = przeliczHash(e);
+    if (h === null) problemy.push("niepełny wpis - brak pól potrzebnych do przeliczenia hasha");
+    else if (h !== e.hash) problemy.push("treść zdarzenia nie zgadza się z jego hashem");
+    else przeliczony = true;
+  }
+  if (problemy.length > 0) {
+    return { ok: false, opis: "Wykryto: " + problemy.map(esc).join("; ") + "." };
+  }
+  if (zerwanie) {
+    return {
+      ok: true,
+      zerwanie: zerwanie,
+      opis: "Zdarzenie jest tym z dowodu (hash oryginalny: <code>" + esc(e.hash) + "</code>). Jego treść " +
+        "zanonimizowano po zapisie z mocy prawa (" + esc(zerwanie.powody[0]) + ", pole " + esc(e.legal_break.field) +
+        ")" + (e.hash_inputs_complete === true
+          ? " i daje dokładnie hash po zerwaniu z deklaracji: <code>" + esc(e.legal_break.hash_after) + "</code>."
+          : "; treść jest zamaskowana, więc zgodność z hashem po zerwaniu sprawdził system kancelarii przed wydaniem.") +
+        " Deklaracja #" + esc(e.legal_break.declaration_event_id) + " jest w pliku i wymienia ten wpis z tym hashem."
+    };
+  }
+  return {
+    ok: true,
+    opis: przeliczony
+      ? "Zdarzenie jest tym z dowodu, a jego hash przeliczony z treści zgadza się: <code>" + esc(e.hash) + "</code>"
+      : "Zdarzenie jest tym z dowodu. Treść jest zamaskowana (dane osobowe), więc hashu nie da się przeliczyć " +
+        "z tego pliku - zgodność treści z hashem sprawdził system kancelarii przed wydaniem."
+  };
 }
 
 function zweryfikuj(dok) {
   var rodzaj = dok.pack_kind || dok.bundle_kind;
   var kroki = [];
+  var zerwanie = null;
 
   if (rodzaj !== "audit_event_export" && rodzaj !== "deliverable_audit_bundle") {
     throw new Error("Nieznany rodzaj artefaktu: " + String(rodzaj));
@@ -313,6 +547,10 @@ function zweryfikuj(dok) {
         : "Treść zmieniono po wydaniu. W pliku: <code>" + integ.wPliku + "</code>, policzona: <code>" + integ.policzony + "</code>"
     });
 
+    var wiazanie = sprawdzZdarzenie(dok);
+    kroki.push({ ok: wiazanie.ok, tytul: "Zgodność zdarzenia z dowodem", opis: wiazanie.opis });
+    if (wiazanie.ok && wiazanie.zerwanie) zerwanie = wiazanie.zerwanie;
+
     var paczka = dok.merkle_proof_bundle;
     if (!paczka || typeof paczka !== "object") {
       kroki.push({ ok: false, tytul: "Dowód przynależności do dziennika", opis: "Brak sekcji <code>merkle_proof_bundle</code>." });
@@ -324,7 +562,8 @@ function zweryfikuj(dok) {
       kroki.push({
         ok: dobry, tytul: "Dowód przynależności do dziennika",
         opis: dobry
-          ? "Zdarzenie " + paczka.event_id + " odtwarza zapieczętowany korzeń <code>" + paczka.merkle_root + "</code>"
+          ? "Zdarzenie " + paczka.event_id + " odtwarza zapieczętowany korzeń <code>" + paczka.merkle_root + "</code>" +
+            (wiazanie.zerwanie ? " (dowód dotyczy oryginalnego hasha wpisu, sprzed zerwania z mocy prawa)" : "")
           : "Dowód nie odtwarza korzenia - wpis w dzienniku kancelarii zmieniono, usunięto albo przestawiono."
       });
     }
@@ -333,6 +572,7 @@ function zweryfikuj(dok) {
       deliverable: dok.deliverable,
       citation_verification: dok.citation_verification,
       audit_log_excerpt: dok.audit_log_excerpt,
+      legal_break_declarations: dok.legal_break_declarations,
       model_versions: dok.model_versions,
       cost_log: dok.cost_log
     };
@@ -348,8 +588,10 @@ function zweryfikuj(dok) {
         : "Zmieniono następujące części: <strong>" + naruszone.join(", ") + "</strong>."
     });
 
-    var ciag = sprawdzCiaglosc(dok.audit_log_excerpt);
+    var ciag = sprawdzWyciag(dok.audit_log_excerpt,
+      Array.isArray(dok.legal_break_declarations) ? dok.legal_break_declarations : []);
     kroki.push({ ok: ciag.ok, tytul: "Ciągłość wyciągu z dziennika", opis: ciag.opis });
+    if (ciag.ok && ciag.zerwanie) zerwanie = ciag.zerwanie;
 
     var integ2 = sprawdzIntegralnosc(dok);
     kroki.push({
@@ -361,7 +603,18 @@ function zweryfikuj(dok) {
   }
 
   var wszystkoOk = kroki.every(function (k) { return k.ok; });
-  return { ok: wszystkoOk, rodzaj: rodzaj, kroki: kroki };
+  /* Trzy stany, jak kody verify.py: ok (0), legal_break (3), naruszony (1).
+     ok:true znaczy "nie wykryto manipulacji" - także przy zerwaniu z mocy prawa. */
+  var stan = !wszystkoOk ? "naruszony" : (zerwanie ? "legal_break" : "ok");
+  if (stan === "legal_break") {
+    kroki.push({
+      ok: true, uwaga: true, tytul: "Zerwanie z mocy prawa",
+      opis: "Wpis zanonimizowano po zapisie na podstawie obowiązku prawnego - " + esc(opisZerwania(zerwanie)) +
+        ". To nie jest naruszenie, ale wpis nie jest już w pierwotnej postaci: jego oryginalnej treści " +
+        "nie da się odtworzyć z tego pliku."
+    });
+  }
+  return { ok: wszystkoOk, stan: stan, zerwanie: stan === "legal_break" ? zerwanie : null, rodzaj: rodzaj, kroki: kroki };
 }
 
 /* ---------------------------------------------------------------------------
@@ -390,9 +643,14 @@ function pokazWynik(nazwaPliku, dok, wynik) {
   var el = document.getElementById("wynik");
   el.className = "widoczny";
 
-  var naglowek = wynik.ok
-    ? '<div class="werdykt ok"><h2>Artefakt nienaruszony</h2><p>Plik nie został zmieniony po wydaniu przez kancelarię.</p></div>'
-    : '<div class="werdykt zle"><h2>Integralność naruszona</h2><p>Ten plik nie może być uznany za wiarygodny zapis. Szczegóły poniżej.</p></div>';
+  var naglowek = !wynik.ok
+    ? '<div class="werdykt zle"><h2>Integralność naruszona</h2><p>Ten plik nie może być uznany za wiarygodny zapis. Szczegóły poniżej.</p></div>'
+    : wynik.stan === "legal_break"
+      ? '<div class="werdykt uwaga"><h2>OK - ' + esc(opisZerwania(wynik.zerwanie)) + '</h2><p>Plik nie został ' +
+        "zmieniony po wydaniu przez kancelarię. Wpis z dziennika zanonimizowano po zapisie na podstawie obowiązku " +
+        "prawnego, a deklaracja tego zerwania jest w pliku i została sprawdzona. Nie jest to naruszenie, ale też " +
+        "nie jest to wpis w pierwotnej postaci.</p></div>"
+      : '<div class="werdykt ok"><h2>Artefakt nienaruszony</h2><p>Plik nie został zmieniony po wydaniu przez kancelarię.</p></div>';
 
   var meta = '<dl class="meta">' +
     "<dt>Plik</dt><dd>" + esc(nazwaPliku) + "</dd>" +
@@ -404,8 +662,9 @@ function pokazWynik(nazwaPliku, dok, wynik) {
     "</dl>";
 
   var kroki = '<ol class="kroki">' + wynik.kroki.map(function (k) {
-    return "<li><div class='krok-glowa'><span class='znacznik " + (k.ok ? "ok" : "zle") + "'>" +
-      (k.ok ? "✓" : "✗") + "</span><span class='krok-tytul'>" + esc(k.tytul) + "</span></div>" +
+    var klasa = !k.ok ? "zle" : (k.uwaga ? "uwaga" : "ok");
+    return "<li><div class='krok-glowa'><span class='znacznik " + klasa + "'>" +
+      (!k.ok ? "✗" : (k.uwaga ? "!" : "✓")) + "</span><span class='krok-tytul'>" + esc(k.tytul) + "</span></div>" +
       "<p class='krok-opis'>" + k.opis + "</p></li>";
   }).join("") + "</ol>";
 
@@ -413,8 +672,11 @@ function pokazWynik(nazwaPliku, dok, wynik) {
     '<p class="zastrzezenie"><strong>Zakres tego sprawdzenia.</strong> Weryfikator wykrywa zmianę, ' +
     "usunięcie i przestawienie zapisów. Nie dowodzi natomiast, że plik wystawiła konkretna kancelaria - " +
     "do tego służy podpis kwalifikowany, którego ten artefakt jeszcze nie niesie. " +
-    "Dane osobowe w wyciągu są zamaskowane, więc samych zapisów nie da się z tego pliku przeliczyć; " +
-    "ich nienaruszalność potwierdza dowód przynależności do dziennika.</p>" +
+    "Hash wpisu jest przeliczany z treści tam, gdzie treść nie była maskowana. Wpisów z zamaskowanymi " +
+    "danymi osobowymi nie da się przeliczyć z tego pliku - ich zgodność z hashem sprawdza system kancelarii " +
+    "przed wydaniem (niezgodny wpis blokuje wydanie). Wyciąg w pakiecie dokumentu obejmuje jedną sprawę, " +
+    "więc nie jest pełnym łańcuchem: luki są pokazane wprost. Wpis zanonimizowany z mocy prawa (RODO art. 17) " +
+    "jest sprawdzany wobec deklaracji zerwania dołączonej do pliku i daje osobny wynik.</p>" +
     '<p style="margin-top:1.5rem"><button class="drukuj" type="button" onclick="window.print()">Wydrukuj wynik</button></p>';
 
   el.innerHTML = naglowek + meta + kroki + zastrzezenie;
@@ -497,10 +759,16 @@ Kody wyjscia:
     0 - artefakt nienaruszony
     1 - integralnosc naruszona (wpis zmieniony, usuniety lub przestawiony)
     2 - blad wejscia/wyjscia, zly JSON albo nieobslugiwany format
+    3 - artefakt nienaruszony, ale zawiera wpis zerwany z mocy prawa
+        (np. anonimizacja RODO art. 17), zadeklarowany i potwierdzony
+        deklaracja dolaczona do pliku - ani naruszony, ani czyste OK
 
 Obsluguje dwa rodzaje artefaktu:
-    audit_event_export      (pack)   - integralnosc pliku + dowod Merkle
-    deliverable_audit_bundle (bundle) - manifest per czesc + integralnosc calosci
+    audit_event_export      (pack)   - integralnosc pliku + zgodnosc zdarzenia
+                                       z dowodem (i z deklaracja zerwania z mocy
+                                       prawa, gdy wpis ja niesie) + dowod Merkle
+    deliverable_audit_bundle (bundle) - manifest per czesc + wyciag z dziennika
+                                       + integralnosc calosci
 """
 
 import hashlib
@@ -649,78 +917,343 @@ def _check_integrity(doc):
     return (actual == expected, expected, actual)
 
 
+GENESIS_HASH = "0" * 64
+
+
+def _is_id(x):
+    if isinstance(x, bool):
+        return False
+    if isinstance(x, int):
+        return True
+    return isinstance(x, float) and x.is_integer()
+
+
+def recompute_event_hash(e):
+    """
+    Hash wpisu dziennika z jego tresci - ten sam wzor co w Patronie:
+    SHA-256(prev_hash + kanoniczny({ts, event_type, actor_user_id, chat_id,
+    document_id, payload})). None, gdy brak pol tekstowych do przeliczenia.
+    """
+    if not isinstance(e, dict):
+        return None
+    prev, ts, et = e.get("prev_hash"), e.get("ts"), e.get("event_type")
+    if not (isinstance(prev, str) and isinstance(ts, str) and isinstance(et, str)):
+        return None
+    payload = e.get("payload_masked")
+    if payload is None:
+        payload = {}
+    content = {
+        "ts": ts,
+        "event_type": et,
+        "actor_user_id": e.get("actor_user_id"),
+        "chat_id": e.get("chat_id"),
+        "document_id": e.get("document_id"),
+        "payload": payload,
+    }
+    return hashlib.sha256((prev + canonical(content)).encode("utf-8")).hexdigest()
+
+
+LEGAL_BREAK_FIELDS = ("actor_user_id", "chat_id", "document_id")
+LEGAL_BREAK_EVENT = "audit.chain.legal_break"
+
+
+def reason_label(reason):
+    return "RODO art. 17" if reason == "rodo_art_17_anonymization" else str(reason)
+
+
+def check_legal_break(e, declarations):
+    """
+    Zerwanie z mocy prawa (np. RODO art. 17). Wpis zanonimizowany po zapisie
+    niesie znacznik legal_break: jego hash (lisc Merkle, ogniwo lancucha) jest
+    ORYGINALNY, a tresc - juz po anonimizacji - musi dawac hash_after z
+    deklaracji audit.chain.legal_break dolaczonej do pliku. Lustro
+    checkLegalBreakMarker (Patron) i sprawdzZerwanie (HTML).
+    Zwraca liste problemow; pusta = zerwanie potwierdzone.
+    """
+    nr = str(e.get("id"))
+    lb = e.get("legal_break")
+    bad = ["wpis %s: znacznik zerwania z mocy prawa ma zly format" % nr]
+    if not isinstance(lb, dict):
+        return bad
+    decl_id = lb.get("declaration_event_id")
+    field = lb.get("field")
+    after = lb.get("hash_after")
+    if not (_is_id(decl_id) and isinstance(lb.get("reason"), str) and isinstance(field, str)
+            and field in LEGAL_BREAK_FIELDS and isinstance(after, str) and HASH_HEX_RE.fullmatch(after)):
+        return bad
+    problems = []
+    if e.get(field) is not None:
+        problems.append("wpis %s: pole %s nie jest wyzerowane, choc znacznik tak twierdzi" % (nr, field))
+    if after == e.get("hash"):
+        problems.append("wpis %s: hash po zerwaniu rowny oryginalnemu - znacznik bez pokrycia" % nr)
+    if e.get("hash_inputs_complete") is True:
+        h = recompute_event_hash(e)
+        if h is None:
+            problems.append("wpis %s: niepelny - brak pol potrzebnych do przeliczenia hasha" % nr)
+        elif h != after:
+            problems.append("wpis %s: tresc rozni sie od zadeklarowanej po zerwaniu - zmiana po anonimizacji" % nr)
+    d = None
+    for x in declarations:
+        if isinstance(x, dict) and _is_id(x.get("id")) and x.get("id") == decl_id:
+            d = x
+            break
+    if d is None:
+        problems.append("wpis %s: deklaracji #%s nie ma w pliku" % (nr, decl_id))
+        return problems
+    if d.get("event_type") != LEGAL_BREAK_EVENT:
+        problems.append("deklaracja #%s nie jest zdarzeniem %s" % (decl_id, LEGAL_BREAK_EVENT))
+    if not (_is_id(e.get("id")) and decl_id > e.get("id")):
+        problems.append("deklaracja #%s nie jest pozniejsza od wpisu %s" % (decl_id, nr))
+    if d.get("hash_inputs_complete") is True:
+        h = recompute_event_hash(d)
+        if h is None:
+            problems.append("deklaracja #%s: niepelna - brak pol potrzebnych do przeliczenia hasha" % decl_id)
+        elif h != d.get("hash"):
+            problems.append("deklaracja #%s: tresc nie zgadza sie z jej hashem - deklaracje zmieniono" % decl_id)
+    p = d.get("payload_masked")
+    if not isinstance(p, dict):
+        problems.append("deklaracja #%s: nieczytelna tresc" % decl_id)
+        return problems
+    reason = p.get("reason") if isinstance(p.get("reason"), str) else "nieznany powod"
+    pfield = p.get("field") if isinstance(p.get("field"), str) else "actor_user_id"
+    if reason != lb.get("reason") or pfield != field:
+        problems.append("deklaracja #%s nazywa inny powod albo inne pole niz znacznik wpisu %s" % (decl_id, nr))
+    ids = p.get("affected_ids")
+    hashes_after = p.get("affected_hashes_after")
+    if not isinstance(ids, list) or not isinstance(hashes_after, list) or len(hashes_after) != len(ids):
+        problems.append("deklaracja #%s bez hashy po zerwaniu (stary format) - zmiany tresci po anonimizacji"
+                        " nie da sie wykluczyc" % decl_id)
+        return problems
+    k = -1
+    for i, x in enumerate(ids):
+        if _is_id(x) and x == e.get("id"):
+            k = i
+            break
+    if k < 0:
+        problems.append("deklaracja #%s nie wymienia wpisu %s" % (decl_id, nr))
+    elif hashes_after[k] != after:
+        problems.append("deklaracja #%s podaje inny hash po zerwaniu dla wpisu %s" % (decl_id, nr))
+    return problems
+
+
+def describe_legal_break(decl_ids, reasons):
+    nr = ", ".join("#%s" % d for d in decl_ids)
+    return "zerwanie z mocy prawa (%s), zadeklarowane %s %s" % (
+        ", ".join(reasons), "zdarzeniami" if len(decl_ids) > 1 else "zdarzeniem", nr)
+
+
+def check_pack_event(doc):
+    """
+    Zwraca (problemy, przeliczony, zerwanie). Zdarzenie musi byc tym z dowodu
+    Merkle; zerwanie to None albo (lista id deklaracji, lista powodow).
+    """
+    e = doc.get("event")
+    b = doc.get("merkle_proof_bundle")
+    if not isinstance(e, dict) or not isinstance(b, dict):
+        return (["brak sekcji event albo merkle_proof_bundle"], False, None)
+    problems = []
+    if e.get("id") != b.get("event_id"):
+        problems.append("numer zdarzenia rozni sie od numeru w dowodzie")
+    if e.get("hash") != b.get("event_hash"):
+        problems.append("hash zdarzenia rozni sie od hasha w dowodzie")
+    recomputed = False
+    legal = None
+    if e.get("legal_break") is not None:
+        decl = doc.get("legal_break_declaration")
+        lb_problems = check_legal_break(e, [] if decl is None else [decl])
+        problems.extend(lb_problems)
+        if not lb_problems:
+            lb = e.get("legal_break")
+            legal = ([lb.get("declaration_event_id")], [reason_label(lb.get("reason"))])
+            recomputed = e.get("hash_inputs_complete") is True
+    elif e.get("hash_inputs_complete") is True:
+        h = recompute_event_hash(e)
+        if h is None:
+            problems.append("niepelny wpis - brak pol potrzebnych do przeliczenia hasha")
+        elif h != e.get("hash"):
+            problems.append("tresc zdarzenia nie zgadza sie z jego hashem")
+        else:
+            recomputed = True
+    return (problems, recomputed, legal if not problems else None)
+
+
 def verify_pack(doc, out):
     failed = False
 
     ok, expected, actual = _check_integrity(doc)
     if ok:
-        out("[1/2] integralnosc pliku SHA-256: OK")
+        out("[1/3] integralnosc pliku SHA-256: OK")
         out("      %s" % expected)
     else:
-        out("[1/2] integralnosc pliku SHA-256: NARUSZONA")
+        out("[1/3] integralnosc pliku SHA-256: NARUSZONA")
         out("      w pliku:   %s" % expected)
         out("      policzony: %s" % actual)
         out("      -> tresc artefaktu zmieniono po eksporcie z kancelarii")
         failed = True
 
+    problems, recomputed, legal = check_pack_event(doc)
+    if problems:
+        out("[2/3] zgodnosc zdarzenia z dowodem: NARUSZONA")
+        for p in problems:
+            out("      - %s" % p)
+        failed = True
+    elif legal is not None:
+        lb = doc.get("event").get("legal_break")
+        out("[2/3] zgodnosc zdarzenia z dowodem: OK - ZERWANIE Z MOCY PRAWA")
+        out("      hash oryginalny jest tym z dowodu; tresc zanonimizowano (%s, pole %s)"
+            % (legal[1][0], lb.get("field")))
+        if recomputed:
+            out("      i daje dokladnie hash po zerwaniu z deklaracji: %s" % lb.get("hash_after"))
+        else:
+            out("      - tresc zamaskowana; zgodnosc z hashem po zerwaniu sprawdzil wydawca")
+        out("      deklaracja #%s jest w pliku, nienaruszona i wymienia ten wpis" % legal[0][0])
+    elif recomputed:
+        out("[2/3] zgodnosc zdarzenia z dowodem: OK (hash przeliczony z tresci zdarzenia)")
+    else:
+        out("[2/3] zgodnosc zdarzenia z dowodem: OK (tresc zamaskowana - hashu nie da sie")
+        out("      przeliczyc z pliku; zgodnosc tresci z hashem sprawdzil wydawca przed wydaniem)")
+
     bundle = doc.get("merkle_proof_bundle")
     if not isinstance(bundle, dict):
-        out("[2/2] dowod Merkle: BRAK sekcji merkle_proof_bundle")
-        return 1
+        out("[3/3] dowod Merkle: BRAK sekcji merkle_proof_bundle")
+        return (1, None)
 
     event_id = bundle.get("event_id")
     start = bundle.get("chain_block_start")
     end = bundle.get("chain_block_end")
     if not all(isinstance(x, int) for x in (event_id, start, end)):
-        out("[2/2] dowod Merkle: niepelny schemat dowodu")
-        return 1
+        out("[3/3] dowod Merkle: niepelny schemat dowodu")
+        return (1, None)
     if not (start <= event_id <= end):
-        out("[2/2] dowod Merkle: NARUSZONY")
+        out("[3/3] dowod Merkle: NARUSZONY")
         out("      zdarzenie %d poza blokiem [%d, %d]" % (event_id, start, end))
-        return 1
+        return (1, None)
 
     if verify_merkle_proof(bundle.get("event_hash"), bundle.get("proof") or [], bundle.get("merkle_root")):
-        out("[2/2] dowod Merkle: OK")
+        out("[3/3] dowod Merkle: OK")
         out("      zdarzenie %d odtwarza korzen %s" % (event_id, bundle.get("merkle_root")))
+        if legal is not None:
+            out("      (dowod dotyczy oryginalnego hasha wpisu, sprzed zerwania z mocy prawa)")
     else:
-        out("[2/2] dowod Merkle: NARUSZONY")
+        out("[3/3] dowod Merkle: NARUSZONY")
         out("      dowod nie odtwarza korzenia - wpis w dzienniku kancelarii zmieniono,")
         out("      usunieto albo przestawiono")
         failed = True
 
-    return 1 if failed else 0
+    if failed:
+        return (1, None)
+    return (3, legal) if legal is not None else (0, None)
 
 
-def verify_chain_links(events, out):
+def verify_excerpt(events, declarations=None):
     """
-    Sprawdza ciaglosc lancucha: prev_hash wpisu N musi rownac sie hash wpisu N-1.
-
-    Wykrywa wpis usuniety ze srodka i wpisy przestawione. NIE przelicza samych
-    hashy - Patron maskuje dane osobowe w wyciagu (payload_masked), a hash
-    powstal z tresci sprzed maskowania, wiec przeliczenie z tego pliku nie jest
-    mozliwe z zalozenia. Dowodem na nieruszona TRESC pojedynczego wpisu jest
-    dowod Merkle w artefakcie rodzaju audit_event_export.
+    Wyciag z dziennika w pakiecie dokumentu to wpisy JEDNEJ sprawy - miedzy nimi
+    leza zdarzenia innych spraw i systemowe, ktorych plik nie zawiera (audyt
+    2026-09, D-01). Lustro verifyAuditExcerpt (audit-bundle.ts):
+      - ogniwo sprawdzone, gdy poprzednik (po hashu) jest w wyciagu;
+      - WYMAGANE, gdy numery sa kolejne albo wpis deklaruje poprzednika
+        w wyciagu (parent_in_excerpt) - brak to wpis usuniety lub zerwanie;
+        kolejne numery z tym samym poprzednikiem to rozwidlenie z wyscigu
+        zapisow (ADR-0161), nie zerwanie;
+      - pozostale przejscia to LUKI - jawnie, bez werdyktu;
+      - numery rosna scisle;
+      - hash wpisu z hash_inputs_complete jest przeliczany z tresci;
+      - wpis ze znacznikiem legal_break sprawdza check_legal_break wobec
+        deklaracji z pliku (ogniwa ida po oryginalnych hashach).
+    Zwraca slownik z licznikami i lista problemow.
     """
-    if not isinstance(events, list) or len(events) < 2:
-        out("[2/3] ciaglosc lancucha: pominieta (wyciag ma mniej niz 2 wpisy)")
-        return False
+    if not isinstance(declarations, list):
+        declarations = []
+    r = {"problems": [], "links": 0, "gaps": 0, "recomputed": 0, "masked": 0, "entries": 0,
+         "legal_breaks": 0, "legal_decl_ids": [], "legal_reasons": []}
+    if not isinstance(events, list):
+        r["problems"].append("wyciag z dziennika nie jest lista")
+        return r
+    r["entries"] = len(events)
+    known = {}
+    prev = None
+    for e in events:
+        if not isinstance(e, dict):
+            r["problems"].append("wpis wyciagu nie jest obiektem")
+            continue
+        eid = e.get("id")
+        if not _is_id(eid):
+            r["problems"].append("wpis bez poprawnego numeru")
+            continue
+        if prev is not None and not (eid > prev.get("id")):
+            r["problems"].append("numery nie rosna (wpis %s po %s) - kolejnosc zmieniona" % (eid, prev.get("id")))
+        if e.get("legal_break") is not None:
+            lb_problems = check_legal_break(e, declarations)
+            if lb_problems:
+                r["problems"].extend(lb_problems)
+            else:
+                r["legal_breaks"] += 1
+                lb = e.get("legal_break")
+                if lb.get("declaration_event_id") not in r["legal_decl_ids"]:
+                    r["legal_decl_ids"].append(lb.get("declaration_event_id"))
+                label = reason_label(lb.get("reason"))
+                if label not in r["legal_reasons"]:
+                    r["legal_reasons"].append(label)
+        elif e.get("hash_inputs_complete") is True:
+            h = recompute_event_hash(e)
+            if h is None:
+                r["problems"].append("wpis %s: niepelny - brak pol potrzebnych do przeliczenia hasha" % eid)
+            elif h != e.get("hash"):
+                r["problems"].append("wpis %s: tresc nie zgadza sie z hashem" % eid)
+            else:
+                r["recomputed"] += 1
+        else:
+            r["masked"] += 1
+        ph = e.get("prev_hash")
+        if isinstance(ph, str) and ph in known:
+            r["links"] += 1
+        elif ph == GENESIS_HASH:
+            pass
+        elif e.get("parent_in_excerpt") is True:
+            r["problems"].append("wpis %s: poprzednika zadeklarowanego w wyciagu nie ma w pliku - wpis usunieto" % eid)
+        elif prev is not None and eid == prev.get("id") + 1:
+            if ph == prev.get("prev_hash"):
+                r["links"] += 1
+            else:
+                r["problems"].append("ogniwo miedzy kolejnymi wpisami %s i %s przerwane" % (prev.get("id"), eid))
+        elif prev is not None:
+            r["gaps"] += 1
+        if isinstance(e.get("hash"), str):
+            known[e.get("hash")] = eid
+        prev = e
+    r["legal_decl_ids"].sort()
+    return r
 
-    for i in range(1, len(events)):
-        prev_entry, entry = events[i - 1], events[i]
-        if entry.get("prev_hash") != prev_entry.get("hash"):
-            out("[2/3] ciaglosc lancucha: PRZERWANA przy wpisie nr %s" % entry.get("id"))
-            out("      poprzedni wpis (nr %s) ma hash: %s" % (prev_entry.get("id"), prev_entry.get("hash")))
-            out("      ten wpis wskazuje na poprzednika: %s" % entry.get("prev_hash"))
-            out("      -> wpis ze srodka usunieto albo kolejnosc zmieniono")
-            return True
 
-    ids = [e.get("id") for e in events]
-    if ids != sorted(x for x in ids if isinstance(x, int)):
-        out("[2/3] ciaglosc lancucha: numery wpisow nie rosna - kolejnosc zmieniona")
-        return True
-
-    out("[2/3] ciaglosc lancucha: OK (%d wpisow, kazdy wskazuje na poprzedni)" % len(events))
-    return False
+def verify_chain_links(events, declarations, out):
+    """
+    Krok [2/3] pakietu dokumentu. Zwraca (naruszony, zerwanie), gdzie zerwanie
+    to None albo (lista id deklaracji, lista powodow).
+    """
+    r = verify_excerpt(events, declarations)
+    if r["problems"]:
+        out("[2/3] wyciag z dziennika: NARUSZONY")
+        for p in r["problems"]:
+            out("      - %s" % p)
+        out("      -> wpis zmieniono, usunieto z wyciagu albo zmieniono kolejnosc")
+        return (True, None)
+    out("[2/3] wyciag z dziennika: OK (%d wpisow tej sprawy, %d ogniw sprawdzonych," % (r["entries"], r["links"]))
+    out("      %d hashy przeliczonych z tresci)" % r["recomputed"])
+    if r["masked"]:
+        out("      %d wpisow z trescia zamaskowana - hashu nie da sie przeliczyc z pliku;" % r["masked"])
+        out("      zgodnosc tresci z hashem sprawdzil wydawca przed wydaniem")
+    if r["gaps"]:
+        out("      WYCIAG, NIE PELNY LANCUCH: %d luk - miedzy wpisami tej sprawy leza zdarzenia" % r["gaps"])
+        out("      innych spraw i systemowe, ktorych plik nie zawiera; ogniw przez luki nie da")
+        out("      sie sprawdzic z tego pliku")
+    if r["legal_breaks"]:
+        out("      ZERWANIE Z MOCY PRAWA: %d wpisow zanonimizowano po zapisie (%s);"
+            % (r["legal_breaks"], ", ".join(r["legal_reasons"])))
+        out("      ich hash w lancuchu jest oryginalny, a tresc zgadza sie z hashem po zerwaniu")
+        out("      z deklaracji %s (w pliku, nienaruszonej, wymieniajacej te wpisy)"
+            % ", ".join("#%s" % d for d in r["legal_decl_ids"]))
+        return (False, (r["legal_decl_ids"], r["legal_reasons"]))
+    return (False, None)
 
 
 def verify_bundle(doc, out):
@@ -730,6 +1263,7 @@ def verify_bundle(doc, out):
         "deliverable": doc.get("deliverable"),
         "citation_verification": doc.get("citation_verification"),
         "audit_log_excerpt": doc.get("audit_log_excerpt"),
+        "legal_break_declarations": doc.get("legal_break_declarations"),
         "model_versions": doc.get("model_versions"),
         "cost_log": doc.get("cost_log"),
     }
@@ -746,7 +1280,8 @@ def verify_bundle(doc, out):
     else:
         out("[1/3] manifest czesci: OK (%d czesci zgodnych)" % len(manifest))
 
-    if verify_chain_links(doc.get("audit_log_excerpt"), out):
+    excerpt_failed, legal = verify_chain_links(doc.get("audit_log_excerpt"), doc.get("legal_break_declarations"), out)
+    if excerpt_failed:
         failed = True
 
     ok, expected, actual = _check_integrity(doc)
@@ -759,7 +1294,9 @@ def verify_bundle(doc, out):
         out("      policzony: %s" % actual)
         failed = True
 
-    return 1 if failed else 0
+    if failed:
+        return (1, None)
+    return (3, legal) if legal is not None else (0, None)
 
 
 KINDS = {
@@ -815,7 +1352,7 @@ def main(argv):
     out()
 
     try:
-        code = verifier(doc, out)
+        code, legal = verifier(doc, out)
     except ValueError as exc:
         sys.stderr.write("Artefakt uszkodzony: %s\n" % (exc,))
         return 2
@@ -824,10 +1361,17 @@ def main(argv):
     if code == 0:
         out("WYNIK: artefakt nienaruszony.")
         out()
-        out("Co to znaczy: plik nie zostal zmieniony po wydaniu przez kancelarie,")
-        out("a zapis w dzienniku zdarzen zgadza sie z zapieczetowanym korzeniem.")
+        out("Co to znaczy: plik nie zostal zmieniony po wydaniu przez kancelarie, a kazde")
+        out("sprawdzalne ogniwo, hash i dowod w nim jest zgodny (zakres - kroki powyzej).")
         out("Czego to NIE dowodzi: autorstwa kancelarii - do tego sluzy podpis")
         out("kwalifikowany, ktorego ten artefakt jeszcze nie niesie.")
+    elif code == 3:
+        out("WYNIK: OK - %s." % describe_legal_break(legal[0], legal[1]))
+        out()
+        out("Co to znaczy: plik nie zostal zmieniony po wydaniu przez kancelarie. Wpis")
+        out("z dziennika zanonimizowano po zapisie na podstawie obowiazku prawnego, a")
+        out("deklaracja tego zerwania jest w pliku i zostala sprawdzona. To nie jest")
+        out("naruszenie, ale tez nie wpis w pierwotnej postaci (kod wyjscia 3).")
     else:
         out("WYNIK: INTEGRALNOSC NARUSZONA - artefakt nie moze byc uznany za wiarygodny.")
     return code
@@ -876,6 +1420,7 @@ Kody wyjscia:
     0 - zapis nienaruszony
     1 - integralnosc naruszona
     2 - blad odczytu pliku albo nieznany format
+    3 - zapis nienaruszony, z wpisem zerwanym z mocy prawa (patrz nizej)
 
 Nadaje sie do wpiecia w kontrole automatyczna po stronie odbiorcy.
 
@@ -885,9 +1430,21 @@ CO DOKLADNIE JEST SPRAWDZANE
 
 - czy tresc pliku nie zostala zmieniona po wydaniu przez kancelarie,
 - czy zapis zdarzenia zgadza sie z zapieczetowanym wczesniej skrotem
-  calego dziennika (dowod przynaleznosci, standard RFC 6962),
-- czy z wyciagu z dziennika nie usunieto wpisu ze srodka i czy nie
-  zmieniono kolejnosci wpisow.
+  calego dziennika (dowod przynaleznosci, standard RFC 6962) i czy jest
+  to dokladnie zdarzenie, ktorego dotyczy dowod,
+- czy skrot (hash) wpisu zgadza sie z jego trescia - tam, gdzie tresc
+  nie byla maskowana,
+- w pakiecie dokumentu: czy z wyciagu z dziennika nie usunieto wpisu i nie
+  zmieniono kolejnosci wpisow. Wyciag obejmuje JEDNA sprawe, wiec nie jest
+  pelnym lancuchem - miedzy jego wpisami leza zdarzenia innych spraw.
+  Takie luki narzedzia pokazuja wprost; ogniw przez luke nie da sie
+  sprawdzic z tego pliku.
+
+Wynik "OK - zerwanie z mocy prawa" (w przegladarce naglowek pomaranczowy,
+w wierszu polecen kod 3) oznacza, ze wpis zanonimizowano po zapisie na
+podstawie obowiazku prawnego (np. RODO art. 17), a narzedzia z tego archiwum
+sprawdzily dolaczona do pliku deklaracje tego zerwania - to nie jest
+naruszenie, ale oryginalnej tresci wpisu nie da sie z pliku odtworzyc.
 
 Oba narzedzia licza dokladnie to samo i musza dac ten sam wynik. Jesli daja
 rozny - prosze zwrocic sie do kancelarii, bo oznacza to uszkodzenie pliku.
@@ -906,17 +1463,20 @@ Nie dowodzi rowniez, ze tresc zapisu jest prawdziwa merytorycznie. Swiadczy
 o tym, co system zapisal w chwili zdarzenia, a nie o tym, czy bylo to
 trafne.
 
-Dane osobowe w wyciagu z dziennika sa zamaskowane. Z tego powodu samych
-skrotow poszczegolnych wpisow nie da sie przeliczyc z tego pliku - ich
-nienaruszalnosc potwierdza dowod przynaleznosci do dziennika.
+Dane osobowe w wyciagu z dziennika sa zamaskowane. Skrotu wpisu z
+zamaskowana trescia nie da sie przeliczyc z tego pliku. Zgodnosc tresci
+takich wpisow z ich skrotem sprawdza system kancelarii przed wydaniem -
+wpis niezgodny blokuje wydanie zapisu. Te kontrole odbiorca przyjmuje
+na wiare wydawcy, dopoki zapis nie niesie podpisu kwalifikowanego.
 
 
 PODSTAWA
 --------
 
-Zapis prowadzony jest na potrzeby art. 12 rozporzadzenia Parlamentu
-Europejskiego i Rady (UE) 2024/1689 (akt w sprawie sztucznej inteligencji) -
-rejestrowanie zdarzen w systemach AI wysokiego ryzyka.
+Zapis prowadzony jest w sposob odpowiadajacy wymogom rejestrowania zdarzen
+z art. 12 rozporzadzenia Parlamentu Europejskiego i Rady (UE) 2024/1689 (akt
+w sprawie sztucznej inteligencji). Nie przesadza to o kwalifikacji konkretnego
+wdrozenia jako systemu wysokiego ryzyka.
 
 Patron, MateMatic Solutions, https://matematicsolutions.com
 `;

@@ -148,6 +148,12 @@ async function main() {
       { index: 2, name: "Czynsz", prompt: "Podaj stawke czynszu za m2 z waluta." },
       { index: 3, name: "Zabezpieczenie", prompt: "Wymien zabezpieczenia najmu (rodzaj i kwota)." },
     ];
+    // Tabular bierze model z profilu (`tabularModel`), NIE z ciala /generate. Bez tego
+    // smoke mierzyl domyslny model chmurowy zamiast MODEL (weryfikacja 2026-10-06: na
+    // Ollamie generate dawal 422 missing_api_key dla gemini, a raport "0/8 w 0s").
+    const pr = await fetch(`${BASE}/user/profile`, { method: "PATCH", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tabularModel: MODEL }) });
+    if (!pr.ok) report("tabular: model w profilu", "failed", `${pr.status} ${(await pr.text()).slice(0, 160)}`);
     const cr = await fetch(`${BASE}/tabular-review`, { method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ title: "Smoke: 2 umowy najmu", document_ids: [idA, idB], columns_config: columns }) });
     const crBody = (await cr.json()) as { id?: string; review?: { id: string } };
@@ -250,6 +256,9 @@ async function main() {
       `${rf.status}, final ${fin.length} zn., etapow ${rfBody.stages?.length ?? 0}, fakty zachowane (45 000 EUR / lokal 114 / art. 777)=${factsKept}${rf.ok ? "" : " " + String(rfBody.detail).slice(0, 160)}`);
   } catch (e) {
     console.error("SURFACES SMOKE THREW:", e);
+    // Przerwana powierzchnia wchodzi do mianownika - inaczej podsumowanie liczy
+    // tylko te, ktore zdazyly sie zameldowac.
+    report("przebieg przerwany", "failed", String(e).slice(0, 160));
     console.error(log.slice(-40).join(""));
     process.exitCode = 1;
   } finally {

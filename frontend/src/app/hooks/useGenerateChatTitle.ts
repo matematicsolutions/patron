@@ -8,9 +8,9 @@ export function useGenerateChatTitle() {
     const { renameChat } = useChatHistoryContext();
 
     const generate = useCallback(
-        async (chatId: string, message: string): Promise<void> => {
+        async (chatId: string, message: string, model?: string | null): Promise<void> => {
             try {
-                const { title } = await generateChatTitle(chatId, message);
+                const { title } = await generateChatTitle(chatId, message, model);
                 await renameChat(chatId, title);
             } catch {
                 // best-effort — title generation should never break the chat

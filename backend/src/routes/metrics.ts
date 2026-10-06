@@ -91,14 +91,19 @@ metricsRouter.get(
             );
 
             // Merkle root count + last anchor age
-            const { count: merkleCount } = await supabase
+            // Blad odczytu NIE moze dac zer przy degraded=0 - to byl dokladnie
+            // cichy sukces, ktory pole `degraded` mialo zamknac (audyt 2026-10-02,
+            // R-AC-05). Rzucamy do istniejacej galezi "snapshot zdegradowany".
+            const { count: merkleCount, error: merkleCountErr } = await supabase
                 .from("audit_merkle_roots")
                 .select("id", { count: "exact", head: true });
-            const { data: lastAnchorRows } = await supabase
+            if (merkleCountErr) throw new Error(`audit_merkle_roots count: ${merkleCountErr.message}`);
+            const { data: lastAnchorRows, error: lastAnchorErr } = await supabase
                 .from("audit_merkle_roots")
                 .select("created_at")
                 .order("created_at", { ascending: false })
                 .limit(1);
+            if (lastAnchorErr) throw new Error(`audit_merkle_roots last anchor: ${lastAnchorErr.message}`);
             let merkleLastAnchorSeconds: number | null = null;
             const lastAnchorRow = lastAnchorRows?.[0];
             if (lastAnchorRow?.created_at) {
@@ -110,10 +115,11 @@ metricsRouter.get(
 
             // MCP security decisions per action
             const mcpCounts = { audit: 0, human_review: 0, denied: 0 };
-            const { data: mcpRows } = await supabase
+            const { data: mcpRows, error: mcpErr } = await supabase
                 .from("audit_log")
                 .select("payload")
                 .eq("event_type", "mcp_security.gateway");
+            if (mcpErr) throw new Error(`mcp_security.gateway: ${mcpErr.message}`);
             for (const row of mcpRows ?? []) {
                 const action = (row.payload as { action?: string } | null)?.action;
                 if (action === "audit") mcpCounts.audit += 1;

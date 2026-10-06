@@ -31,6 +31,12 @@ export interface McpStatus {
     audit_summary_24h: {
         decisions_total: number;
         by_action: { audit: number; human_review: number; denied: number };
+        /**
+         * B-08: ile z `human_review` to nowy konektor spoza zaufanego zestawu,
+         * ktory czeka na zatwierdzenie Operatora (bez podejrzanego sygnalu).
+         * Brak pola = starszy backend (0).
+         */
+        awaiting_operator_approval?: number;
     };
 }
 
@@ -44,6 +50,18 @@ export function blockedGatewayDecisions(status: McpStatus | null): number {
     if (!status) return 0;
     const { denied, human_review } = status.audit_summary_24h.by_action;
     return denied + human_review;
+}
+
+/**
+ * B-08: blokady, ktore sa zwyklym oczekiwaniem na zatwierdzenie nowego
+ * konektora 3rd-party (podzbior blockedGatewayDecisions). Baner pokazuje je
+ * jako oczekiwanie, nie alarm; perymetr dalej liczy je jako blokade (narzedzia
+ * konektora NIE sa zaladowane).
+ */
+export function awaitingApprovalDecisions(status: McpStatus | null): number {
+    if (!status) return 0;
+    const n = status.audit_summary_24h.awaiting_operator_approval ?? 0;
+    return Math.max(0, Math.min(n, status.audit_summary_24h.by_action.human_review));
 }
 
 export interface UseMcpSecurityStatusResult {

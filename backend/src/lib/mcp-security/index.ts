@@ -13,11 +13,19 @@ export {
 } from "./pipeline";
 export { calculateRiskScore, decideAction, toThreatLevel, worstAction } from "./scorer";
 export { buildReport } from "./report";
-export { typosquatDetector, levenshtein } from "./detectors/typosquat";
+export {
+    typosquatDetector,
+    levenshtein,
+    isUnknownThirdPartyFinding,
+    awaitsOnlyThirdPartyApproval,
+    UNKNOWN_THIRD_PARTY_SEVERITY,
+} from "./detectors/typosquat";
 export {
     driftDetector,
     computeDefinitionHash,
     computeLegacyDefinitionHash,
+    computeOriginFingerprint,
+    isOriginDriftFinding,
     formatBaselineEntry,
     parseBaselineEntry,
     DRIFT_BASELINE_VERSION,
@@ -31,4 +39,5 @@ export {
     type GatewayApproval,
     type OperatorApprovalDecision,
     type OperatorApprovalStatus,
+    type ResolveApprovalOptions,
 } from "./operator-approval";

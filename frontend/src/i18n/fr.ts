@@ -742,6 +742,13 @@ export const fr: DictShape<typeof pl> = {
         toggleError: "Impossible de changer l'état de la compétence.",
         removeError: "Impossible de supprimer la compétence.",
         close: "Fermer",
+        // B-10: import paczki - zgoda na egress i stan podpisu.
+        importTrust: {
+            egressConfirm: "Ce paquet déclare pouvoir envoyer du contenu hors de votre machine (vers le cloud). Le secret professionnel s'applique. Activer la compétence dès l'import ? Annuler = importer désactivée.",
+            importedDisabled: "La compétence a été importée désactivée, car elle peut envoyer du contenu vers le cloud. Activez-la en connaissance de cause avec l'interrupteur.",
+            signatureUnverified: "signature non vérifiée",
+            signatureUnverifiedHint: "Le paquet contient un champ de signature, mais Patron ne vérifie pas encore les signatures des paquets. L'éditeur est une déclaration de l'auteur, pas une confirmation.",
+        },
     },
 
     connectors: {

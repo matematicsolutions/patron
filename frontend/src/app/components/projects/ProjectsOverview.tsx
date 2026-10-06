@@ -49,6 +49,9 @@ export function ProjectsOverview() {
     const [actionsOpen, setActionsOpen] = useState(false);
     const [search, setSearch] = useState("");
     const [ownerOnlyAction, setOwnerOnlyAction] = useState<string | null>(null);
+    // Kasacja sprawy niekompletna (audyt D-03/D-04): backend mowi 500 z opisem,
+    // sprawa zostaje na liscie - mecenas musi to zobaczyc, nie cisze.
+    const [deleteError, setDeleteError] = useState<string | null>(null);
     const [sortKey, setSortKey] = useState<string | null>(null);
     const [sortDir, setSortDir] = useState<SortDir>("asc");
     const actionsRef = useRef<HTMLDivElement>(null);
@@ -215,8 +218,22 @@ export function ProjectsOverview() {
         });
         const blocked = ids.length - owned.length;
         setSelectedIds([]);
-        await Promise.all(owned.map((id) => deleteProject(id).catch(() => {})));
-        setProjects((prev) => prev.filter((p) => !owned.includes(p.id)));
+        const results = await Promise.allSettled(
+            owned.map((id) => deleteProject(id)),
+        );
+        const deleted = owned.filter((_, i) => results[i].status === "fulfilled");
+        setProjects((prev) => prev.filter((p) => !deleted.includes(p.id)));
+        const failed = results.filter(
+            (r): r is PromiseRejectedResult => r.status === "rejected",
+        );
+        if (failed.length > 0) {
+            const first = failed[0].reason;
+            setDeleteError(
+                first instanceof Error && first.message
+                    ? first.message
+                    : t("projects.deleteFailedBody"),
+            );
+        }
         if (blocked > 0) {
             setOwnerOnlyAction(
                 `${t("ownerOnly.actionDeleteReviewsBulkPrefix")} ${blocked} ${t("ownerOnly.actionDeleteProjectsBulkSuffix")}`,
@@ -539,7 +556,16 @@ export function ProjectsOverview() {
                                                 setCmEditingId(project.id);
                                             }}
                                             onDelete={async () => {
-                                                await deleteProject(project.id);
+                                                try {
+                                                    await deleteProject(project.id);
+                                                } catch (e) {
+                                                    setDeleteError(
+                                                        e instanceof Error && e.message
+                                                            ? e.message
+                                                            : t("projects.deleteFailedBody"),
+                                                    );
+                                                    return;
+                                                }
                                                 setProjects((prev) =>
                                                     prev.filter(
                                                         (p) =>
@@ -571,6 +597,13 @@ export function ProjectsOverview() {
                 open={!!ownerOnlyAction}
                 action={ownerOnlyAction ?? undefined}
                 onClose={() => setOwnerOnlyAction(null)}
+            />
+
+            <OwnerOnlyModal
+                open={!!deleteError}
+                title={t("projects.deleteFailedTitle")}
+                message={deleteError ?? undefined}
+                onClose={() => setDeleteError(null)}
             />
         </div>
     );

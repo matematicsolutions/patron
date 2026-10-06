@@ -7,6 +7,7 @@
 import { describe, it, expect } from "vitest";
 import {
     citationsFromAnnotations,
+    modelForMessage,
     modelFromAuditRows,
     buildAuditBundleFilename,
     toPackEvent,
@@ -170,5 +171,112 @@ describe("citationsFromAnnotations - zrodla MCP (ADR-0146)", () => {
         expect(
             citationsFromAnnotations([{ type: "mcp_citation", server: "s", tool: "t", url: "u" }]),
         ).toEqual([]);
+    });
+});
+
+// --- audyt 2026-09, D-08: werdykty cytatow MCP na poziomie cytatu ----------
+
+describe("citationsFromAnnotations - cytaty MCP z mcp_grounding (D-08)", () => {
+    const grounding = (quotes: unknown[]) => ({
+        type: "mcp_grounding",
+        quotes,
+        summary: { quotes: quotes.length, green: 0, yellow: 0, red: 0, sources: 1, cards: 0 },
+    });
+    const cytat = (verdict: string, extra: Record<string, unknown> = {}) => ({
+        quote: `Cytat ${verdict}`,
+        kind: "blockquote",
+        verdict,
+        status: verdict === "green" ? "ZWERYFIKOWANY" : verdict === "yellow" ? "ZMODYFIKOWANY" : "NIEZWERYFIKOWANY",
+        ratio: verdict === "green" ? 0 : 0.3,
+        source: { server: "saos", tool: "search" },
+        ...extra,
+    });
+
+    it("cytat red bez zadnej karty trafia jako blocked, z tekstem i ratio", () => {
+        const out = citationsFromAnnotations([grounding([cytat("red")])]);
+        expect(out).toHaveLength(1);
+        expect(out[0]).toMatchObject({
+            decision: "blocked",
+            status: "NIEZWERYFIKOWANY",
+            quote: "Cytat red",
+            kind: "blockquote",
+            worstRatio: 0.3,
+            offset: NIE_PERSYSTOWANE,
+            doc_id: "saos|search|",
+        });
+        expect(out[0].ref).toBeLessThan(0);
+    });
+
+    it("karta green z cytatem green i red: oba cytaty widoczne, karta nie liczona podwojnie", () => {
+        const key = "saos|search|https://saos/1";
+        const out = citationsFromAnnotations([
+            { type: "mcp_citation", server: "saos", tool: "search", url: "https://saos/1", grounding: { verdict: "green", reason: "quote_found", matched: 1 } },
+            grounding([cytat("green", { citationKey: key }), cytat("red")]),
+        ]);
+        expect(out.map((c) => c.decision).sort()).toEqual(["blocked", "verified"]);
+        expect(out.find((c) => c.decision === "verified")?.doc_id).toBe(key);
+    });
+
+    it("karta bez cytatu do sprawdzenia (no_source) zostaje jako osobna pozycja", () => {
+        const out = citationsFromAnnotations([
+            { type: "mcp_citation", server: "isap", tool: "get", url: "u", grounding: { verdict: "yellow", reason: "no_source", matched: 0 } },
+            grounding([cytat("green")]),
+        ]);
+        expect(out.map((c) => c.decision).sort()).toEqual(["unverified", "verified"]);
+    });
+
+    it("bez adnotacji mcp_grounding karty licza sie jak dotad", () => {
+        const out = citationsFromAnnotations([
+            { type: "mcp_citation", server: "saos", tool: "search", url: "u", grounding: { verdict: "red", reason: "quote_not_found", matched: 0 } },
+        ]);
+        expect(out).toHaveLength(1);
+        expect(out[0].decision).toBe("blocked");
+    });
+
+    it("werdykt cytatu spoza slownika jest pomijany", () => {
+        expect(citationsFromAnnotations([grounding([cytat("fioletowy")])])).toEqual([]);
+    });
+});
+
+// --- audyt 2026-09, D-02: model, ktory napisal TE odpowiedz -----------------
+
+describe("modelForMessage (D-02)", () => {
+    const asystent = (ts: string, model: unknown) => ({ event_type: "chat.message.assistant", ts, payload: { model } });
+
+    it("bierze model ze zdarzenia asystenta zapisanego po tej wiadomosci", () => {
+        const rows = [
+            asystent("2026-09-01T10:00:01.000Z", "model-a"),
+            asystent("2026-09-01T11:00:01.000Z", "model-b"),
+        ];
+        expect(modelForMessage(rows, { createdAt: "2026-09-01T11:00:00.000Z" })).toEqual({
+            model: "model-b",
+            source: "chat.message.assistant",
+        });
+        expect(modelForMessage(rows, { createdAt: "2026-09-01T10:00:00.000Z" }).model).toBe("model-a");
+    });
+
+    it("nie siega za nastepna odpowiedz asystenta (brak wlasnego zdarzenia = brak przypisania)", () => {
+        const rows = [asystent("2026-09-01T11:00:01.000Z", "model-b")];
+        expect(
+            modelForMessage(rows, {
+                createdAt: "2026-09-01T10:00:00.000Z",
+                nextAssistantCreatedAt: "2026-09-01T11:00:00.000Z",
+            }),
+        ).toEqual({ model: null, source: null });
+    });
+
+    it("bez zdarzenia asystenta schodzi do llm_route, potem null", () => {
+        const route = { event_type: "llm_route", ts: "2026-09-01T10:00:00.500Z", payload: { model: "z-trasy" } };
+        expect(modelForMessage([route], { createdAt: "2026-09-01T10:00:00.000Z" })).toEqual({
+            model: "z-trasy",
+            source: "llm_route",
+        });
+        expect(modelForMessage([], { createdAt: null })).toEqual({ model: null, source: null });
+    });
+
+    it("model null w zdarzeniu asystenta nie jest zgadywany", () => {
+        expect(
+            modelForMessage([asystent("2026-09-01T10:00:01.000Z", null)], { createdAt: "2026-09-01T10:00:00.000Z" }),
+        ).toEqual({ model: null, source: null });
     });
 });

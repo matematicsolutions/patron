@@ -29,6 +29,17 @@ export {
 } from "./egress";
 export { plEntityDetector } from "./plDetector";
 export {
+    wrapToolResultInto,
+    knownOriginalsDetector,
+    maskKnownOriginalsInto,
+} from "./tool-result";
+export {
+    MCP_REHYDRATABLE_CATEGORIES,
+    prepareMcpToolArgs,
+    unwrapCategories,
+    type PreparedMcpArgs,
+} from "./mcp-args";
+export {
     LLM_CATEGORIES,
     POLISH_DETECTION_PROMPT,
     parseDetectionResponse,

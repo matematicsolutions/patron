@@ -26,7 +26,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from publication_gate import (  # noqa: E402
-    BASELINE_FILE, HARD, Config, Finding, _fold, _hash_hits, iter_history,
+    BASELINE_FILE, HARD, Config, Finding, _fold, _hash_hits, iter_history, iter_tree,
     load_baseline, scan_commit_msg, scan_text, split_baseline, stem_hash,
 )
 
@@ -213,9 +213,19 @@ class ListaTylkoDlaOpublikowanych(unittest.TestCase):
             check=True, capture_output=True, text=True).stdout.strip()
 
     def _commit(self, rel: str, tresc: str, msg: str) -> str:
-        (self.root / rel).parent.mkdir(parents=True, exist_ok=True)
-        (self.root / rel).write_text(tresc, encoding="utf-8")
-        self._git("add", "-A")
+        import os
+        if os.name == "nt" and any(z in rel for z in '\t"<>|?*:'):
+            # NTFS nie dopuszcza tej nazwy w drzewie roboczym, historia gita tak:
+            # wpis idzie przez indeks, wyjscie `git log` jest to samo co na POSIX.
+            tmp = self.root / ".git" / "selftest-blob.tmp"
+            tmp.write_text(tresc, encoding="utf-8")
+            blob = self._git("hash-object", "-w", str(tmp))
+            tmp.unlink()
+            self._git("-c", "core.protectNTFS=false", "update-index", "--add", "--cacheinfo", f"100644,{blob},{rel}")
+        else:
+            (self.root / rel).parent.mkdir(parents=True, exist_ok=True)
+            (self.root / rel).write_text(tresc, encoding="utf-8")
+            self._git("add", "-A")
         self._git("commit", "-q", "-m", msg)
         return self._git("rev-parse", "HEAD")
 
@@ -291,6 +301,266 @@ class ListaTylkoDlaOpublikowanych(unittest.TestCase):
     def test_candidate_wymaga_refa_publicznego(self):
         rc, _ = self._gate("--candidate", "feat")
         self.assertEqual(rc, 2)
+
+
+def nip_testowy(start: int = 123456780) -> str:
+    """NIP z poprawna suma WYLICZONY, nie wpisany - w pliku nie ma numeru,
+    ktory bramka drzewa moglaby zlapac."""
+    wagi = [6, 5, 7, 2, 3, 4, 5, 6, 7]
+    for poczatek in range(start, start + 1000):
+        d = [int(c) for c in str(poczatek)]
+        k = sum(w * x for w, x in zip(wagi, d)) % 11
+        if k != 10:
+            return str(poczatek) + str(k)
+    raise AssertionError("brak poprawnego NIP w zakresie")
+
+
+class HashANumerSklejony(unittest.TestCase):
+    """R-TI-07 (f), 2026-10-02: `_w_hashu` uznawal za hash kazdy token hex >= 7
+    znakow z litera a-f, wiec `id=a<NIP>` przechodzil. Hash to dlugosc hasha."""
+
+    def test_nip_sklejony_z_litera_a_f_jest_trafieniem(self):
+        nip = nip_testowy()
+        for tekst in (f"klient id=a{nip}", f"x {nip}f y", f"ref=ab{nip}cd"):
+            with self.subTest(tekst=tekst):
+                self.assertEqual([f.kind for f in scan_text("x.md", tekst, Config())], ["nip"])
+
+    def test_pelny_hash_z_tym_samym_numerem_dalej_nie_jest_trafieniem(self):
+        nip = nip_testowy()
+        sha = ("ab" + nip + "cdef" * 7)[:40]
+        self.assertEqual(len(sha), 40)
+        self.assertFalse(scan_text("commit-msg", f"Merge {sha} into main", Config()))
+
+
+class _RepoHistorii(unittest.TestCase):
+    """Prawdziwe repo gita w tempdir - parser `git log` sprawdzamy na wyjsciu gita,
+    nie na recznie napisanym diffie."""
+
+    def _git(self, *a: str, check: bool = True) -> str:
+        import subprocess
+        return subprocess.run(
+            ["git", "-C", str(self.root), "-c", "user.name=t", "-c", "user.email=t@t", *a],
+            check=check, capture_output=True, text=True).stdout.strip()
+
+    def _commit(self, rel: str, tresc: str, msg: str) -> str:
+        import os
+        if os.name == "nt" and any(z in rel for z in '\t"<>|?*:'):
+            # NTFS nie dopuszcza tej nazwy w drzewie roboczym, historia gita tak:
+            # wpis idzie przez indeks, wyjscie `git log` jest to samo co na POSIX.
+            tmp = self.root / ".git" / "selftest-blob.tmp"
+            tmp.write_text(tresc, encoding="utf-8")
+            blob = self._git("hash-object", "-w", str(tmp))
+            tmp.unlink()
+            self._git("-c", "core.protectNTFS=false", "update-index", "--add", "--cacheinfo", f"100644,{blob},{rel}")
+        else:
+            (self.root / rel).parent.mkdir(parents=True, exist_ok=True)
+            (self.root / rel).write_text(tresc, encoding="utf-8")
+            self._git("add", "-A")
+        self._git("commit", "-q", "-m", msg)
+        return self._git("rev-parse", "HEAD")
+
+    def setUp(self):
+        import json
+        self.root = Path(self.enterContext(__import__("tempfile").TemporaryDirectory()))
+        self._git("init", "-q")
+        self._git("symbolic-ref", "HEAD", "refs/heads/main")
+        (self.root / ".git" / "info" / "exclude").write_text(".publication-gate.json\n",
+                                                            encoding="utf-8")
+        self.cfg = Config(deny_term_hashes=[stem_hash("kowalsk")],
+                          deny_paths=[".matematic/", ".claude/"], allow_paths=[".test.ts"])
+        (self.root / ".publication-gate.json").write_text(json.dumps(
+            {"deny_term_hashes": self.cfg.deny_term_hashes, "deny_paths": self.cfg.deny_paths,
+             "allow_paths": self.cfg.allow_paths}), encoding="utf-8")
+        tresc = "".join(f"linia {i} zwyklego dokumentu\n" for i in range(30))
+        self.baza = self._commit("docs/a.md", tresc, "init")
+        self._git("update-ref", "refs/public/heads/main", self.baza)
+
+    def _gate(self, *args: str) -> tuple[int, str]:
+        import contextlib
+        import io
+        from publication_gate import main
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out), contextlib.redirect_stderr(out):
+            rc = main([str(self.root), *args])
+        return rc, out.getvalue()
+
+    def _candidate(self, rev: str = "HEAD") -> tuple[int, str]:
+        return self._gate("--candidate", rev, "--public-ref", "refs/public/*")
+
+
+class SciezkiZabronioneWHistorii(_RepoHistorii):
+    """R-TI-07 (a): `deny_paths` dzialalo tylko w drzewie, wiec commit dodajacy
+    `.matematic/...` bez PII przechodzil skan zakresu publikacji (pre-push, CI)."""
+
+    def test_candidate_blokuje_plik_z_prywatnego_warsztatu(self):
+        self._commit(".matematic/releases/x/README.md", "plan wydania\n", "docs: notatka")
+        rc, out = self._candidate()
+        self.assertEqual(rc, 1, out)
+        self.assertIn("denied_path", out)
+        self.assertIn(".matematic/releases/x/README.md", out)
+
+    def test_rename_do_warsztatu_tez_blokuje(self):
+        (self.root / ".claude").mkdir()
+        self._git("mv", "docs/a.md", ".claude/a.md")
+        self._git("commit", "-q", "-m", "przenies")
+        rc, out = self._candidate()
+        self.assertEqual(rc, 1, out)
+        self.assertIn(".claude/a.md", out)
+
+    def test_sciezka_zabroniona_wygrywa_z_allow_paths_i_rozszerzeniem(self):
+        self._commit(".matematic/x.test.ts", "test\n", "a")
+        self._commit(".matematic/plan.pdf", "pdf\n", "b")
+        rc, out = self._candidate()
+        self.assertEqual(rc, 1, out)
+        self.assertIn(".matematic/x.test.ts", out)
+        self.assertIn(".matematic/plan.pdf", out)
+        findings, _ = iter_tree(self.root, self.cfg)   # drzewo: ta sama polityka
+        self.assertEqual(sorted(f.path for f in findings if f.kind == "denied_path"),
+                         [".matematic/plan.pdf", ".matematic/x.test.ts"])
+
+    def test_pelna_historia_liczy_opublikowane_osobno_a_nowe_blokuje(self):
+        self._commit(".matematic/stare.md", "x\n", "stare")
+        self._git("rm", "-q", ".matematic/stare.md")   # wyszlo, potem usuniete z drzewa
+        self._git("commit", "-q", "-m", "sprzatanie")
+        self._git("update-ref", "refs/public/heads/main", "HEAD")
+        rc, out = self._gate("--history", "--public-ref", "refs/public/*")
+        self.assertEqual(rc, 0, out)
+        self.assertIn("1 denied_path finding(s) in commits already reachable", out)
+        self._commit(".matematic/nowe.md", "y\n", "nowe")
+        rc, out = self._gate("--history", "--public-ref", "refs/public/*")
+        self.assertEqual(rc, 1, out)
+        self.assertRegex(out, r"history@[0-9a-f]{7}:\.matematic/nowe\.md")
+
+    def test_zwykly_plik_przechodzi(self):
+        self._commit("docs/b.md", "zwykla zmiana\n", "docs")
+        rc, out = self._candidate()
+        self.assertEqual(rc, 0, out)
+
+
+class RenameWHistorii(_RepoHistorii):
+    """R-TI-07 (b): `--diff-filter=AM` pomijal status R - `git mv` z dopisanym
+    numerem przechodzil. Czysty rename z allow_paths nie pokazywal tresci wcale."""
+
+    def test_git_mv_z_dopisanym_numerem_jest_trafieniem(self):
+        self._git("mv", "docs/a.md", "docs/b.md")
+        p = self.root / "docs" / "b.md"
+        p.write_text(p.read_text(encoding="utf-8") + f"NIP {nip_testowy()}\n", encoding="utf-8")
+        self._git("add", "-A")
+        self._git("commit", "-q", "-m", "przenies")
+        hits = iter_history(self.root, self.cfg, ["HEAD", "--not", self.baza])
+        self.assertEqual([(h.kind, h.path.split(":", 1)[1]) for h in hits],
+                         [("nip", "docs/b.md")])
+
+    def test_nietypowe_nazwy_plikow_nie_gubia_tresci_ani_sciezki(self):
+        # git cytuje w naglowku diffu nazwy z tabulatorem/cudzyslowem i dokleja
+        # tabulator do nazw ze spacja; nierozpoznana sciezka nie moze wyciszyc tresci.
+        nazwy = ["docs/a b.md", "docs/t\tz.md", 'docs/zólw"q.md']
+        for n in nazwy:
+            self._commit(n, f"NIP {nip_testowy()}\n", "dodaj")
+        hits = iter_history(self.root, self.cfg, ["HEAD", "--not", self.baza])
+        self.assertEqual(sorted(h.path.split(":", 1)[1] for h in hits), sorted(nazwy))
+
+    def test_rename_z_allow_paths_do_zwyklej_sciezki_pokazuje_tresc(self):
+        self._commit("fixtures/dane.test.ts", f"nip {nip_testowy()}\n", "fixture")
+        self._git("update-ref", "refs/public/heads/main", "HEAD")
+        self._git("mv", "fixtures/dane.test.ts", "docs/dane.md")
+        self._git("commit", "-q", "-m", "przenies fixture")
+        rc, out = self._candidate()
+        self.assertEqual(rc, 1, out)
+        self.assertIn("docs/dane.md", out)
+
+
+class MergeWHistorii(_RepoHistorii):
+    """R-TI-07 (c): `git log -p` nie pokazuje diffu merge'a, wiec numer wpisany
+    przy rozwiazywaniu merge'a ("evil merge") przechodzil."""
+
+    def _galezie(self) -> None:
+        self._git("checkout", "-q", "-b", "x")
+        self._commit("docs/x.md", "x\n", "x")
+        self._git("checkout", "-q", "main")
+        self._commit("docs/y.md", "y\n", "y")
+
+    def test_numer_dodany_w_rozwiazaniu_merge_jest_trafieniem(self):
+        self._galezie()
+        self._git("merge", "-q", "--no-commit", "--no-ff", "x", check=False)
+        (self.root / "docs" / "y.md").write_text(f"y\nNIP {nip_testowy()}\n", encoding="utf-8")
+        self._git("add", "-A")
+        self._git("commit", "-q", "-m", "Merge branch x")
+        merge = self._git("rev-parse", "HEAD")
+        hits = iter_history(self.root, self.cfg, ["HEAD", "--not", self.baza])
+        self.assertEqual([(h.kind, h.path) for h in hits],
+                         [("nip", f"history@{merge[:7]}:docs/y.md")])
+
+    def test_plik_z_warsztatu_dodany_w_merge_jest_trafieniem(self):
+        self._galezie()
+        self._git("merge", "-q", "--no-commit", "--no-ff", "x", check=False)
+        (self.root / ".claude").mkdir()
+        (self.root / ".claude" / "notatka.md").write_text("plan\n", encoding="utf-8")
+        self._git("add", "-A")
+        self._git("commit", "-q", "-m", "Merge branch x")
+        rc, out = self._candidate()
+        self.assertEqual(rc, 1, out)
+        self.assertIn(".claude/notatka.md", out)
+
+    def test_zwykly_merge_nie_liczy_tresci_rodzica_drugi_raz(self):
+        self._git("checkout", "-q", "-b", "x")
+        zly = self._commit("docs/x.md", f"NIP {nip_testowy()}\n", "x")
+        self._git("checkout", "-q", "main")
+        self._commit("docs/y.md", "y\n", "y")
+        self._git("merge", "-q", "--no-ff", "-m", "Merge branch x", "x")
+        hits = iter_history(self.root, self.cfg, ["HEAD", "--not", self.baza])
+        self.assertEqual([h.path for h in hits], [f"history@{zly[:7]}:docs/x.md"])
+
+
+class HistoriaFailClosed(_RepoHistorii):
+    """R-TI-07 (d): blad `git log` dawal "history scan unavailable" i pusta liste
+    trafien - czyli PASS. Bramka, ktora nie przeczytala historii, nie przepuszcza."""
+
+    def _zgub_blob(self) -> None:
+        s = self._commit("docs/n.md", f"NIP {nip_testowy()}\n", "notatka")
+        blob = self._git("rev-parse", f"{s}:docs/n.md")
+        obj = self.root / ".git" / "objects" / blob[:2] / blob[2:]
+        obj.chmod(0o644)  # Windows: obiekt gita jest tylko-do-odczytu
+        obj.unlink()
+
+    def test_brakujacy_obiekt_to_wyjatek_nie_pusta_lista(self):
+        from publication_gate import HistoryScanError
+        self._zgub_blob()
+        with self.assertRaises(HistoryScanError):
+            iter_history(self.root, self.cfg, ["HEAD", "--not", self.baza])
+
+    def test_candidate_i_history_koncza_sie_kodem_2_i_blokada(self):
+        self._zgub_blob()
+        for args in (("--candidate", "HEAD", "--public-ref", "refs/public/*"),
+                     ("--history", "--public-ref", "refs/public/*")):
+            with self.subTest(args=args):
+                rc, out = self._gate(*args)
+                self.assertEqual(rc, 2, out)
+                self.assertIn("history scan FAILED", out)
+                self.assertIn("RESULT: BLOCK", out)
+
+    def test_nieczytelna_tresc_commita_to_blokada(self):
+        rc, out = self._gate("--commit-msg", str(self.root / "nie-ma-takiego-pliku"))
+        self.assertEqual(rc, 2, out)
+
+
+class SkanTekstu(_RepoHistorii):
+    """`--text`: tresc tagu adnotowanego i nazwy refow (R-TI-07 (e)) - te same
+    detektory co drzewo, bez reguly diakrytykow z tresci commita."""
+
+    def _plik(self, tresc: str) -> Path:
+        p = self.root / ".git" / "TEKST"
+        p.write_text(tresc, encoding="utf-8")
+        return p
+
+    def test_nazwa_z_denylisty_blokuje(self):
+        rc, out = self._gate("--text", str(self._plik(f"Wydanie dla {NAZWISKO}\n")))
+        self.assertEqual(rc, 1, out)
+        self.assertNotIn(NAZWISKO.lower(), out.lower())
+
+    def test_czysty_tekst_z_ogonkami_przechodzi(self):
+        rc, out = self._gate("--text", str(self._plik("Wydanie 1.4.0: poprawki źródeł\n")))
+        self.assertEqual(rc, 0, out)
 
 
 if __name__ == "__main__":

@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import { t } from "@/i18n";
 import {
     buildReportHtml,
+    detailLines,
+    fill,
     highlightSegments,
     reportFilename,
     severityOf,
@@ -119,6 +121,54 @@ describe("buildReportHtml", () => {
     });
     it("nie niesie całego tekstu pisma - tylko fragmenty powołań", () => {
         expect(html).not.toContain("Zob.");
+    });
+});
+
+describe("R-CC-01 / R-CC-04 - pozycje zatrzymane i noty serwera", () => {
+    const adres = cyt({
+        ref: "c3",
+        signature: "POLNA 12/24",
+        excerpt: "Polna 12/24",
+        status: "not_sent",
+        not_sent_reason: "not_court_signature",
+    });
+    const wlasna = cyt({
+        ref: "c4",
+        signature: "I C 1234/25",
+        excerpt: "I C 1234/25",
+        status: "not_sent",
+        not_sent_reason: "own_case_signature",
+    });
+
+    it("powód zatrzymania jest widoczny, stan nigdy zielony", () => {
+        expect(detailLines(adres)).toContain(t("citationCheck.notSentReason.not_court_signature"));
+        expect(detailLines(wlasna)).toContain(t("citationCheck.notSentReason.own_case_signature"));
+        expect(severityOf(adres)).toBe("none");
+        expect(statusLabel("not_sent")).toBe(t("citationCheck.status.not_sent"));
+    });
+
+    it("raport z notą serwera nie-napisem powstaje, a liczba zatrzymanych jest w nim nazwana", () => {
+        const r: CheckedResponse = {
+            status: "ok",
+            filename: "pismo.docx",
+            verifier: "repertorium",
+            text: "x",
+            citations: [adres, wlasna],
+            withoutAct: 0,
+            windows: 1,
+            sent: [],
+            notSent: 0,
+            withheld: 2,
+            asOf: null,
+            checkedOn: null,
+            snapshot: null,
+            serverNotes: [{ html: "<b>x</b>" } as unknown as string],
+            failedCalls: 0,
+        };
+        const html = buildReportHtml(r, new Date("2026-10-02T00:00:00Z"));
+        expect(html).toContain("[object Object]");
+        expect(html).not.toContain("<b>x</b>");
+        expect(html).toContain(fill(t("citationCheck.withheldCount"), { n: 2 }));
     });
 });
 

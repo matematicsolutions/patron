@@ -27,6 +27,12 @@ services:
       # FRONTEND_URL wskazuje na publiczny adres frontendu (CORS).
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
       PORT: 3001
+      # Tryb serwerowy = Supabase/Postgres z JWT (patrz "Full stack" w AGENTS.md).
+      # Bez tego backend startowal jako SQLite single-user (domyslne PATRON_DB_BACKEND)
+      # zbindowany na 127.0.0.1 w kontenerze - port nieosiagalny, a po PATRON_HOST=0.0.0.0
+      # bypass logowania trybu desktop wystawiony w sieci (audyt 2026-09, A-23).
+      PATRON_DB_BACKEND: ${PATRON_DB_BACKEND:-supabase}
+      PATRON_HOST: ${PATRON_HOST:-0.0.0.0}
       # MCP servers config wskazuje na manifest produkowany przez bundle-mcp.cjs.
       # Sciezka jest WZGLEDNA wzgledem CWD procesu (czyli /app w obrazie).
       # Backend automatycznie czyta mcp-servers.json z katalogu nadrzednego dist'a.

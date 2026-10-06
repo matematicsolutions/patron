@@ -273,17 +273,24 @@ export const en: DictShape<typeof pl> = {
         rerun: "Check again",
         asOfLabel: "Law as of (optional)",
         asOfHint: "Date of the event or judgment. Without a date, PATRON checks the law as of today. A date you enter is sent with the citation list.",
-        privacyNote: "PATRON sent the verifier ({server}) only the list of citations ({n}): case numbers, the dates next to them, acts and article numbers. The document text never left this computer.",
+        privacyNote: "PATRON sent the verifier ({server}) only the list of citations ({n}): case numbers of Polish courts and tribunals (with the date written next to them), act identifiers with article numbers, and the as-of date if you entered one. Nothing else from the document was sent - including addresses, contract and invoice numbers, and this case's own number from the header. The list itself does reveal what the document cites.",
         privacyShowSent: "Show exactly what was sent",
         privacyHideSent: "Hide the sent list",
         notInCorpusNote: "“Not in corpus” does not prove that a judgment does not exist - the corpus is not complete. Check it in another source before treating the citation as wrong.",
         statusNotConfigured: "The citation verifier is not connected. PATRON extracted the citations on this computer but did not check them. The Operator connects the verifier.",
+        statusGatewayPending: "The citation verifier ({server}) is configured but awaits the Operator's approval - it is a connector outside PATRON's trusted set. Nothing was sent; the citations extracted on this computer remain unchecked. Operator: open \"Law connectors\" in the account menu, click \"Review and approve\" next to {server}, review the gateway's findings and restart PATRON. This single approval is enough (the values below are for a manual entry when the panel is unavailable).",
         statusFailed: "The citations could not be checked. The server did not respond or refused the request, so the citations below remain unchecked.",
         statusPartial: "Some citations were checked - the rest are marked as unchecked.",
         statusNoText: "No text could be read from this file, so there is nothing to check.",
-        statusNoCitations: "PATRON recognised no Polish case number and no provision with a named act. The document may still cite something: PATRON recognises Polish court case numbers, codes, frequently cited statutes and Dz.U. addresses.",
+        statusNoCitations: "PATRON found no court case number and no provision with a named act that it could send for checking. The document may still cite something: PATRON recognises Polish court case numbers, codes, frequently cited statutes and Dz.U. addresses.",
         withoutAct: "{n} provisions do not name their act (e.g. “art. 5 of this act”), so they cannot be checked automatically.",
         notSentCount: "One check covers at most 100 citations. The remaining {n} were not sent.",
+        withheldCount: "{n} items that only look like a case number, or are this case's own number, were not sent. They are listed with the reason.",
+        notSentReason: {
+            limit: "Over the limit of 100 citations per check.",
+            not_court_signature: "This does not look like a Polish court case number (it may be an address, a contract or an invoice number), so PATRON did not send it. If it is a judgment, check it yourself.",
+            own_case_signature: "Case number from the document header, most likely this case's own. PATRON does not send it.",
+        },
         kindSignature: "Case number",
         kindProvision: "Provision",
         kindUnrecognized: "Statute",
@@ -319,7 +326,7 @@ export const en: DictShape<typeof pl> = {
             changes_unknown: "Changes unknown",
             act_not_recognized: "Statute not recognised - not sent",
             not_checked: "Not checked",
-            not_sent: "Not sent (limit)",
+            not_sent: "Not sent",
             rejected: "Rejected by the server",
             other: "Status: {s}",
         },
@@ -495,6 +502,9 @@ export const en: DictShape<typeof pl> = {
         tabSharedWithMe: "Shared with me",
         actions: "Actions",
         deleteSelected: "Delete",
+        deleteFailedTitle: "The matter could not be fully deleted",
+        deleteFailedBody:
+            "Some of the matter's data was not deleted. The matter stays on the list - remove the cause (e.g. close the program holding the file) and try again.",
         loadErrorTitle: "Matters",
         folderNamePlaceholder: "Folder name",
         renameDocument: "Rename document",
@@ -818,11 +828,18 @@ export const en: DictShape<typeof pl> = {
             sad: "The court",
             prokurator: "Prosecutor",
         },
+        routing: {
+            model: "Model: {model}",
+            caseScoped: "classification of this conversation's matter",
+            noCase: "conversation outside a matter",
+        },
     },
 
     mcpSecurity: {
         blockedMessage: "MCP Security: connector blocks in the last 24h: {blocked}. Check the audit records.",
         blockedAriaLabel: "MCP Security Gateway: connector blocks in the last 24h: {blocked}",
+        awaitingMessage: "MCP Security: a new connector outside the trusted set awaits the Operator's approval (gateway decisions in the last 24h: {awaiting}). Review the findings before approving.",
+        awaitingAriaLabel: "MCP Security Gateway: connectors awaiting the Operator's approval in the last 24h: {awaiting}",
         actionHint: "View records and decisions",
     },
 
@@ -894,6 +911,13 @@ export const en: DictShape<typeof pl> = {
         toggleError: "Could not change the skill state.",
         removeError: "Could not remove the skill.",
         close: "Close",
+        // B-10: import paczki - zgoda na egress i stan podpisu.
+        importTrust: {
+            egressConfirm: "This package declares it may send content outside your machine (to the cloud). Professional secrecy applies. Enable the skill right after import? Cancel = import it disabled.",
+            importedDisabled: "The skill was imported disabled because it may send content to the cloud. Enable it deliberately with the switch.",
+            signatureUnverified: "signature not verified",
+            signatureUnverifiedHint: "The package has a signature field, but Patron does not verify package signatures yet. The publisher is the package author's claim, not a confirmation.",
+        },
     },
 
     connectors: {
@@ -906,6 +930,26 @@ export const en: DictShape<typeof pl> = {
         operatorOnly: "Operator only",
         operatorOnlyHint:
             "Connector outside the trusted set - enabled by the firm's Operator.",
+        gatewayAwaiting: "Awaiting approval",
+        gatewayAwaitingHint:
+            "The MCP security gateway did not load this connector. The Operator reviews the gateway's findings, clicks \"Review and approve\" and restarts PATRON.",
+        approveReview: "Review and approve",
+        approveTitle: "Approve connector {name}",
+        approveIntro:
+            "The MCP security gateway held this connector back. You approve exactly this tool definition and this origin (process or address) - any later change to the connector holds it back again. The decision goes to the audit log.",
+        approveUnknownOnly:
+            "The only reason: the connector is outside PATRON's trusted set. The gateway found no signs of manipulation.",
+        approveFindings: "Gateway findings:",
+        approveFingerprint: "Definition fingerprint: {hash}",
+        approveConfirm: "Approve",
+        approveCancel: "Cancel",
+        approveLoading: "Loading the gateway's findings...",
+        approveDone: "Approved. The connector starts working after the app restarts.",
+        approveError: "Could not approve the connector: {detail}",
+        approveForbidden: "Only the firm's Operator can approve connectors.",
+        gatewayBlocked: "Blocked",
+        gatewayBlockedHint:
+            "The MCP security gateway rejected this connector (e.g. its name is confusable with a trusted one). Details in the audit records.",
         restartNote: "The change takes effect after restarting the app.",
         empty: "No connectors configured.",
         loadError: "Could not load connectors.",
@@ -944,6 +988,21 @@ export const en: DictShape<typeof pl> = {
         executionErrorNote: "Approved, but execution failed:",
         toolEditDocument: "Document edit",
         toolGenerateDocx: "Generate .docx document",
+        // Audit 2026-09 B-04: further agent actions covered by an approval card.
+        toolReplicateDocument: "Create copies of a case document",
+        toolRemember: "Save to the assistant's persistent memory",
+    },
+    partialExecution: {
+        title: "Partially applied",
+        summary: "Applied {applied} of {total}.",
+        notAppliedLabel: "Not applied:",
+        item: "change no. {n}: {reason}",
+        approvalNote:
+            "Approved, but only some of the changes reached the document. Check the document before you continue.",
+        chatNote:
+            "Not every change reached the document - the reply may overstate what was done.",
+        editingPartial: "Partially edited",
+        documentLabel: "Document",
     },
     perimeter: {
         label: "Perimeter",
@@ -967,5 +1026,36 @@ export const en: DictShape<typeof pl> = {
         system: "System",
         light: "Light",
         dark: "Dark",
+    },
+    // ---------------------------------------------------------------------
+    // Safe markdown (audit 2026-09, A-20).
+    // ---------------------------------------------------------------------
+    safeMarkdown: {
+        imageBlocked: "Image blocked",
+        imageBlockedTitle: "The image in this answer was not loaded: loading it would send a request to an external server without your decision.",
+        linkBlocked: "Link blocked: address type not allowed.",
+    },
+    // ---------------------------------------------------------------------
+    // Document coverage in a tabular cell (audit 2026-09, D-15 and D-11).
+    // ---------------------------------------------------------------------
+    tabularCoverage: {
+        truncated: "Analysed {sent} of {total} characters of the document",
+        truncatedHint: "The model received only the beginning of the document. A \"not found\" result does not mean the rest of the document has no answer.",
+        noText: "No document text",
+        noTextHint: "The document has no text layer and no OCR text - there was nothing to analyse. Check that OCR is available, or add a version of the document with text.",
+    },
+    // ---------------------------------------------------------------------
+    // Explicit chat-answer signals instead of silence (audit 2026-09, D-14 and D-07).
+    // ---------------------------------------------------------------------
+    chatSignals: {
+        citationsParseFailed: "The footnotes of this answer arrived in an unreadable format and were neither loaded nor verified. [N] markers in the text may have no source card - check the quotes in the documents.",
+        citationsDropped: "Some footnotes of this answer ({count}) arrived in an unreadable format and were neither loaded nor verified. Check quotes without a source card in the documents.",
+        mcpConnectorFailed: "The {server} connector did not respond (tool {tool}). Results from this source did not reach the answer - quotes attributed to it were not verified.",
+        mcpResultWithheld: "The result of the {server} connector (tool {tool}) was withheld by the input security check - it may have contained an attempt to manipulate the model. It did not reach the answer; check this source manually.",
+    },
+    mutationStaged: {
+        pending: "The action \"{action}\" is waiting for approval and has not been carried out yet.",
+        openInbox: "Go to the approval cards inbox",
+        toolAddComments: "Adding comments to a document",
     },
 } as const;

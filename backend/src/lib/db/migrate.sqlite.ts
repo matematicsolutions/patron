@@ -362,7 +362,21 @@ function rebuildAuditLogEventTypes(
     const missing = typy.filter((t) => !row.sql!.includes(`'${t}'`));
     if (missing.length === 0) return;
 
-    const list = typy.map((t) => `          '${t}'`).join(",\n");
+    // Rebuild NIGDY nie zaweza listy: suma listy docelowej, typow z obecnego
+    // CHECK i typow obecnych w wierszach. Baza z linii, ktora miala typ spoza
+    // listy kroku (np. audit.chain.legal_break w linii 2.0 przed v7), inaczej
+    // pada na CHECK przy INSERT...SELECT i backend nie startuje (audyt
+    // 2026-10-02, R-AC-06).
+    const zCheck = (() => {
+        const m = /event_type\s+text\s+not\s+null\s+check\s*\(\s*event_type\s+in\s*\(([^)]*)\)/i.exec(row.sql!);
+        return m ? [...m[1].matchAll(/'([^']+)'/g)].map((x) => x[1]) : [];
+    })();
+    const zWierszy = (
+        db.prepare("select distinct event_type from audit_log").all() as Array<{ event_type: string }>
+    ).map((r) => r.event_type);
+    const suma = [...new Set([...typy, ...zCheck, ...zWierszy])];
+
+    const list = suma.map((t) => `          '${t.replace(/'/g, "''")}'`).join(",\n");
     db.exec(`
       create table audit_log_new (
         id integer primary key autoincrement,

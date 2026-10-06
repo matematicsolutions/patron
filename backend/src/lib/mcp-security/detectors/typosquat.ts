@@ -9,7 +9,17 @@
 //   dist = 0                    -> zatwierdzony (zaden finding, allowed)
 //   0 < dist <= 2               -> typosquat critical (denied)
 //   2 < dist <= 4               -> typosquat suspect (human_review)
-//   dist > 4                    -> nieznany 3rd-party (human_review, finding low)
+//   dist > 4                    -> nieznany 3rd-party (human_review, finding medium)
+//
+// Nieznany 3rd-party (audyt 2026-09 B-08, decyzja wlasciciela produktu
+// 2026-10-06): finding `medium`, wiec scorer daje `human_review` - konektor NIE
+// jest rejestrowany automatycznie. Wczesniej finding byl `low` -> `audit` ->
+// rejestracja: opisy i schematy narzedzi niezatwierdzonego serwera trafialy do
+// listy narzedzi modelu (takze chmurowego), choc ring-policy odrzucala kazde
+// wywolanie. Operator zatwierdza konektor jednym krokiem: `gatewayApproval`
+// (hash definicji + odcisk pochodzenia) w nakladce Operatora (ADR-0158/0166);
+// to samo zatwierdzenie dopuszcza wywolania w Ring 2 (ADR-0027, ring-policy).
+// Rozpoznanie tego findingu dla UI/banera: isUnknownThirdPartyFinding.
 
 import type { McpDetector, McpFinding, McpScanContext, McpServerDefinition } from "../types";
 
@@ -82,10 +92,46 @@ export const typosquatDetector: McpDetector = {
         return [{
             detector: "typosquat",
             category: "typosquat",
-            severity: "low",
+            severity: UNKNOWN_THIRD_PARTY_SEVERITY,
             serverName: server.name,
-            message: `Konektor '${server.name}' nie znajduje sie na liscie zatwierdzonych (najblizszy: '${nearest}', dist=${minDist}). 3rd-party - wymaga zatwierdzenia Operatora.`,
+            message: `Konektor '${server.name}' nie znajduje sie na liscie zatwierdzonych (najblizszy: '${nearest}', dist=${minDist}). 3rd-party - czeka na zatwierdzenie Operatora (gatewayApproval, ADR-0158).`,
             sample: `nearest=${nearest} dist=${minDist}`,
         }];
     },
 };
+
+/**
+ * Waga findingu "nieznany 3rd-party" (dist > 4). `medium` = `human_review`
+ * w scorerze; wyzsze wagi typosquat (high/critical) to podobienstwo nazwy do
+ * zatwierdzonej, czyli mozliwy atak - inna sytuacja dla czlowieka.
+ */
+export const UNKNOWN_THIRD_PARTY_SEVERITY = "medium" as const;
+
+/**
+ * Czy finding to "nieznany 3rd-party czeka na zatwierdzenie" (a nie podobienstwo
+ * nazwy do zatwierdzonej). Czyta tylko pola, ktore trafiaja do audytu
+ * (detector + severity), wiec dziala tez na payloadzie `mcp_security.gateway`.
+ */
+export function isUnknownThirdPartyFinding(f: { detector?: unknown; severity?: unknown }): boolean {
+    return f.detector === "typosquat" && f.severity === UNKNOWN_THIRD_PARTY_SEVERITY;
+}
+
+/**
+ * Czy werdykt `human_review` wynika WYLACZNIE z tego, ze konektor jest nieznany
+ * (nowy 3rd-party czeka na zatwierdzenie Operatora), a nie z podejrzanego
+ * sygnalu: jest finding "nieznany 3rd-party", a kazdy inny finding ma wage
+ * `low` (np. pierwszy load bez baseline dryfu). Dryf definicji, podobienstwo
+ * nazwy, ukryte instrukcje czy tool-poisoning (medium+) daja `false` - to nie
+ * jest zwykle "czeka na zatwierdzenie". Dziala na McpFinding i na findings z
+ * payloadu `mcp_security.gateway` (detector + severity).
+ */
+export function awaitsOnlyThirdPartyApproval(
+    findings: ReadonlyArray<{ detector?: unknown; severity?: unknown }>,
+): boolean {
+    let unknown = false;
+    for (const f of findings) {
+        if (isUnknownThirdPartyFinding(f)) unknown = true;
+        else if (f.severity !== "low") return false;
+    }
+    return unknown;
+}

@@ -54,4 +54,24 @@ describe("odczyt pisma nie wypisuje jego tresci do logu", () => {
         // Dlugosc tekstu to metadana, ktora zostaje w logu (diagnostyka).
         expect(log).toContain(`finalTextLength=${TEKST.length}`);
     });
+
+    // R-CC-06: nazwa pliku pisma (czesto nazwisko klienta i rodzaj sprawy) ani
+    // storage_path tez nie trafiaja do logu - odczyt identyfikuje docLabel/document_id.
+    it("log nie zawiera nazwy pliku ani storage_path; zawiera docLabel i document_id", async () => {
+        const NAZWA = "Pozew_Kowalski_Testowy_rozwod.pdf";
+        const SCIEZKA = "documents/u1/d1/Pozew_Kowalski_Testowy_rozwod.pdf";
+        const docStore: DocStore = new Map([
+            ["doc-3", { storage_path: SCIEZKA, file_type: "pdf", filename: NAZWA }],
+        ]);
+        const docIndex = {
+            "doc-3": { document_id: "d1", filename: NAZWA, version_id: null, version_number: null },
+        };
+        const tekst = await getDocumentTextForGrounding("doc-3", docStore, docIndex);
+        expect(tekst).toContain(WARTOWNIK);
+        const log = zapisane.join("\n");
+        expect(log).not.toContain("Kowalski_Testowy");
+        expect(log).not.toContain("documents/u1/d1");
+        expect(log).toContain('docLabel="doc-3"');
+        expect(log).toContain("document_id=d1");
+    });
 });

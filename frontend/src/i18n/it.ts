@@ -738,6 +738,13 @@ export const it: DictShape<typeof pl> = {
         toggleError: "Impossibile cambiare lo stato della competenza.",
         removeError: "Impossibile rimuovere la competenza.",
         close: "Chiudi",
+        // B-10: import paczki - zgoda na egress i stan podpisu.
+        importTrust: {
+            egressConfirm: "Questo pacchetto dichiara di poter inviare contenuti fuori dal tuo computer (nel cloud). Si applica il segreto professionale. Attivare la competenza subito dopo l'importazione? Annulla = importala disattivata.",
+            importedDisabled: "La competenza è stata importata disattivata perché può inviare contenuti nel cloud. Attivala consapevolmente con l'interruttore.",
+            signatureUnverified: "firma non verificata",
+            signatureUnverifiedHint: "Il pacchetto ha un campo firma, ma Patron non verifica ancora le firme dei pacchetti. L'editore è una dichiarazione dell'autore, non una conferma.",
+        },
     },
 
     connectors: {

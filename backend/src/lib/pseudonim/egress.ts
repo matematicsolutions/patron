@@ -20,6 +20,7 @@
 
 import { createPseudonimMap } from "./map";
 import { unwrap, wrapInto, type WrapOptions } from "./wrap";
+import { maskKnownOriginalsInto } from "./tool-result";
 import type { PseudonimMap } from "./types";
 import type { LlmMessage } from "../llm/types";
 
@@ -41,13 +42,28 @@ export async function wrapConversation(
     opts: WrapOptions = {},
 ): Promise<WrappedConversation> {
     const map = createPseudonimMap();
-    const wrappedSystem = await wrapInto(map, systemPrompt, opts);
+    let wrappedSystem = await wrapInto(map, systemPrompt, opts);
     const wrappedMessages: LlmMessage[] = [];
     for (const m of messages) {
         wrappedMessages.push({
             role: m.role,
             content: await wrapInto(map, m.content, opts),
         });
+    }
+    // Drugi przebieg (audyt 2026-09, A-03): pierwszy maskuje tylko to, co
+    // detektor znalazl w BIEZACYM tekscie. Osoba rozpoznana po kotwicy w jednej
+    // wiadomosci ("Pan Jan Testowy") wychodzila jawnie w innej, gdzie stoi bez
+    // kotwicy ("Czy Jan Testowy...") - w obie strony, a historia asystenta jest
+    // zapisywana po odmaskowaniu, wiec wraca w kolejnych turach bez kotwic.
+    // Teraz kazdy oryginal z mapy, ktory wystepuje w tekscie jako samodzielne
+    // slowo, jest maskowany w CALEJ konwersacji i w system prompcie - ten sam
+    // mechanizm co w wynikach narzedzi (tool-result.ts), zgodnie z gwarancja
+    // ADR-0110.
+    if (map.tokens.length > 0) {
+        wrappedSystem = await maskKnownOriginalsInto(map, wrappedSystem);
+        for (const m of wrappedMessages) {
+            m.content = await maskKnownOriginalsInto(map, m.content);
+        }
     }
     return { systemPrompt: wrappedSystem, messages: wrappedMessages, map };
 }

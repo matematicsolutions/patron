@@ -5,12 +5,17 @@
 // do skali kancelarii - patrz ADR-0024):
 //   Ring 0 - System (skrypty wewnetrzne Patrona, audit, healthcheck).
 //            Obecnie BRAK call-sites w kodzie - rezerwacja dokumentacyjna.
-//   Ring 1 - Trusted MCP (6 konektorow Patrona w APPROVED_PATRON_CONNECTORS).
-//            Action: allow + audit.
+//   Ring 1 - Trusted MCP (konektory Patrona z APPROVED_PATRON_CONNECTORS,
+//            WOZONE PRZEZ PLIK INSTALATORA - configSource "installer").
+//            Action: allow + audit. Sama nazwa nie wystarcza (B-06 / R-MCP-01):
+//            nakladka Operatora moze dodac wpis "de-eli" z dowolna komenda w
+//            edycji, ktora go nie wozi - taki wpis jest Ring 2 (ADR-0166).
 //   Ring 2 - Untrusted (jakikolwiek konektor poza Ring 1, w tym 3rd-party MCP).
 //            Default action: deny (fail-closed).
-//            Explicit allow tylko gdy Operator wpisal operatorApproved=true
-//            w mcp-servers.json.
+//            Explicit allow gdy Operator zatwierdzil konektor: zgodne
+//            `gatewayApproval` (hash definicji + odcisk pochodzenia, ADR-0158;
+//            od B-08 / 2026-10-06 jeden krok wystarcza) albo operatorApproved=true
+//            w nakladce Operatora (ADR-0166).
 //
 // Komplementarne do MCP Security Gateway (ADR-0025/0028) ktore jest gate
 // load-time (rejestracja konektora). Ring-policy jest gate runtime (per call).
@@ -32,6 +37,8 @@ export type RingAction = "allow" | "deny";
 export type RingReason =
     | "trusted-patron-connector"     // Ring 1 allow - nazwa w canonical list 6
     | "operator-approved-3rd-party"  // Ring 2 allow - operatorApproved=true
+    | "operator-gateway-approval"    // Ring 2 allow - zgodne gatewayApproval (B-08, ADR-0158)
+    | "trusted-name-outside-installer" // Ring 2 deny - nazwa z listy, ale wpis nie z pliku instalatora
     | "no-operator-approval";        // Ring 2 deny - default fail-closed
 
 export interface RingDecision {
@@ -49,6 +56,21 @@ export interface RingPolicyConfigInput {
     trustLevel?: "trusted" | "untrusted";
     /** Wymagane dla Ring 2 allow. Brak / false = deny. */
     operatorApproved?: boolean;
+    /**
+     * Skad pochodzi wpis konektora (mergeOperatorOverlay, ADR-0166). Ring 1
+     * wymaga "installer"; brak pola = nie z instalatora (fail-closed).
+     */
+    configSource?: "installer" | "operator-overlay";
+    /**
+     * B-08 (decyzja wlasciciela produktu 2026-10-06): brama przy starcie przyjela
+     * zgodne `gatewayApproval` Operatora dla TEJ definicji i TEGO pochodzenia
+     * (resolveOperatorApproval === "approved"). Ustawia WYLACZNIE lib/mcp po
+     * skanie - nigdy z pliku konfiguracji. Zatwierdzenie przypiete do hasha jest
+     * mocniejsze niz boolean operatorApproved, wiec wystarcza do Ring 2 allow:
+     * jedno swiadome zatwierdzenie zamiast dwoch, z ktorych jedno samo w sobie
+     * zostawialo stan "narzedzia u modelu, kazde wywolanie odrzucone".
+     */
+    gatewayApproved?: boolean;
     // Pola approvedAt / approvedBy istnieja w McpServerConfig dla audytora,
     // ale decideRing ich NIE czyta (nie wplywaja na decyzje). Patrz ADR-0027.
 }
@@ -64,10 +86,12 @@ export function decideRing(
     serverName: string,
     config?: RingPolicyConfigInput,
 ): RingDecision {
-    // Ring 1: nazwa w canonical list 6 konektorow Patrona (MateMatic-utrzymywana).
-    // Operator NIE moze podniesc konektora do Ring 1 przez konfig - to wymaga
-    // modyfikacji kodu (APPROVED_PATRON_CONNECTORS).
-    if (APPROVED_PATRON_CONNECTORS.includes(serverName)) {
+    // Ring 1: nazwa w canonical list konektorow Patrona (MateMatic-utrzymywana)
+    // ORAZ wpis z pliku instalatora. Operator NIE moze podniesc konektora do
+    // Ring 1 przez konfig - nazwa wymaga zmiany kodu (APPROVED_PATRON_CONNECTORS),
+    // a nakladka (ADR-0166) nie nadaje pochodzenia "installer".
+    const trustedName = APPROVED_PATRON_CONNECTORS.includes(serverName);
+    if (trustedName && config?.configSource === "installer") {
         return {
             ring: 1,
             action: "allow",
@@ -86,10 +110,21 @@ export function decideRing(
         };
     }
 
-    // Ring 2 default: fail-closed. Nieznany konektor + brak explicit approval.
+    // Ring 2 allow: brama przyjela zgodne zatwierdzenie Operatora (hash +
+    // pochodzenie) dla tej definicji w tym procesie (B-08, ADR-0158).
+    if (config?.gatewayApproved === true) {
+        return {
+            ring: 2,
+            action: "allow",
+            reason: "operator-gateway-approval",
+        };
+    }
+
+    // Ring 2 default: fail-closed. Nieznany konektor (albo nazwa zaufana spoza
+    // pliku instalatora) + brak explicit approval.
     return {
         ring: 2,
         action: "deny",
-        reason: "no-operator-approval",
+        reason: trustedName ? "trusted-name-outside-installer" : "no-operator-approval",
     };
 }

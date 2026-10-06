@@ -80,7 +80,9 @@ async function evaluate(
     db: Db,
 ): Promise<{ status: ChainStatus; ack: ForkAckPayload | null }> {
     const [rows, guardAfterId] = await Promise.all([loadChainRows(db), readGuardThreshold()]);
-    const report = verifyAuditChain(rows, { guardAfterId });
+    // Ta sama klasyfikacja co CLI (verify-audit-chain.ts): kaskada FK sprzed
+    // migracji 024 mozliwa tylko na Postgresie (przeglad 2026-10-02, R-AC-09).
+    const report = verifyAuditChain(rows, { guardAfterId, fkCascadePossible: !isSqliteBackend() });
     const ack = buildForkAcknowledgement(rows, report);
     return {
         ack,
@@ -120,7 +122,22 @@ export type AcknowledgeResult =
  * Odmowy jak w skrypcie: BLOKADA (potwierdzenie nie wybiela manipulacji) i brak
  * progu straznika (zbior rozwidlen nie jest zamkniety).
  */
-export async function acknowledgeForks(
+// Ocena i zapis potwierdzenia w jednej sekcji krytycznej procesu (przeglad
+// 2026-10-02, R-AC-04): dwa rownolegle potwierdzenia z tym samym digestem daly
+// dwa zdarzenia. Drugie po wejsciu widzi juz zapisane i dostaje "stale" albo
+// "nothing_to_acknowledge".
+let ackLock: Promise<unknown> = Promise.resolve();
+
+export function acknowledgeForks(
+    db: Db,
+    input: { actorUserId: string | null; digest: string },
+): Promise<AcknowledgeResult> {
+    const run = ackLock.then(() => acknowledgeForksNow(db, input));
+    ackLock = run.catch(() => undefined);
+    return run;
+}
+
+async function acknowledgeForksNow(
     db: Db,
     input: { actorUserId: string | null; digest: string },
 ): Promise<AcknowledgeResult> {

@@ -44,9 +44,22 @@ export interface SkillManifest {
   egress: SkillEgress;
   source: SkillSource;
   publisher: string | null;
-  /** Rezerwacja: podpis Ed25519 paczki. null = niepodpisana / lokalna. */
+  /**
+   * Rezerwacja: podpis Ed25519 paczki. null = niepodpisana / lokalna. Napis w
+   * tym polu NIE jest weryfikowany (B-10) - patrz isSignatureVerified.
+   */
   signature: string | null;
 }
+
+/**
+ * Stan podpisu widziany przez UI i API (B-10):
+ *  - `builtin`    - skill wbudowany, wozony w kodzie wydania (nie paczka);
+ *  - `absent`     - paczka bez pola signature;
+ *  - `unverified` - paczka MA napis w polu signature, ale Patron nie umie go
+ *                   zweryfikowac (brak mechanizmu - ADR-0094 rezerwacja), wiec
+ *                   jest to deklaracja autora, nie podpis.
+ */
+export type SkillSignatureStatus = "builtin" | "absent" | "unverified";
 
 /** Skill widziany przez UI: manifest + stan + czy wbudowany (read-only). */
 export interface SkillEntry {
@@ -58,7 +71,9 @@ export interface SkillEntry {
   source: SkillSource;
   egress: SkillEgress;
   publisher: string | null;
+  /** true WYLACZNIE po kryptograficznej weryfikacji podpisu (dzis: tylko wbudowane). */
   signed: boolean;
+  signature_status: SkillSignatureStatus;
   builtin: boolean;
   enabled: boolean;
 }
@@ -181,6 +196,7 @@ export const BUILTIN_SKILLS: ReadonlyArray<SkillEntry> = [
     egress: "no-egress",
     publisher: "MateMatic",
     signed: true,
+    signature_status: "builtin",
     builtin: true,
     enabled: true,
   },
@@ -196,6 +212,7 @@ export const BUILTIN_SKILLS: ReadonlyArray<SkillEntry> = [
     egress: "no-egress",
     publisher: "MateMatic",
     signed: true,
+    signature_status: "builtin",
     builtin: true,
     enabled: true,
   },
@@ -211,6 +228,7 @@ export const BUILTIN_SKILLS: ReadonlyArray<SkillEntry> = [
     egress: "no-egress",
     publisher: "MateMatic",
     signed: true,
+    signature_status: "builtin",
     builtin: true,
     enabled: true,
   },
@@ -219,6 +237,22 @@ export const BUILTIN_SKILLS: ReadonlyArray<SkillEntry> = [
 export const BUILTIN_IDS: ReadonlySet<string> = new Set(
   BUILTIN_SKILLS.map((s) => s.id),
 );
+
+/**
+ * Czy podpis paczki zostal zweryfikowany kryptograficznie (B-10). W Patronie NIE
+ * MA dzis mechanizmu weryfikacji: Ed25519 to rezerwacja ADR-0094, nie ma klucza
+ * publicznego wydawcy ani kodu sprawdzajacego. Do tego czasu odpowiedz brzmi
+ * zawsze "nie" - wczesniej `signed = signature !== null` dawal status
+ * "podpisany" (w panelu i w lancuchu audytu, custom_skills) dowolnemu napisowi.
+ * Weryfikacja ma wejsc TUTAJ, w jednym miejscu dla panelu, API i audytu.
+ */
+export function isSignatureVerified(_m: SkillManifest): boolean {
+  return false;
+}
+
+export function signatureStatusOf(m: SkillManifest): SkillSignatureStatus {
+  return m.signature === null ? "absent" : "unverified";
+}
 
 /** Manifest -> wpis listy (skill zainstalowany). */
 export function manifestToEntry(m: SkillManifest, enabled: boolean): SkillEntry {
@@ -231,7 +265,8 @@ export function manifestToEntry(m: SkillManifest, enabled: boolean): SkillEntry 
     source: m.source,
     egress: m.egress,
     publisher: m.publisher,
-    signed: m.signature !== null,
+    signed: isSignatureVerified(m),
+    signature_status: signatureStatusOf(m),
     builtin: false,
     enabled,
   };

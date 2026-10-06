@@ -2,6 +2,7 @@
 // funkcje - mapowanie wyniku skanu na zachowanie ingestu oraz payload audytu.
 // Sama integracja w handleDocumentUpload uzywa tych funkcji (routes/documents.ts).
 
+import { createHash } from "crypto";
 import type { SecurityAction, SecurityScanResult } from "./types";
 
 /**
@@ -105,7 +106,13 @@ export function toAuditPayload(result: SecurityScanResult): Record<string, unkno
         action: result.action,
         threat_level: result.threatLevel,
         risk_score: result.riskScore,
-        file_name: result.fileName ?? null,
+        // Nazwa pliku czesto niesie dane klienta ("Pozew_Kowalski_PESEL...") i
+        // przetrwalaby w append-only audit_log takze "zapomnienie sprawy" (audyt
+        // 2026-09, E-05). Zostaje rozszerzenie i skrot nazwy do powiazania wpisu.
+        file_ext: result.fileName ? (/\.([A-Za-z0-9]{1,8})$/.exec(result.fileName)?.[1]?.toLowerCase() ?? null) : null,
+        file_name_sha256: result.fileName
+            ? createHash("sha256").update(result.fileName, "utf8").digest("hex").slice(0, 16)
+            : null,
         findings: result.findings.map((f) => ({
             category: f.category,
             technique: f.technique,

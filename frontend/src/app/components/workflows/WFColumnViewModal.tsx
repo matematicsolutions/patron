@@ -3,7 +3,7 @@
 import { createElement } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
-import ReactMarkdown from "react-markdown";
+import { SafeMarkdown } from "@/lib/markdown/SafeMarkdown";
 import remarkGfm from "remark-gfm";
 import { t } from "@/i18n";
 import type { ColumnConfig } from "../shared/types";
@@ -58,7 +58,7 @@ export function WFColumnViewModal({ col, onClose }: Props) {
                     <div>
                         <p className="text-sm font-medium text-gray-500 mb-2">{t("workflows.prompt")}</p>
                         <div className="text-base text-gray-700 leading-relaxed font-text prose prose-base max-w-none">
-                            <ReactMarkdown remarkPlugins={[remarkGfm]}>{col.prompt || t("workflowColumn.noPromptDefined")}</ReactMarkdown>
+                            <SafeMarkdown remarkPlugins={[remarkGfm]}>{col.prompt || t("workflowColumn.noPromptDefined")}</SafeMarkdown>
                         </div>
                     </div>
                 </div>
