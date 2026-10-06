@@ -43,7 +43,7 @@ Dalej poprowadzi Cię **Samouczek** dostępny w aplikacji (od wgrania akt po edy
 ## 5. RODO art. 17 - co robi aplikacja, a co narzędzie administracyjne
 
 - **Dane klienta** (akta, czaty, przeglądy, karty sprawy) usuwa w aplikacji „Zapomnij sprawę”.
-- **Wpisy dziennika audytu z użytkownikiem Patrona** jako aktorem aplikacja dziś nie anonimizuje. Robi to narzędzie `rodo:delete` uruchamiane z kopii źródeł Patrona, przy zamkniętej aplikacji i po zrobieniu kopii pliku `patron.db` (razem z `-wal` i `-shm`). Na komputerze z Patronem desktop narzędzie pracuje bezpośrednio na tej bazie: `PATRON_DB_BACKEND=sqlite`, `PATRON_DB_PATH=<katalog danych>\patron.db`, potem `npm run rodo:delete -- --user <id> --confirm` w katalogu `backend`. Pliki dokumentów wypisane na końcu usuwa się ręcznie z katalogu danych.
+- **Wpisy dziennika audytu z użytkownikiem Patrona** jako aktorem aplikacja dziś nie anonimizuje. Robi to narzędzie `rodo:delete` uruchamiane z kopii źródeł Patrona, przy zamkniętej aplikacji (narzędzie samo to sprawdza i odmawia pracy, gdy PATRON działa) i po zrobieniu kopii pliku `patron.db` (razem z `-wal` i `-shm`). Na komputerze z Patronem desktop narzędzie pracuje bezpośrednio na tej bazie: `PATRON_DB_BACKEND=sqlite`, `PATRON_DB_PATH=<katalog danych>\patron.db`, potem `npm run rodo:delete -- --user <id> --confirm` w katalogu `backend`. Pliki dokumentów wypisane na końcu usuwa się ręcznie z katalogu danych.
 - Narzędzie najpierw zapisuje w dzienniku deklarację zerwania łańcucha z mocy prawa, dopiero potem anonimizuje. Weryfikator łańcucha pokaże wtedy UWAGI (kod 3), a nie BLOKADĘ.
 
 ---

@@ -30,6 +30,7 @@ import "dotenv/config";
 import { createClient } from "@supabase/supabase-js";
 import { appendAuditEvent, computeAuditHash } from "../src/lib/audit";
 import { createServerSupabase, isSqliteBackend } from "../src/lib/supabase";
+import net from "net";
 
 // Tryb desktop (SQLite, domyslny): ta sama warstwa bazy co backend (shim SQLite,
 // PATRON_DB_PATH). Do 2026-10-06 skrypt znal tylko Supabase i na domyslnej
@@ -76,7 +77,39 @@ const db = SQLITE
           auth: { persistSession: false },
       });
 
+/**
+ * Desktop (SQLite): backend PATRONa dopisuje do tego samego audit_log. Dwa procesy
+ * dopisujace naraz moga rozwidlic lancuch (kolejka zapisow C-07 dziala w JEDNYM
+ * procesie), wiec "zamknij aplikacje" nie moze byc tylko zdaniem w instrukcji.
+ * Sprawdzamy port backendu (PORT, domyslnie 3001 - staly w desktopie). Tryb
+ * serwerowy (Postgres) ma wiele procesow z zalozenia - tam tej bramki nie ma.
+ */
+function backendDziala(port: number): Promise<boolean> {
+    return new Promise((resolve) => {
+        const s = net.connect({ host: "127.0.0.1", port }, () => {
+            s.destroy();
+            resolve(true);
+        });
+        s.on("error", () => resolve(false));
+        s.setTimeout(1500, () => {
+            s.destroy();
+            resolve(false);
+        });
+    });
+}
+
 async function main() {
+    if (SQLITE) {
+        const port = Number(process.env.PORT ?? 3001);
+        if (await backendDziala(port)) {
+            console.error(
+                `STOP: na porcie ${port} dziala backend PATRONa. Zamknij aplikacje PATRON i uruchom ponownie - ` +
+                    `dwa procesy zapisujace dziennik audytu naraz moga rozwidlic lancuch dowodowy. Nic nie zostalo zmienione.`,
+            );
+            process.exit(2);
+            return;
+        }
+    }
     console.log(`[rodo:delete] START dla user_id=${userId}`);
 
     // 1. policz "przed"

@@ -4,6 +4,7 @@
 // podmienialy klienta na shim (weryfikacja desktop, R5). Ten test uruchamia skrypt
 // tak, jak Operator: osobny proces, PATRON_DB_BACKEND=sqlite, PATRON_DB_PATH.
 import { spawnSync } from "child_process";
+import net from "net";
 import fs from "fs";
 import os from "os";
 import path from "path";
@@ -18,11 +19,16 @@ const UZYTKOWNIK = "11111111-2222-4333-8444-555555555555";
 const INNY = "99999999-8888-4777-8666-555555555555";
 const envBackup = { ...process.env };
 
-function uruchom(skrypt: string, args: string[]) {
+// Port "backendu PATRONa": zajety (atrapa nasluchujaca) i wolny (nikt nie slucha).
+let portZajety = 0;
+let portWolny = 0;
+let atrapa: net.Server | null = null;
+
+function uruchom(skrypt: string, args: string[], extraEnv: Record<string, string> = {}) {
     const env: Record<string, string> = {};
     for (const [k, v] of Object.entries(process.env))
         if (v !== undefined && !k.startsWith("SUPABASE") && k !== "NEXT_PUBLIC_SUPABASE_URL") env[k] = v;
-    Object.assign(env, { PATRON_DB_BACKEND: "sqlite", PATRON_DB_PATH: dbPath });
+    Object.assign(env, { PATRON_DB_BACKEND: "sqlite", PATRON_DB_PATH: dbPath, PORT: String(portWolny), ...extraEnv });
     const r = spawnSync(process.execPath, [TSX, skrypt, ...args], {
         cwd: BACKEND, env, encoding: "utf8", timeout: 120_000,
     });
@@ -30,6 +36,14 @@ function uruchom(skrypt: string, args: string[]) {
 }
 
 beforeAll(async () => {
+    atrapa = net.createServer(() => { /* polaczenie przyjete przez system */ });
+    await new Promise<void>((r) => atrapa!.listen(0, "127.0.0.1", () => r()));
+    portZajety = (atrapa.address() as net.AddressInfo).port;
+    const chwilowy = net.createServer();
+    await new Promise<void>((r) => chwilowy.listen(0, "127.0.0.1", () => r()));
+    portWolny = (chwilowy.address() as net.AddressInfo).port;
+    await new Promise<void>((r) => chwilowy.close(() => r()));
+
     process.env.PATRON_DB_BACKEND = "sqlite";
     process.env.PATRON_DB_PATH = dbPath;
     const { createServerSupabase } = await import("./supabase");
@@ -48,6 +62,7 @@ beforeAll(async () => {
 }, 60_000);
 
 afterAll(() => {
+    atrapa?.close();
     process.env = { ...envBackup };
     fs.rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
 });
@@ -60,6 +75,18 @@ describe("rodo-delete.ts na SQLite (desktop)", () => {
         const n = db.prepare("select count(*) c from audit_log where actor_user_id = ?").get(UZYTKOWNIK) as { c: number };
         db.close();
         expect(n.c).toBe(3);
+    }, 120_000);
+
+    it("gdy backend PATRONa slucha na porcie: STOP kodem 2, baza nietknieta", () => {
+        const r = uruchom("scripts/rodo-delete.ts", ["--user", UZYTKOWNIK, "--confirm"], { PORT: String(portZajety) });
+        expect(r.kod, r.out).toBe(2);
+        expect(r.out).toMatch(/Zamknij aplikacje PATRON/);
+        const db = new Database(dbPath, { readonly: true });
+        const n = db.prepare("select count(*) c from audit_log where actor_user_id = ?").get(UZYTKOWNIK) as { c: number };
+        const lb = db.prepare("select count(*) c from audit_log where event_type = 'audit.chain.legal_break'").get() as { c: number };
+        db.close();
+        expect(n.c).toBe(3);
+        expect(lb.c).toBe(0);
     }, 120_000);
 
     it("anonimizuje wpisy uzytkownika, deklaruje zerwanie z lista i hashami po anonimizacji, nie rusza innych", () => {

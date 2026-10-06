@@ -12,7 +12,11 @@ import {
     resolveOperatorApproval,
     type McpServerDefinition,
 } from "../mcp-security";
-import { approveConnectorGateway, type GatewayApprovalDeps } from "./gateway-approval";
+import {
+    approveConnectorGateway,
+    gatewayApprovalAuditArgs,
+    type GatewayApprovalDeps,
+} from "./gateway-approval";
 import type { McpGatewayState } from "./index";
 import { mergeOperatorOverlay, writeGatewayApprovalToOverlay } from "./operator-overlay";
 import { decideRing } from "./ring-policy";
@@ -35,6 +39,7 @@ const czeka = (over: Partial<McpGatewayState> = {}): McpGatewayState => ({
     approvalHash: HASH,
     approvalOrigin: ORIGIN,
     findings: [{ detector: "typosquat", severity: "medium", message: "nieznany konektor spoza zaufanego zestawu" }],
+    riskScore: 42,
     ...over,
 });
 
@@ -119,6 +124,37 @@ describe("approveConnectorGateway - bramki procesu", () => {
         const r = await approveConnectorGateway(DEF.name, OK_BODY, AKTOR, d);
         expect(r.ok ? "ok" : r.code).toBe("write_failed");
         expect(r.ok ? "" : r.detail).toMatch(/nadal czeka/);
+    });
+
+    it("blad zapisu po udanym audycie dopisuje DRUGIE zdarzenie write_failed - dziennik nie pokazuje skutecznego zatwierdzenia", async () => {
+        const { d } = deps(czeka(), { write: vi.fn(() => ({ ok: false, error: "EACCES" })) });
+        await approveConnectorGateway(DEF.name, OK_BODY, AKTOR, d);
+        const wpisy = (d.audit as ReturnType<typeof vi.fn>).mock.calls.map((c) => c[0] as { status?: string });
+        expect(wpisy.map((w) => w.status ?? "approved")).toEqual(["approved", "write_failed"]);
+    });
+
+    it("udany zapis = dokladnie jeden wpis audytu", async () => {
+        const { d } = deps(czeka());
+        await approveConnectorGateway(DEF.name, OK_BODY, AKTOR, d);
+        expect(d.audit).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe("gatewayApprovalAuditArgs - ksztalt dowodu", () => {
+    it("niesie rzeczywista ocene ryzyka ze skanu, nie 0", () => {
+        const a = gatewayApprovalAuditArgs({
+            serverName: DEF.name, state: czeka(), approvedAt: "t", approvedBy: "op", actorUserId: "u",
+        });
+        expect(a.riskScore).toBe(42);
+        expect(a.operatorApproval).toMatchObject({ status: "approved", source: "operator_ui", approvalOrigin: ORIGIN });
+        expect(a.actorUserId).toBe("u");
+    });
+
+    it("status write_failed trafia do operator_approval.status", () => {
+        const a = gatewayApprovalAuditArgs({
+            serverName: DEF.name, state: czeka(), approvedAt: "t", approvedBy: "op", actorUserId: null, status: "write_failed",
+        } as never);
+        expect(a.operatorApproval?.status).toBe("write_failed");
     });
 });
 

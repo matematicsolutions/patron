@@ -35,7 +35,9 @@ export interface RecordMcpSecurityEventArgs {
      * zatwierdzony = "audit"). Brak pola = werdykt nie wymagal decyzji.
      */
     operatorApproval?: {
-        status: Exclude<OperatorApprovalStatus, "not_needed">;
+        // "write_failed": zatwierdzenie z panelu zapisane w dzienniku, ale nakladka go
+        // nie przyjela (B-08) - korekta, nie nowy event_type.
+        status: Exclude<OperatorApprovalStatus, "not_needed"> | "write_failed";
         gatewayAction: McpAction;
         approvalHash: string;
         approvedAt?: string;

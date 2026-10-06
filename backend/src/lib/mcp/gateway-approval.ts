@@ -18,6 +18,46 @@
 // Zatwierdzenie wchodzi w zycie po restarcie, jak przelacznik pickera.
 
 import type { McpGatewayState } from "./index";
+import type { RecordMcpSecurityEventArgs } from "./audit-bridge";
+
+/**
+ * Wpis audytu decyzji Operatora z panelu (mcp_security.gateway). Jedno miejsce
+ * budowy, zeby trasa i testy mowily o tym samym ksztalcie dowodu.
+ */
+export function gatewayApprovalAuditArgs(entry: GatewayApprovalAuditEntry): RecordMcpSecurityEventArgs {
+    const { serverName, state, approvedAt, approvedBy, actorUserId } = entry;
+    return {
+        serverName,
+        action: state.gatewayAction,
+        // Ta sama ocena co w zdarzeniu startowym - dowod ma byc scisly, nie 0.
+        riskScore: state.riskScore,
+        findings: state.findings,
+        operatorApproval: {
+            status: entry.status ?? "approved",
+            gatewayAction: state.gatewayAction,
+            approvalHash: state.approvalHash,
+            approvalOrigin: state.approvalOrigin,
+            approvedAt,
+            approvedBy,
+            source: "operator_ui",
+        },
+        actorUserId,
+    };
+}
+
+export interface GatewayApprovalAuditEntry {
+    serverName: string;
+    state: McpGatewayState;
+    approvedAt: string;
+    approvedBy: string;
+    actorUserId: string | null;
+    /**
+     * "approved" (domyslnie) albo "write_failed": decyzja zapisana w dzienniku,
+     * ale nakladka nie przyjela zapisu - drugi wpis, zeby dziennik nie pokazywal
+     * zatwierdzenia, ktore nie weszlo w zycie.
+     */
+    status?: "approved" | "write_failed";
+}
 
 export interface GatewayApprovalRequest {
     hash: string;
@@ -35,13 +75,7 @@ export interface GatewayApprovalDeps {
         approval: { hash: string; origin: string; approvedAt: string; approvedBy: string },
     ) => { ok: boolean; error?: string };
     /** Slad w lancuchu audytu (recordMcpSecurityEvent). */
-    audit: (entry: {
-        serverName: string;
-        state: McpGatewayState;
-        approvedAt: string;
-        approvedBy: string;
-        actorUserId: string | null;
-    }) => Promise<{ ok: boolean }>;
+    audit: (entry: GatewayApprovalAuditEntry) => Promise<{ ok: boolean }>;
     now?: () => Date;
 }
 
@@ -94,13 +128,18 @@ export async function approveConnectorGateway(
             detail: "Definicja albo pochodzenie konektora zmienily sie od wyswietlenia - przejrzyj zastrzezenia jeszcze raz." };
 
     const approvedAt = (deps.now ?? (() => new Date()))().toISOString();
-    const audyt = await deps.audit({ serverName: name, state, approvedAt, approvedBy: actor.label, actorUserId: actor.userId });
+    const wpis = { serverName: name, state, approvedAt, approvedBy: actor.label, actorUserId: actor.userId };
+    const audyt = await deps.audit(wpis);
     if (!audyt.ok)
         return { ok: false, status: 500, code: "audit_failed",
             detail: "Nie udalo sie zapisac decyzji w dzienniku audytu - zatwierdzenie NIE zostalo zapisane." };
     const w = deps.write(name, { hash: state.approvalHash, origin: state.approvalOrigin, approvedAt, approvedBy: actor.label });
-    if (!w.ok)
+    if (!w.ok) {
+        // Dziennik ma juz "approved" - dopisujemy, ze nie weszlo w zycie.
+        const korekta = await deps.audit({ ...wpis, status: "write_failed" }).catch(() => ({ ok: false }));
         return { ok: false, status: 500, code: "write_failed",
-            detail: `Decyzja jest w dzienniku audytu, ale zapis nakladki sie nie udal: ${w.error ?? "blad zapisu"}. Konektor nadal czeka.` };
+            detail: `Decyzja jest w dzienniku audytu, ale zapis nakladki sie nie udal: ${w.error ?? "blad zapisu"}. Konektor nadal czeka.` +
+                (korekta.ok ? " Dziennik odnotowal, ze zatwierdzenie nie weszlo w zycie." : " UWAGA: nie udalo sie tez dopisac korekty do dziennika.") };
+    }
     return { ok: true, restartRequired: true, approvedAt };
 }

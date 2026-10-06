@@ -132,6 +132,8 @@ export interface McpGatewayState {
      * widzi je w panelu konektorow PRZED zatwierdzeniem.
      */
     findings: ReadonlyArray<Pick<McpFinding, "detector" | "severity" | "message">>;
+    /** Ocena ryzyka skanera - ta sama, co w zdarzeniu startowym (dowod scisly). */
+    riskScore: number;
 }
 
 /**
@@ -575,6 +577,7 @@ export async function getMcpTools(): Promise<OpenAIToolSchema[]> {
                 severity: f.severity,
                 message: f.message,
             })),
+            riskScore: result.riskScore,
         });
 
         if (approval.register) {

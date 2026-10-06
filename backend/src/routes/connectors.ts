@@ -19,7 +19,11 @@ import {
     listConnectorConfigs,
     setGatewayApprovalInConfig,
 } from "../lib/mcp";
-import { approveConnectorGateway, awaitingApprovalDetails } from "../lib/mcp/gateway-approval";
+import {
+    approveConnectorGateway,
+    awaitingApprovalDetails,
+    gatewayApprovalAuditArgs,
+} from "../lib/mcp/gateway-approval";
 
 export const connectorsRouter = Router();
 
@@ -65,23 +69,9 @@ connectorsRouter.post("/:name/gateway-approval", requireAuth, requireAdmin, asyn
         state: getGatewayState,
         exists: (n) => listConnectorConfigs().some((c) => c.name === n),
         write: setGatewayApprovalInConfig,
-        audit: ({ serverName, state, approvedAt, approvedBy, actorUserId }) =>
-            recordMcpSecurityEvent({
-                serverName,
-                action: state.gatewayAction,
-                riskScore: 0,
-                findings: state.findings,
-                operatorApproval: {
-                    status: "approved",
-                    gatewayAction: state.gatewayAction,
-                    approvalHash: state.approvalHash,
-                    approvalOrigin: state.approvalOrigin,
-                    approvedAt,
-                    approvedBy,
-                    source: "operator_ui",
-                },
-                actorUserId,
-            }),
+        // Ksztalt wpisu w JEDNYM miejscu (gateway-approval.ts) - z ocena ryzyka ze
+        // skanu i korekta write_failed, gdy nakladka nie przyjmie zapisu.
+        audit: (wpis) => recordMcpSecurityEvent(gatewayApprovalAuditArgs(wpis)),
     });
     if (!wynik.ok) return void res.status(wynik.status).json({ code: wynik.code, detail: wynik.detail });
     res.json(wynik);

@@ -9,6 +9,15 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ### Naprawione
 
+- **Uwagi z przegladu wdrozen 2026-10-06.**
+  - Zatwierdzenie konektora z panelu zapisuje w dzienniku rzeczywista ocene ryzyka bramy
+    (wczesniej 0). Gdy nakladka nie przyjmie zapisu po wpisie audytu, dziennik dostaje
+    drugie zdarzenie `mcp_security.gateway` z `operator_approval.status = "write_failed"` -
+    nie pokazuje juz zatwierdzenia, ktore nie weszlo w zycie. Bez nowego `event_type`.
+  - `rodo:delete` na desktopie odmawia pracy (kod 2), gdy na porcie backendu dziala
+    PATRON - dwa procesy dopisujace dziennik naraz moglyby rozwidlic lancuch. Wymog
+    "zamknij aplikacje" nie jest juz tylko zdaniem w instrukcji.
+
 - **Decyzje wlasciciela produktu (2026-10-06).**
   - Karty zatwierdzen (ADR-0137) WLACZONE DOMYSLNIE dla edit_document, generate_docx,
     add_comments, replicate_document i remember; wylacznik `PATRON_MUTATION_APPROVAL=false`.
