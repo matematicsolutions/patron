@@ -15,11 +15,15 @@ function deps(over: Partial<ConvertDeps> = {}): {
     docx: ReturnType<typeof vi.fn>;
 } {
     const ocr = vi.fn(async () => "TEKST Z OCR");
-    const pdf = vi.fn(async () => "[Page 1]\n");
+    const pdf = vi.fn(async () => ({
+        text: "[Page 1]\n",
+        pageCount: 1,
+        outline: null,
+    }));
     const docx = vi.fn(async () => "# Umowa\nTresc docx");
     return {
         deps: {
-            extractPdfText: over.extractPdfText ?? (pdf as ConvertDeps["extractPdfText"]),
+            extractPdf: over.extractPdf ?? (pdf as ConvertDeps["extractPdf"]),
             extractDocxText: over.extractDocxText ?? (docx as ConvertDeps["extractDocxText"]),
             ocr: over.ocr ?? (ocr as ConvertDeps["ocr"]),
         },
@@ -67,7 +71,11 @@ describe("convertToMarkdown - routing", () => {
 
     it("PDF z warstwa tekstu -> pdfjs, bez OCR", async () => {
         const d = deps({
-            extractPdfText: vi.fn(async () => "[Page 1]\nObszerna tresc pisma procesowego..."),
+            extractPdf: vi.fn(async () => ({
+                text: "[Page 1]\nObszerna tresc pisma procesowego...",
+                pageCount: 1,
+                outline: null,
+            })),
         });
         const r = await convertToMarkdown({ buffer: buf(), filename: "wyrok.pdf" }, d.deps);
         expect(r.engine).toBe("pdf-text");
@@ -80,7 +88,12 @@ describe("convertToMarkdown - routing", () => {
         const r = await convertToMarkdown(
             { buffer: buf(), filename: "skan-z-sadu.pdf" },
             {
-                extractPdfText: async () => "[Page 1]\n\n[Page 2]\n   ", // pusty skan
+                // pusty skan: strony sa, warstwy tekstu nie ma
+                extractPdf: async () => ({
+                    text: "[Page 1]\n\n[Page 2]\n   ",
+                    pageCount: 2,
+                    outline: null,
+                }),
                 extractDocxText: async () => "",
                 ocr: ocr as ConvertDeps["ocr"],
             },
@@ -95,7 +108,7 @@ describe("convertToMarkdown - routing", () => {
         const r = await convertToMarkdown(
             { buffer: buf(), filename: "skan.jpg" },
             {
-                extractPdfText: async () => "",
+                extractPdf: async () => ({ text: "", pageCount: null, outline: null }),
                 extractDocxText: async () => "",
                 ocr: async () => "Postanowienie z dnia 12.03.3013 r. w sprawie...",
             },

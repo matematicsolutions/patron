@@ -120,5 +120,5 @@ describe("D-15 tabular review: obciecie dlugiego dokumentu", () => {
         const signalled = /truncat|obciet|obcie/i.test(sse) || cells[0].status !== "done";
         const msg = `promptLen=${prompts[0]!.length} modelSawClause=${modelSawClause} cells=${JSON.stringify(cells)}`;
         expect(modelSawClause || signalled, msg).toBe(true);
-    });
+    }, 30_000); // w izolacji ~3 s; pod obciazeniem calej suity audytu przekroczyl 5 s (2026-10-06)
 });
