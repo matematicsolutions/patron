@@ -22,6 +22,8 @@ next-env.d.ts
 .DS_Store
 .vercel
 coverage
+# Wynik reportera JSON vitest dla bramki zera testow (scripts/ci/assert-vitest-count.mjs)
+vitest-results.json
 
 .claude/*.local.*
 .claude/settings.local.json

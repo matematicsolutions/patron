@@ -820,3 +820,35 @@ wynikiem silnika.
 **Wdrozenie**: AGENTS.md (sekcje "Reusable surface" i "DON'T - with receipts"),
 scripts/agents_md_receipt_gate.py, krok "Bramka paragonow AGENTS.md" w
 publication-gate.yml. Clean-room: struktura dokumentu i idea bramki, zero kodu.
+
+## helixdb/helix-db (Apache-2.0 w LICENSE; uwaga ponizej)
+
+**Repo**: https://github.com/helixdb/helix-db (przeglad HEAD `ffc44a9`, 2026-10-06)
+**Licencja**: Apache-2.0 w pliku LICENSE od 2026-05-28 (wczesniej GPL-3.0, potem
+AGPL-3.0); paczka `crates/metrics` nadal deklaruje `AGPL-3.0`, a zaleza od niej silnik,
+serwer i CLI. Dlatego bierzemy WYLACZNIE idee - zadnego kodu, zadnego pakietu.
+**Pattern wzorcowany**: bramka "zero wykonanych testow". Ich
+`scripts/validate-cargo-target-references.py` sprawdza filtry testow przez `--list`,
+bo libtest konczy 0 przy "running 0 tests"; `sdks/typescript/scripts/parity/compare-json.ts`
+przypina dokladna liczbe fixture (234 + 15).
+
+**Co Patron bierze (wzor)**:
+- `scripts/ci/assert-vitest-count.mjs` + kroki w `.github/workflows/ci.yml`: liczy testy
+  WYKONANE z JSON reportera vitest, nie kod wyjscia. Zmierzone 2026-10-06 na
+  `backend/src/lib/audit.test.ts`: `vitest run -t <brak trafien>` -> exit 0 i
+  `success: true` przy 0 wykonanych. Samotest lancucha audytu dostal pin 21 (z przebiegu
+  CI tej galezi; pin 18 zmierzony na innej galezi padl w CI od razu - bramka zadzialala).
+- (rezerwacja) Prepare/execute z jednorazowym tokenem potwierdzenia (5 min, tylko hash,
+  dokladne dopasowanie wywolan) dla narzedzi MCP zapisujacych - kandydat obok ADR-0137.
+- (rezerwacja) Prefiltrowanie przed rankingiem: wektor szereguje tylko to, do czego
+  doszedl filtr dostepu; ponizej ~8k kandydatow skan dokladny zamiast ANN (ich pomiar:
+  recall@50 0,69 przejsciem vs 1,0 skanem). Dotyczy DON'T #10.
+
+**Czego Patron NIE bierze**:
+- Silnika (natywny Rust, niejednoznacznosc licencji w `crates/metrics`) ani wersji
+  embedded (telemetria domyslnie `Basic` - ksztalt zapytan i `tenant_id` do
+  `telemetry.helix-db.com`, sprzeczne z zero-cloud).
+- `helix chef`: odpala agenta z `--dangerously-skip-permissions` i dociaga skille
+  bez pinu wersji.
+
+**Wdrozenie**: bramka zera testow w CI (2026-10-06). Clean-room: idea, zero kodu.

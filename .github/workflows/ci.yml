@@ -37,8 +37,13 @@ jobs:
       - name: TypeScript check
         run: npx tsc --noEmit
 
+      # Kod wyjscia vitest NIE wystarcza: filtr bez trafien albo same .skip konczy
+      # sie exit 0 (zmierzone 2026-10-06). Bramka liczy testy WYKONANE z JSON reportera.
       - name: Vitest
-        run: npm test
+        run: npm test -- --reporter=default --reporter=json --outputFile=vitest-results.json
+
+      - name: Bramka zera testow (backend)
+        run: node ../scripts/ci/assert-vitest-count.mjs vitest-results.json --min 1
 
   frontend:
     name: Frontend (TSC + Next build)
@@ -76,7 +81,10 @@ jobs:
         run: npx eslint .
 
       - name: Vitest (spec 012)
-        run: npm test
+        run: npm test -- --reporter=default --reporter=json --outputFile=vitest-results.json
+
+      - name: Bramka zera testow (frontend)
+        run: node ../scripts/ci/assert-vitest-count.mjs vitest-results.json --min 1
 
       - name: Next build
         run: npm run build
@@ -96,5 +104,13 @@ jobs:
           cache-dependency-path: backend/package-lock.json
       - name: npm ci (z jednym ponowieniem przy awarii sieci)
         run: npm ci || { echo "::warning::npm ci padl za pierwszym razem - ponawiam"; npm ci; }
-      - name: Run audit chain attack scenarios (4 included)
-        run: npx vitest run src/lib/audit.test.ts
+      # Pin 21 = 1 GENESIS + 5 kanonizacja + 7 hash + 5 lancuch (nietkniety + 4 ataki)
+      # + 3 rownolegle zapisy (ADR-0161). Pin jest DOKLADNY: zniknieciu scenariusza
+      # ataku ma towarzyszyc swiadoma zmiana pinu, nie zielony przebieg. Do 2026-10-06
+      # liczbe deklarowala tylko nazwa kroku ("4 included"). Liczba z przebiegu CI na
+      # tej galezi - pin mierzony na innej galezi (18) padl tu od razu, i slusznie.
+      - name: Run audit chain attack scenarios (21 tests, 4 attacks - pinned)
+        run: npx vitest run src/lib/audit.test.ts --reporter=default --reporter=json --outputFile=vitest-results.json
+
+      - name: Bramka zera testow (audit chain, pin 21)
+        run: node ../scripts/ci/assert-vitest-count.mjs vitest-results.json --exact 21
