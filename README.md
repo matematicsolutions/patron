@@ -82,6 +82,11 @@ it is better to read them here than to find out in the middle of a case.
   decide whether a deployment is high-risk.
 - **A screen to review what Patron remembered.** Memory and the knowledge graph work underneath;
   there is no screen for them yet, so you check or correct them in the chat.
+- **Proof that nothing was cut from the end of the audit trail.** The hash chain catches an
+  altered entry and an entry removed from the middle. Entries deleted from the very end leave
+  a shorter chain that is still valid. To confirm the end, compare the last entry (`head` in
+  the verifier's report) with a copy kept outside the database, for example from an earlier
+  export.
 - **A signed installer.** The Windows installer is not code-signed, so SmartScreen warns on
   first run.
 

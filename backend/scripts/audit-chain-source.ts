@@ -188,4 +188,11 @@ export function printReport(report: ChainReport, elapsedS: string): void {
         console.log(`[audit-chain] ${f.severity.toUpperCase()} ${f.kind} id=[${f.ids.join(",")}]: ${f.detail}`);
     }
     if (report.headHash) console.log(`[audit-chain] head: id=${report.headId} hash=${report.headHash}`);
+    // Granica metody (2026-10-08, sqlite-durability.test.ts): wpisy usuniete z KONCA
+    // lancucha zostawiaja poprawny prefiks i werdykt "ok". Koniec potwierdza dopiero
+    // porownanie head z kopia zapisana poza baza.
+    console.log(
+        "[audit-chain] granica: weryfikator nie wykrywa usuniecia ostatnich wpisow - "
+            + "porownaj head z kopia zapisana poza baza (np. z poprzedniego eksportu), jesli ja masz.",
+    );
 }

@@ -9,6 +9,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ### Naprawione
 
+- **Zapis audytu przetrwa zanik zasilania (SQLite `synchronous=FULL`).** Przy `NORMAL` pod
+  WAL baza zostawala spojna, ale ostatnie zatwierdzone transakcje mogly sie wycofac - takze
+  wpis `llm_route`, dopisywany po wyjsciu danych do chmury. Uciety ogon lancucha jest
+  poprawnym prefiksem, wiec weryfikator pokazalby "ok". Koszt zmierzony na maszynie
+  deweloperskiej: ok. 1,5 ms na zapis audytu. Raport weryfikatora i README nazywaja
+  granice: usuniecia ostatnich wpisow nie wykryje sam lancuch, potrzebna jest kopia `head`
+  spoza bazy.
 - **Limity wynikow narzedzi licza dane, nie tylko wiersze.** `search_corpus` oddaje
   najwyzej 20 fragmentow, `find_in_document` najwyzej 50 trafien i 500 znakow kontekstu
   z kazdej strony, a wynik narzedzia MCP dla modelu ma sufit 60 000 znakow z jawna

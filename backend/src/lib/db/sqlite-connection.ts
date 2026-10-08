@@ -82,11 +82,16 @@ export function getDb(): Database.Database {
   db.pragma("journal_mode = WAL");
   db.pragma("foreign_keys = ON");
   // Audyt P3 #12: pod WAL przy rownoczesnym zapisie indeksera/Merkle w tle
-  // ryzyko SQLITE_BUSY. busy_timeout daje retry zamiast natychmiastowego bledu;
-  // synchronous=NORMAL jest bezpieczne i zalecane pod WAL (mniej fsync, bez
-  // ryzyka korupcji przy WAL).
+  // ryzyko SQLITE_BUSY. busy_timeout daje retry zamiast natychmiastowego bledu.
+  //
+  // synchronous=FULL (2026-10-08). NORMAL pod WAL chroni przed KORUPCJA bazy, ale
+  // nie przed UTRATA: po zaniku zasilania ostatnie zatwierdzone transakcje moga sie
+  // wycofac - takze wpis audytu llm_route "allow", dopisywany PO wyjsciu danych do
+  // chmury. Uciety ogon lancucha to poprawny prefiks, wiec weryfikator pokazalby
+  // "ok" (granica nazwana w sqlite-durability.test.ts). Koszt zmierzony na maszynie
+  // deweloperskiej: ok. +1,5 ms na zapis audytu, indeksacja bez roznicy ponad szum.
   db.pragma("busy_timeout = 5000");
-  db.pragma("synchronous = NORMAL");
+  db.pragma("synchronous = FULL");
   db.exec(SQLITE_SCHEMA);
   ensureSchemaUpgrades(db);
   // Audyt P2 #7: wersjonowany runner migracji (PRAGMA user_version) dla zmian
