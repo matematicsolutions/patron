@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { nowyTymczasowyId } from "@/lib/tempId";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
     Upload,
@@ -373,8 +374,9 @@ export function ProjectPage({ projectId, initialTab = "documents" }: Props) {
 
         // Immediately hide the input and show an optimistic folder row
         setCreatingFolderIn(undefined);
-        // Unikalny tymczasowy id bez Date.now (react-hooks/purity w eslint-plugin-react-hooks 7.1).
-        const tempId = `temp-${crypto.randomUUID()}`;
+        // Tymczasowy id do odpowiedzi serwera - lib/tempId (bez crypto.randomUUID, ktorego
+        // nie ma przy HTTP spoza localhost w trybie serwerowym).
+        const tempId = nowyTymczasowyId();
         const optimistic: PATRONFolder = {
             id: tempId,
             project_id: projectId,
