@@ -59,8 +59,12 @@ export interface RetrieveOptions {
   /**
    * Scope: tylko fragmenty z tych dokumentow (np. dokumenty projektu).
    * Pusta tablica = brak trafien. undefined = caly korpus usera.
-   * Filtr aplikowany po stronie aplikacji (vec0 KNN nie laczy sie z JOIN),
-   * wiec silniki dobieraja perEngine*FILTER_OVERFETCH kandydatow.
+   * Zakres dziala W ZAPYTANIU kazdego silnika, PRZED rankingiem (2026-10-06):
+   * wektor liczy odleglosc wylacznie po fragmentach tych dokumentow, BM25
+   * dostaje `rowid in (...)`. Do tej zmiany silniki braly globalne top
+   * perEngine*4 i filtrowaly po fakcie - przy wiekszej liczbie mocniejszych
+   * trafien z innych spraw fragmenty sprawy wypadaly przed filtrem i retrieval
+   * zwracal [] bez sygnalu. Bramka: retrieval.scope-recall.test.ts.
    */
   documentIds?: string[];
   /**
@@ -78,7 +82,12 @@ export interface RetrieveOptions {
   event?: boolean;
 }
 
-const FILTER_OVERFETCH = 4;
+/**
+ * Fragmenty dozwolonych dokumentow jako podzapytanie z JEDNYM parametrem
+ * (tablica JSON) - bez limitu liczby placeholderow i bez sklejania SQL z danych.
+ */
+const CHUNKI_ZAKRESU =
+  "select id from doc_chunks where document_id in (select value from json_each(?))";
 
 export interface RetrievedChunk {
   chunkId: number;
@@ -151,31 +160,54 @@ export function buildFtsMatch(query: string): string | null {
     .join(" OR ");
 }
 
-/** Wektorowy MATCH (sqlite-vec). Zwraca chunk id best-first (distance asc). */
-function vecSearch(queryVec: Float32Array, limit: number): number[] {
+/**
+ * Wektor (sqlite-vec). Zwraca chunk id best-first (distance asc).
+ * Bez zakresu: KNN `match` po calym korpusie. Z zakresem: odleglosc L2 (ta sama
+ * metryka co domyslny vec0) liczona WYLACZNIE po fragmentach dozwolonych
+ * dokumentow - vec0 i tak skanuje wyczerpujaco, wiec zawezenie jest tansze od
+ * globalnego KNN, a kolejnosc jest identyczna z KNN obcietym do zakresu
+ * (sprawdzone sonda na sqlite-vec 2026-10-06).
+ */
+function vecSearch(queryVec: Float32Array, limit: number, documentIds?: string[]): number[] {
   if (!isVecEnabled()) return [];
   const db = getDb();
-  const rows = db
-    .prepare(
-      "select rowid from vec_chunks where embedding match ? order by distance limit ?",
-    )
-    .all(
-      Buffer.from(queryVec.buffer, queryVec.byteOffset, queryVec.byteLength),
-      limit,
-    ) as { rowid: number }[];
+  const wektor = Buffer.from(queryVec.buffer, queryVec.byteOffset, queryVec.byteLength);
+  const rows = (documentIds
+    ? db
+        .prepare(
+          `select rowid from vec_chunks where rowid in (${CHUNKI_ZAKRESU}) ` +
+            "order by vec_distance_l2(embedding, ?) limit ?",
+        )
+        .all(JSON.stringify(documentIds), wektor, limit)
+    : db
+        .prepare(
+          "select rowid from vec_chunks where embedding match ? order by distance limit ?",
+        )
+        .all(wektor, limit)) as { rowid: number }[];
   return rows.map((r) => r.rowid);
 }
 
-/** BM25 (FTS5). Zwraca chunk id best-first (bm25 asc = lepsze dopasowanie). */
-function bm25Search(query: string, limit: number): number[] {
+/**
+ * BM25 (FTS5). Zwraca chunk id best-first (bm25 asc = lepsze dopasowanie).
+ * Zakres zaweza `rowid` w tym samym zapytaniu; statystyki bm25 zostaja liczone
+ * na calym indeksie, wiec wyniki z roznych zakresow sa porownywalne.
+ */
+function bm25Search(query: string, limit: number, documentIds?: string[]): number[] {
   const match = buildFtsMatch(query);
   if (!match) return [];
   const db = getDb();
-  const rows = db
-    .prepare(
-      "select rowid from doc_chunks_fts where doc_chunks_fts match ? order by bm25(doc_chunks_fts) limit ?",
-    )
-    .all(match, limit) as { rowid: number }[];
+  const rows = (documentIds
+    ? db
+        .prepare(
+          "select rowid from doc_chunks_fts where doc_chunks_fts match ? " +
+            `and rowid in (${CHUNKI_ZAKRESU}) order by bm25(doc_chunks_fts) limit ?`,
+        )
+        .all(match, JSON.stringify(documentIds), limit)
+    : db
+        .prepare(
+          "select rowid from doc_chunks_fts where doc_chunks_fts match ? order by bm25(doc_chunks_fts) limit ?",
+        )
+        .all(match, limit)) as { rowid: number }[];
   return rows.map((r) => r.rowid);
 }
 
@@ -359,7 +391,8 @@ export async function retrieve(
   const useGraph = opts.graph !== false;
   const scoped = opts.documentIds !== undefined;
   if (scoped && opts.documentIds!.length === 0) return [];
-  const perEngine = (opts.perEngine ?? k * 3) * (scoped ? FILTER_OVERFETCH : 1);
+  const perEngine = opts.perEngine ?? k * 3;
+  const zakres = scoped ? opts.documentIds : undefined;
 
   const lists: number[][] = [];
   let vecIds: number[] = [];
@@ -368,7 +401,7 @@ export async function retrieve(
   if (useVec) {
     try {
       const qv = await embedOne(query, "query");
-      vecIds = vecSearch(qv, perEngine);
+      vecIds = vecSearch(qv, perEngine, zakres);
     } catch (e) {
       console.warn(
         "[retrieval] vec search skipped:",
@@ -377,10 +410,12 @@ export async function retrieve(
     }
   }
   if (useBm25) {
-    bmIds = bm25Search(query, perEngine);
+    bmIds = bm25Search(query, perEngine, zakres);
   }
 
-  // Scope: odfiltruj kandydatow spoza dozwolonych dokumentow.
+  // Straznik (druga warstwa): zakres juz dziala w zapytaniach silnikow, ale
+  // fragment spoza dozwolonych dokumentow nie ma prawa wyjsc nawet przy bledzie
+  // podzapytania - izolacja sprawy (AGENTS.md DON'T #10).
   if (scoped) {
     const allowed = new Set(opts.documentIds);
     const docMap = chunkDocMap([...new Set([...vecIds, ...bmIds])]);
