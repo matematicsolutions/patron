@@ -506,6 +506,17 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ### Zmienione
 
+- **Modele Claude 5.5 zamiast 4.x.** W wyborze modelu Opus 5.5 i Sonnet 5.5 (przez
+  OpenRouter i na wlasnym kluczu Anthropic), Haiku 5.5 do tytulow i zadan pomocniczych.
+  Id i ceny sprawdzone 2026-10-08 u zrodla: strona modeli i cennik Anthropic oraz
+  katalog OpenRouter (stawki bazowe, nie tryb "fast"). Zapisany wczesniej wybor
+  (np. Sonnet 4.6) przechodzi na nastepce u tego samego dostawcy - dotad model spoza
+  listy spadal po cichu na domyslny model innego dostawcy. Cennik zna cene progowa
+  Haiku 5.5 (inna stawka powyzej 100 tys. tokenow wejscia) i poprawiona stawke
+  `gemini-3-flash-preview` (panel kosztow zawyzal ja okolo trzykrotnie). Test lustra
+  pilnuje zgodnosci listy modeli, aliasow i modelu domyslnego miedzy frontendem a
+  backendem. Modele GPT-5.6 na wlasnym kluczu OpenAI nie weszly: ich id nie dalo sie
+  potwierdzic na stronie dostawcy.
 - **Liczba rownoczesnych indeksacji ma gorna granice** (domyslnie 2,
   `PATRON_INDEX_CONCURRENCY`) - wczesniej import Folderu Sprawy wypuszczal jeden indekser
   na kazdy plik w katalogu, bez ograniczenia. Dla Operatora import 30 akt po 50 stron trwa

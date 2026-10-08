@@ -37,13 +37,13 @@ export const MODELS: ModelOption[] = [
         group: "Lokalny",
     },
     {
-        id: "openrouter/anthropic/claude-opus-4.8",
-        label: "Claude Opus 4.8",
+        id: "openrouter/anthropic/claude-opus-5.5",
+        label: "Claude Opus 5.5",
         group: "OpenRouter",
     },
     {
-        id: "openrouter/anthropic/claude-sonnet-4.6",
-        label: "Claude Sonnet 4.6",
+        id: "openrouter/anthropic/claude-sonnet-5.5",
+        label: "Claude Sonnet 5.5",
         group: "OpenRouter",
     },
     {
@@ -65,8 +65,8 @@ export const MODELS: ModelOption[] = [
     // je od identycznie nazwanych modeli OpenRouter - inaczej w pickerze widac dwa
     // razy "Claude Sonnet 4.6" i nie wiadomo, ktory wymaga wlasnego klucza (to byl
     // realny blad pilotazu: wybor wersji bez klucza dawal gluchy "Stream error").
-    { id: "claude-opus-4-8", label: "Claude Opus 4.8 (wlasny klucz Anthropic)", group: "Anthropic" },
-    { id: "claude-sonnet-4-6", label: "Claude Sonnet 4.6 (wlasny klucz Anthropic)", group: "Anthropic" },
+    { id: "claude-opus-5-5", label: "Claude Opus 5.5 (wlasny klucz Anthropic)", group: "Anthropic" },
+    { id: "claude-sonnet-5-5", label: "Claude Sonnet 5.5 (wlasny klucz Anthropic)", group: "Anthropic" },
     { id: "gemini-3.1-pro-preview", label: "Gemini 3.1 Pro (wlasny klucz Google)", group: "Google" },
     { id: "gemini-3-flash-preview", label: "Gemini 3 Flash (wlasny klucz Google)", group: "Google" },
     { id: "gpt-5.5", label: "GPT-5.5 (wlasny klucz OpenAI)", group: "OpenAI" },
@@ -81,6 +81,28 @@ export const MODELS: ModelOption[] = [
 export const DEFAULT_MODEL_ID = "openrouter/google/gemini-3-flash-preview";
 
 export const ALLOWED_MODEL_IDS = new Set(MODELS.map((m) => m.id));
+
+/**
+ * Wycofane z listy id -> nastepca U TEGO SAMEGO dostawcy (2026-10-08). Bez tego
+ * zapisany wybor mecenasa spoza listy spadal na DEFAULT_MODEL_ID, czyli po cichu na
+ * innego dostawce. Lustro backendu: LEGACY_MODEL_ALIASES w lib/llm/models.ts
+ * (tu dodatkowo slugi OpenRoutera, bo picker je pokazuje); zgodnosc pilnuje
+ * backend/src/lib/llm/models-mirror.test.ts.
+ */
+export const LEGACY_MODEL_ALIASES: Readonly<Record<string, string>> = {
+    "claude-opus-4-8": "claude-opus-5-5",
+    "claude-opus-4-7": "claude-opus-5-5",
+    "claude-sonnet-4-6": "claude-sonnet-5-5",
+    "openrouter/anthropic/claude-opus-4.8": "openrouter/anthropic/claude-opus-5.5",
+    "openrouter/anthropic/claude-sonnet-4.6": "openrouter/anthropic/claude-sonnet-5.5",
+};
+
+/** Id z listy albo jego nastepca; inaczej null (wolajacy bierze domyslny). */
+export function dozwolonyModel(id: string | null | undefined): string | null {
+    if (!id) return null;
+    const n = LEGACY_MODEL_ALIASES[id] ?? id;
+    return ALLOWED_MODEL_IDS.has(n) ? n : null;
+}
 
 const GROUP_ORDER: ModelGroup[] = [
     "Lokalny",

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { ALLOWED_MODEL_IDS, DEFAULT_MODEL_ID } from "../components/assistant/ModelToggle";
+import { DEFAULT_MODEL_ID, dozwolonyModel } from "../components/assistant/ModelToggle";
 
 const STORAGE_KEY = "patron.selectedModel";
 
@@ -19,8 +19,7 @@ export function readSelectedModel(): string {
     } catch {
         raw = null;
     }
-    if (raw && ALLOWED_MODEL_IDS.has(raw)) return raw;
-    return DEFAULT_MODEL_ID;
+    return dozwolonyModel(raw) ?? DEFAULT_MODEL_ID;
 }
 
 export function useSelectedModel(): [string, (id: string) => void] {
@@ -31,7 +30,7 @@ export function useSelectedModel(): [string, (id: string) => void] {
     }, []);
 
     const setModel = useCallback((id: string) => {
-        const next = ALLOWED_MODEL_IDS.has(id) ? id : DEFAULT_MODEL_ID;
+        const next = dozwolonyModel(id) ?? DEFAULT_MODEL_ID;
         setModelState(next);
         if (typeof window !== "undefined") {
             window.localStorage.setItem(STORAGE_KEY, next);

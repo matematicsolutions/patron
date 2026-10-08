@@ -26,11 +26,24 @@ export interface ModelPrice {
     source: string;
     /** Data waznosci stawki (YYYY-MM-DD) - cennik sie starzeje. */
     asOf: string;
+    /**
+     * Cena progowa: gdy zapytanie ma WIECEJ tokenow wejsciowych niz `powyzejTokenowWejscia`,
+     * cale wywolanie liczy sie po tych stawkach (tak rozlicza np. Claude Haiku 5.5).
+     */
+    prog?: { powyzejTokenowWejscia: number; inputPerMtokUsd: number; outputPerMtokUsd: number };
 }
 
 const OR = "openrouter.ai/api/v1/models";
 const OR_TIER = "openrouter.ai (najblizszy tier)";
 const AS_OF = "2026-05-30";
+// 2026-10-08: rodzina Claude 5.5 z cennika Anthropic (stawki bazowe, NIE tryb "fast")
+// i korekty z katalogu OpenRouter z tego dnia.
+const ANTHROPIC = "platform.claude.com/docs/en/about-claude/pricing";
+const AS_OF_1008 = "2026-10-08";
+const HAIKU_55: ModelPrice = {
+    inputPerMtokUsd: 0.1, outputPerMtokUsd: 0.5, source: ANTHROPIC, asOf: AS_OF_1008,
+    prog: { powyzejTokenowWejscia: 100_000, inputPerMtokUsd: 0.5, outputPerMtokUsd: 2.5 },
+};
 
 /**
  * Cennik per model (USD za 1 mln tokenow). Klucze to pelne id modelu z
@@ -38,6 +51,18 @@ const AS_OF = "2026-05-30";
  * fallbackiem dla wywolan bez realnego `cost_usd` od dostawcy.
  */
 export const PRICING: Readonly<Record<string, ModelPrice>> = {
+    // Claude 5.5 - id natywne (myslniki) i ogon sluga OpenRoutera (kropki): pricingKey
+    // nie normalizuje kropek do myslnikow (to psuloby "gpt-5.5"), wiec oba klucze.
+    "claude-opus-5-5": { inputPerMtokUsd: 4, outputPerMtokUsd: 20, source: ANTHROPIC, asOf: AS_OF_1008 },
+    "claude-opus-5.5": { inputPerMtokUsd: 4, outputPerMtokUsd: 20, source: OR, asOf: AS_OF_1008 },
+    "claude-sonnet-5-5": { inputPerMtokUsd: 2, outputPerMtokUsd: 10, source: ANTHROPIC, asOf: AS_OF_1008 },
+    "claude-sonnet-5.5": { inputPerMtokUsd: 2, outputPerMtokUsd: 10, source: OR, asOf: AS_OF_1008 },
+    "claude-haiku-5-5": HAIKU_55,
+    "claude-haiku-5.5": { ...HAIKU_55, source: OR },
+    // Starsze slugi OpenRoutera - historia zuzycia sprzed odswiezenia listy.
+    "claude-opus-4.8": { inputPerMtokUsd: 5, outputPerMtokUsd: 25, source: OR, asOf: AS_OF_1008 },
+    "claude-sonnet-4.6": { inputPerMtokUsd: 3, outputPerMtokUsd: 15, source: OR, asOf: AS_OF_1008 },
+    "gemini-3.1-pro-preview": { inputPerMtokUsd: 2, outputPerMtokUsd: 12, source: OR, asOf: AS_OF_1008 },
     // Dokladne dopasowanie id w katalogu OpenRouter.
     "claude-opus-4-8": { inputPerMtokUsd: 5, outputPerMtokUsd: 25, source: OR, asOf: AS_OF },
     "claude-opus-4-7": { inputPerMtokUsd: 5, outputPerMtokUsd: 25, source: OR, asOf: AS_OF },
@@ -45,10 +70,11 @@ export const PRICING: Readonly<Record<string, ModelPrice>> = {
     "gpt-5.4-mini": { inputPerMtokUsd: 0.75, outputPerMtokUsd: 4.5, source: OR, asOf: AS_OF },
     "gpt-5.4-nano": { inputPerMtokUsd: 0.2, outputPerMtokUsd: 1.25, source: OR, asOf: AS_OF },
     "gemini-3.1-flash-lite-preview": { inputPerMtokUsd: 0.25, outputPerMtokUsd: 1.5, source: OR, asOf: AS_OF },
-    // Brak dokladnego id - najblizszy tier dostawcy (przyblizenie).
-    "claude-sonnet-4-6": { inputPerMtokUsd: 3, outputPerMtokUsd: 15, source: OR_TIER, asOf: AS_OF },
-    "claude-haiku-4-5": { inputPerMtokUsd: 1, outputPerMtokUsd: 5, source: OR_TIER, asOf: AS_OF },
-    "gemini-3-flash-preview": { inputPerMtokUsd: 1.5, outputPerMtokUsd: 9, source: OR_TIER, asOf: AS_OF },
+    // 2026-10-08: te id sa juz w katalogu dokladnie (wczesniej "najblizszy tier").
+    // gemini-3-flash-preview mial 1,5/9 z tieru - realnie 0,50/3, panel zawyzal ~3x.
+    "claude-sonnet-4-6": { inputPerMtokUsd: 3, outputPerMtokUsd: 15, source: OR, asOf: AS_OF_1008 },
+    "claude-haiku-4-5": { inputPerMtokUsd: 1, outputPerMtokUsd: 5, source: OR, asOf: AS_OF_1008 },
+    "gemini-3-flash-preview": { inputPerMtokUsd: 0.5, outputPerMtokUsd: 3, source: OR, asOf: AS_OF_1008 },
 };
 
 /** Czy model dziala lokalnie (Ollama) - koszt API = 0, brak egress. */
@@ -114,8 +140,9 @@ export function resolveCost(
     }
     const inTok = promptTokens ?? 0;
     const outTok = completionTokens ?? 0;
+    const stawka = price.prog && inTok > price.prog.powyzejTokenowWejscia ? price.prog : price;
     const costUsd =
-        (inTok / 1_000_000) * price.inputPerMtokUsd +
-        (outTok / 1_000_000) * price.outputPerMtokUsd;
+        (inTok / 1_000_000) * stawka.inputPerMtokUsd +
+        (outTok / 1_000_000) * stawka.outputPerMtokUsd;
     return { costUsd, estimated: true, unpriced: false };
 }

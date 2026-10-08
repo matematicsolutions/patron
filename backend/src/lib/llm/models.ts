@@ -4,7 +4,9 @@ import type { Provider } from "./types";
 // Canonical model IDs
 // ---------------------------------------------------------------------------
 // Main-chat tier (top-end) — user picks one of these per message.
-export const CLAUDE_MAIN_MODELS = ["claude-opus-4-8", "claude-sonnet-4-6"] as const;
+// Rodzina Claude 5.5 (2026-10-08): id i ceny sprawdzone u zrodla - strona modeli i
+// cennik Anthropic oraz katalog OpenRouter /api/v1/models (DON'T #13).
+export const CLAUDE_MAIN_MODELS = ["claude-opus-5-5", "claude-sonnet-5-5"] as const;
 export const GEMINI_MAIN_MODELS = [
     "gemini-3.1-pro-preview",
     "gemini-3-flash-preview",
@@ -12,13 +14,13 @@ export const GEMINI_MAIN_MODELS = [
 export const OPENAI_MAIN_MODELS = ["gpt-5.5", "gpt-5.4-mini"] as const;
 
 // Mid-tier (used for tabular review) — user picks one in account settings.
-export const CLAUDE_MID_MODELS = ["claude-sonnet-4-6"] as const;
+export const CLAUDE_MID_MODELS = ["claude-sonnet-5-5"] as const;
 export const GEMINI_MID_MODELS = ["gemini-3-flash-preview"] as const;
 export const OPENAI_MID_MODELS = ["gpt-5.4-mini"] as const;
 
 // Low-tier (used for title generation, lightweight extractions) — user picks
 // one in account settings.
-export const CLAUDE_LOW_MODELS = ["claude-haiku-4-5"] as const;
+export const CLAUDE_LOW_MODELS = ["claude-haiku-5-5"] as const;
 export const GEMINI_LOW_MODELS = ["gemini-3.1-flash-lite-preview"] as const;
 export const OPENAI_LOW_MODELS = ["gpt-5.4-nano"] as const;
 
@@ -89,8 +91,24 @@ export function providerForModel(model: string): Provider {
     throw new Error(`Unknown model id: ${model}`);
 }
 
+/**
+ * Wycofane z listy id natywne -> nastepca U TEGO SAMEGO dostawcy. Bez tego zapisany
+ * wybor mecenasa (np. tabular_model "claude-sonnet-4-6") spadal na fallback - czyli
+ * po cichu na INNEGO dostawce (domyslny model to Gemini przez OpenRouter), z inna
+ * rezydencja danych. Lustro: LEGACY_MODEL_ALIASES we frontendzie (ModelToggle.tsx),
+ * zgodnosc pilnuje models-mirror.test.ts. Id OpenRoutera przechodza bez aliasu
+ * (resolveModel je przepuszcza, a stare slugi dzialaja w katalogu).
+ */
+export const LEGACY_MODEL_ALIASES: Readonly<Record<string, string>> = {
+    "claude-opus-4-8": "claude-opus-5-5",
+    "claude-opus-4-7": "claude-opus-5-5",
+    "claude-sonnet-4-6": "claude-sonnet-5-5",
+    "claude-haiku-4-5": "claude-haiku-5-5",
+};
+
 export function resolveModel(id: string | null | undefined, fallback: string): string {
-    if (id && (ALL_MODELS.has(id) || isOpenRouterModel(id) || isOllamaModel(id)))
-        return id;
+    const naNastepce = id ? LEGACY_MODEL_ALIASES[id] ?? id : id;
+    if (naNastepce && (ALL_MODELS.has(naNastepce) || isOpenRouterModel(naNastepce) || isOllamaModel(naNastepce)))
+        return naNastepce;
     return fallback;
 }
