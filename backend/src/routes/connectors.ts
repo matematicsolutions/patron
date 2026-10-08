@@ -19,6 +19,8 @@ import {
     listConnectorConfigs,
     setGatewayApprovalInConfig,
 } from "../lib/mcp";
+import { przelaczRepertoriumWCzacie } from "../lib/mcp/repertorium";
+import { verifierServerName } from "../lib/mcp/verifier";
 import {
     approveConnectorGateway,
     awaitingApprovalDetails,
@@ -78,6 +80,34 @@ connectorsRouter.post("/:name/gateway-approval", requireAuth, requireAdmin, asyn
 });
 
 // GET /connectors
+// POST /connectors/repertorium/chat  { enabled: boolean } - ADR-0167, edycja PL.
+// Tylko Operator: wlaczenie pobiera klucz instalacji z Repertorium i wpuszcza do
+// czatu narzedzia odczytu. Odpowiedz nie niesie klucza ani adresu konektora.
+connectorsRouter.post("/repertorium/chat", requireAuth, requireAdmin, async (req, res) => {
+    const { enabled } = (req.body ?? {}) as { enabled?: unknown };
+    if (typeof enabled !== "boolean") {
+        return void res.status(400).json({ detail: "Pole 'enabled' (boolean) jest wymagane." });
+    }
+    const wynik = await przelaczRepertoriumWCzacie(enabled);
+    if (!wynik.ok) {
+        if (wynik.retryAfterS !== undefined) res.setHeader("Retry-After", String(wynik.retryAfterS));
+        return void res.status(wynik.status).json({
+            detail: wynik.detail,
+            ...(wynik.powod ? { reason: wynik.powod } : {}),
+        });
+    }
+    // Audyt zmiany powierzchni narzedzi czatu (AI Act art. 12) - ten sam typ
+    // zdarzenia co przelacznik pickera; wyslij-i-zapomnij, bez klucza w payloadzie.
+    void recordConnectorToggleEvent({
+        serverName: verifierServerName(),
+        enabled: wynik.enabled,
+        ring: 2,
+    }).catch((err) => {
+        console.warn(`[CONNECTOR-TOGGLE] audit bridge failed for Repertorium:`, err);
+    });
+    res.json({ enabled: wynik.enabled, keyIssued: wynik.kluczWydany, restartRequired: true });
+});
+
 connectorsRouter.get("/", requireAuth, (_req, res) => {
     try {
         res.json({ connectors: getConnectorList() });

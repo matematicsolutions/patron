@@ -28,6 +28,24 @@ export function isVerifierServer(serverName: string): boolean {
     return serverName === verifierServerName();
 }
 
+/**
+ * ADR-0167: narzedzia serwera weryfikatora, ktore Operator moze wpuscic do czatu
+ * (pole `chatTools` we wpisie nakladki). TYLKO odczyt; `verify_citations` NIGDY -
+ * jego tryb `text` wyslalby cale pismo (R-CC-07). Biala lista, nie czarna: nowe
+ * narzedzie serwera nie wchodzi do czatu samo.
+ */
+export const VERIFIER_CHAT_TOOLS: ReadonlySet<string> = new Set([
+    "search_law",
+    "get_document",
+    "get_citations",
+    "trace_history",
+]);
+
+/** Czy narzedzie serwera weryfikatora jest dopuszczone do czatu przy `chatTools: true`. */
+export function isVerifierChatTool(originalName: string): boolean {
+    return originalName !== VERIFY_TOOL && VERIFIER_CHAT_TOOLS.has(originalName);
+}
+
 /** Limit pozycji na wywolanie (kontrakt `verify_citations`). */
 const MAKS_POZYCJI = 25;
 

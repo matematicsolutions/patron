@@ -1102,6 +1102,19 @@ export const pl = {
             "Zatwierdzono. Konektor zacznie działać po ponownym uruchomieniu aplikacji.",
         approveError: "Nie udało się zatwierdzić konektora: {detail}",
         approveForbidden: "Zatwierdzać konektory może tylko Operator kancelarii.",
+        // ADR-0167: Repertorium w czacie (tylko edycja PL).
+        repertoriumTitle: "Repertorium w czacie",
+        repertoriumBody:
+            "Po włączeniu asystent sięga do Repertorium, korpusu prawa prowadzonego przez MateMatic: tekstów jednolitych, historii zmian przepisu i powołań w orzeczeniach. Do Repertorium trafia treść zapytań asystenta. Nazwiska, PESEL, adresy i e-maile zamieniamy w nich na oznaczenia zastępcze, a Repertorium tych zapytań nie zapisuje.",
+        repertoriumLimits:
+            "Bezpłatnie: 50 wyszukań i 10 dokumentów dziennie. Potrzebujesz więcej? Napisz na kontakt@matematic.co.",
+        repertoriumEnable: "Włącz Repertorium w czacie",
+        repertoriumDisable: "Wyłącz Repertorium w czacie",
+        repertoriumOn:
+            "Włączone. Zmiana zacznie działać po ponownym uruchomieniu aplikacji. Jeśli przy konektorze „repertorium” pojawi się „Przejrzyj i zatwierdź”, zatwierdź go.",
+        repertoriumOff:
+            "Wyłączone w czacie. Przycisk „Sprawdź powołania” działa dalej i wysyła tylko listę powołań.",
+        repertoriumError: "Nie udało się zmienić ustawienia Repertorium: {detail}",
         gatewayBlocked: "Zablokowany",
         gatewayBlockedHint:
             "Bramka bezpieczeństwa MCP odrzuciła ten konektor (np. nazwa myli się z zaufanym). Szczegóły w aktach audytu.",

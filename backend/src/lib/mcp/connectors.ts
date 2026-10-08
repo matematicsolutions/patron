@@ -90,6 +90,8 @@ export interface ConnectorInfo {
      * - blocked: brama odrzucila konektor (`denied`, np. nazwa myli sie z zaufana).
      */
     gateway?: ConnectorGatewayStatus;
+    /** ADR-0167: narzedzia odczytu serwera weryfikatora wpuszczone do czatu. */
+    chatTools?: boolean;
 }
 
 export type ConnectorGatewayStatus = "awaiting_operator_approval" | "blocked";
@@ -136,6 +138,8 @@ function toInfo(cfg: McpServerConfig): ConnectorInfo {
             operatorApproved: cfg.operatorApproved,
         }),
         ...(gateway !== undefined && { gateway }),
+        // ADR-0167: stan przelacznika "Repertorium w czacie" - bez adresu i klucza.
+        ...(cfg.chatTools !== undefined && { chatTools: cfg.chatTools === true }),
     };
 }
 

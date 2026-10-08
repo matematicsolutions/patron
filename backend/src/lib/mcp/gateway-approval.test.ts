@@ -208,7 +208,13 @@ describe("trasy zatwierdzenia - tylko Operator (Mirrors #13)", () => {
         const trasy = (connectorsRouter.stack as Warstwa[]).filter((l) => l.route);
         const znajdz = (p: string, m: string) =>
             trasy.find((l) => l.route!.path === p && l.route!.methods[m])?.route!.stack.map((s) => s.name);
-        for (const [p, m] of [["/:name/gateway", "get"], ["/:name/gateway-approval", "post"]] as const) {
+        for (const [p, m] of [
+            ["/:name/gateway", "get"],
+            ["/:name/gateway-approval", "post"],
+            // ADR-0167: przelacznik Repertorium w czacie pobiera klucz i zmienia
+            // powierzchnie narzedzi czatu - ta sama para middleware.
+            ["/repertorium/chat", "post"],
+        ] as const) {
             const stos = znajdz(p, m);
             expect(stos, `${m.toUpperCase()} ${p}`).toBeDefined();
             expect(stos!.slice(0, 2)).toEqual(["requireAuth", "requireAdmin"]);

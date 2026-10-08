@@ -194,6 +194,27 @@ export function writeGatewayApprovalToOverlay(
     return upsertOverlayEntry(overlayPath, name, { gatewayApproval: { ...approval } });
 }
 
+/**
+ * ADR-0167: wpis Repertorium (przelacznik "Repertorium w czacie"). Adres MCP niesie
+ * klucz instalacji, wiec pilnujemy KSZTALTU: tylko https, tylko sciezka /mcp/<klucz>.
+ * Zapisujemy wylacznie pola przelacznika - zatwierdzenie bramy (gatewayApproval)
+ * i reszta wpisu Operatora zostaja nietkniete (upsert).
+ */
+export function writeRepertoriumToOverlay(
+    overlayPath: string,
+    name: string,
+    patch: { url?: string; enabled: boolean; chatTools: boolean },
+): { ok: boolean; error?: string } {
+    const pola: Record<string, unknown> = { enabled: patch.enabled, chatTools: patch.chatTools };
+    if (patch.url !== undefined) {
+        if (!/^https:\/\/[a-z0-9.-]+\/mcp\/[A-Za-z0-9_-]{20,128}$/.test(patch.url))
+            return { ok: false, error: "adres Repertorium w zlym ksztalcie" };
+        pola.transport = "http";
+        pola.url = patch.url;
+    }
+    return upsertOverlayEntry(overlayPath, name, pola);
+}
+
 function upsertOverlayEntry(
     overlayPath: string,
     name: string,

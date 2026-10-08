@@ -201,6 +201,8 @@ export interface ConnectorInfo {
      * na zatwierdzenie Operatora albo zostal odrzucony. Brak = nic do zgloszenia.
      */
     gateway?: "awaiting_operator_approval" | "blocked";
+    /** ADR-0167: Repertorium w czacie (narzedzia odczytu) wlaczone przez Operatora. */
+    chatTools?: boolean;
 }
 
 export async function getConnectors(): Promise<ConnectorInfo[]> {
@@ -236,6 +238,20 @@ export async function approveConnectorGateway(
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(approval),
+    });
+}
+
+/**
+ * ADR-0167: wlacza/wylacza Repertorium w czacie (edycja PL, tylko Operator).
+ * Wlaczenie pobiera klucz instalacji po stronie backendu - odpowiedz go nie niesie.
+ */
+export async function setRepertoriumChat(
+    enabled: boolean,
+): Promise<{ enabled: boolean; keyIssued: boolean; restartRequired: true }> {
+    return apiRequest("/connectors/repertorium/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled }),
     });
 }
 

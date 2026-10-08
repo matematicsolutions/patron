@@ -12,6 +12,7 @@ import {
     type ConnectorInfo,
     type ConnectorJurisdiction,
 } from "@/app/lib/patronApi";
+import { RepertoriumCzat } from "./repertorium-czat";
 
 /** apiRequest rzuca Error z surowym cialem odpowiedzi - wyciagamy `detail`. */
 function szczegolBledu(err: unknown): string {
@@ -195,6 +196,13 @@ export default function ConnectorsPage() {
                 <p className="py-8 text-sm text-gray-500">
                     {t("connectors.empty")}
                 </p>
+            )}
+
+            {connectors !== null && (
+                <RepertoriumCzat
+                    connectors={connectors}
+                    onRestartRequired={() => setShowRestart(true)}
+                />
             )}
 
             {connectors !== null && connectors.length > 0 && (

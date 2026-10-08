@@ -12,11 +12,13 @@ const getConnectors = vi.fn();
 const setConnectorEnabled = vi.fn();
 const getConnectorGateway = vi.fn();
 const approveConnectorGateway = vi.fn();
+const setRepertoriumChat = vi.fn();
 vi.mock("@/app/lib/patronApi", () => ({
     getConnectors: (...a: unknown[]) => getConnectors(...a),
     setConnectorEnabled: (...a: unknown[]) => setConnectorEnabled(...a),
     getConnectorGateway: (...a: unknown[]) => getConnectorGateway(...a),
     approveConnectorGateway: (...a: unknown[]) => approveConnectorGateway(...a),
+    setRepertoriumChat: (...a: unknown[]) => setRepertoriumChat(...a),
 }));
 
 import ConnectorsPage from "./page";
@@ -30,6 +32,13 @@ function conn(over: Partial<ConnectorInfo>): ConnectorInfo {
         jurisdiction: "PL",
         ...over,
     };
+}
+
+/** Przycisk przelacznika konektora (aria-pressed) - karta Repertorium (ADR-0167) ma wlasny. */
+function przelacznik(): HTMLElement {
+    const b = screen.getAllByRole("button").filter((x) => x.hasAttribute("aria-pressed"));
+    expect(b).toHaveLength(1);
+    return b[0]!;
 }
 
 beforeEach(() => {
@@ -50,7 +59,8 @@ describe("ConnectorsPage - picker konektorow (ADR-0133)", () => {
         await screen.findByText("saos");
         expect(screen.getByText(t("connectors.jurisdictionPL"))).toBeTruthy();
         expect(screen.getByText(t("connectors.jurisdictionEU"))).toBeTruthy();
-        const buttons = screen.getAllByRole("button");
+        // ADR-0167: karta Repertorium ma wlasny przycisk - liczymy przelaczniki konektorow.
+        const buttons = screen.getAllByRole("button").filter((b) => b.hasAttribute("aria-pressed"));
         expect(buttons).toHaveLength(3);
         const byName = (n: string) =>
             screen.getByText(n).closest("li")!.querySelector("button")!;
@@ -65,7 +75,7 @@ describe("ConnectorsPage - picker konektorow (ADR-0133)", () => {
         render(<ConnectorsPage />);
         await screen.findByText("krs");
         expect(screen.getByText(t("connectors.operatorOnly"))).toBeTruthy();
-        const btn = screen.getByRole("button");
+        const btn = przelacznik();
         expect((btn as HTMLButtonElement).disabled).toBe(true);
         fireEvent.click(btn);
         expect(setConnectorEnabled).not.toHaveBeenCalled();
@@ -81,11 +91,11 @@ describe("ConnectorsPage - picker konektorow (ADR-0133)", () => {
         await screen.findByText("saos");
         expect(screen.queryByText(t("connectors.restartNote"))).toBeNull();
         await act(async () => {
-            fireEvent.click(screen.getByRole("button"));
+            fireEvent.click(przelacznik());
         });
         expect(setConnectorEnabled).toHaveBeenCalledWith("saos", false);
         await waitFor(() =>
-            expect(screen.getByRole("button").getAttribute("aria-pressed")).toBe("false"),
+            expect(przelacznik().getAttribute("aria-pressed")).toBe("false"),
         );
         expect(screen.getByText(t("connectors.restartNote"))).toBeTruthy();
     });
@@ -96,10 +106,10 @@ describe("ConnectorsPage - picker konektorow (ADR-0133)", () => {
         render(<ConnectorsPage />);
         await screen.findByText("saos");
         await act(async () => {
-            fireEvent.click(screen.getByRole("button"));
+            fireEvent.click(przelacznik());
         });
         await screen.findByText(t("connectors.toggleError"));
-        expect(screen.getByRole("button").getAttribute("aria-pressed")).toBe("true");
+        expect(przelacznik().getAttribute("aria-pressed")).toBe("true");
     });
 
     it("blad ladowania listy -> komunikat, pusta lista -> empty state", async () => {
@@ -197,5 +207,15 @@ describe("ConnectorsPage - picker konektorow (ADR-0133)", () => {
         });
         await screen.findByText(t("connectors.approveForbidden"));
         expect(screen.queryByTestId("connector-approve-confirm-repertorium")).toBeNull();
+    });
+});
+
+describe("ConnectorsPage - karta Repertorium w czacie (ADR-0167)", () => {
+    it("edycja PL: karta jest na stronie obok pickera", async () => {
+        getConnectors.mockResolvedValue([conn({ name: "saos" })]);
+        render(<ConnectorsPage />);
+        await screen.findByText("saos");
+        expect(screen.getByText(t("connectors.repertoriumTitle"))).toBeTruthy();
+        expect(screen.getByRole("button", { name: t("connectors.repertoriumEnable") })).toBeTruthy();
     });
 });

@@ -1,6 +1,7 @@
 # ADR-0167 - Repertorium w czacie edycji PL: klucz instalacji, klasa `patron`, budzet grafu
 
-- **Status:** Proponowany (bez kodu; czeka na decyzje D1-D3 wlasciciela produktu, sekcja nizej)
+- **Status:** Zaakceptowany 2026-10-08 (decyzje D1-D3 podjete, sekcja nizej). Kod: sekcja
+  "Wdrozenie"; wdrozenie Repertorium na produkcje i wydanie instalatora - wlasciciel produktu.
 - **Data:** 2026-10-08
 - **Galaz:** od `main` (linia publiczna)
 - **Mapuje na:** ADR-0157 (weryfikator powolan), ADR-0158 (zatwierdzenie `human_review`),
@@ -50,7 +51,7 @@ ulatwia zaplanowanie przemiatania.
 
 ## Decyzja (proponowana)
 
-1. **Edycja PL ma Repertorium w instalatorze, domyslnie wylaczone.** Wlacza je Operator
+1. **Edycja PL ma Repertorium w panelu konektorow, domyslnie wylaczone.** Wlacza je Operator
    przelacznikiem w panelu konektorow, po przeczytaniu, co wychodzi z komputera (tresc
    zapytan modelu do Repertorium; osoby, PESEL, adresy i e-maile zostaja tokenami, jak w
    kazdym zewnetrznym konektorze MCP). Wlaczenie i wylaczenie trafiaja do lancucha audytu
@@ -78,17 +79,17 @@ ulatwia zaplanowanie przemiatania.
    darmowego dostepu wyczerpany, odnowi sie o podanej godzinie; wiecej -
    kontakt@matematic.co. Klucz wyzszej klasy wydany recznie wkleja sie w to samo miejsce.
 
-## Decyzje wlasciciela produktu
+## Decyzje wlasciciela produktu (podjete 2026-10-08: wszystkie wedlug rekomendacji)
 
-- **D1 - progi klasy `patron`.** 50 wyszukan na dobe podal wlasciciel produktu
-  (2026-10-08). Do potwierdzenia: limit dokumentow na klucz i wspolny sufit dokumentow
-  klasy, osobny od klasy `wolny`. Propozycja liczbowa: `.matematic/spec/0167-progi-repertorium.md`
+- **D1 - progi klasy `patron`.** Na klucz: 50 wyszukan i 10 dokumentow na dobe (te liczby
+  widzi uzytkownik w panelu). Wspolny sufit dokumentow klasy, osobny od klasy `wolny`. Propozycja liczbowa: `.matematic/spec/0167-progi-repertorium.md`
   (warsztat prywatny).
-- **D2 - budzet grafu.** Wysokosc wspolnego dobowego budzetu `get_citations` na klase.
+- **D2 - budzet grafu.** Wspolny dobowy budzet `get_citations` na klase, dobrany tak, zeby
+  zebranie grafu obiema klasami naraz trwalo okolo dwoch lat.
   Propozycja liczbowa z arytmetyka lat przemiatania: ta sama notatka.
-- **D3 - kanal wydawania kluczy.** (A) automatyczny punkt wydawania dla Patrona, bez
-  sekretu, z sufitem wydan i limitem na adres; (B) klucz wydawany recznie po kontakcie i
-  wklejany w Patronie. Wariant A rozszerza decyzje z 2026-09-14: samoobsluga dotyczy tylko
+- **D3 - kanal wydawania kluczy: wariant A.** Automatyczny punkt wydawania dla Patrona, bez
+  sekretu, z sufitem wydan i limitem na adres. Wariant B (klucz recznie po kontakcie)
+  zostaje droga do wyzszej klasy. Wariant A rozszerza decyzje z 2026-09-14: samoobsluga dotyczy tylko
   kanalu Patron, a token nadal nie jest widoczny dla uzytkownika.
 
 ## Konsekwencje
@@ -102,10 +103,10 @@ ulatwia zaplanowanie przemiatania.
   e2e - w dniu decyzji go nie mierzylismy.
 - Model dostaje narzedzia, ktore czesciowo pokrywaja SAOS i ISAP. Instrukcja dla modelu
   musi powiedziec, kiedy siegac po ktore.
-- Nowa kategoria: zdalny konektor MateMatic w instalatorze. Lista zaufanych
-  (`APPROVED_PATRON_CONNECTORS`) obejmuje w dniu decyzji tylko konektory bundlowane; Repertorium
-  zostaje w Ring 2 z zatwierdzeniem Operatora, a lustra nazw konektorow (AGENTS.md,
-  Mirrors #2) dostaja nowy wpis razem z testem parytetu.
+- Repertorium zostaje konektorem nakladki Operatora w Ring 2 z zatwierdzeniem bramy
+  (ADR-0158), jak w ADR-0157. Wpis powstaje w nakladce przy wlaczeniu, nie w manifescie
+  instalatora, wiec lista zaufanych (`APPROVED_PATRON_CONNECTORS`) i lustra nazw konektorow
+  (AGENTS.md, Mirrors #2) sie nie zmieniaja.
 
 ## Alternatywy odrzucone
 
@@ -133,3 +134,37 @@ ulatwia zaplanowanie przemiatania.
 2. Repertorium: punkt wydawania wedlug D3.
 3. Patron: przelacznik, pobranie klucza, narzedzia do czytania w czacie, komunikat o
    limicie, lustra konektorow; e2e na spakowanej aplikacji.
+
+## Wdrozenie (2026-10-08)
+
+Patron (ta galaz):
+
+- `backend/src/lib/mcp/verifier.ts`: biala lista `VERIFIER_CHAT_TOOLS` (cztery narzedzia
+  odczytu); `verify_citations` poza lista zawsze.
+- `backend/src/lib/mcp/index.ts`: pole `chatTools` wpisu konektora; narzedzia serwera
+  weryfikatora wchodza do schematu czatu i do dispatchu tylko z bialej listy i tylko przy
+  `chatTools: true` - dwa niezalezne miejsca, kazde z wlasnym testem.
+- `backend/src/lib/mcp/repertorium.ts` + `POST /connectors/repertorium/chat`
+  (`requireAuth` + `requireAdmin`, edycja PL): pobranie klucza z `/wydaj-patron`, zapis do
+  nakladki (`writeRepertoriumToOverlay` pilnuje ksztaltu adresu), audyt `connector.toggle`.
+  Klucz nie wraca w odpowiedzi API i nie trafia do audytu. Wylaczenie zdejmuje narzedzia z
+  czatu; przycisk "Sprawdz powolania" dziala dalej.
+- `frontend/src/app/(pages)/account/connectors/repertorium-czat.tsx`: karta w panelu
+  (tylko edycja PL) z informacja, co wychodzi, i z limitami - przed kliknieciem.
+- Testy: `repertorium-chat-tools.test.ts`, `repertorium-chat-tools-off.test.ts`,
+  `repertorium.test.ts`, `gateway-approval.test.ts` (trasa w parze middleware Operatora),
+  `repertorium-czat.test.tsx`. Piec mutantow strazy (cala lista do czatu, czat bez
+  `chatTools` w dispatchu i w schemacie, trasa bez `requireAdmin`, przelacznik poza PL)
+  - wszystkie zabite.
+
+Repertorium (repo prywatne, osobna galaz):
+
+- Klasa `patron`, wspolny budzet grafu klas `patron` i `wolny`, sufit wydan per klasa,
+  punkt `/wydaj-patron` z limitem na solony skrot adresu (bez adresu albo soli odmowa).
+- Punkt 6: odmowy dobowe klasy `patron` same dopisuja kontakt@matematic.co, wiec widzi go
+  kazdy klient, nie tylko Patron; model przekazuje tresc odmowy narzedzia.
+- Test na prawdziwym SQLite z kontrola pozytywna; pomiar na kodzie sprzed zmiany: wiele
+  kluczy przepychalo wywolania grafu bez zadnego hamulca.
+
+Niezmierzone w dniu wdrozenia: przebieg e2e na spakowanej aplikacji z zywym Repertorium -
+wymaga wdrozenia Repertorium na produkcje.

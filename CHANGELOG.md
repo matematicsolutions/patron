@@ -321,6 +321,11 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ### Dodane
 
+- **Repertorium w czacie edycji PL (ADR-0167).** Operator wlacza je w panelu konektorow;
+  Patron pobiera wtedy klucz instalacji i wpuszcza do czatu cztery narzedzia odczytu
+  (wyszukiwanie, dokument, powolania, historia zmian). `verify_citations` zostaje wylacznie
+  pod przyciskiem "Sprawdz powolania". Karta mowi przed kliknieciem, co wychodzi z
+  komputera i jakie sa dzienne limity; klucz nie wraca w odpowiedzi API ani do audytu.
 - **Spojnosc lancucha audytu widoczna w aplikacji (ADR-0165).** Ekran audytu pokazuje, czy
   zaden wpis dziennika nie zostal zmieniony, usuniety ani dopisany wstecz (OK / UWAGI /
   BLOKADA, same numery wpisow, bez tresci). Rozwidlenia z wczesniejszych wersji Operator

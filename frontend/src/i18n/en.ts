@@ -951,6 +951,19 @@ export const en: DictShape<typeof pl> = {
         approveDone: "Approved. The connector starts working after the app restarts.",
         approveError: "Could not approve the connector: {detail}",
         approveForbidden: "Only the firm's Operator can approve connectors.",
+        // ADR-0167: shown only in the PL edition; kept for dictionary parity.
+        repertoriumTitle: "Repertorium in chat",
+        repertoriumBody:
+            "Once on, the assistant consults Repertorium, the law corpus run by MateMatic: consolidated texts, the change history of a provision and citations in case law. The assistant's queries go to Repertorium. Names, PESEL numbers, addresses and e-mails are replaced with placeholders, and Repertorium does not store these queries.",
+        repertoriumLimits:
+            "Free: 50 searches and 10 documents a day. Need more? Write to kontakt@matematic.co.",
+        repertoriumEnable: "Turn on Repertorium in chat",
+        repertoriumDisable: "Turn off Repertorium in chat",
+        repertoriumOn:
+            "On. The change takes effect after restarting the app. If \"Review and approve\" appears next to the \"repertorium\" connector, approve it.",
+        repertoriumOff:
+            "Off in chat. The \"Check citations\" button still works and sends only the list of citations.",
+        repertoriumError: "Could not change the Repertorium setting: {detail}",
         gatewayBlocked: "Blocked",
         gatewayBlockedHint:
             "The MCP security gateway rejected this connector (e.g. its name is confusable with a trusted one). Details in the audit records.",

@@ -38,7 +38,13 @@ import {
     writeGatewayApprovalToOverlay,
 } from "./operator-overlay";
 import type { McpCitation, McpToolResult } from "./types";
-import { isVerifierServer, sanitizeVerifyArgs, verifierServerName, VERIFY_TOOL } from "./verifier";
+import {
+    isVerifierChatTool,
+    isVerifierServer,
+    sanitizeVerifyArgs,
+    verifierServerName,
+    VERIFY_TOOL,
+} from "./verifier";
 
 export type { McpCitation, McpToolResult } from "./types";
 export { verifierServerName, VERIFY_TOOL } from "./verifier";
@@ -78,6 +84,10 @@ export interface McpServerConfig {
     // mergeOperatorOverlay, nigdy czytane z pliku. Ring 1 i zaufanie manifestu
     // (ADR-0162) tylko dla "installer".
     configSource?: "installer" | "operator-overlay";
+    // ADR-0167: Operator wpuscil narzedzia ODCZYTU serwera weryfikatora powolan do
+    // czatu (VERIFIER_CHAT_TOOLS). Brak albo false = jak dotad: zero narzedzi w czacie.
+    // Ustawia je wylacznie przelacznik Repertorium w panelu (nakladka Operatora).
+    chatTools?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -618,9 +628,19 @@ export async function getMcpTools(): Promise<OpenAIToolSchema[]> {
             // R-CC-07 (ADR-0157): narzedzia serwera weryfikatora powolan sa
             // zarejestrowane (trasa "Sprawdz powolania" ich potrzebuje), ale NIE
             // trafiaja do listy narzedzi modelu czatu - tryb `text` wyslalby cale pismo.
+            // ADR-0167: przy `chatTools: true` do czatu wchodza WYLACZNIE narzedzia
+            // odczytu z bialej listy; `verify_citations` zostaje poza czatem zawsze.
             if (isVerifierServer(d.cfg.name)) {
+                const czat = d.cfg.chatTools === true
+                    ? d.tools.filter((t) => isVerifierChatTool(t.name))
+                    : [];
+                for (const t of czat) {
+                    tools.push(mcpToolToOpenAI(d.cfg.name, t));
+                }
                 console.log(
-                    `[MCP] "${d.cfg.name}" to weryfikator powolan (ADR-0157) - narzedzia niedostepne dla czatu.`,
+                    czat.length
+                        ? `[MCP] "${d.cfg.name}" (ADR-0167): w czacie ${czat.length} narzedzi odczytu (${czat.map((t) => t.name).join(", ")}); verify_citations tylko pod przyciskiem.`
+                        : `[MCP] "${d.cfg.name}" to weryfikator powolan (ADR-0157) - narzedzia niedostepne dla czatu.`,
                 );
             } else {
                 for (const t of d.tools) {
@@ -679,7 +699,17 @@ export async function getMcpTools(): Promise<OpenAIToolSchema[]> {
  */
 export function isMcpTool(name: string): boolean {
     const entry = _toolRegistry.get(name);
-    return !!entry && !isVerifierServer(entry.serverName);
+    return !!entry && (!isVerifierServer(entry.serverName) || verifierToolInChat(entry));
+}
+
+/**
+ * ADR-0167: narzedzie serwera weryfikatora jest narzedziem czatu tylko wtedy, gdy
+ * jest na bialej liscie odczytu I Operator ustawil `chatTools` dla tego serwera.
+ * Stan czytany z konfiguracji procesu - model nie moze go podac.
+ */
+function verifierToolInChat(entry: { originalName: string; serverName: string }): boolean {
+    return _serverConfigByName.get(entry.serverName)?.chatTools === true
+        && isVerifierChatTool(entry.originalName);
 }
 
 /** Czy weryfikator powolan (`<serwer>__verify_citations`) jest zarejestrowany. */
@@ -731,7 +761,7 @@ export async function runMcpTool(
     }
     // R-CC-07: serwer weryfikatora nie jest dostepny z czatu - takze wtedy, gdy
     // model poda nazwe narzedzia, ktorej nie dostal w schemacie.
-    if (isVerifierServer(entry.serverName)) {
+    if (isVerifierServer(entry.serverName) && !verifierToolInChat(entry)) {
         return {
             text: JSON.stringify({
                 error: `MCP tool "${name}" is reserved for the citation check (ADR-0157) and is not available in chat.`,
