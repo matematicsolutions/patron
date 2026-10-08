@@ -9,6 +9,18 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ### Naprawione
 
+- **Limity wynikow narzedzi licza dane, nie tylko wiersze.** `search_corpus` oddaje
+  najwyzej 20 fragmentow, `find_in_document` najwyzej 50 trafien i 500 znakow kontekstu
+  z kazdej strony, a wynik narzedzia MCP dla modelu ma sufit 60 000 znakow z jawna
+  informacja o przycieciu. Wczesniej liczbe wynikow i kontekst podawal model bez
+  sufitu, wiec jedno wywolanie moglo wciagnac do odpowiedzi cale akta sprawy. Argument
+  spoza zakresu jest przycinany z nota, nie odrzucany.
+- **Blad narzedzia nie oddaje modelowi surowego komunikatu.** Komunikat bledu bazy albo
+  pliku niosl nazwy tabel i kolumn, sciezke z nazwa uzytkownika Windows, a w bledzie
+  polaczenia MCP - adres konektora z kluczem. Model dostaje staly kod, narzedzie i klase
+  bledu (np. `DbError:23505`), kod HTTP konektora tylko gdy jest; lokalny log dostaje te
+  sama klase bledu, bez komunikatu. Straznik zrodla z kontrola pozytywna pilnuje czterech
+  plikow, ktore skladaja wynik narzedzia.
 - **Scalenie galezi poprawek z kursu AIES (`fix/kurs-aies-fala1`) z `main` po audycie.**
   Wiekszosc poprawek obie galezie zrobily niezaleznie (maskowanie tytulu i draftu,
   czesciowe wykonanie karty, wynik MCP pod input-security, obraz w odpowiedzi) -

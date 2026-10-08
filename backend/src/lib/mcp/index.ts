@@ -8,6 +8,7 @@
 // blokuje konektor + logowana strukturyzowanie. Lokalny baseline file dla
 // drift detection w ~/.patron/mcp-drift-baseline.json (env PATRON_MCP_BASELINE_PATH).
 
+import { logErrorClass } from "../log-error-class";
 import fs from "fs";
 import os from "os";
 import path from "path";
@@ -840,6 +841,10 @@ async function callRegisteredTool(
         } else {
             text = JSON.stringify(content);
         }
+        // Sufit rozmiaru dla modelu (przeglad 2026-10-08): konektor liczy wyniki
+        // w wierszach albo dokumentach, nie w bajtach - jeden "gruby" wynik bylby
+        // inaczej w calosci w kontekscie modelu (i przy chmurze poza komputerem).
+        text = przytnijWynikMcp(text);
 
         // 2. Wyluskaj structured citations (opcjonalne).
         const structured = (result as { structuredContent?: unknown })
@@ -856,13 +861,35 @@ async function callRegisteredTool(
             ...(structured !== undefined && { structured }),
         };
     } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
+        // BIALA LISTA pol dla modelu (przeglad 2026-10-08): komunikat klienta MCP
+        // bywa nosnikiem adresu konektora (u Repertorium z kluczem w sciezce),
+        // odpowiedzi serwera albo szczegolow schematu. Kod HTTP i klasa - tak.
+        const kod = (err as { code?: unknown } | null)?.code;
+        const httpStatus = typeof kod === "number" && kod >= 100 && kod < 600 ? kod : undefined;
+        const klasa = logErrorClass(err);
+        console.warn(`[MCP] tool "${name}" failed:`, klasa, httpStatus ?? "");
         return {
-            text: JSON.stringify({ error: `MCP tool "${name}" failed: ${message}` }),
+            text: JSON.stringify({
+                error: "mcp_tool_failed",
+                tool: name,
+                error_class: klasa,
+                ...(httpStatus !== undefined && { http_status: httpStatus }),
+            }),
             citations: [],
             isError: true,
         };
     }
+}
+
+/** Sufit tekstu wyniku narzedzia MCP przekazywanego modelowi (znaki). */
+export const MAX_MCP_TEXT = 60_000;
+
+/** Przycina wynik do MAX_MCP_TEXT z jawna informacja o przycieciu. */
+export function przytnijWynikMcp(text: string): string {
+    if (text.length <= MAX_MCP_TEXT) return text;
+    return text.slice(0, MAX_MCP_TEXT)
+        + `\n[PATRON: wynik narzedzia obciety - pokazano ${MAX_MCP_TEXT} z ${text.length} znakow. `
+        + "Zawez zapytanie albo uzyj stronicowania narzedzia.]";
 }
 
 // ---------------------------------------------------------------------------

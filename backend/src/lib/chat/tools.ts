@@ -140,7 +140,9 @@ export const TOOLS = [
                     max_results: {
                         type: "integer",
                         description:
-                            "Maximum number of fragments to return (default 8).",
+                            "Maximum number of fragments to return (default 8, at most 20).",
+                        minimum: 1,
+                        maximum: 20,
                     },
                 },
                 required: ["query"],
@@ -268,12 +270,16 @@ export const TOOLS = [
                     max_results: {
                         type: "integer",
                         description:
-                            "Maximum number of matches to return (default 20). Use a smaller value for common terms.",
+                            "Maximum number of matches to return (default 20, at most 50). Use a smaller value for common terms.",
+                        minimum: 1,
+                        maximum: 50,
                     },
                     context_chars: {
                         type: "integer",
                         description:
                             "Characters of surrounding context to include on each side of a match (default 80).",
+                        minimum: 0,
+                        maximum: 500,
                     },
                 },
                 required: ["doc_id", "query"],

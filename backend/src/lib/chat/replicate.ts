@@ -4,6 +4,7 @@
 // wykonywaly TE SAME kroki na TYCH SAMYCH (znormalizowanych) argumentach.
 // Rejestracja etykiet doc-N i zdarzenia SSE zostaja po stronie wolajacego.
 
+import { logErrorClass } from "../log-error-class";
 import { convertedPdfKey } from "../convert";
 import { loadActiveVersion } from "../documentVersions";
 import { downloadFile, storageKey, uploadFile } from "../storage";
@@ -104,7 +105,7 @@ export async function replicateDocumentCopies(
     if (docErr || !insertedDocs || insertedDocs.length === 0) {
         return {
             ok: false,
-            error: `Failed to record replicated documents: ${docErr?.message ?? "unknown"}`,
+            error: `Failed to record replicated documents (${logErrorClass(docErr)})`,
         };
     }
     // Preserve the request order so each row pairs with the right filename.
@@ -153,7 +154,7 @@ export async function replicateDocumentCopies(
     ) {
         return {
             ok: false,
-            error: `Failed to record replicated document versions: ${verErr?.message ?? "unknown"}`,
+            error: `Failed to record replicated document versions (${logErrorClass(verErr)})`,
         };
     }
     const versionByDocId = new Map<string, string>();

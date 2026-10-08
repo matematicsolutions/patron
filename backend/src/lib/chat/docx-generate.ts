@@ -1,6 +1,7 @@
 // Generator dokumentow .docx z ustrukturyzowanego inputu LLM (tool generate_docx).
 // Wyciagniete z chatTools.ts w ramach refactoru Faza 2.3 iteracja 2.
 
+import { logErrorClass } from "../log-error-class";
 import {
     generatedDocKey,
     uploadFile,
@@ -541,7 +542,7 @@ export async function generateDocx(
             .single();
         if (docErr || !docRow) {
             return {
-                error: `Failed to record generated document: ${docErr?.message ?? "unknown"}`,
+                error: `Failed to record generated document (${logErrorClass(docErr)})`,
             };
         }
         const documentId = docRow.id as string;
@@ -559,7 +560,7 @@ export async function generateDocx(
             .single();
         if (verErr || !versionRow) {
             return {
-                error: `Failed to record generated document version: ${verErr?.message ?? "unknown"}`,
+                error: `Failed to record generated document version (${logErrorClass(verErr)})`,
             };
         }
         const versionId = versionRow.id as string;
@@ -579,6 +580,6 @@ export async function generateDocx(
             message: `Document '${filename}' has been generated successfully.`,
         };
     } catch (e) {
-        return { error: String(e) };
+        return { error: `generate_docx failed (${logErrorClass(e)})` };
     }
 }

@@ -23,6 +23,13 @@ import {
 } from "./replicate";
 import { analyzeInput, isHardThreat, inputSecurityEnforce } from "../input-security";
 import { generateDocx } from "./docx-generate";
+import { bladNarzedziaDlaModelu } from "./tool-error";
+import {
+    MAX_FIND_CONTEXT_CHARS,
+    MAX_FIND_RESULTS,
+    MAX_SEARCH_CORPUS_RESULTS,
+    ogranicz,
+} from "./tool-limits";
 import {
     loadCurrentVersionBytes,
     runAddComments,
@@ -346,8 +353,8 @@ async function findInDocumentContent(params: {
     const {
         docLabel,
         query,
-        maxResults = 20,
-        contextChars = 80,
+        maxResults,
+        contextChars,
         docStore,
         write,
         docIndex,
@@ -401,21 +408,69 @@ async function findInDocumentContent(params: {
         });
     }
 
+    const wynik = znajdzTrafienia(text, query, maxResults, contextChars);
+    if (!wynik.ok) {
+        return JSON.stringify({ ok: false, error: wynik.error });
+    }
+    const { hits, totalMatches, limity } = wynik;
+
+    write(
+        `data: ${JSON.stringify({
+            type: "doc_find",
+            filename: docInfo.filename,
+            query,
+            total_matches: totalMatches,
+        })}\n\n`,
+    );
+
+    return JSON.stringify({
+        ok: true,
+        filename: docInfo.filename,
+        query,
+        total_matches: totalMatches,
+        returned: hits.length,
+        truncated: totalMatches > hits.length,
+        ...(limity ? { limits_applied: limity } : {}),
+        hits,
+    });
+}
+
+type TrafienieWDokumencie = {
+    index: number;
+    excerpt: string;
+    context: string;
+};
+
+/**
+ * Trafienia `query` w tekscie dokumentu (czysta funkcja). `maxResults` i
+ * `contextChars` podaje MODEL - przycinamy je TUTAJ (MAX_FIND_RESULTS,
+ * MAX_FIND_CONTEXT_CHARS), wiec granica obowiazuje kazde wywolanie: bez niej
+ * jedno wywolanie z duzym kontekstem oddawalo przy kazdym trafieniu caly
+ * dokument (przeglad 2026-10-08, "limit wierszy != limit danych").
+ */
+export function znajdzTrafienia(
+    text: string,
+    query: string,
+    maxResultsArg?: number,
+    contextCharsArg?: number,
+):
+    | { ok: false; error: string }
+    | { ok: true; hits: TrafienieWDokumencie[]; totalMatches: number; limity?: string } {
+    const maxResults = ogranicz(maxResultsArg, 1, MAX_FIND_RESULTS, 20);
+    const contextChars = ogranicz(contextCharsArg, 0, MAX_FIND_CONTEXT_CHARS, 80);
+    const przyciete = [
+        typeof maxResultsArg === "number" && maxResultsArg !== maxResults
+            ? `max_results=${maxResults}` : null,
+        typeof contextCharsArg === "number" && contextCharsArg !== contextChars
+            ? `context_chars=${contextChars}` : null,
+    ].filter(Boolean).join(", ");
     const { norm, origIdx } = normalizeWithMap(text);
     const needle = normalizeQuery(query);
     if (!needle) {
-        return JSON.stringify({
-            ok: false,
-            error: "Empty query after normalization.",
-        });
+        return { ok: false, error: "Empty query after normalization." };
     }
 
-    type Hit = {
-        index: number;
-        excerpt: string;
-        context: string;
-    };
-    const hits: Hit[] = [];
+    const hits: TrafienieWDokumencie[] = [];
     let from = 0;
     while (from <= norm.length - needle.length && hits.length < maxResults) {
         const pos = norm.indexOf(needle, from);
@@ -451,24 +506,7 @@ async function findInDocumentContent(params: {
         }
     }
 
-    write(
-        `data: ${JSON.stringify({
-            type: "doc_find",
-            filename: docInfo.filename,
-            query,
-            total_matches: totalMatches,
-        })}\n\n`,
-    );
-
-    return JSON.stringify({
-        ok: true,
-        filename: docInfo.filename,
-        query,
-        total_matches: totalMatches,
-        returned: hits.length,
-        truncated: totalMatches > hits.length,
-        hits,
-    });
+    return { ok: true, hits, totalMatches, ...(przyciete ? { limity: przyciete } : {}) };
 }
 
 export type DocEditedResult = {
@@ -890,9 +928,7 @@ export async function runToolCalls(
                             scope: r.scope,
                         });
                     } catch (e) {
-                        content = JSON.stringify({
-                            error: e instanceof Error ? e.message : String(e),
-                        });
+                        content = JSON.stringify(bladNarzedziaDlaModelu("remember", e));
                     }
                 }
             }
@@ -943,15 +979,16 @@ export async function runToolCalls(
                     content = JSON.stringify({ scope, memories });
                 }
             } catch (e) {
-                content = JSON.stringify({
-                    error: e instanceof Error ? e.message : String(e),
-                });
+                content = JSON.stringify(bladNarzedziaDlaModelu("recall", e));
             }
             toolResults.push({ role: "tool", tool_call_id: tc.id, content });
         } else if (tc.function.name === "search_corpus") {
             const query = (args.query as string) ?? "";
-            const maxResults =
-                typeof args.max_results === "number" ? args.max_results : 8;
+            // Liczbe fragmentow podaje model - sufit MAX_SEARCH_CORPUS_RESULTS
+            // (przeglad 2026-10-08): bez niego jedno wywolanie wciagalo cale akta.
+            const maxResults = ogranicz(args.max_results, 1, MAX_SEARCH_CORPUS_RESULTS, 8);
+            const maxResultsPrzyciete =
+                typeof args.max_results === "number" && args.max_results !== maxResults;
             // Scope RAG (audyt P2 #5) - izolacja tajemnicy miedzy sprawami.
             // retrieve() degraduje do BM25+graf bez wektora. documentIds=[] =>
             // zero trafien (NIE caly korpus). Logika w resolveSearchScope.
@@ -1060,6 +1097,9 @@ export async function runToolCalls(
                                 : "Brak trafien w korpusie dla tego zapytania.",
                             crossNote,
                             scopeNote,
+                            maxResultsPrzyciete
+                                ? `max_results ograniczone do ${MAX_SEARCH_CORPUS_RESULTS} - zawez zapytanie, zamiast prosic o wiecej.`
+                                : undefined,
                         ]
                             .filter(Boolean)
                             .join(" ") || undefined,
@@ -1068,7 +1108,7 @@ export async function runToolCalls(
                 content = JSON.stringify({
                     query,
                     results: [],
-                    error: e instanceof Error ? e.message : String(e),
+                    ...bladNarzedziaDlaModelu("search_corpus", e),
                 });
             }
             toolResults.push({ role: "tool", tool_call_id: tc.id, content });
@@ -1888,7 +1928,7 @@ export async function runToolCalls(
                             });
                         }
                     } catch (e) {
-                        fail(`replicate_document failed: ${String(e)}`);
+                        fail(`replicate_document failed (${bladNarzedziaDlaModelu("replicate_document", e).error_class})`);
                     }
                 }
             }
