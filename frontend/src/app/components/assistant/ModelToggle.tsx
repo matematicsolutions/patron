@@ -37,18 +37,28 @@ export const MODELS: ModelOption[] = [
         group: "Lokalny",
     },
     {
-        id: "openrouter/anthropic/claude-opus-4.8",
-        label: "Claude Opus 4.8",
+        id: "openrouter/anthropic/claude-opus-5",
+        label: "Claude Opus 5",
         group: "OpenRouter",
     },
     {
-        id: "openrouter/anthropic/claude-sonnet-4.6",
-        label: "Claude Sonnet 4.6",
+        id: "openrouter/anthropic/claude-sonnet-5",
+        label: "Claude Sonnet 5",
+        group: "OpenRouter",
+    },
+    {
+        id: "openrouter/google/gemini-3.7-flash",
+        label: "Gemini 3.7 Flash",
         group: "OpenRouter",
     },
     {
         id: "openrouter/google/gemini-3-flash-preview",
         label: "Gemini 3 Flash",
+        group: "OpenRouter",
+    },
+    {
+        id: "openrouter/openai/gpt-5.6-sol",
+        label: "GPT-5.6 Sol",
         group: "OpenRouter",
     },
     {
@@ -63,22 +73,25 @@ export const MODELS: ModelOption[] = [
     },
     // Modele "direct" (wlasny klucz danego dostawcy). Suffix w etykiecie ROZROZNIA
     // je od identycznie nazwanych modeli OpenRouter - inaczej w pickerze widac dwa
-    // razy "Claude Sonnet 4.6" i nie wiadomo, ktory wymaga wlasnego klucza (to byl
+    // razy "Claude Sonnet 5" i nie wiadomo, ktory wymaga wlasnego klucza (to byl
     // realny blad pilotazu: wybor wersji bez klucza dawal gluchy "Stream error").
-    { id: "claude-opus-4-8", label: "Claude Opus 4.8 (wlasny klucz Anthropic)", group: "Anthropic" },
-    { id: "claude-sonnet-4-6", label: "Claude Sonnet 4.6 (wlasny klucz Anthropic)", group: "Anthropic" },
+    { id: "claude-opus-5", label: "Claude Opus 5 (wlasny klucz Anthropic)", group: "Anthropic" },
+    { id: "claude-sonnet-5", label: "Claude Sonnet 5 (wlasny klucz Anthropic)", group: "Anthropic" },
     { id: "gemini-3.1-pro-preview", label: "Gemini 3.1 Pro (wlasny klucz Google)", group: "Google" },
+    { id: "gemini-3.7-flash", label: "Gemini 3.7 Flash (wlasny klucz Google)", group: "Google" },
     { id: "gemini-3-flash-preview", label: "Gemini 3 Flash (wlasny klucz Google)", group: "Google" },
-    { id: "gpt-5.5", label: "GPT-5.5 (wlasny klucz OpenAI)", group: "OpenAI" },
-    { id: "gpt-5.4-mini", label: "GPT-5.4 Mini (wlasny klucz OpenAI)", group: "OpenAI" },
+    { id: "gpt-5.6-sol", label: "GPT-5.6 Sol (wlasny klucz OpenAI)", group: "OpenAI" },
+    { id: "gpt-5.6-terra", label: "GPT-5.6 Terra (wlasny klucz OpenAI)", group: "OpenAI" },
+    { id: "gpt-5.6-luna", label: "GPT-5.6 Luna (wlasny klucz OpenAI)", group: "OpenAI" },
 ];
 
-// Domyslny model: OpenRouter Gemini 3 Flash - tani i szybki, jeden klucz Operatora
+// Domyslny model: OpenRouter Gemini 3.7 Flash - tani i szybki, jeden klucz Operatora
 // pokrywa wszystkie modele OpenRouter, wiec dziala "z pudelka". Wczesniej domyslny
 // byl Gemini-direct (gemini-3-flash-preview), ktory wymaga osobnego klucza Google
 // -> swiezy build padal na starcie. Mecenas zmienia model jednym klikiem (Sonnet,
 // Bielik lokalny itd.) jesli chce mocniejszy/zero-cloud.
-export const DEFAULT_MODEL_ID = "openrouter/google/gemini-3-flash-preview";
+// MUSI byc zgodny z DEFAULT_MAIN_MODEL w backend/src/lib/llm/models.ts.
+export const DEFAULT_MODEL_ID = "openrouter/google/gemini-3.7-flash";
 
 export const ALLOWED_MODEL_IDS = new Set(MODELS.map((m) => m.id));
 
