@@ -840,9 +840,12 @@ przypina dokladna liczbe fixture (234 + 15).
   CI tej galezi; pin 18 zmierzony na innej galezi padl w CI od razu - bramka zadzialala).
 - (rezerwacja) Prepare/execute z jednorazowym tokenem potwierdzenia (5 min, tylko hash,
   dokladne dopasowanie wywolan) dla narzedzi MCP zapisujacych - kandydat obok ADR-0137.
-- (rezerwacja) Prefiltrowanie przed rankingiem: wektor szereguje tylko to, do czego
-  doszedl filtr dostepu; ponizej ~8k kandydatow skan dokladny zamiast ANN (ich pomiar:
-  recall@50 0,69 przejsciem vs 1,0 skanem). Dotyczy DON'T #10.
+- Prefiltrowanie przed rankingiem (2026-10-08): `retrieve(documentIds)` w
+  `backend/src/lib/retrieval/retrieval.ts` zaweza zakres sprawy w zapytaniu kazdego
+  silnika (wektor: dokladna odleglosc L2 tylko po fragmentach sprawy; BM25:
+  `rowid in (...)`), zamiast filtrowac globalne top-k po fakcie. Filtr po fakcie zostaje
+  jako druga warstwa. Bramka: `backend/src/lib/retrieval/retrieval.scope-recall.test.ts`;
+  AGENTS.md DON'T #16.
 
 **Czego Patron NIE bierze**:
 - Silnika (natywny Rust, niejednoznacznosc licencji w `crates/metrics`) ani wersji
@@ -851,4 +854,5 @@ przypina dokladna liczbe fixture (234 + 15).
 - `helix chef`: odpala agenta z `--dangerously-skip-permissions` i dociaga skille
   bez pinu wersji.
 
-**Wdrozenie**: bramka zera testow w CI (2026-10-06). Clean-room: idea, zero kodu.
+**Wdrozenie**: bramka zera testow w CI (2026-10-06), prefiltrowanie zakresu sprawy w
+retrievalu (2026-10-08). Clean-room: idea, zero kodu.

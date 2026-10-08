@@ -48,8 +48,8 @@ Everything below ran end-to-end on 2026-08-23 against a real model on synthetic 
 - **An audit trail a third party can verify** - every model interaction hash-chained with a Merkle
   root, built for record-keeping duties such as AI Act art. 12 where they apply; exportable as a ZIP that ships its own verifier (a browser page and a
   Python script), so a court, the DPA or the client can check it without this repository (ADR-0142).
-- **PII does not leave the machine by accident** - names, companies, PESEL/NIP/REGON are masked before
-  any cloud model, and an egress guard checks every outbound call against the case's classification.
+- **Masking before a cloud model** - names, companies, PESEL/NIP/REGON are replaced with tokens before
+  any cloud model ([known gaps](#what-patron-is-not-for)), and an egress guard checks every outbound call against the case's classification.
 - **Bring your own model** - a local Ollama model, or Gemini, Claude or OpenRouter with your own key,
   chosen in settings or per conversation. With a local model the conversation stays on the machine.
   With a cloud model the request goes to that provider with names and identifiers masked; in the
@@ -58,9 +58,32 @@ Everything below ran end-to-end on 2026-08-23 against a real model on synthetic 
 - **9 installer editions** from one code line: PL, EN (EU-first), US, GB, BR, IT, DE, ES, FR - each
   with its home jurisdiction connector on by default. Downloads: [matematicsolutions.com/pobierz](https://matematicsolutions.com/pobierz).
 
-Two limits we say out loud. The memory and the knowledge graph work underneath: there is no screen
-yet where you can review or correct what Patron has remembered - you ask for it in the chat. The
-Windows installer is not code-signed, so SmartScreen warns on first run.
+## What Patron is not for
+
+Patron is built for one lawyer working on their own case files. A few jobs it does not do, and
+it is better to read them here than to find out in the middle of a case.
+
+- **A shared firm server, in the desktop app.** The installer runs for one user on one machine
+  ([ADR-0053](./governance/adr/0053-sqlite-single-user-zero-cloud.md)). Several lawyers working
+  on the same matters need server mode (Postgres + MinIO), a separate deployment.
+- **A replacement for reading the source.** The green, yellow and red citation badges are
+  advisory: a red badge warns, it does not block the answer
+  ([ADR-0146](./governance/adr/0146-grounding-cytatow-mcp.md)). Checking the quote against the
+  source stays with the lawyer.
+- **Guaranteed anonymisation.** Detectors mask names, companies and identifiers before a cloud model, but
+  some forms slip through - for example a bare surname in a later message, with no first name
+  or role next to it (finding A-02 in [the 2026-09 audit](./docs/AUDYT_2026-09.md)). For files
+  under professional secrecy we recommend a local model: then nothing leaves the machine.
+- **Legacy `.doc` without LibreOffice.** PDF and DOCX work on their own. Older binary `.doc`
+  files need LibreOffice, and without it Patron refuses them out loud instead of storing an
+  empty file.
+- **A compliance certificate.** The audit trail supports record-keeping duties such as AI Act
+  art. 12 where they apply. It does not make a deployment "AI Act compliant", and it does not
+  decide whether a deployment is high-risk.
+- **A screen to review what Patron remembered.** Memory and the knowledge graph work underneath;
+  there is no screen for them yet, so you check or correct them in the chat.
+- **A signed installer.** The Windows installer is not code-signed, so SmartScreen warns on
+  first run.
 
 ## Documentation
 
