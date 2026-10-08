@@ -506,6 +506,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ### Zmienione
 
+- **Zaleznosci z poprawkami bezpieczenstwa (2026-10-08).** Backend: multer 2.2 (linia 1.x
+  miala podatnosci DoS przy wgrywaniu plikow), helmet 8.3, aws-sdk, libreoffice-convert 1.8.2
+  i `npm audit fix` bez zmian wersji glownych - audyt zaleznosci produkcyjnych z 19 pozycji
+  (1 krytyczna, 6 wysokich, m.in. parsery XML i ZIP uzywane przy dokumentach) do 3
+  umiarkowanych. Frontend: tiptap 3.30 (wszystkie pakiety razem), lucide-react, vitest.
+  Pozostale wysokie we frontendzie to narzedzia wdrozenia Cloudflare (wrangler, miniflare),
+  ktore nie trafiaja do aplikacji desktop; ich poprawka wymaga zmiany wersji glownej.
 - **Modele Claude 5.5 zamiast 4.x.** W wyborze modelu Opus 5.5 i Sonnet 5.5 (przez
   OpenRouter i na wlasnym kluczu Anthropic), Haiku 5.5 do tytulow i zadan pomocniczych.
   Id i ceny sprawdzone 2026-10-08 u zrodla: strona modeli i cennik Anthropic oraz

@@ -373,7 +373,8 @@ export function ProjectPage({ projectId, initialTab = "documents" }: Props) {
 
         // Immediately hide the input and show an optimistic folder row
         setCreatingFolderIn(undefined);
-        const tempId = `temp-${Date.now()}`;
+        // Unikalny tymczasowy id bez Date.now (react-hooks/purity w eslint-plugin-react-hooks 7.1).
+        const tempId = `temp-${crypto.randomUUID()}`;
         const optimistic: PATRONFolder = {
             id: tempId,
             project_id: projectId,

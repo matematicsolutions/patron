@@ -1,6 +1,6 @@
-# Nota dla użytkowników - zmiany w najbliższej wersji Patrona
+# Patron 1.4.0 - co się zmienia
 
-Projekt treści do wysłania kancelariom przed aktualizacją. Do uzupełnienia o numer wersji i datę.
+Projekt treści do wysłania kancelariom przed aktualizacją. Datę wydania wpisujemy w dniu wydania.
 
 ## Co się zmieni w Twojej pracy
 
@@ -20,6 +20,12 @@ Konektor spoza zestawu Patrona (np. weryfikator powołań) nie uruchomi się, do
 **4. „Sprawdź powołania” wysyła mniej.**
 Do weryfikatora idą tylko rozpoznane powołania przepisów i sygnatury orzeczeń sądowych. Nie idą adresy, numery faktur i umów ani sygnatura Twojej sprawy z nagłówka pisma. Powołania, których nie wysłano, są widoczne na liście jako „Nie wysłano” z powodem.
 
+**5. Repertorium w czacie (wersja polska, opcjonalnie).**
+W „Konektorach prawa” jest nowa karta „Repertorium w czacie”. Po włączeniu asystent sięga do Repertorium, korpusu prawa prowadzonego przez MateMatic: tekstów jednolitych, historii zmian przepisu i powołań w orzeczeniach. Karta przed kliknięciem mówi, co wychodzi z komputera: treść zapytań asystenta, z nazwiskami, PESEL, adresami i e-mailami zamienionymi na oznaczenia zastępcze. Repertorium tych zapytań nie zapisuje. Bezpłatnie: 50 wyszukań i 10 dokumentów dziennie. Włącza to tylko Operator kancelarii.
+
+**6. Nowe modele Claude.**
+W wyborze modelu są teraz Claude Opus 5.5 i Sonnet 5.5, tańsze od poprzedników. Jeśli przed aktualizacją wybrany był Claude Opus 4.8 albo Sonnet 4.6, Patron sam przejdzie na nowszy model tego samego dostawcy.
+
 ## Co zostało naprawione (wybór)
 
 - Treść dokumentów czytanych przez asystenta jest maskowana przed modelem chmurowym, także w tytułach czatów, w przeglądzie tabelarycznym i w panelu draftu.
@@ -28,6 +34,10 @@ Do weryfikatora idą tylko rozpoznane powołania przepisów i sygnatury orzecze�
 - Edycja pisma nie gubi tabulatorów, podziałów linii ani odwołań do przypisów i nie zmienia liczb w innych miejscach dokumentu.
 - Przegląd tabelaryczny na skanie korzysta z tekstu z OCR. Przy bardzo długim dokumencie mówi, ile tekstu przeanalizował.
 - Pakiet dowodowy i eksport audytu przechodzą własny weryfikator.
+- Wyszukiwanie w aktach zawsze szuka w obrębie bieżącej sprawy. Wcześniej, przy wielu sprawach z podobnymi dokumentami, potrafiło nie znaleźć nic w tej, o którą pytasz.
+- Patron zapisuje każdy wpis dziennika audytu na dysk, zanim pójdzie dalej. Wcześniej przy nagłym zaniku zasilania ostatnie wpisy mogły zniknąć.
+- Ustawienia konektorów (włączone, wyłączone, zatwierdzone) przetrwają aktualizację.
+- Zużycie pamięci przy indeksowaniu akt nie zależy już od wielkości dokumentów. Wcześniej rosło razem z nimi.
 
 ## Czego Patron nadal nie gwarantuje
 

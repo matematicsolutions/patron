@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { createElement, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ChevronDown, Plus, X } from "lucide-react";
 import type { ColumnConfig, ColumnFormat } from "../shared/types";
@@ -123,7 +123,6 @@ export function WFEditColumnModal({ column, onClose, onSave, onDelete }: Props) 
         });
     }
 
-    const FormatIcon = formatIcon(draft.format);
 
     return createPortal(
         <div className="fixed inset-0 z-[101] flex items-center justify-center bg-black/20 backdrop-blur-xs">
@@ -211,7 +210,7 @@ export function WFEditColumnModal({ column, onClose, onSave, onDelete }: Props) 
                                 <DropdownMenuTrigger asChild>
                                     <button className="mt-1 flex items-center justify-between rounded-md border border-gray-200 bg-white px-2 py-1.5 text-sm text-gray-700 hover:border-gray-400 focus:outline-none">
                                         <span className="flex items-center gap-2">
-                                            <FormatIcon className="h-3.5 w-3.5 text-gray-400" />
+                                            {createElement(formatIcon(draft.format), { className: "h-3.5 w-3.5 text-gray-400" })}
                                             {formatLabel(draft.format)}
                                         </span>
                                         <ChevronDown className="h-3.5 w-3.5 text-gray-400" />
