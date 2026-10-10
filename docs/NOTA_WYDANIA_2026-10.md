@@ -47,6 +47,6 @@ W wyborze modelu są teraz Claude Opus 5.5 i Sonnet 5.5, tańsze od poprzednikó
 
 ## Czego Patron nadal nie gwarantuje
 
-Maskowanie danych przed modelem chmurowym ogranicza ryzyko, ale go nie usuwa. Detektor nie rozpoznaje każdej osoby i każdej firmy. Dlatego w sprawach objętych tajemnicą zalecamy model lokalny.
+Maskowanie danych przed modelem chmurowym ogranicza ryzyko, ale go nie usuwa. Detektor nie rozpoznaje każdej osoby i każdej firmy. W tej wersji nie maskuje też numerów rachunków bankowych ani numerów telefonu zapisanych bez +48, a PESEL z błędem w zapisie (na przykład po odczycie skanu) może przejść niezamaskowany. Dlatego w sprawach objętych tajemnicą zalecamy model lokalny.
 
 **RODO art. 17 a dziennik audytu.** Dane klienta znikają po usunięciu sprawy (menu przy sprawie, „Usuń”). Usunięcie nie anonimizuje jednak wpisów dziennika audytu, w których występuje **użytkownik Patrona** (osoba obsługująca aplikację). Gdy to ten użytkownik żąda usunięcia swoich danych, anonimizację wykonuje narzędzie administracyjne uruchamiane poza aplikacją. Wymaga ono kopii źródeł Patrona, więc napisz na kontakt@matematic.co, a przeprowadzimy to razem. Narzędzie zapisuje w dzienniku deklarację, że łańcuch dowodowy zerwano z mocy prawa, więc weryfikator odróżnia to od ingerencji. W aplikacji nie ma jeszcze przycisku dla tej operacji.

@@ -121,7 +121,12 @@ async function main() {
   const server = spawn("npx", ["tsx", "src/index.ts"], {
     env: { ...process.env, PATRON_DB_BACKEND: "sqlite", PATRON_STORAGE: "fs", PATRON_DISABLE_VEC: "1",
       PATRON_DB_PATH: dbPath, PATRON_STORAGE_DIR: storeDir, PORT: String(PORT),
-      DOWNLOAD_SIGNING_SECRET: "smoke", USER_API_KEYS_ENCRYPTION_SECRET: "smoke" },
+      DOWNLOAD_SIGNING_SECRET: "smoke", USER_API_KEYS_ENCRYPTION_SECRET: "smoke",
+      // Baseline bramy MCP w katalogu testu, nie w ~/.patron: domyslny plik dzieli
+      // zainstalowany Patron uzytkownika. Do 2026-10-10 smoke zapisywal go przy kazdym
+      // przebiegu, a konektor z innej sciezki niz instalacja wygladal na podmieniony
+      // (drift pochodzenia -> human_review) i research nie dostawal narzedzi SAOS.
+      PATRON_MCP_BASELINE_PATH: path.join(tmp, "mcp-drift-baseline.json") },
     stdio: ["ignore", "pipe", "pipe"], shell: process.platform === "win32",
   });
   const log: string[] = [];
@@ -201,8 +206,22 @@ async function main() {
         "Wygeneruj plik DOCX: krotkie wezwanie do zaplaty czynszu (2 akapity) od Galeria Polnoc sp. z o.o. do Acme Retail sp. z o.o., kwota 12 300 EUR, termin 14 dni. Uzyj narzedzia do generowania dokumentu." }] }) });
     const cev = await readSse(chat, 240_000);
     const toolCalls = cev.filter((e) => e.type === "tool_call_start").map((e) => (e as { name?: string; tool?: string }).name ?? (e as { tool?: string }).tool);
-    const dl = cev.map((e) => JSON.stringify(e)).join("\n").match(/https?:\/\/[^"\\\s]+\/download\/[^"\\\s]+/)?.[0]
-      ?? cev.map((e) => JSON.stringify(e)).join("\n").match(/\/download\/[^"\\\s]+/)?.[0];
+    const linkPobrania = (tekst: string) => tekst.match(/https?:\/\/[^"\\\s]+\/download\/[^"\\\s]+/)?.[0]
+      ?? tekst.match(/\/download\/[^"\\\s]+/)?.[0];
+    let dl = linkPobrania(cev.map((e) => JSON.stringify(e)).join("\n"));
+    // Od 1.4.0 karty zatwierdzen sa domyslnie WLACZONE (ADR-0137, B-02): generate_docx
+    // nie daje linku w czacie, tylko karte `pending` + event `mutation_staged`. Smoke
+    // idzie sciezka uzytkownika - zatwierdza karte i bierze link z wyniku wykonania.
+    // Do 2026-10-10 szukal linku w czacie i raportowal "degraded" za poprawne zachowanie.
+    const staged = cev.find((e) => e.type === "mutation_staged") as { approval_id?: string } | undefined;
+    let karta = "brak";
+    if (!dl && staged?.approval_id) {
+      const ap = await fetch(`${BASE}/mutation-approvals/${staged.approval_id}/approve`, { method: "POST",
+        headers: { "Content-Type": "application/json" }, body: "{}" });
+      const apText = await ap.text();
+      karta = `zatwierdzona ${ap.status}`;
+      dl = linkPobrania(apText);
+    }
     let docOk = false, docBytes = 0;
     if (dl) {
       const url = dl.startsWith("http") ? dl : `${BASE}${dl}`;
@@ -210,12 +229,25 @@ async function main() {
       docOk = d.ok && ab.length > 2000 && ab[0] === 0x50 && ab[1] === 0x4b; // PK = zip/docx
     }
     report("generowanie DOCX (chat tool)", docOk ? "ok" : toolCalls.some((t) => String(t).includes("docx")) ? "degraded" : "failed",
-      `tool_calls=[${toolCalls.join(",")}] download=${dl ? "tak" : "brak"} bytes=${docBytes} PK=${docOk}`);
+      `tool_calls=[${toolCalls.join(",")}] karta=${karta} download=${dl ? "tak" : "brak"} bytes=${docBytes} PK=${docOk}`);
 
     // ---------------- 4. RESEARCH + GROUNDING CYTATOW MCP (ADR-0146) ----------------
     // Pytanie o orzecznictwo (konektor SAOS) z JAWNA prosba o doslowny cytat - to jest
     // scenariusz, ktory 2026-08-17 dal blockquote nieistniejacy w zrodle przy milczacym UI.
     // Bramka pilnuje, ze werdykt DOCHODZI: event mcp_grounding + zrodla + werdykt per karta.
+    //
+    // WARUNEK WSTEPNY: konektor SAOS zarejestrowany. Konfiguracja konektorow to lokalny,
+    // gitignorowany backend/mcp-servers.json - w swiezym checkoucie go nie ma i model ma
+    // tylko search_corpus. Do 2026-10-10 ten przypadek wychodzil jako "BRAK eventu
+    // mcp_grounding", czyli wygladal jak defekt produktu. Teraz brak srodowiska jest nazwany.
+    const kon = await (await fetch(`${BASE}/connectors`)).json().catch(() => ({})) as
+      { connectors?: { name: string; enabled: boolean; gateway?: unknown }[] };
+    const saos = kon.connectors?.find((c) => c.name === "saos");
+    if (!saos || !saos.enabled || saos.gateway) {
+      report("research + grounding cytatow MCP (ADR-0146)", "failed",
+        `SRODOWISKO: konektor saos ${!saos ? "nieobecny" : !saos.enabled ? "wylaczony" : "zatrzymany przez brame"} ` +
+        "(backend/mcp-servers.json) - powierzchnia NIESPRAWDZONA, to nie jest werdykt o produkcie");
+    } else {
     const res = await fetch(`${BASE}/chat`, { method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ model: MODEL, messages: [{ role: "user", content:
         "Znajdz orzeczenie Sadu Najwyzszego o klauzulach niedozwolonych w umowie kredytu (spread walutowy) " +
@@ -236,8 +268,16 @@ async function main() {
           `(green ${gr.summary?.green} / yellow ${gr.summary?.yellow} / red ${gr.summary?.red}), ` +
           `werdykty kart [${verdicts.join(",")}], powody [${cards.map((c) => c.reason).join(",")}]`
       : `BRAK eventu mcp_grounding (tool_calls=[${rTools.join(",")}], mcp_citations=${mcpCit?.citations?.length ?? 0})`;
+    // Konektor wywolany, ale bez ani jednego zrodla (np. model pytal tak waska fraza, ze
+    // SAOS za kazdym razem odpowiedzial "brak wynikow"): grounding nie mial czego sprawdzic
+    // i milczenie jest poprawne. To "degraded" z nazwana przyczyna, nie defekt groundingu.
+    // Zmierzone 2026-10-10: 7 wywolan saos__*, mcp_citations=0, a ta sama baza na
+    // szersza fraze oddaje 10 cytowan.
+    const bezZrodel = !gr && rTools.some((n) => n.startsWith("saos__")) && (mcpCit?.citations?.length ?? 0) === 0;
     report("research + grounding cytatow MCP (ADR-0146)",
-      gr && !gr.error && allHaveVerdict ? "ok" : gr ? "degraded" : "failed", detail);
+      gr && !gr.error && allHaveVerdict ? "ok" : gr || bezZrodel ? "degraded" : "failed",
+      bezZrodel ? `konektor wywolany (${rTools.filter((n) => n.startsWith("saos__")).length}x), ale bez zrodel - grounding nie mial czego sprawdzic; ${detail}` : detail);
+    }
     if (process.env.PATRON_SMOKE_DEBUG && gr && !gr.error) {
       for (const q of ((gr as { quotes?: { verdict: string; status?: string; quote?: string }[] }).quotes ?? []).slice(0, 4)) {
         console.log(`     quote [${q.verdict}/${q.status}] ${String(q.quote ?? "").slice(0, 110)}`);
