@@ -519,6 +519,17 @@ export const en: DictShape<typeof pl> = {
         tabDocuments: "Documents",
         tabAssistant: "Conversation",
         tabTabularReviews: "Tabular reviews",
+        // ADR-0128: przelacznik zgody na model chmurowy na pasku sprawy.
+        cloudConsentLabel: "Cloud model",
+        cloudConsentHint:
+            "Allow a cloud model for this matter. Your consent is recorded in the audit log (AI Act art. 12). Off by default: a privileged matter works only with a local model.",
+        // Tabela dokumentow sprawy i menu Akcje (do 2026-10-10 na sztywno po angielsku).
+        typeColumn: "Type",
+        sizeColumn: "Size",
+        versionColumn: "Version",
+        updatedColumn: "Updated",
+        uploadingStatus: "Uploading",
+        removeFromSubfolder: "Remove from subfolder",
         breadcrumbProjects: "Matters",
         breadcrumbAddDocs: "Add documents",
         breadcrumbPeople: "People",

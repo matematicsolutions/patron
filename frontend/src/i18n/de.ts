@@ -427,6 +427,17 @@ export const de: DictShape<typeof pl> = {
         tabDocuments: "Dokumente",
         tabAssistant: "Gespräch",
         tabTabularReviews: "Tabellarische Prüfungen",
+        // ADR-0128: przelacznik zgody na model chmurowy na pasku sprawy.
+        cloudConsentLabel: "Cloud-Modell",
+        cloudConsentHint:
+            "Cloud-Modell für dieses Mandat erlauben. Die Einwilligung wird im Audit-Log festgehalten (AI Act Art. 12). Standardmäßig aus: Ein Mandat unter Berufsgeheimnis arbeitet nur mit einem lokalen Modell.",
+        // Tabela dokumentow sprawy i menu Akcje (do 2026-10-10 na sztywno po angielsku).
+        typeColumn: "Typ",
+        sizeColumn: "Größe",
+        versionColumn: "Version",
+        updatedColumn: "Aktualisiert",
+        uploadingStatus: "Wird hochgeladen",
+        removeFromSubfolder: "Aus Unterordner entfernen",
         breadcrumbProjects: "Mandate",
         breadcrumbAddDocs: "Dokumente hinzufügen",
         breadcrumbPeople: "Personen",
