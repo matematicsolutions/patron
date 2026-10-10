@@ -1,8 +1,8 @@
 # Konstytucja AI Patrona
 
-Wersja: 1.7.2
-Data: 2026-08-04
-Status: obowiązująca
+Wersja: 1.8.0
+Data: 2026-10-10
+Status: obowiązująca; zmiany wersji 1.8.0 czekają na ponowny podpis kancelarii (§ 6.1)
 Wydawca: MateMatic / Wiesław Mazur
 
 > Dokument governance opisujący zasady, ograniczenia i role w pracy
@@ -106,16 +106,20 @@ Mechanizmy techniczne:
   modelem (prompt-injection), ukrytych akcji PDF i zaciemnionej treści,
   ZANIM trafią do modelu lub indeksu RAG; decyzja skanu trafia do audit
   logu (ADR-0019, ADR-0020)
-- zgoda Operatora (desktop, single-user): w instalacji jednoosobowej
-  adwokat jest osobą uprawnioną do decyzji compliance na własnej maszynie,
-  a wybór modelu chmurowego dla sprawy objętej tajemnicą JEST tą świadomą
-  decyzją (§ 4). Egzekwowane technicznie: domyślny twardy blok chmury dla
-  tajemnicy ustępuje, gdy Operator wyraził zgodę (`PATRON_ALLOW_PRIVILEGED_CLOUD`,
-  na desktopie domyślnie włączona). Zgoda zdejmuje BLOKADĘ, nie ZABEZPIECZENIA:
-  każde wyjście danych ląduje w audit logu z jawnym powodem
-  `privileged-cloud-by-operator`, a PII jest maskowane przed wysłaniem. Tryb
-  serwerowy/fabryczny pozostaje rygorystyczny (tajemnica → tylko model lokalny),
-  dopóki Administrator nie włączy zgody. Patrz ADR-0101.
+- zgoda Operatora na model chmurowy dla sprawy objętej tajemnicą: domyślnie
+  sprawę objętą tajemnicą przetwarza wyłącznie model lokalny, w każdym trybie
+  instalacji, także na desktopie. Operator może świadomie zgodzić się na model
+  chmurowy dla konkretnej sprawy (pole „Model chmurowy” na pasku sprawy,
+  ADR-0128). Zgoda trafia do audit logu, a każde wyjście danych tej sprawy
+  zostaje tam zapisane z jawnym powodem `privileged-cloud-by-operator`. Zgodę
+  dla wszystkich spraw naraz (`PATRON_ALLOW_PRIVILEGED_CLOUD=true`) może włączyć
+  tylko Administrator, świadomą decyzją; żadna instalacja nie ma jej domyślnie.
+  Zgoda zdejmuje blokadę, nie zabezpieczenia: zanim treść trafi do modelu spoza
+  maszyny, przechodzi pseudonimizację (rozmowa, wyniki narzędzi, tytuły czatów,
+  przegląd tabelaryczny, draft). Pseudonimizacja ogranicza ryzyko, ale go nie
+  usuwa. Detektor nie rozpoznaje każdej osoby i każdego podmiotu, a jego
+  skuteczność mierzymy na zestawach ewaluacyjnych. Dlatego zgoda dotyczy
+  sprawy, a nie instalacji. Patrz ADR-0101 (aktualizacja 2026-10-02) i ADR-0128.
 
 ### Art. 6 - Granica błędu (zasada "human in the loop")
 
@@ -124,6 +128,13 @@ opinie, wnioski przygotowywane przez Patrona są draftami, które
 prawnik musi przejrzeć i podpisać. Edycje proponowane przez Patrona
 (zmiany śledzone w `.docx`) mają mechanizm Akceptuj / Odrzuć.
 Domyślnie żadna zmiana nie jest automatycznie wcielona.
+
+Akcje asystenta, które zmieniają dokumenty albo zapisują coś trwale
+(edycja pisma, nowy dokument, komentarze, kopia dokumentu, zapis do
+pamięci), domyślnie czekają na człowieka jako karty w skrzynce „Karty
+zatwierdzeń”. Wykonują się dopiero po kliknięciu użytkownika, a decyzja
+trafia do audit logu. Wyłączyć to może tylko Administrator, świadomie
+(`PATRON_MUTATION_APPROVAL=false`). Patrz ADR-0137.
 
 Patron nigdy nie składa pisma do sądu, nie wysyła maila do klienta,
 nie podpisuje umowy.
@@ -387,6 +398,7 @@ Consequences: <co się zmienia>
 
 | Wersja | Data | Zmiana |
 |---|---|---|
+| 1.8.0 | 2026-10-10 | Art. 5: zgoda na model chmurowy dla spraw objetych tajemnica domyslnie WYLACZONA w kazdym trybie, takze na desktopie; zgoda dla konkretnej sprawy (ADR-0128) albo swiadoma zgoda globalna Administratora. Powod: audyt 2026-09 (A-01, A-02) - zalozenie ADR-0101 "PII maskowane przed wyslaniem" nie obejmowalo tresci dokumentow w wynikach narzedzi i nie chronilo wiekszosci nazwisk. Wdrozone: domyslne `PATRON_ALLOW_PRIVILEGED_CLOUD=false` i bramka `desktop/scripts/egress-defaults-gate.test.cjs`; pseudonimizacja wynikow narzedzi, draftu, tytulow czatow i przegladu tabelarycznego. Art. 6: karty zatwierdzen (ADR-0137) domyslnie WLACZONE (decyzja 2026-10-06, audyt B-02). MINOR (zachowanie bardziej restrykcyjne niz w 1.7.2). Zmienia tresc zasad, wiec wymaga ponownego podpisu kancelarii (§ 6.1). Do tego czasu kod egzekwuje zasady surowsze niz podpisana wersja 1.7.2, wiec nikt nie dostaje mniej ochrony, niz podpisal. |
 | 1.7.2 | 2026-08-04 | Integralnosc skilla w audycie i egzekwowanie jego deklaracji egress (ADR-0143). Operacjonalizacja Art. 2 (zero-cloud), Art. 3 (audytowalnosc) i AI Act art. 12 w warstwie Biblioteki umiejetnosci (ADR-0094/0096). Dwie luki wykryte pomiarem kodu przy ocenie cudzego wzorca. (1) Audyt `defense.pipeline.run` zapisywal `custom_skills` jako same identyfikatory, a `importSkill` robi upsert po `id` przy niepodpisanym manifescie - para `(id, version)` NIE identyfikuje tresci, wiec reimport podmienia prompt bez zmiany zapisu w dzienniku. Na pytanie "jak powstala ta analiza" dziennik odpowiadal nazwa skilla, ktora po podmianie nie dowodzi niczego o instrukcji, jaka faktycznie uksztaltowala pismo. (2) Manifest deklaruje `egress` skilla (tresc promptu, know-how autora - rozlaczna od egressu danych klienta pokrytego maskowaniem PII); deklaracja byla walidowana przy imporcie, zapisywana w kolumnie i pokazywana w UI, ale `CustomStageSpec` przekazywany do pipeline obrony tego pola NIE MIAL - prompt skilla `no-egress` jechal do modelu chmurowego tak samo jak kazdy inny. Wdrozono: `lib/skills/integrity.ts` z `skillPromptSha256` (suma kontrolna tresci liczona PRZY ODCZYCIE, nie z kolumny, na `canonicalSha256` z ADR-0142 - jedna kanonikalizacja w projekcie) oraz `partitionSkillsByEgress` (regula jednostronna: `no-egress` nie idzie do modelu opuszczajacego maszyne, `cloud-allowed` moze dzialac lokalnie). Audyt zapisuje `custom_skills` jako rekordy z wersja, suma kontrolna, zrodlem, wydawca i flaga podpisu, oraz `skipped_skills` z powodem pominiecia - skill, ktory nie zadzialal, nie znika po cichu. Zakres: `surface: draft-stage`. Ograniczenia nazwane wprost w ADR: `egress` to deklaracja skilla o samym sobie (wykrywalnosc i zapis, NIE izolacja), suma kontrolna wykrywa zmiane, ale nie dowodzi autorstwa (podpis = rezerwacja ADR-0049), pominiecie jest ciche dla UI. backend 1440 pass / 0 fail (+13), tsc 0. PATCH (wzbogacenie istniejacego wpisu audytowego + egzekwowanie deklaracji juz obecnej w kontrakcie manifestu ADR-0094; bez zmiany schematu bazy, kontraktow rol i API, bez nowego event_type i migracji; zmiana zachowania dotyczy wylacznie przypadku sprzecznego z deklaracja skilla, ktory wczesniej przechodzil wbrew niej; nie wymaga re-podpisu per Sec 6.1). |
 | 1.7.1 | 2026-08-04 | Weryfikator w paczce eksportu audytowego (ADR-0142). Operacjonalizacja Art. 3 (audytowalnosc) i Art. 8 (przejrzystosc) po stronie ODBIORCY artefaktu. Stan przed: Patron budowal audit pack (ADR-0047) i audit bundle (ADR-0066), ale jedynym narzedziem weryfikacji byly skrypty z katalogu `backend/`; instrukcja osadzona w samym artefakcie kazala odbiorcy "uruchomic z katalogu backend/" - katalogu, ktorego sad, UODO ani klient kancelarii nie posiadaja (pomiar 2026-08-04: wykonanie tej instrukcji wymaga klonu repo AGPL + 704 MB / 312 pakietow npm; na czystym katalogu konczy sie bledem). Zapis byl wiec audytowalny deklaratywnie, a nie faktycznie. Stan po: `GET /api/audit/export/:eventId` zwraca archiwum ZIP zawierajace artefakt oraz DWA samodzielne weryfikatory - `SPRAWDZ-TEN-PLIK.html` (przegladarka, zero instalacji, wlasna implementacja SHA-256 zamiast crypto.subtle) i `verify.py` (sama biblioteka standardowa Pythona 3.8+, kody wyjscia 0/1/2 do kontroli automatycznej) - plus instrukcje po polsku. Tresc weryfikatorow OSADZONA w kodzie (`lib/audit-verifier-assets.ts`), nie czytana z dysku: plik pominiety w pakowaniu Electron zniknalby po cichu, a eksport nadal konczylby sie sukcesem. Dodany trzeci stopien weryfikacji bundla - ciaglosc ogniw `prev_hash`->`hash` - wykrywajacy wpis usuniety ze srodka i wpisy przestawione TAKZE wtedy, gdy podmieniajacy przeliczyl manifest i sume calosci. Zgodnosc trzech implementacji (TS/Python/JS) pilnowana wektorami z kodu produkcyjnego, nie zakladana. Instrukcja dla odbiorcy i widok wyniku mowia WPROST, czego sprawdzenie nie dowodzi (autorstwa - do tego podpis kwalifikowany, rezerwacja ADR-0049). backend 1429 pass / 0 fail (+21), tsc 0. PATCH (narzedzie do istniejacej zasady audytowalnosci; bez zmiany schematu bazy, kontraktow rol, zakresu danych i bez nowej zaleznosci npm - `jszip` juz obecny. Zmieniony format odpowiedzi jednego endpointu eksportu, bez zmiany jego semantyki i autoryzacji; nie wymaga re-podpisu per Sec 6.1). |
 | 1.7.0 | 2026-06-29 | Karty zatwierdzenia mutacji - human-in-the-loop write staging (ADR-0137). Operacjonalizacja nadzoru czlowieka nad zapisem agenta (AI Act art. 14 + doktryna MateMatic: agent draftuje, czlowiek wykonuje akt nieodwracalny). Akcje agenta o skutkach ubocznych (`edit_document`, `generate_docx`) moga byc stage'owane jako karty `pending` (tabela `mutation_approvals`, dual SQLite+Postgres, scoping `user_id`); wykonuja sie dopiero po zatwierdzeniu czlowieka (`requireAuth`, fail-closed). Decyzja approve/reject w audit hash-chain - **nowy event_type `mutation.approval.decision`** (payload bez tresci dokumentu; 5 mirrorow wg precedensu connector.toggle/ADR-0133). Bramka w `tool-dispatch.ts` nad sciezka narzedzi; inbox UI `account/approval-cards` (PL/EN); RODO art. 17/20 (`mutation_approvals` w rodo-delete/rodo-export). Za flaga `PATRON_MUTATION_APPROVAL` (default OFF = zero zmiany zachowania). backend 1308 pass/0 fail, tsc 0; frontend tsc/lint/next build 0; demo E2E + zywy HTTP przeszly; review round 1 (matematic-patron-pr-review-pl) bez blockerow, 3 should-fix naprawione. WARUNEK: 2x review WM + eval przed FLIPEM flagi na ON i przed merge do `main`. MINOR (nowy wpis w audit_log per Sec 6.1; notatka dla Administratora; bez re-podpisu - zachowanie niezmienione do flipu). |

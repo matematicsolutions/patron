@@ -36,7 +36,7 @@ W wyborze modelu są teraz Claude Opus 5.5 i Sonnet 5.5, tańsze od poprzednikó
 
 - Treść dokumentów czytanych przez asystenta jest maskowana przed modelem chmurowym, także w tytułach czatów, w przeglądzie tabelarycznym i w panelu draftu.
 - Obrazy i linki w odpowiedziach modelu nie ładują się same, więc nie mogą wyprowadzić danych bez Twojego kliknięcia.
-- „Zapomnij sprawę” usuwa także dane wyprowadzone z akt (przeglądy tabelaryczne, karty, czaty ogólne z załącznikami z tej sprawy). Gdy coś się nie uda, zobaczysz to wprost.
+- Usunięcie sprawy (na liście spraw: menu przy sprawie, „Usuń”) usuwa także dane wyprowadzone z akt (przeglądy tabelaryczne, karty, czaty ogólne z załącznikami z tej sprawy). Gdy coś się nie uda, zobaczysz to wprost.
 - Edycja pisma nie gubi tabulatorów, podziałów linii ani odwołań do przypisów i nie zmienia liczb w innych miejscach dokumentu.
 - Przegląd tabelaryczny na skanie korzysta z tekstu z OCR. Przy bardzo długim dokumencie mówi, ile tekstu przeanalizował.
 - Pakiet dowodowy i eksport audytu przechodzą własny weryfikator.
@@ -49,4 +49,4 @@ W wyborze modelu są teraz Claude Opus 5.5 i Sonnet 5.5, tańsze od poprzednikó
 
 Maskowanie danych przed modelem chmurowym ogranicza ryzyko, ale go nie usuwa. Detektor nie rozpoznaje każdej osoby i każdej firmy. Dlatego w sprawach objętych tajemnicą zalecamy model lokalny.
 
-**RODO art. 17 a dziennik audytu.** Dane klienta usuwa „Zapomnij sprawę”. Nie anonimizuje ona jednak wpisów dziennika audytu, w których występuje **użytkownik Patrona** (osoba obsługująca aplikację). Gdy to ten użytkownik żąda usunięcia swoich danych, anonimizację wykonuje narzędzie administracyjne uruchamiane poza aplikacją. Wymaga ono kopii źródeł Patrona, więc napisz na kontakt@matematic.co, a przeprowadzimy to razem. Narzędzie zapisuje w dzienniku deklarację, że łańcuch dowodowy zerwano z mocy prawa, więc weryfikator odróżnia to od ingerencji. W aplikacji nie ma jeszcze przycisku dla tej operacji.
+**RODO art. 17 a dziennik audytu.** Dane klienta znikają po usunięciu sprawy (menu przy sprawie, „Usuń”). Usunięcie nie anonimizuje jednak wpisów dziennika audytu, w których występuje **użytkownik Patrona** (osoba obsługująca aplikację). Gdy to ten użytkownik żąda usunięcia swoich danych, anonimizację wykonuje narzędzie administracyjne uruchamiane poza aplikacją. Wymaga ono kopii źródeł Patrona, więc napisz na kontakt@matematic.co, a przeprowadzimy to razem. Narzędzie zapisuje w dzienniku deklarację, że łańcuch dowodowy zerwano z mocy prawa, więc weryfikator odróżnia to od ingerencji. W aplikacji nie ma jeszcze przycisku dla tej operacji.

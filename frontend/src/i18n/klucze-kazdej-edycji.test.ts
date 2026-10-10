@@ -35,6 +35,12 @@ const OBOWIAZKOWE = [
     "workflows.actions",
     "common.download",
     "common.delete",
+    "common.rename",
+    "common.showAllVersions",
+    "common.uploadNewVersion",
+    "common.hide",
+    "common.unhide",
+    "projects.newSubfolder",
 ];
 
 function wartosc(slownik: unknown, klucz: string): unknown {

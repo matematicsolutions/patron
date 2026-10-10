@@ -13,6 +13,7 @@ import {
     Trash2,
     Upload,
 } from "lucide-react";
+import { t } from "@/i18n";
 
 const CLOSE_ROW_ACTIONS_EVENT = "patron:close-row-actions";
 
@@ -49,9 +50,9 @@ export function RowActionMenuItems({
     deleting,
     onRename,
     onUpdateCmNumber,
-    newSubfolderLabel = "Nowy podfolder",
-    renameLabel = "Zmień nazwę",
-    deleteLabel = "Usuń",
+    newSubfolderLabel = t("projects.newSubfolder"),
+    renameLabel = t("common.rename"),
+    deleteLabel = t("common.delete"),
     onClose,
 }: Props & { onClose: () => void }) {
     return (
@@ -89,7 +90,7 @@ export function RowActionMenuItems({
                     className="flex items-center gap-2 w-full px-3 py-2 text-xs text-gray-600 hover:bg-gray-50 transition-colors"
                 >
                     <Download className="h-3.5 w-3.5" />
-                    Download
+                    {t("common.download")}
                 </button>
             )}
             {onShowAllVersions && (
@@ -98,7 +99,7 @@ export function RowActionMenuItems({
                     className="flex items-center gap-2 w-full px-3 py-2 text-xs text-left text-gray-600 hover:bg-gray-50 transition-colors"
                 >
                     <History className="h-3.5 w-3.5 shrink-0" />
-                    Show all versions
+                    {t("common.showAllVersions")}
                 </button>
             )}
             {onUploadNewVersion && (
@@ -107,7 +108,7 @@ export function RowActionMenuItems({
                     className="flex items-center gap-2 w-full px-3 py-2 text-xs text-left text-gray-600 hover:bg-gray-50 transition-colors"
                 >
                     <Upload className="h-3.5 w-3.5 shrink-0" />
-                    Upload new version
+                    {t("common.uploadNewVersion")}
                 </button>
             )}
             {onRemoveFromFolder && (
@@ -116,7 +117,7 @@ export function RowActionMenuItems({
                     className="flex items-center gap-2 w-full px-3 py-2 text-xs text-left text-gray-600 hover:bg-gray-50 transition-colors"
                 >
                     <FolderMinus className="h-3.5 w-3.5 shrink-0" />
-                    Remove from subfolder
+                    {t("projects.removeFromSubfolder")}
                 </button>
             )}
             {onUnhide && (
@@ -125,7 +126,7 @@ export function RowActionMenuItems({
                     className="flex items-center gap-2 w-full px-3 py-2 text-xs text-gray-600 hover:bg-gray-50 transition-colors"
                 >
                     <Eye className="h-3.5 w-3.5" />
-                    Unhide
+                    {t("common.unhide")}
                 </button>
             )}
             {onHide && (
@@ -134,7 +135,7 @@ export function RowActionMenuItems({
                     className="flex items-center gap-2 w-full px-3 py-2 text-xs text-gray-600 hover:bg-gray-50 transition-colors"
                 >
                     <EyeOff className="h-3.5 w-3.5" />
-                    Hide
+                    {t("common.hide")}
                 </button>
             )}
             {onDelete && (

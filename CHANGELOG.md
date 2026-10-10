@@ -7,8 +7,26 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ## [Unreleased]
 
+### Governance
+
+- **Konstytucja 1.8.0 (Art. 5 i Art. 6).** Art. 5: sprawe objeta tajemnica przetwarza domyslnie
+  wylacznie model lokalny, w kazdym trybie, takze na desktopie; chmura tylko za zgoda dla
+  konkretnej sprawy (ADR-0128) albo za swiadoma zgoda globalna Administratora. Art. 6: karty
+  zatwierdzen domyslnie wlaczone (ADR-0137). Tekst opisuje to, co kod egzekwuje od audytu
+  2026-09. Przyjete przez wlasciciela produktu 2026-10-10; czeka na ponowny podpis kancelarii
+  (sekcja 6.1). Projekt: `docs/PROJEKT_KONSTYTUCJA_ART5_2026-10.md`.
+
 ### Naprawione
 
+- **Menu wierszy w kazdym jezyku edycji.** Wspolny komponent `RowActions` (lista spraw, dokumenty,
+  czaty, przeglady, workflowy) nie mial ani jednego `t()`: wartosci domyslne "Zmien nazwe",
+  "Usun", "Nowy podfolder" byly po polsku, a "Download", "Show all versions", "Upload new version",
+  "Hide", "Unhide" po angielsku, we wszystkich 9 edycjach - lista spraw nie podawala wlasnych
+  etykiet, wiec w edycji EN menu sprawy mowilo "Usun". To samo w zbiorczym menu workflowow. Teraz
+  wszystko ze slownika; `RowActions.tsx` pod bramka `uzycie-slownika`, nowe klucze w
+  `klucze-kazdej-edycji`. Rejestr nowych tlumaczen zgodny ze slownikami (ES forma grzecznosciowa,
+  DE "Sie", FR rozkaznik). Nota wydania nie cytuje juz "Zapomnij sprawe" jak przycisku - w
+  interfejsie to "Usun" w menu sprawy.
 - **Zbiorcze usuwanie nie udaje juz sukcesu.** Usuniecie kilku dokumentow, czatow albo
   przegladow tabelarycznych naraz robilo `.catch(() => {})` przy kazdym wywolaniu i czyscilo
   liste bez wzgledu na wynik: mecenas widzial "usuniete", a pliki zostawaly na dysku i wracaly

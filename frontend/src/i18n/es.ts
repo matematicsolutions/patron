@@ -26,6 +26,11 @@ type DictShape<T> = {
 
 export const es: DictShape<typeof pl> = {
     common: {
+        // Menu wiersza (RowActions) - do 2026-10-10 na sztywno po angielsku.
+        showAllVersions: "Mostrar todas las versiones",
+        uploadNewVersion: "Subir nueva versión",
+        hide: "Ocultar",
+        unhide: "Volver a mostrar",
         loading: "Cargando…",
         save: "Guardar",
         cancel: "Cancelar",
@@ -430,7 +435,7 @@ export const es: DictShape<typeof pl> = {
         // ADR-0128: przelacznik zgody na model chmurowy na pasku sprawy.
         cloudConsentLabel: "Modelo en la nube",
         cloudConsentHint:
-            "Permitir un modelo en la nube para este asunto. El consentimiento queda registrado en el registro de auditoría (AI Act art. 12). Desactivado por defecto: un asunto amparado por el secreto profesional solo usa un modelo local.",
+            "Permitir un modelo en la nube para este asunto. El consentimiento se guarda en el registro de auditoría (AI Act art. 12). Desactivado por defecto: un asunto amparado por el secreto profesional solo usa un modelo local.",
         // Tabela dokumentow sprawy i menu Akcje (do 2026-10-10 na sztywno po angielsku).
         typeColumn: "Tipo",
         sizeColumn: "Tamaño",
@@ -439,9 +444,9 @@ export const es: DictShape<typeof pl> = {
         uploadingStatus: "Subiendo",
         removeFromSubfolder: "Quitar de la subcarpeta",
         // Zbiorcze akcje: porazka nazwana, nie przemilczana (2026-10-10).
-        bulkFailedTitle: "No todo salió bien",
-        bulkDeleteFailed: "No se pudieron eliminar {n} de {total}. Siguen en el asunto: inténtalo de nuevo.",
-        bulkMoveFailed: "No se pudieron quitar {n} de {total} documentos de la subcarpeta. Siguen en su sitio: inténtalo de nuevo.",
+        bulkFailedTitle: "No se completaron todas las acciones",
+        bulkDeleteFailed: "No se pudieron eliminar {n} de {total}. Siguen en el asunto. Inténtelo de nuevo.",
+        bulkMoveFailed: "No se pudieron quitar {n} de {total} documentos de la subcarpeta. Siguen en su sitio. Inténtelo de nuevo.",
         breadcrumbProjects: "Asuntos",
         breadcrumbAddDocs: "Añadir documentos",
         breadcrumbPeople: "Personas",

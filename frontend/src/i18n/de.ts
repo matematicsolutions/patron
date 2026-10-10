@@ -26,6 +26,11 @@ type DictShape<T> = {
 
 export const de: DictShape<typeof pl> = {
     common: {
+        // Menu wiersza (RowActions) - do 2026-10-10 na sztywno po angielsku.
+        showAllVersions: "Alle Versionen anzeigen",
+        uploadNewVersion: "Neue Version hochladen",
+        hide: "Ausblenden",
+        unhide: "Wieder einblenden",
         loading: "Wird geladen…",
         save: "Speichern",
         cancel: "Abbrechen",
@@ -439,9 +444,9 @@ export const de: DictShape<typeof pl> = {
         uploadingStatus: "Wird hochgeladen",
         removeFromSubfolder: "Aus Unterordner entfernen",
         // Zbiorcze akcje: porazka nazwana, nie przemilczana (2026-10-10).
-        bulkFailedTitle: "Nicht alles hat geklappt",
-        bulkDeleteFailed: "{n} von {total} konnten nicht gelöscht werden. Sie sind weiterhin im Mandat - bitte erneut versuchen.",
-        bulkMoveFailed: "{n} von {total} Dokumenten konnten nicht aus dem Unterordner entfernt werden. Sie sind an ihrem Platz geblieben - bitte erneut versuchen.",
+        bulkFailedTitle: "Nicht alle Aktionen waren erfolgreich",
+        bulkDeleteFailed: "{n} von {total} konnten nicht gelöscht werden. Sie sind weiterhin im Mandat. Bitte versuchen Sie es erneut.",
+        bulkMoveFailed: "{n} von {total} Dokumenten konnten nicht aus dem Unterordner entfernt werden. Sie sind an ihrem Platz geblieben. Bitte versuchen Sie es erneut.",
         breadcrumbProjects: "Mandate",
         breadcrumbAddDocs: "Dokumente hinzufügen",
         breadcrumbPeople: "Personen",

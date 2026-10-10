@@ -370,14 +370,14 @@ export function WorkflowList() {
                                     onClick={handleBulkUnhide}
                                     className="w-full px-3 py-1.5 text-left text-xs text-gray-700 hover:bg-gray-50 transition-colors"
                                 >
-                                    Unhide
+                                    {t("common.unhide")}
                                 </button>
                             ) : (
                                 <button
                                     onClick={handleBulkRemove}
                                     className="w-full px-3 py-1.5 text-left text-xs text-bad hover:bg-bad-soft transition-colors"
                                 >
-                                    Delete
+                                    {t("common.delete")}
                                 </button>
                             )}
                         </div>

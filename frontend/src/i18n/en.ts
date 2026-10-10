@@ -23,6 +23,11 @@ type DictShape<T> = {
 
 export const en: DictShape<typeof pl> = {
     common: {
+        // Menu wiersza (RowActions) - do 2026-10-10 na sztywno po angielsku.
+        showAllVersions: "Show all versions",
+        uploadNewVersion: "Upload new version",
+        hide: "Hide",
+        unhide: "Unhide",
         loading: "Loading…",
         save: "Save",
         cancel: "Cancel",
@@ -531,7 +536,7 @@ export const en: DictShape<typeof pl> = {
         uploadingStatus: "Uploading",
         removeFromSubfolder: "Remove from subfolder",
         // Zbiorcze akcje: porazka nazwana, nie przemilczana (2026-10-10).
-        bulkFailedTitle: "Not everything worked",
+        bulkFailedTitle: "Some items were not processed",
         bulkDeleteFailed: "Could not delete {n} of {total}. They are still in the matter - please try again.",
         bulkMoveFailed: "Could not remove {n} of {total} documents from the subfolder. They stayed where they were - please try again.",
         breadcrumbProjects: "Matters",

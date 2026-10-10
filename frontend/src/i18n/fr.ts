@@ -25,6 +25,11 @@ type DictShape<T> = {
 
 export const fr: DictShape<typeof pl> = {
     common: {
+        // Menu wiersza (RowActions) - do 2026-10-10 na sztywno po angielsku.
+        showAllVersions: "Afficher toutes les versions",
+        uploadNewVersion: "Importer une nouvelle version",
+        hide: "Masquer",
+        unhide: "Réafficher",
         loading: "Chargement…",
         save: "Enregistrer",
         cancel: "Annuler",
@@ -438,9 +443,9 @@ export const fr: DictShape<typeof pl> = {
         uploadingStatus: "Envoi en cours",
         removeFromSubfolder: "Retirer du sous-dossier",
         // Zbiorcze akcje: porazka nazwana, nie przemilczana (2026-10-10).
-        bulkFailedTitle: "Tout n'a pas fonctionné",
-        bulkDeleteFailed: "Impossible de supprimer {n} sur {total}. Ils sont toujours dans le dossier - veuillez réessayer.",
-        bulkMoveFailed: "Impossible de retirer {n} documents sur {total} du sous-dossier. Ils sont restés en place - veuillez réessayer.",
+        bulkFailedTitle: "Certaines actions n'ont pas abouti",
+        bulkDeleteFailed: "Impossible de supprimer {n} sur {total}. Ils sont toujours dans le dossier. Réessayez.",
+        bulkMoveFailed: "Impossible de retirer {n} documents sur {total} du sous-dossier. Ils sont restés en place. Réessayez.",
         breadcrumbProjects: "Dossiers",
         breadcrumbAddDocs: "Ajouter des documents",
         breadcrumbPeople: "Personnes",
