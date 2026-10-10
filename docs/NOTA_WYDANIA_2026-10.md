@@ -1,6 +1,6 @@
 # Patron 1.4.0 - co się zmienia
 
-Projekt treści do wysłania kancelariom przed aktualizacją. Datę wydania wpisujemy w dniu wydania.
+Wydanie z 10 października 2026 r. Treść dla kancelarii przed aktualizacją.
 
 ## Jak przejść na 1.4.0
 
