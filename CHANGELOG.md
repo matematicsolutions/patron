@@ -18,6 +18,15 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ### Naprawione
 
+- **Menu wierszy w kazdym jezyku edycji.** Wspolny komponent `RowActions` (lista spraw, dokumenty,
+  czaty, przeglady, workflowy) nie mial ani jednego `t()`: wartosci domyslne "Zmien nazwe",
+  "Usun", "Nowy podfolder" byly po polsku, a "Download", "Show all versions", "Upload new version",
+  "Hide", "Unhide" po angielsku, we wszystkich 9 edycjach - lista spraw nie podawala wlasnych
+  etykiet, wiec w edycji EN menu sprawy mowilo "Usun". To samo w zbiorczym menu workflowow. Teraz
+  wszystko ze slownika; `RowActions.tsx` pod bramka `uzycie-slownika`, nowe klucze w
+  `klucze-kazdej-edycji`. Rejestr nowych tlumaczen zgodny ze slownikami (ES forma grzecznosciowa,
+  DE "Sie", FR rozkaznik). Nota wydania nie cytuje juz "Zapomnij sprawe" jak przycisku - w
+  interfejsie to "Usun" w menu sprawy.
 - **Zbiorcze usuwanie nie udaje juz sukcesu.** Usuniecie kilku dokumentow, czatow albo
   przegladow tabelarycznych naraz robilo `.catch(() => {})` przy kazdym wywolaniu i czyscilo
   liste bez wzgledu na wynik: mecenas widzial "usuniete", a pliki zostawaly na dysku i wracaly

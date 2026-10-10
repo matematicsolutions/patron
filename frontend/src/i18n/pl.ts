@@ -16,6 +16,11 @@ export const pl = {
     // Common (przyciski, etykiety wspolne)
     // ---------------------------------------------------------------------
     common: {
+        // Menu wiersza (RowActions) - do 2026-10-10 na sztywno po angielsku.
+        showAllVersions: "Pokaż wszystkie wersje",
+        uploadNewVersion: "Wgraj nową wersję",
+        hide: "Ukryj",
+        unhide: "Pokaż ponownie",
         loading: "Ładowanie…",
         save: "Zapisz",
         cancel: "Anuluj",

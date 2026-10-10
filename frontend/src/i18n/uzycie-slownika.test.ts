@@ -33,6 +33,9 @@ const PILNOWANE = [
     // JEDYNA droga do chmury dla sprawy objetej tajemnica - a do 2026-10-10
     // etykieta i podpowiedz byly po polsku na sztywno we wszystkich 9 edycjach.
     "app/components/projects/ProjectPage.tsx",
+    // Wspolne menu wierszy (6 widokow): polskie wartosci domyslne i angielskie
+    // napisy na sztywno, bez jednego t() - do 2026-10-10.
+    "app/components/shared/RowActions.tsx",
 ];
 
 // Napisy interfejsu, ktore juz maja swoj klucz w pl.ts. Lista jest jawna,
@@ -57,6 +60,8 @@ const ZAKAZANE: Array<{ wzor: RegExp; opis: string }> = [
     { wzor: /title="Zezw[oó]l na model chmurowy/, opis: 'podpowiedz zgody na sztywno zamiast t("projects.cloudConsentHint")' },
     // Tabela dokumentow sprawy i menu Akcje - glowny ekran sprawy.
     { wzor: />\s*(Type|Size|Version|Created|Updated)\s*</, opis: 'naglowek tabeli dokumentow na sztywno zamiast t("projects.*Column")' },
+    { wzor: /^\s*(Show all versions|Upload new version|Unhide|Hide)\s*$/m, opis: 'napis menu wiersza na sztywno zamiast t("common.*")' },
+    { wzor: /Label = "(Nowy podfolder|Zmień nazwę|Usuń)"/, opis: 'polska wartosc domyslna etykiety zamiast t()' },
     { wzor: /^\s*(Uploading|Actions|Remove from subfolder)\s*$/m, opis: 'napis menu/statusu na sztywno zamiast t("projects.*")' },
 ];
 

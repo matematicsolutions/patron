@@ -21,6 +21,11 @@ type DictShape<T> = {
 
 export const it: DictShape<typeof pl> = {
     common: {
+        // Menu wiersza (RowActions) - do 2026-10-10 na sztywno po angielsku.
+        showAllVersions: "Mostra tutte le versioni",
+        uploadNewVersion: "Carica nuova versione",
+        hide: "Nascondi",
+        unhide: "Mostra di nuovo",
         loading: "Caricamento…",
         save: "Salva",
         cancel: "Annulla",
@@ -425,13 +430,13 @@ export const it: DictShape<typeof pl> = {
         // ADR-0128: przelacznik zgody na model chmurowy na pasku sprawy.
         cloudConsentLabel: "Modello cloud",
         cloudConsentHint:
-            "Consenti un modello cloud per questa pratica. Il consenso viene registrato nel registro di audit (AI Act art. 12). Disattivato per impostazione predefinita: una pratica coperta dal segreto professionale usa solo un modello locale.",
+            "Consenti un modello cloud per questa pratica. Il consenso viene annotato nel registro di audit (AI Act art. 12). Disattivato per impostazione predefinita: una pratica coperta dal segreto professionale usa solo un modello locale.",
         // Tabela dokumentow sprawy i menu Akcje (do 2026-10-10 na sztywno po angielsku).
         typeColumn: "Tipo",
         sizeColumn: "Dimensione",
         versionColumn: "Versione",
         updatedColumn: "Aggiornato",
-        uploadingStatus: "Caricamento",
+        uploadingStatus: "Caricamento in corso",
         removeFromSubfolder: "Rimuovi dalla sottocartella",
         // Zbiorcze akcje: porazka nazwana, nie przemilczana (2026-10-10).
         bulkFailedTitle: "Non tutto è andato a buon fine",
