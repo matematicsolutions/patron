@@ -1,6 +1,12 @@
 # Patron 1.4.0 - co się zmienia
 
-Projekt treści do wysłania kancelariom przed aktualizacją. Datę wydania wpisujemy w dniu wydania.
+Wydanie z 10 października 2026 r. Treść dla kancelarii przed aktualizacją.
+
+## Jak przejść na 1.4.0
+
+Patron od wersji 1.1 sam pobierze aktualizację i zapyta, czy zainstalować ją od razu, czy przy zamknięciu programu. W trakcie pracy nad sprawą nie uruchomi się ponownie bez Twojej zgody. Jeśli masz wersję 1.0, pobierz instalator 1.4.0 ze strony https://github.com/matematicsolutions/patron/releases/latest i zainstaluj go na obecną wersję. Ręcznie robisz to tylko ten jeden raz, kolejne aktualizacje przyjdą same.
+
+Sprawy, dokumenty, czaty, pamięć asystenta i zapisane klucze API zostają na miejscu. Leżą w profilu użytkownika Windows, osobno od programu, więc instalacja nowej wersji ich nie nadpisuje. Przy pierwszym uruchomieniu Patron 1.4.0 rozszerza listę zdarzeń, które przyjmuje dziennik audytu. Twoich danych to nie zmienia: wpisy dziennika zostają takie, jakie były, a łańcuch dowodowy się nie przerywa.
 
 ## Co się zmieni w Twojej pracy
 

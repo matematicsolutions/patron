@@ -7,6 +7,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-10-10
+
 ### Governance
 
 - **Konstytucja 1.8.0 (Art. 5 i Art. 6).** Art. 5: sprawe objeta tajemnica przetwarza domyslnie
@@ -1732,7 +1734,8 @@ First public release as **Patron** (re-branded fork of
 
 ---
 
-[Unreleased]: https://github.com/matematicsolutions/patron/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/matematicsolutions/patron/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/matematicsolutions/patron/releases/tag/v1.4.0
 [1.3.0]: https://github.com/matematicsolutions/patron/releases/tag/v1.3.0
 [1.2.0]: https://github.com/matematicsolutions/patron/releases/tag/v1.2.0
 [1.1.0]: https://github.com/matematicsolutions/patron/releases/tag/v1.1.0
