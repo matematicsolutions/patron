@@ -106,6 +106,8 @@ async function main() {
   const server = spawn("npx", ["tsx", "src/index.ts"], {
     env: {
       ...process.env,
+      // Baseline bramy MCP w katalogu testu - domyslny ~/.patron dzieli zainstalowany Patron.
+      PATRON_MCP_BASELINE_PATH: path.join(tmp, "mcp-drift-baseline.json"),
       PATRON_DB_BACKEND: "sqlite",
       PATRON_STORAGE: "fs",
       PATRON_DISABLE_VEC: "1",
