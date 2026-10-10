@@ -596,6 +596,10 @@ export const pl = {
         updatedColumn: "Zaktualizowano",
         uploadingStatus: "Przesyłanie",
         removeFromSubfolder: "Usuń z podfolderu",
+        // Zbiorcze akcje: porazka nazwana, nie przemilczana (2026-10-10).
+        bulkFailedTitle: "Nie wszystko się udało",
+        bulkDeleteFailed: "Nie udało się usunąć {n} z {total}. Zostały w sprawie - spróbuj ponownie.",
+        bulkMoveFailed: "Nie udało się wyjąć {n} z {total} dokumentów z podfolderu. Zostały na miejscu - spróbuj ponownie.",
         // Breadcrumb pickera dokumentow z poziomu projektu
         breadcrumbProjects: "Sprawy",
         breadcrumbAddDocs: "Dodaj dokumenty",

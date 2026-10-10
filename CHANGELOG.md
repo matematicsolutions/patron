@@ -9,6 +9,13 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ### Naprawione
 
+- **Zbiorcze usuwanie nie udaje juz sukcesu.** Usuniecie kilku dokumentow, czatow albo
+  przegladow tabelarycznych naraz robilo `.catch(() => {})` przy kazdym wywolaniu i czyscilo
+  liste bez wzgledu na wynik: mecenas widzial "usuniete", a pliki zostawaly na dysku i wracaly
+  po odswiezeniu. Tak samo wyjecie dokumentow z podfolderu. Teraz z widoku znika tylko to,
+  co sie udalo, reszta wraca na miejsce, a okno mowi "Nie udalo sie usunac N z M". Wspolna
+  funkcja `frontend/src/lib/zbiorczo.ts`; straznik zrodla w `zbiorczo.test.ts`. Znalezione
+  w przegladzie komunikatow bledow (wzorzec rejestru z morluto/rea, MIT).
 - **Edycje zagraniczne widzialy polskie i angielskie napisy na ekranie sprawy.** Przelacznik
   zgody na model chmurowy (ADR-0128) mial etykiete "Model chmurowy" i podpowiedz po polsku na
   sztywno we wszystkich 9 edycjach - a od tego wydania to jedyna droga do chmury w sprawie

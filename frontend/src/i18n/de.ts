@@ -438,6 +438,10 @@ export const de: DictShape<typeof pl> = {
         updatedColumn: "Aktualisiert",
         uploadingStatus: "Wird hochgeladen",
         removeFromSubfolder: "Aus Unterordner entfernen",
+        // Zbiorcze akcje: porazka nazwana, nie przemilczana (2026-10-10).
+        bulkFailedTitle: "Nicht alles hat geklappt",
+        bulkDeleteFailed: "{n} von {total} konnten nicht gelöscht werden. Sie sind weiterhin im Mandat - bitte erneut versuchen.",
+        bulkMoveFailed: "{n} von {total} Dokumenten konnten nicht aus dem Unterordner entfernt werden. Sie sind an ihrem Platz geblieben - bitte erneut versuchen.",
         breadcrumbProjects: "Mandate",
         breadcrumbAddDocs: "Dokumente hinzufügen",
         breadcrumbPeople: "Personen",

@@ -433,6 +433,10 @@ export const it: DictShape<typeof pl> = {
         updatedColumn: "Aggiornato",
         uploadingStatus: "Caricamento",
         removeFromSubfolder: "Rimuovi dalla sottocartella",
+        // Zbiorcze akcje: porazka nazwana, nie przemilczana (2026-10-10).
+        bulkFailedTitle: "Non tutto è andato a buon fine",
+        bulkDeleteFailed: "Impossibile eliminare {n} su {total}. Sono ancora nella pratica: riprova.",
+        bulkMoveFailed: "Impossibile rimuovere {n} documenti su {total} dalla sottocartella. Sono rimasti al loro posto: riprova.",
         breadcrumbProjects: "Pratiche",
         breadcrumbAddDocs: "Aggiungi documenti",
         breadcrumbPeople: "Persone",

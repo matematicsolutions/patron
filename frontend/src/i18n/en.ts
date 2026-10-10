@@ -530,6 +530,10 @@ export const en: DictShape<typeof pl> = {
         updatedColumn: "Updated",
         uploadingStatus: "Uploading",
         removeFromSubfolder: "Remove from subfolder",
+        // Zbiorcze akcje: porazka nazwana, nie przemilczana (2026-10-10).
+        bulkFailedTitle: "Not everything worked",
+        bulkDeleteFailed: "Could not delete {n} of {total}. They are still in the matter - please try again.",
+        bulkMoveFailed: "Could not remove {n} of {total} documents from the subfolder. They stayed where they were - please try again.",
         breadcrumbProjects: "Matters",
         breadcrumbAddDocs: "Add documents",
         breadcrumbPeople: "People",

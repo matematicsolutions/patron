@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { nowyTymczasowyId } from "@/lib/tempId";
+import { zbiorczo } from "@/lib/zbiorczo";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
     Upload,
@@ -103,6 +104,16 @@ export function ProjectPage({ projectId, initialTab = "documents" }: Props) {
     const [addDocsOpen, setAddDocsOpen] = useState(false);
     const [peopleModalOpen, setPeopleModalOpen] = useState(false);
     const [ownerOnlyAction, setOwnerOnlyAction] = useState<string | null>(null);
+    // Zbiorcza akcja, ktora nie przeszla w calosci - nazwana, nie przemilczana.
+    const [bladZbiorczy, setBladZbiorczy] = useState<string | null>(null);
+    const zglosNieudane = (
+        klucz: "projects.bulkDeleteFailed" | "projects.bulkMoveFailed",
+        nieudane: number,
+        wszystkie: number,
+    ) => {
+        if (nieudane > 0)
+            setBladZbiorczy(t(klucz).replace("{n}", String(nieudane)).replace("{total}", String(wszystkie)));
+    };
     const { user } = useAuth();
     const [uploadVersionDoc, setUploadVersionDoc] =
         useState<PATRONDocument | null>(null);
@@ -632,13 +643,24 @@ export function ProjectPage({ projectId, initialTab = "documents" }: Props) {
         const ids = selectedDocIds.filter((id) => docs.find((d) => d.id === id)?.folder_id != null);
         setActionsOpen(false);
         if (ids.length === 0) return;
+        const poprzedni = new Map(ids.map((id) => [id, docs.find((d) => d.id === id)?.folder_id ?? null]));
         setProject((prev) => prev ? {
             ...prev,
             documents: (prev.documents ?? []).map((d) =>
                 ids.includes(d.id) ? { ...d, folder_id: null } : d,
             ),
         } : prev);
-        await Promise.all(ids.map((id) => moveDocumentToFolder(projectId, id, null).catch(() => {})));
+        const { nieudane } = await zbiorczo(ids, (id) => moveDocumentToFolder(projectId, id, null));
+        if (nieudane.length) {
+            // Widok wraca do prawdy: dokumenty, ktorych nie przeniesiono, sa w starym folderze.
+            setProject((prev) => prev ? {
+                ...prev,
+                documents: (prev.documents ?? []).map((d) =>
+                    nieudane.includes(d.id) ? { ...d, folder_id: poprzedni.get(d.id) ?? null } : d,
+                ),
+            } : prev);
+        }
+        zglosNieudane("projects.bulkMoveFailed", nieudane.length, ids.length);
     }
 
     async function handleDeleteSelectedDocs() {
@@ -651,10 +673,11 @@ export function ProjectPage({ projectId, initialTab = "documents" }: Props) {
         });
         const blocked = ids.length - owned.length;
         setSelectedDocIds([]);
-        await Promise.all(owned.map((id) => deleteDocument(id).catch(() => {})));
+        const { udane, nieudane } = await zbiorczo(owned, (id) => deleteDocument(id));
         setProject((prev) =>
-            prev ? { ...prev, documents: prev.documents?.filter((d) => !owned.includes(d.id)) || [] } : prev,
+            prev ? { ...prev, documents: prev.documents?.filter((d) => !udane.includes(d.id)) || [] } : prev,
         );
+        zglosNieudane("projects.bulkDeleteFailed", nieudane.length, owned.length);
         if (blocked > 0) {
             setOwnerOnlyAction(
                 `${t("ownerOnly.actionDeleteReviewsBulkPrefix")} ${blocked} ${t("ownerOnly.actionDeleteDocumentsBulkSuffix")}`,
@@ -671,8 +694,9 @@ export function ProjectPage({ projectId, initialTab = "documents" }: Props) {
         });
         const blocked = ids.length - owned.length;
         setSelectedChatIds([]);
-        await Promise.all(owned.map((id) => deleteChat(id).catch(() => {})));
-        setChats((prev) => prev.filter((c) => !owned.includes(c.id)));
+        const { udane, nieudane } = await zbiorczo(owned, (id) => deleteChat(id));
+        setChats((prev) => prev.filter((c) => !udane.includes(c.id)));
+        zglosNieudane("projects.bulkDeleteFailed", nieudane.length, owned.length);
         if (blocked > 0) {
             setOwnerOnlyAction(
                 `${t("ownerOnly.actionDeleteReviewsBulkPrefix")} ${blocked} ${t("ownerOnly.actionDeleteChatsBulkSuffix")}`,
@@ -689,8 +713,9 @@ export function ProjectPage({ projectId, initialTab = "documents" }: Props) {
         });
         const blocked = ids.length - owned.length;
         setSelectedReviewIds([]);
-        await Promise.all(owned.map((id) => deleteTabularReview(id).catch(() => {})));
-        setProjectReviews((prev) => prev.filter((r) => !owned.includes(r.id)));
+        const { udane, nieudane } = await zbiorczo(owned, (id) => deleteTabularReview(id));
+        setProjectReviews((prev) => prev.filter((r) => !udane.includes(r.id)));
+        zglosNieudane("projects.bulkDeleteFailed", nieudane.length, owned.length);
         if (blocked > 0) {
             setOwnerOnlyAction(
                 `${t("ownerOnly.actionDeleteReviewsBulkPrefix")} ${blocked} ${t("ownerOnly.actionDeleteReviewsBulkSuffix")}`,
@@ -1795,6 +1820,13 @@ export function ProjectPage({ projectId, initialTab = "documents" }: Props) {
                 open={!!ownerOnlyAction}
                 action={ownerOnlyAction ?? undefined}
                 onClose={() => setOwnerOnlyAction(null)}
+            />
+
+            <OwnerOnlyModal
+                open={!!bladZbiorczy}
+                title={t("projects.bulkFailedTitle")}
+                message={bladZbiorczy ?? undefined}
+                onClose={() => setBladZbiorczy(null)}
             />
 
             <PeopleModal
