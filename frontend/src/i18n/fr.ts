@@ -437,6 +437,10 @@ export const fr: DictShape<typeof pl> = {
         updatedColumn: "Mis à jour",
         uploadingStatus: "Envoi en cours",
         removeFromSubfolder: "Retirer du sous-dossier",
+        // Zbiorcze akcje: porazka nazwana, nie przemilczana (2026-10-10).
+        bulkFailedTitle: "Tout n'a pas fonctionné",
+        bulkDeleteFailed: "Impossible de supprimer {n} sur {total}. Ils sont toujours dans le dossier - veuillez réessayer.",
+        bulkMoveFailed: "Impossible de retirer {n} documents sur {total} du sous-dossier. Ils sont restés en place - veuillez réessayer.",
         breadcrumbProjects: "Dossiers",
         breadcrumbAddDocs: "Ajouter des documents",
         breadcrumbPeople: "Personnes",

@@ -446,6 +446,10 @@ export const pt: DictShape<typeof pl> = {
         updatedColumn: "Atualizado",
         uploadingStatus: "Enviando",
         removeFromSubfolder: "Remover da subpasta",
+        // Zbiorcze akcje: porazka nazwana, nie przemilczana (2026-10-10).
+        bulkFailedTitle: "Nem tudo deu certo",
+        bulkDeleteFailed: "Não foi possível excluir {n} de {total}. Eles continuam no caso - tente novamente.",
+        bulkMoveFailed: "Não foi possível remover {n} de {total} documentos da subpasta. Eles continuam no lugar - tente novamente.",
         breadcrumbProjects: "Casos",
         breadcrumbAddDocs: "Adicionar documentos",
         breadcrumbPeople: "Pessoas",

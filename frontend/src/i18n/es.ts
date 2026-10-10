@@ -438,6 +438,10 @@ export const es: DictShape<typeof pl> = {
         updatedColumn: "Actualizado",
         uploadingStatus: "Subiendo",
         removeFromSubfolder: "Quitar de la subcarpeta",
+        // Zbiorcze akcje: porazka nazwana, nie przemilczana (2026-10-10).
+        bulkFailedTitle: "No todo salió bien",
+        bulkDeleteFailed: "No se pudieron eliminar {n} de {total}. Siguen en el asunto: inténtalo de nuevo.",
+        bulkMoveFailed: "No se pudieron quitar {n} de {total} documentos de la subcarpeta. Siguen en su sitio: inténtalo de nuevo.",
         breadcrumbProjects: "Asuntos",
         breadcrumbAddDocs: "Añadir documentos",
         breadcrumbPeople: "Personas",
