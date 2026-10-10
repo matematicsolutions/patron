@@ -185,7 +185,7 @@ Each entry maps to a real bug we shipped and then fixed. The hash/ADR is the rec
 ## Sources of truth (reading order)
 
 1. [README.md](./README.md) - description for humans
-2. [governance/CONSTITUTION.md](./governance/CONSTITUTION.md) - 9 principles, roles, audit (v1.7.2, signed by law firms)
+2. [governance/CONSTITUTION.md](./governance/CONSTITUTION.md) - 9 principles, roles, audit (v1.8.0; v1.7.2 signed by law firms, v1.8.0 awaiting re-signature)
 3. [governance/IMPLEMENTATION_PLAYBOOK.md](./governance/IMPLEMENTATION_PLAYBOOK.md) - 6-8 week rollout, RACI
 4. [governance/adr/](./governance/adr/) - Architecture Decision Records (0001-0146)
 5. [THIRD_PARTY_INSPIRATIONS.md](./THIRD_PARTY_INSPIRATIONS.md) - what we cherry-picked and from where (Mike, Lavern, gbrain, isaacus/tabular-review, PII-Shield, earendil/pi, awesome-llm-apps)

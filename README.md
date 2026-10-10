@@ -160,7 +160,7 @@ This requires a separately provisioned Supabase + MinIO (a separate stack). See 
 
 ## Governance (before deployment)
 
-- [**Patron AI Constitution v1.7.2**](./governance/CONSTITUTION.md) -
+- [**Patron AI Constitution v1.8.0**](./governance/CONSTITUTION.md) -
   9 principles, product boundaries, roles (Administrator / Operator / Inspector),
   audit, and evolution. Mapped to AI Act art. 12, RODO art. 5/25/30/32,
   and professional ethics. Art. 5 covers input-document control.

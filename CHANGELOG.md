@@ -7,6 +7,15 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ## [Unreleased]
 
+### Governance
+
+- **Konstytucja 1.8.0 (Art. 5 i Art. 6).** Art. 5: sprawe objeta tajemnica przetwarza domyslnie
+  wylacznie model lokalny, w kazdym trybie, takze na desktopie; chmura tylko za zgoda dla
+  konkretnej sprawy (ADR-0128) albo za swiadoma zgoda globalna Administratora. Art. 6: karty
+  zatwierdzen domyslnie wlaczone (ADR-0137). Tekst opisuje to, co kod egzekwuje od audytu
+  2026-09. Przyjete przez wlasciciela produktu 2026-10-10; czeka na ponowny podpis kancelarii
+  (sekcja 6.1). Projekt: `docs/PROJEKT_KONSTYTUCJA_ART5_2026-10.md`.
+
 ### Naprawione
 
 - **Zbiorcze usuwanie nie udaje juz sukcesu.** Usuniecie kilku dokumentow, czatow albo

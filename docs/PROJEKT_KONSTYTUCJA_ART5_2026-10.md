@@ -1,6 +1,6 @@
 # Projekt zmiany Konstytucji - Art. 5 (do decyzji właściciela produktu i ponownego podpisu)
 
-Status: **PROJEKT**. Nie wchodzi w życie bez decyzji właściciela produktu i ponownego podpisu przez kancelarie (sekcja 6.1 Konstytucji). Tekst w `governance/CONSTITUTION.md` pozostaje bez zmian do tego czasu.
+Status: **PRZYJĘTY przez właściciela produktu 2026-10-10** i wpisany do `governance/CONSTITUTION.md` jako wersja 1.8.0, razem ze zmianą Art. 6 (karty zatwierdzeń domyślnie włączone). **Czeka na ponowny podpis kancelarii** (sekcja 6.1 Konstytucji). Do tego czasu kod egzekwuje zasady surowsze niż podpisana wersja 1.7.2. W tekście przyjętym usunięto zdanie, że skuteczność detektora jest „publikowana” - tego nie potwierdziliśmy; zostało „mierzymy na zestawach ewaluacyjnych”.
 
 ## Dlaczego
 
