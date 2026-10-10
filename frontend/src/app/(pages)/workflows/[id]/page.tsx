@@ -12,7 +12,7 @@ import { AddColumnModal } from "@/app/components/tabular/AddColumnModal";
 import type { ColumnConfig, PATRONWorkflow } from "@/app/components/shared/types";
 import {
     BUILT_IN_IDS,
-    BUILT_IN_WORKFLOWS,
+    wbudowaneDlaEdycji,
 } from "@/app/components/workflows/builtinWorkflows";
 import { formatIcon, formatLabel } from "@/app/components/tabular/columnFormat";
 import { RenameableTitle } from "@/app/components/shared/RenameableTitle";
@@ -91,7 +91,7 @@ export default function WorkflowDetailPage({ params }: Props) {
     // ---------------------------------------------------------------------------
     useEffect(() => {
         if (isBuiltin) {
-            const wf = BUILT_IN_WORKFLOWS.find((w) => w.id === id) ?? null;
+            const wf = wbudowaneDlaEdycji().find((w) => w.id === id) ?? null;
             if (!wf) {
                 setNotFound(true);
             } else {

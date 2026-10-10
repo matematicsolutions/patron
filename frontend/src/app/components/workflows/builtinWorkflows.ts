@@ -1,4 +1,5 @@
 import type { PATRONWorkflow } from "../shared/types";
+import { getLocale, type Locale } from "@/i18n";
 
 export const BUILT_IN_WORKFLOWS: PATRONWorkflow[] = [
     {
@@ -1291,4 +1292,20 @@ export const BUILT_IN_WORKFLOWS: PATRONWorkflow[] = [
     },
 ];
 
+// Z listy PELNEJ: id ukrytego w tej edycji workflow nadal jest "wbudowany", wiec
+// nie da sie go edytowac ani usunac jak wlasnego.
 export const BUILT_IN_IDS = new Set(BUILT_IN_WORKFLOWS.map((wf) => wf.id));
+
+/**
+ * Workflow oparte na POLSKIEJ procedurze - widzi je tylko edycja PL (2026-10-10).
+ * Lista pelna zostaje dla parytetu z backendem (builtinWorkflows-parity.test.ts);
+ * widoki biora `wbudowaneDlaEdycji()`.
+ */
+export const TYLKO_EDYCJA_PL: ReadonlySet<string> = new Set(["builtin-analiza-akt-karne"]);
+
+/** Wbudowane workflow widoczne w danej edycji (domyslnie: edycja tego buildu). */
+export function wbudowaneDlaEdycji(locale: Locale = getLocale()): PATRONWorkflow[] {
+    return locale === "pl"
+        ? BUILT_IN_WORKFLOWS
+        : BUILT_IN_WORKFLOWS.filter((wf) => !TYLKO_EDYCJA_PL.has(wf.id));
+}

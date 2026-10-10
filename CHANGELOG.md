@@ -9,6 +9,16 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ### Naprawione
 
+- **Edycje zagraniczne widzialy polskie i angielskie napisy na ekranie sprawy.** Przelacznik
+  zgody na model chmurowy (ADR-0128) mial etykiete "Model chmurowy" i podpowiedz po polsku na
+  sztywno we wszystkich 9 edycjach - a od tego wydania to jedyna droga do chmury w sprawie
+  objetej tajemnica. Naglowki tabeli dokumentow, menu Akcje i status przesylania byly na
+  sztywno po angielsku, takze w edycji PL. Teraz wszystkie ida ze slownika, z tlumaczeniem
+  w kazdej edycji; `klucze-kazdej-edycji.test.ts` pilnuje, zeby nie wracaly przez polskie
+  zastepstwo.
+- **Workflow "Analiza akt (6-punktowa, karne)" tylko w edycji PL.** Oparty na k.p.k. workflow
+  z audytu D-13 pokazywal sie w kazdej edycji z polskim tytulem. Widoki biora liste edycji
+  (`wbudowaneDlaEdycji()`); lista pelna zostaje dla parytetu z backendem.
 - **Zapis audytu przetrwa zanik zasilania (SQLite `synchronous=FULL`).** Przy `NORMAL` pod
   WAL baza zostawala spojna, ale ostatnie zatwierdzone transakcje mogly sie wycofac - takze
   wpis `llm_route`, dopisywany po wyjsciu danych do chmury. Uciety ogon lancucha jest

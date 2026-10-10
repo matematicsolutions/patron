@@ -859,7 +859,7 @@ export function ProjectPage({ projectId, initialTab = "documents" }: Props) {
                     {filename.includes(".") ? filename.split(".").pop() : "file"}
                 </div>
                 <div className="w-24 shrink-0 text-sm text-gray-300">
-                    Uploading
+                    {t("projects.uploadingStatus")}
                 </div>
                 <div className="w-20 shrink-0 text-sm text-gray-300">—</div>
                 <div className="w-32 shrink-0 text-sm text-gray-300">—</div>
@@ -1209,7 +1209,7 @@ export function ProjectPage({ projectId, initialTab = "documents" }: Props) {
                 onClick={() => setActionsOpen((v) => !v)}
                 className="flex items-center gap-1 text-xs font-medium text-gray-700 hover:text-gray-900 transition-colors"
             >
-                Actions
+                {t("projects.actions")}
                 <ChevronDown className="h-3.5 w-3.5" />
             </button>
             {actionsOpen && (
@@ -1219,7 +1219,7 @@ export function ProjectPage({ projectId, initialTab = "documents" }: Props) {
                             onClick={handleDownloadSelectedDocs}
                             className="w-full px-3 py-1.5 text-left text-xs text-gray-600 hover:bg-gray-50 transition-colors"
                         >
-                            Download
+                            {t("common.download")}
                         </button>
                     )}
                     {tab === "documents" && selectedDocIds.some((id) => docs.find((d) => d.id === id)?.folder_id != null) && (
@@ -1227,14 +1227,14 @@ export function ProjectPage({ projectId, initialTab = "documents" }: Props) {
                             onClick={handleRemoveSelectedFromFolder}
                             className="w-full px-3 py-1.5 text-left text-xs text-gray-600 hover:bg-gray-50 transition-colors"
                         >
-                            Remove from subfolder
+                            {t("projects.removeFromSubfolder")}
                         </button>
                     )}
                     <button
                         onClick={handleDeleteSelected}
                         className="w-full px-3 py-1.5 text-left text-xs text-bad hover:bg-bad-soft transition-colors"
                     >
-                        Delete
+                        {t("common.delete")}
                     </button>
                 </div>
             )}
@@ -1301,7 +1301,7 @@ export function ProjectPage({ projectId, initialTab = "documents" }: Props) {
                         {project.is_owner && (
                             <label
                                 className="flex items-center gap-1.5 text-xs text-gray-600 select-none cursor-pointer mr-2 whitespace-nowrap"
-                                title="Zezwól na model chmurowy dla tej sprawy. Świadoma zgoda zapisywana do audytu (AI Act art. 12). Domyślnie wyłączone (tajemnica → tylko model lokalny)."
+                                title={t("projects.cloudConsentHint")}
                             >
                                 <input
                                     type="checkbox"
@@ -1309,7 +1309,7 @@ export function ProjectPage({ projectId, initialTab = "documents" }: Props) {
                                     onChange={handleCloudConsentToggle}
                                     className="h-3 w-3 rounded border-gray-300 cursor-pointer accent-black"
                                 />
-                                Model chmurowy
+                                {t("projects.cloudConsentLabel")}
                             </label>
                         )}
                         {toolbarActions}
@@ -1339,13 +1339,13 @@ export function ProjectPage({ projectId, initialTab = "documents" }: Props) {
                                 />
                             </div>
                             <div className={`sticky left-8 z-[60] ${DOC_NAME_COL_W} bg-white pl-2 text-left`}>
-                                Name
+                                {t("projects.nameColumn")}
                             </div>
-                            <div className="ml-auto w-20 shrink-0 text-left">Type</div>
-                            <div className="w-24 shrink-0 text-left">Size</div>
-                            <div className="w-20 shrink-0 text-left">Version</div>
-                            <div className="w-32 shrink-0 text-left">Created</div>
-                            <div className="w-32 shrink-0 text-left">Updated</div>
+                            <div className="ml-auto w-20 shrink-0 text-left">{t("projects.typeColumn")}</div>
+                            <div className="w-24 shrink-0 text-left">{t("projects.sizeColumn")}</div>
+                            <div className="w-20 shrink-0 text-left">{t("projects.versionColumn")}</div>
+                            <div className="w-32 shrink-0 text-left">{t("projects.createdColumn")}</div>
+                            <div className="w-32 shrink-0 text-left">{t("projects.updatedColumn")}</div>
                             <div className="w-8 shrink-0" />
                         </div>
 

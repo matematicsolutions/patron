@@ -585,6 +585,17 @@ export const pl = {
         tabDocuments: "Dokumenty",
         tabAssistant: "Rozmowa",
         tabTabularReviews: "Przeglądy tabelaryczne",
+        // ADR-0128: przelacznik zgody na model chmurowy na pasku sprawy.
+        cloudConsentLabel: "Model chmurowy",
+        cloudConsentHint:
+            "Zezwól na model chmurowy dla tej sprawy. Świadoma zgoda zapisywana do audytu (AI Act art. 12). Domyślnie wyłączone (tajemnica → tylko model lokalny).",
+        // Tabela dokumentow sprawy i menu Akcje (do 2026-10-10 na sztywno po angielsku).
+        typeColumn: "Typ",
+        sizeColumn: "Rozmiar",
+        versionColumn: "Wersja",
+        updatedColumn: "Zaktualizowano",
+        uploadingStatus: "Przesyłanie",
+        removeFromSubfolder: "Usuń z podfolderu",
         // Breadcrumb pickera dokumentow z poziomu projektu
         breadcrumbProjects: "Sprawy",
         breadcrumbAddDocs: "Dodaj dokumenty",

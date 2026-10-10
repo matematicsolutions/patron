@@ -29,6 +29,10 @@ const PILNOWANE = [
     "app/(pages)/admin/audit/page.tsx",
     // ADR-0165: panel spojnosci lancucha na tym samym ekranie.
     "components/audit-chain-panel.tsx",
+    // Pasek sprawy: przelacznik zgody na model chmurowy (ADR-0128). Od 1.4.0 to
+    // JEDYNA droga do chmury dla sprawy objetej tajemnica - a do 2026-10-10
+    // etykieta i podpowiedz byly po polsku na sztywno we wszystkich 9 edycjach.
+    "app/components/projects/ProjectPage.tsx",
 ];
 
 // Napisy interfejsu, ktore juz maja swoj klucz w pl.ts. Lista jest jawna,
@@ -47,6 +51,13 @@ const ZAKAZANE: Array<{ wzor: RegExp; opis: string }> = [
     { wzor: /Przeglad zdarzen audit_log/, opis: 'podtytul audytu na sztywno zamiast t("audit.subtitle")' },
     { wzor: /"Wczytuje\.\.\."/, opis: '"Wczytuje..." zamiast t("audit.loading")' },
     { wzor: /`Zaladowano \$\{/, opis: '"Zaladowano ${...} zdarzen" zamiast t("audit.loadedEvents")' },
+    // Pasek sprawy (ADR-0128). Polski napis na sztywno jest dla mecenasa w
+    // Monachium tym samym, czym angielski dla mecenasa w Krakowie.
+    { wzor: /^\s*Model chmurowy\s*$/m, opis: '"Model chmurowy" zamiast t("projects.cloudConsentLabel")' },
+    { wzor: /title="Zezw[oó]l na model chmurowy/, opis: 'podpowiedz zgody na sztywno zamiast t("projects.cloudConsentHint")' },
+    // Tabela dokumentow sprawy i menu Akcje - glowny ekran sprawy.
+    { wzor: />\s*(Type|Size|Version|Created|Updated)\s*</, opis: 'naglowek tabeli dokumentow na sztywno zamiast t("projects.*Column")' },
+    { wzor: /^\s*(Uploading|Actions|Remove from subfolder)\s*$/m, opis: 'napis menu/statusu na sztywno zamiast t("projects.*")' },
 ];
 
 describe("i18n - widoki uzywaja slownika, nie napisow na sztywno", () => {

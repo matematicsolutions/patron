@@ -427,6 +427,17 @@ export const es: DictShape<typeof pl> = {
         tabDocuments: "Documentos",
         tabAssistant: "Conversación",
         tabTabularReviews: "Revisiones tabulares",
+        // ADR-0128: przelacznik zgody na model chmurowy na pasku sprawy.
+        cloudConsentLabel: "Modelo en la nube",
+        cloudConsentHint:
+            "Permitir un modelo en la nube para este asunto. El consentimiento queda registrado en el registro de auditoría (AI Act art. 12). Desactivado por defecto: un asunto amparado por el secreto profesional solo usa un modelo local.",
+        // Tabela dokumentow sprawy i menu Akcje (do 2026-10-10 na sztywno po angielsku).
+        typeColumn: "Tipo",
+        sizeColumn: "Tamaño",
+        versionColumn: "Versión",
+        updatedColumn: "Actualizado",
+        uploadingStatus: "Subiendo",
+        removeFromSubfolder: "Quitar de la subcarpeta",
         breadcrumbProjects: "Asuntos",
         breadcrumbAddDocs: "Añadir documentos",
         breadcrumbPeople: "Personas",

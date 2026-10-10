@@ -21,7 +21,7 @@ import {
     unhideWorkflow,
 } from "@/app/lib/patronApi";
 import type { PATRONWorkflow } from "../shared/types";
-import { BUILT_IN_WORKFLOWS, BUILT_IN_IDS } from "./builtinWorkflows";
+import { BUILT_IN_IDS, wbudowaneDlaEdycji } from "./builtinWorkflows";
 import { DisplayWorkflowModal } from "./DisplayWorkflowModal";
 import { NewWorkflowModal } from "./NewWorkflowModal";
 import { ToolbarTabs } from "../shared/ToolbarTabs";
@@ -126,10 +126,11 @@ export function WorkflowList() {
         return () => document.removeEventListener("mousedown", handleClick);
     }, []);
 
-    const hiddenBuiltins = BUILT_IN_WORKFLOWS.filter((wf) =>
+    const wbudowane = wbudowaneDlaEdycji();
+    const hiddenBuiltins = wbudowane.filter((wf) =>
         hiddenBuiltinIds.includes(wf.id),
     );
-    const visibleBuiltins = BUILT_IN_WORKFLOWS.filter(
+    const visibleBuiltins = wbudowane.filter(
         (wf) => !hiddenBuiltinIds.includes(wf.id),
     );
     const all = [...visibleBuiltins, ...custom];
@@ -359,7 +360,7 @@ export function WorkflowList() {
                         onClick={() => setActionsOpen((v) => !v)}
                         className="flex items-center gap-1 text-xs font-medium text-gray-700 hover:text-gray-900 transition-colors"
                     >
-                        Actions
+                        {t("workflows.actions")}
                         <ChevronDown className="h-3.5 w-3.5" />
                     </button>
                     {actionsOpen && (

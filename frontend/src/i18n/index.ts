@@ -38,7 +38,7 @@ import { pt } from "./pt";
 // backend/src/lib/chat/prompts.ts (substancja USA zamiast PL+UE).
 export type Locale = "pl" | "en" | "it" | "de" | "es" | "fr" | "pt" | "gb" | "us";
 
-const SUPPORTED_LOCALES: ReadonlyArray<Locale> = [
+export const SUPPORTED_LOCALES: ReadonlyArray<Locale> = [
     "pl",
     "en",
     "it",

@@ -7,7 +7,7 @@ import { SafeMarkdown } from "@/lib/markdown/SafeMarkdown";
 import remarkGfm from "remark-gfm";
 import type { PATRONWorkflow } from "../shared/types";
 import { listWorkflows } from "@/app/lib/patronApi";
-import { BUILT_IN_WORKFLOWS } from "../workflows/builtinWorkflows";
+import { wbudowaneDlaEdycji } from "../workflows/builtinWorkflows";
 import { t } from "@/i18n";
 
 interface Props {
@@ -48,7 +48,7 @@ export function AssistantWorkflowModal({
             setSearch("");
             return;
         }
-        const builtins = BUILT_IN_WORKFLOWS.filter(
+        const builtins = wbudowaneDlaEdycji().filter(
             (w) => w.type === "assistant",
         );
         setWorkflows(builtins);
