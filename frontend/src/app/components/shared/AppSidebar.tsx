@@ -168,7 +168,7 @@ export function AppSidebar({ isOpen, onToggle }: AppSidebarProps) {
                     </div>
                 )}
                 <div className="flex items-center">
-                    {/* Symbol motywu w stalej nawigacji (WM 2026-08-21);
+                    {/* Symbol motywu w stalej nawigacji (wlasciciel produktu, 2026-08-21);
                         pelny przelacznik z etykietami zostaje w Ustawieniach. */}
                     {isOpen && <ThemeToggleCompact />}
                     <button

@@ -134,7 +134,7 @@ Pomysl dwuetapowy:
   (oba network copyleft) - licencje sa kompatybilne.
 - Pattern *cherry-pick wzoru zamiast adopcja narzedzia* jest
   juz utrwalony w MateMatic (claude-obsidian, codegraph, spec-kit,
-  hermes - patrz `feedback_consolidation_pattern_2026-05-14`).
+  hermes).
 
 ## Konsekwencje
 

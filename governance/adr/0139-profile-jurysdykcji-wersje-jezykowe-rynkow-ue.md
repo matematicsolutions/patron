@@ -1,8 +1,8 @@
 # ADR-0139: Profile jurysdykcji dla wersji jezykowych rynkow UE (IT/DE/ES/FR)
 
-**Status**: Przyjety (2026-07-03) — WM zatwierdzil i polecil publikacje od razu na
+**Status**: Przyjety (2026-07-03) — wlasciciel produktu zatwierdzil i polecil publikacje od razu na
 otwartej linii 1.x ("zrobmy to teraz"); PATRON 2.0 = osobny tor enterprise (mozliwe,
-ze platny). Bramka recenzji prawnika-native dla rynku IT przesunieta decyzja WM
+ze platny). Bramka recenzji prawnika-native dla rynku IT przesunieta decyzja wlasciciela produktu
 z pre-release na post-release (wydanie otwarte, feedback rynku zamiast blokady);
 dla DE/ES/FR bramka pozostaje przed ogloszeniem rynku.
 
@@ -55,7 +55,7 @@ odpowiadal po polsku (default), mimo UI EN i samouczka EN.
    - **Pelne struktury pism procesowych (odpowiednik DRAFTING_PL) = na pull,
      po recenzji prawnika-native danego rynku.** Bloki v1 celowo lekkie:
      konwencje cytowania + granice + zasada draftu.
-4. **Lean market edition (decyzja WM 2026-07-03).** Krajowa wersja rynkowa
+4. **Lean market edition (decyzja wlasciciela produktu 2026-07-03).** Krajowa wersja rynkowa
    (it/de/es/fr) BUNDLUJE **wylacznie konektor macierzysty** (IT = it-eli:
    Normattiva + Corte Costituzionale). Prawo UE (EUR-Lex, EU-Compliance) oraz
    konektory innych jurysdykcji NIE sa w instalatorze - uzytkownik dobiera je
@@ -86,7 +86,7 @@ odpowiadal po polsku (default), mimo UI EN i samouczka EN.
    main.js wskazuje go przez `IT_ELI_CASELAW_DB`. Brak indeksu = it_case_*
    zglasza brak wprost (fail-loud), legislacja dziala.
 
-### Kolejnosc wdrozenia rynkow (decyzja WM)
+### Kolejnosc wdrozenia rynkow (decyzja wlasciciela produktu)
 
 IT (pierwszy: EN/IT/PL w pickerze POBIERZ) -> DE -> ES -> FR (ostatni z powodu
 klucza PISTE w onboardingu). Slowniki UI wszystkich 4 rynkow powstaja od razu

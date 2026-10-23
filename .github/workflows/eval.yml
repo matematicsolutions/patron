@@ -2,7 +2,7 @@
 # Manualny (workflow_dispatch): eval to bramka wydania, nie lint per-push.
 # Na runnerze etapy B (skill) i C (Ollama) sa auto-SKIPPED - artefakt zawiera
 # raport z etapu A + jawne powody pominiec. Pelny raport = ta sama komenda
-# lokalnie u WM: node scripts/run-eval.cjs
+# lokalnie u wlasciciela produktu: node scripts/run-eval.cjs
 name: eval
 
 on:

@@ -244,7 +244,7 @@ describe("PerimeterBar - osiagalnosc akt", () => {
     });
 });
 
-// ADR-0149 (korekta WM 2026-08-21): pasek przejal caly stan trwaly po gornych
+// ADR-0149 (korekta wlasciciela produktu 2026-08-21): pasek przejal caly stan trwaly po gornych
 // banerach, wiec KAZDY segment musi prowadzic tam, gdzie sie tym faktem
 // zarzadza. Segment, ktory tylko informuje, oddaje uzytkownika w rece
 // szukania po ustawieniach - a to byl powod, dla ktorego banery w ogole

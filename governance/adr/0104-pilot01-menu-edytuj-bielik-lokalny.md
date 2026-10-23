@@ -1,6 +1,6 @@
 # ADR-0104: Pilot-01 - menu Edytuj (wklejanie) + Bielik jako model lokalny
 
-- **Status:** Zaakceptowany (pilot-driven). Branch `feat/tier-governance-envelope`, NIESCALONY do `main` (bramka: 2x review WM).
+- **Status:** Zaakceptowany (pilot-driven). Branch `feat/tier-governance-envelope`, NIESCALONY do `main` (bramka: 2x review wlasciciela produktu).
 - **Data:** 2026-06-05
 - **Kontekst pilota:** Pilot-01-Rumpole (pierwsza instalacja PATRON poza maszyna MateMatic, kancelaria karna „Rumpole & Loophole" (adw. H. Rumpole)).
 
@@ -29,4 +29,4 @@ Dwa defekty wykryte na zywo podczas instalacji pilotowej:
 
 ## Bramki
 
-ADR przed merge do `main`; 2x wewnetrzny review WM (AGENTS.md, Konstytucja Art. 7). Niescalony. Bez polskich znakow w commit message (konwencja repo).
+ADR przed merge do `main`; 2x wewnetrzny review wlasciciela produktu (AGENTS.md, Konstytucja Art. 7). Niescalony. Bez polskich znakow w commit message (konwencja repo).

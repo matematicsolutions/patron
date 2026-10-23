@@ -32,7 +32,7 @@ Rozważane alternatywy:
    do zarządzania.
 
 Ten sam wzorzec stosuje chiefofstaff-legal/donna w domenie legal-tech
-(patrz `memory/reference_kglf_lokalizacja.md` - ADR-001 KGLF).
+(ADR-001 KGLF).
 
 ## Konsekwencje
 

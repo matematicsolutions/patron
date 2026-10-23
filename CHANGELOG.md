@@ -9,6 +9,18 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ### Governance
 
+- **Warsztat poza repo publicznym.** Wewnetrzne raporty audytu z `docs/` i ich zestawy
+  testow czerwonych (`backend/` i `frontend/`, osobny runner poza `npm test` i CI) przeniesione
+  do prywatnego warsztatu; ustalenia naprawione sa opisane w tym pliku i w ADR, regresje
+  pilnuja testy w `src/`. Odwolania w README, ADR i komentarzach przepisane bez wskazania
+  prywatnych plikow, inicjaly zastapione rola "wlasciciel produktu".
+- **Bramka publikacji: detektor kuchni.** `scripts/publication_gate.py` lapie tresc, ktora nie
+  jest PII ani sekretem, ale niesie warsztat: inicjaly wlasciciela produktu, wskazania na
+  prywatne notatki pamieci agenta, sciezke profilu uzytkownika Windows, katalog sesji agenta,
+  plus konkretne tokeny jako sha256 (`kitchen_term_hashes`). `allow_paths` tego detektora nie
+  wycisza. W historii juz opublikowanej trafienia sa liczone jawnie i nie blokuja (jak
+  `denied_path`); nowy commit z taka trescia blokuje push i CI. Kontrola pozytywna: 13 testow
+  w `publication_gate_selftest.py`.
 - **Kopia ekstraktora powolan bez komentarzy.** `backend/src/lib/citation-check/cytaty_pl.ts`
   to teraz kopia publiczna z Repertorium: ten sam kod, bez komentarzy z historia decyzji
   (ADR-0157). Kopia niesie tez poprawke rozpoznawania przepisu w zapytaniu (artykul idzie do
@@ -24,7 +36,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
   konkretnej sprawy (ADR-0128) albo za swiadoma zgoda globalna Administratora. Art. 6: karty
   zatwierdzen domyslnie wlaczone (ADR-0137). Tekst opisuje to, co kod egzekwuje od audytu
   2026-09. Przyjete przez wlasciciela produktu 2026-10-10; czeka na ponowny podpis kancelarii
-  (sekcja 6.1). Projekt: `docs/PROJEKT_KONSTYTUCJA_ART5_2026-10.md`.
+  (sekcja 6.1). Tekst: [governance/CONSTITUTION.md](./governance/CONSTITUTION.md).
 
 ### Naprawione
 
@@ -148,8 +160,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
   ze znacznikiem `legal_break` i dolaczona deklaracja; weryfikatory w archiwum maja trzeci
   werdykt "OK - zerwanie z mocy prawa", kod wyjscia 3. Deklaracja w starym formacie nadal
   blokuje eksport (409 z `legal_break.status`).
-- Projekt zmiany Art. 5 Konstytucji (docs/PROJEKT_KONSTYTUCJA_ART5_2026-10.md) i nota dla
-  uzytkownikow (docs/NOTA_WYDANIA_2026-10.md) - do decyzji i podpisu.
+- Projekt zmiany Art. 5 Konstytucji i nota dla uzytkownikow (docs/NOTA_WYDANIA_2026-10.md) -
+  do decyzji i podpisu.
 
 - **Czwarta seria poprawek.** Odcisk pochodzenia konektora MCP (komenda/host) w baseline -
   podmiana komendy konektora o zaufanej nazwie daje human_review; Ring 1 tylko dla
@@ -168,8 +180,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
   i recall w trybie enforce (B-12, B-03); `replicate_document` i `remember` przez bramke
   kart zatwierdzen (B-04); panel draftu wysyla model rozmowy i sprawe, `/draft/refine`
   bez modelu = 400 i sprawdza dostep do sprawy (A-05); workflow karny osiagalny z UI
-  (D-13); ligatury PDF nie przesuwaja podswietlenia powolan (R-CC-05). Stan i lista
-  otwartych: [docs/NAPRAWY_2026-10-02.md](./docs/NAPRAWY_2026-10-02.md).
+  (D-13); ligatury PDF nie przesuwaja podswietlenia powolan (R-CC-05).
 
 - **Tresc akt z narzedzi czatu idzie do modelu chmurowego zamaskowana (audyt 2026-09, A-01, P0).**
   Wyniki read_document, fetch_documents, get_document_text, find_in_document,
@@ -872,7 +883,7 @@ PL, EN, IT, DE, ES, FR, BR (pt), GB, US. Instalatory nadal NIEPODPISANE
   zmian. Konektor `it-eli` (Normattiva + Corte Costituzionale) dolaczony do zestawu
   zaufanego (4-sync: pipeline.ts, prepare-resources.cjs, mcp-servers.example.json,
   connectors.ts); build IT bundluje indeks orzecznictwa Corte Cost (best-effort,
-  `IT_ELI_CASELAW_DB`). **Lean market edition** (decyzja WM): krajowa wersja
+  `IT_ELI_CASELAW_DB`). **Lean market edition** (decyzja wlasciciela produktu): krajowa wersja
   bundluje TYLKO konektor macierzysty (`stagedNodeConnectors`/`stagedPythonConnectors`
   w prepare-resources) - prawo UE (EUR-Lex, EU-Compliance) i inne jurysdykcje
   uzytkownik dobiera z Boutique, instalator zostaje chudy; prompty rynkow mowia to
@@ -1121,7 +1132,7 @@ tsc 0, vitest 1140 pass / 0 fail / 5 todo. Branch `fix/audyt-patron-p1-p3`.
   lookbehind Unicode `(?<![\p{L}\p{N}_])`.
 
 tsc 0, vitest 1135 pass / 0 fail / 5 todo. Branch `fix/audyt-patron-p1-p3`;
-przed merge do `main`: 2x review WM + decyzja Operatora. Pozostaje P1 #1 (at-rest
+przed merge do `main`: 2x review wlasciciela produktu + decyzja Operatora. Pozostaje P1 #1 (at-rest
 native swap) - osobny PR.
 
 ### Audyt PATRON: domkniecie usterek P1-P3 + runner migracji SQLite (ADR-0109)
@@ -1148,7 +1159,7 @@ native swap) - osobny PR.
 Poza zakresem (osobne ADR): P1 #1 at-rest native swap (better-sqlite3-multiple-
 ciphers + safeStorage), P1 #4 maskowanie nazwisk w egress (domkniecie ADR-0067).
 tsc 0, vitest 1123 pass / 0 fail / 5 todo (+5 testow). Branch
-`fix/audyt-patron-p1-p3`; przed merge do `main`: 2x review WM + decyzja Operatora.
+`fix/audyt-patron-p1-p3`; przed merge do `main`: 2x review wlasciciela produktu + decyzja Operatora.
 ### Grounding: sygnal WYMAGA OSADU - teza nieoceniona semantycznie (ADR-0103)
 
 **Added**
@@ -1190,7 +1201,7 @@ nietknieta. Inspiracja: gradient WYMAGA_OSADU ze skilla `citation-grounding-pl` 
 Konstytucja PATCH 1.6.1. decision (ADR-0005, blokada) nietknieta - warstwa
 doradcza. tsc 0 (backend + frontend), vitest 1114 pass / 0 fail (+20 testow).
 Wzorzec clean-room z anthropics/claude-for-legal (Apache-2.0). Branch
-`feat/grounding-provenance-tabular`; przed merge do `main`: 2x review WM + eval
+`feat/grounding-provenance-tabular`; przed merge do `main`: 2x review wlasciciela produktu + eval
 korpus PL przed flipem flag.
 
 ### Podsumowanie sprintu 2026-05-29 - 2026-06-02 (ADR-0053 .. 0099)

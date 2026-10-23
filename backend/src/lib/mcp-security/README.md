@@ -62,7 +62,7 @@ do kontraktu) **cherry-picked** z
 [microsoft/agent-governance-toolkit](https://github.com/microsoft/agent-governance-toolkit)
 (`MIT`, Microsoft Corporation, snapshot pushedAt `2026-05-24T17:02:19Z`, 1904 star,
 OpenSSF Best Practices project 12085, audyt RODO `agent-governance-claude-code`
-v3.6.0 = 🟢 ZIELONY, patrz `memory/audit_agent_governance_claude_code_2026-05-24.md`).
+v3.6.0 = 🟢 ZIELONY).
 
 Pelna atrybucja w [THIRD_PARTY_INSPIRATIONS.md](../../../../THIRD_PARTY_INSPIRATIONS.md).
 

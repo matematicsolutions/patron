@@ -16,7 +16,7 @@
 - **ADR-0024** (cherry-pick MS AGT) - ADR nadrzedny dla tej iteracji. Pattern 2 z trojki (MCP Security 0025 + Privilege Rings 0027 + Merkle 0026).
 - **ADR-0033** (propagacja mcp_security do audit) - korzysta z tego samego `audit_log`, ktory teraz Merkle pokrywa.
 
-**Rezerwacje wydzielone** (per [feedback_scope_down_atomic_adr]):
+**Rezerwacje wydzielone** (zasada: atomowy ADR):
 - **ADR-0036** (rezerwacja) - automatyczny trigger compute root po N events + UI viewer dla audytora (proof bundle export).
 - **ADR-0037** (rezerwacja) - zewnetrzny znacznik czasu (RFC 3161 lub OpenTimestamps) nad Merkle rootami - dowod istnienia w czasie dla audytu.
 
@@ -119,7 +119,7 @@ Bez Merkle audytor musi czytac caly log od genesis. Z Merkle - 19 hashy.
 - Sprzeczne z Art. 1 Konstytucji (lokalnosc). Patron nie wysyla danych klienta poza maszyne kancelarii.
 
 **D. Merkle + RFC 3161 timestamping w jednym ADR**
-- Odrzucone - per [feedback_scope_down_atomic_adr], atomowy ADR > mieszany. RFC 3161 wymaga TSA URL + procedury kontraktowej, ortogonalne do compute. Wydzielenie do ADR-0037.
+- Odrzucone - atomowy ADR > mieszany. RFC 3161 wymaga TSA URL + procedury kontraktowej, ortogonalne do compute. Wydzielenie do ADR-0037.
 
 **E. Merkle algorithm RFC 9162** (Certificate Transparency v2) - prefix hashing
 - Odrzucone na starcie - dla naszej skali (1 kancelaria, 100k-1M events/rok) klasyczny RFC 6962 wystarcza. RFC 9162 to opcja na ADR-0036 jezeli pojawi sie potrzeba dynamic tree.

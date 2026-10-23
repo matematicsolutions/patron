@@ -1,6 +1,6 @@
 # ADR-0144 — Heurystyczne wykrywanie niezacytowanych odwolan prawnych (anty-bypass groundingu)
 
-- **Status:** Proponowany (czeka na decyzje governance D1 + eval + bramke WM)
+- **Status:** Proponowany (czeka na decyzje governance D1 + eval + bramke wlasciciela produktu)
 - **Data:** 2026-06-11
 - **Galaz:** `fix/faza1-audit-prep` (worktree, off `feat/tier-governance-envelope`)
 - **Zrodlo:** audyt Fable5 2026-06-11, oS 3 (moat groundingu) ryzyko #3 — "bypass markera"
@@ -36,7 +36,7 @@ Wpiecie w sciezke groundingu (`stream.ts`) to **zmiana zachowania moatu** i zost
   - (b) **needs_review**: wymus jawna akceptacje uzytkownika (slad do audytu);
   - (c) **blok**: nie oddawaj deliverable dopoki odwolanie nieugruntowane.
 
-Rekomendacja (do decyzji WM): zacznij od (a) sygnal — najmniej inwazyjne, nie psuje
+Rekomendacja (do decyzji wlasciciela produktu): zacznij od (a) sygnal — najmniej inwazyjne, nie psuje
 UX, daje slad; eskalacja do (b)/(c) dla klasy high-stakes po evalu na korpusie PL.
 
 ### 3. Granica
@@ -60,4 +60,4 @@ format) jest akceptowalny: to warstwa dodatkowa nad `<CITATIONS>`, nie zamiennik
 - [ ] Wpiecie w stream.ts za flaga `PATRON_HEURISTIC_CITATIONS` (default OFF) + test e2e
       "model bez markerow".
 - [ ] Eval precision/recall na korpusie PL przed flip flagi.
-- [ ] 2x review `matematic-patron-pr-review-pl` przed merge->main (bramka WM).
+- [ ] 2x review `matematic-patron-pr-review-pl` przed merge->main (bramka wlasciciela produktu).

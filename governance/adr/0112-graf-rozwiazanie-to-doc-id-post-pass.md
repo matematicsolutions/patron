@@ -1,6 +1,6 @@
 # ADR-0112: Graf cytowan - rozwiazanie krawedzi dokument->dokument (to_doc_id)
 
-- **Status:** Proponowany. Branch `fix/audyt-patron-p1-p3`, NIESCALONY do `main` (bramka: 2x review WM + decyzja Operatora).
+- **Status:** Proponowany. Branch `fix/audyt-patron-p1-p3`, NIESCALONY do `main` (bramka: 2x review wlasciciela produktu + decyzja Operatora).
 - **Data:** 2026-06-14
 - **Kontekst:** Audyt PATRON P2 #11. `lib/graph/extractor.ts` zawsze ustawia `toDocId: null` (przy ekstrakcji nie wiadomo, czy cytowana encja ma swoj dokument). Kolumna `citation_graph.to_doc_id` byla faktycznie martwa; powiazanie dokument->dokument liczono dopiero przy zapytaniu (centralnosc po wspolnej `value_normalized`, `retrieval.ts`). Brakowalo trwalej krawedzi "dokument X cytuje wyrok bedacy dokumentem Y".
 

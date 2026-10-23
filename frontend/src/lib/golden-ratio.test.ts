@@ -1,4 +1,4 @@
-// Bramka zlotego podzialu (regula stala WM, 2026-08-21: "zawsze stosuj zloty
+// Bramka zlotego podzialu (regula stala produktu, 2026-08-21: "zawsze stosuj zloty
 // podzial, na kazdej stronie").
 //
 // Regula bez bramki nie trzyma: proporcja wpisana raz w piksele wykrusza sie

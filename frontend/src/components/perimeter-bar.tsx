@@ -6,7 +6,7 @@
 // siedzialy w /admin/audit i /account/connectors, czyli tam, gdzie prawnik
 // zaglada raz w zyciu.
 //
-// ADR-0149 (korekta WM 2026-08-21): pasek przejmuje CALY stan trwaly po gornych
+// ADR-0149 (korekta wlasciciela produktu 2026-08-21): pasek przejmuje CALY stan trwaly po gornych
 // banerach. Zasada: STAN TRWALY nalezy do perymetru, ZMIANA STANU do banera.
 // Kazdy segment jest klikalny i prowadzi tam, gdzie sie tym zarzadza - dzieki
 // temu gorne 10% ekranu wraca do sprawy, a governance ma JEDNA powierzchnie

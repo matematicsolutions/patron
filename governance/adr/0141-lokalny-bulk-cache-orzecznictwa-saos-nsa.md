@@ -1,6 +1,6 @@
 # ADR-0141: Lokalny bulk-cache orzecznictwa SAOS/NSA (indeks SQLite + tresci na FS)
 
-**Status**: PROPONOWANY (2026-07-31). Draft do przegladu WM - bez implementacji.
+**Status**: PROPONOWANY (2026-07-31). Draft do przegladu wlasciciela produktu - bez implementacji.
 
 **Data**: 2026-07-31
 

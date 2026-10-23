@@ -128,7 +128,7 @@ describe("lustro sciezek LibreOffice", () => {
     });
 
     it("isLibreOfficeAvailable zwraca boolean i nie rzuca", () => {
-        // Wynik zalezy od maszyny (u WM LibreOffice JEST, w CI zwykle nie), wiec
+        // Wynik zalezy od maszyny (u wlasciciela produktu LibreOffice JEST, w CI zwykle nie), wiec
         // asercja dotyczy kontraktu, nie wartosci. Wartosc sprawdza `typDozwolony`
         // w documentIngest.test.ts - na wstrzyknietych zdolnosciach.
         expect(typeof isLibreOfficeAvailable()).toBe("boolean");

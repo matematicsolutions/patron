@@ -30,7 +30,7 @@ export function McpSecurityBanner(): ReactElement | null {
     const awaiting = awaitingApprovalDecisions(status);
     const blocked = blockedGatewayDecisions(status) - awaiting;
 
-    // ADR-0149 (korekta WM 2026-08-21): STAN TRWALY nalezy do perymetru, gora
+    // ADR-0149 (korekta wlasciciela produktu 2026-08-21): STAN TRWALY nalezy do perymetru, gora
     // jest zarezerwowana na ZDARZENIE. Gora zapala sie wylacznie wtedy, gdy
     // bramka FAKTYCZNIE cos zablokowala - `denied` albo `human_review` bez
     // zatwierdzenia Operatora (dryf, podmiana plikow konektora). Tryb bramy jest
@@ -63,7 +63,7 @@ export function McpSecurityBanner(): ReactElement | null {
     const message = t("mcpSecurity.blockedMessage").replace("{blocked}", String(blocked));
     const ariaLabel = t("mcpSecurity.blockedAriaLabel").replace("{blocked}", String(blocked));
 
-    // Baner jest AKTYWNY (WM 2026-08-21): klik prowadzi do akt audytu, gdzie
+    // Baner jest AKTYWNY (wlasciciel produktu, 2026-08-21): klik prowadzi do akt audytu, gdzie
     // widac decyzje bramki i sciezke zatwierdzenia (ADR-0158). Informacja bez wyjscia
     // do akcji zamienia governance w tapete.
     return (

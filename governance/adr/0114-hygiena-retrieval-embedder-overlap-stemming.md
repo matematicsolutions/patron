@@ -1,6 +1,6 @@
 # ADR-0114: Hygiena retrievalu - wersjonowanie embeddera, overlap chunkow, prefix-match PL
 
-- **Status:** Proponowany. Branch `fix/audyt-patron-p1-p3`, NIESCALONY do `main` (bramka: 2x review WM + decyzja Operatora).
+- **Status:** Proponowany. Branch `fix/audyt-patron-p1-p3`, NIESCALONY do `main` (bramka: 2x review wlasciciela produktu + decyzja Operatora).
 - **Data:** 2026-06-14
 - **Kontekst:** Audyt PATRON, batch P2 #8 + P3 #14 + P3 #15 (jakosc/robustnosc warstwy retrievalu).
 

@@ -1,9 +1,9 @@
 # ADR-0145 — Kontrakt linkage cytat↔edycja w redline (anchorId + span)
 
-- **Status:** Proponowany (czeka na decyzje governance D1 + bramke WM)
+- **Status:** Proponowany (czeka na decyzje governance D1 + bramke wlasciciela produktu)
 - **Data:** 2026-06-11
 - **Galaz:** `fix/faza1-audit-prep` (worktree, off `feat/tier-governance-envelope`)
-- **Zrodlo:** audyt Fable5 2026-06-11 oS 4 #1 + ocena Docxodus (`reference_docxodus_redline_eval_2026-06-11`)
+- **Zrodlo:** audyt Fable5 2026-06-11 oS 4 #1 + ocena Docxodus (2026-06-11)
 - **Mapuje na:** ADR-0070/0079 (redline `docxTrackedChanges.ts`), ADR-0005/0102 (grounding cytatu)
 
 ## Kontekst
@@ -61,7 +61,7 @@ Zasada egzekwowania (za flaga, default OFF — wzorzec ADR-0097/0102):
 - [ ] Sprawdzenie VERIFIED pary `(anchor_id, span)` przed aplikacja, za flaga (default OFF).
 - [ ] Decyzja governance D1 (blok / needs_review / sygnal).
 - [ ] Testy: edycja z grounding_ref VERIFIED przechodzi; bez VERIFIED wstrzymana.
-- [ ] 2x review `matematic-patron-pr-review-pl` przed merge->main (bramka WM).
+- [ ] 2x review `matematic-patron-pr-review-pl` przed merge->main (bramka wlasciciela produktu).
 
 ## Uwaga
 

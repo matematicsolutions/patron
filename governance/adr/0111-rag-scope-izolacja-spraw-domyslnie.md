@@ -1,6 +1,6 @@
 # ADR-0111: RAG scope - domyslna izolacja tajemnicy miedzy sprawami
 
-- **Status:** Proponowany. Branch `fix/audyt-patron-p1-p3`, NIESCALONY do `main` (bramka: 2x review WM + decyzja Operatora).
+- **Status:** Proponowany. Branch `fix/audyt-patron-p1-p3`, NIESCALONY do `main` (bramka: 2x review wlasciciela produktu + decyzja Operatora).
 - **Data:** 2026-06-14
 - **Kontekst:** Audyt PATRON P2 #5. `search_corpus` (`lib/chat/tool-dispatch.ts`): gdy czat ma `projectId`, RAG byl ograniczony do dokumentow sprawy; ale BEZ `projectId` (czat ogolny) `documentIds` bylo `undefined` -> `retrieve()` przeszukiwal CALY korpus usera (scoping opcjonalny). Skutek: w czacie ogolnym fragmenty akt jednego klienta moga trafic do rozmowy o innym - przy tajemnicy adwokackiej miedzy klientami to istotny wyciek.
 

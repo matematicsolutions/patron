@@ -154,7 +154,7 @@ describe("ingestFolder (headless)", () => {
 });
 
 // Zdolnosci wstrzykiwane, nie odpytywane: `isLibreOfficeAvailable()` czyta system
-// plikow, wiec na maszynie WM zwraca true, a w CI false - test oparty na niej
+// plikow, wiec na maszynie wlasciciela produktu zwraca true, a w CI false - test oparty na niej
 // mierzylby maszyne, nie regule.
 describe("typDozwolony - zbior typow zalezy od zdolnosci srodowiska", () => {
   const BRAK = { libreoffice: false, ocr: false };

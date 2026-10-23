@@ -175,7 +175,7 @@
 }
 
 :root {
-    /* ─── ZLOTY PODZIAL - regula stala produktu (WM 2026-08-21) ─────────────
+    /* ─── ZLOTY PODZIAL - regula stala produktu (wlasciciel produktu, 2026-08-21) ─────────────
        Kazda strona dzieli sie w proporcji φ, a nie "na oko". Zeby to bylo
        regula systemu, a nie pamieci projektanta, proporcje sa TOKENAMI -
        ekran, ktory ich uzywa, jest zgodny z definicji.

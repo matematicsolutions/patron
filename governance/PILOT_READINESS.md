@@ -20,7 +20,7 @@ Wniosek: logika aplikacji i runtime (tryb desktop SQLite zero-cloud) sa sprawne.
 
 ## Aktualizacja po audycie 2026-06-02
 
-Pelny audyt (workflow 93 agentow + agent bezpieczenstwa, patrz [docs/AUDYT_2026-06-02.md](../docs/AUDYT_2026-06-02.md)) wykryl i **naprawil 4 blokery P0** + kluczowe P1. Zweryfikowane live na **swiezo zbudowanym i zainstalowanym** instalatorze (NSIS 220 MB, exe 2026-06-02 18:54):
+Pelny audyt (workflow 93 agentow + agent bezpieczenstwa) wykryl i **naprawil 4 blokery P0** + kluczowe P1. Zweryfikowane live na **swiezo zbudowanym i zainstalowanym** instalatorze (NSIS 220 MB, exe 2026-06-02 18:54):
 - `/skills` 404 -> **200** (biblioteka umiejetnosci dostepna; binarny 06-01 nie mial `skills.js`).
 - `/api/security/mcp-status` 500 -> **200** (bug kolumny `created_at` -> `ts`).
 - Egress guard wpiety w tabular (generate/regenerate-cell/chat) i generate-title - tresc akt nie wychodzi do chmury bez kontroli (ADR-0099).

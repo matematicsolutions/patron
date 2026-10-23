@@ -1,6 +1,6 @@
 # ADR-0133: Wybor konektorow MCP przez mecenasa (jurysdykcja) + rozszerzenie zaufanego zestawu o UE
 
-**Status**: Proponowany (2026-06-24) — wymaga 2x wewnetrznego review tresci + akceptacji WM przed merge (AGENTS.md). Dotyka warstwy bezpieczenstwa MCP — review szczegolny.
+**Status**: Proponowany (2026-06-24) — wymaga 2x wewnetrznego review tresci + akceptacji wlasciciela produktu przed merge (AGENTS.md). Dotyka warstwy bezpieczenstwa MCP — review szczegolny.
 
 ## Kontekst
 
@@ -34,7 +34,7 @@ Stan zastany (recon 2026-06-24):
    konektor; (c) bundlowanie repo.
 3. **3rd-party / dowolny MCP z internetu NIE jest udostepniony mecenasowi.** Zostaje
    Ring 2 fail-closed, allow tylko przez Operatora (`operatorApproved=true`). Decyzja
-   WM 2026-06-24. To chroni tajemnice zawodowa i RODO — nieufny serwer MCP = potencjalny
+   wlasciciela produktu 2026-06-24. To chroni tajemnice zawodowa i RODO — nieufny serwer MCP = potencjalny
    wyciek akt + tool-poisoning. W pickerze 3rd-party albo nieobecne, albo widoczne jako
    "tylko Operator".
 4. **Kazda zmiana enabled jest audytowana** (zmiana powierzchni narzedzi dostepnych

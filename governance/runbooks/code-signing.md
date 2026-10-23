@@ -1,15 +1,15 @@
 # Runbook: code signing instalatora Windows (Authenticode)
 
-**Wlasciciel:** WM (zakup certu = akt ludzki, bramka B5 trackera 2.0).
+**Wlasciciel:** wlasciciel produktu (zakup certu = akt ludzki, bramka B5 trackera 2.0).
 **Powiazane:** spec 011 (konfiguracja w build-locale.cjs), spec 008 (auto-update -
-metadane przeliczane po podpisie automatycznie), project_patron_unsigned_installer_2_0
+metadane przeliczane po podpisie automatycznie)
 (tarcie SmartScreen w 1.0).
 **Stan:** konfiguracja GOTOWA i uspiona. Aktywacja = same zmienne srodowiskowe,
 zero zmian w repo.
 
 ---
 
-## 1. Wybor certyfikatu (decyzja zakupowa WM)
+## 1. Wybor certyfikatu (decyzja zakupowa wlasciciela produktu)
 
 | | OV (Organization Validation) | EV (Extended Validation) |
 |---|---|---|
@@ -48,7 +48,7 @@ build-locale.cjs wtedy: (1) podpisze `PATRON-Setup-Windows[-XX].exe` signtoolem
 `latest[-xx].yml`, (3) zregeneruje blockmap - auto-update (spec 008) dostaje
 spojne metadane podpisanego pliku. Brak PATRON_CERT_* przy wlaczonej fladze =
 build przerwany (fail-loud). Token EV poprosi o PIN przy kazdym podpisie -
-dlatego podpis jest LOKALNY u WM, nigdy w CI (klucz/token nie wchodzi do GitHub).
+dlatego podpis jest LOKALNY u wlasciciela produktu, nigdy w CI (klucz/token nie wchodzi do GitHub).
 
 ## 4. Weryfikacja po buildzie
 

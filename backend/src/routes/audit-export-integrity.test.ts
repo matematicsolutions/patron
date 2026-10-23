@@ -224,7 +224,7 @@ describe("GET /api/audit/export/:eventId - kontrola tresci przed wydaniem (C-04)
 
 // ---------------------------------------------------------------------------
 // RODO art. 17: wpis zanonimizowany prawdziwym scripts/rodo-delete.ts (klient
-// Supabase podmieniony na shim SQLite - wzor: audit-2609/R-AC-01). Decyzja
+// Supabase podmieniony na shim SQLite - wzor: scenariusz R-AC-01 przegladu 2026-10). Decyzja
 // wlasciciela produktu 2026-10-06: eksport wychodzi ZE ZNACZNIKIEM zerwania z
 // mocy prawa, gdy obejmuje go wazna deklaracja; inaczej odmowa jak dotad.
 // ---------------------------------------------------------------------------

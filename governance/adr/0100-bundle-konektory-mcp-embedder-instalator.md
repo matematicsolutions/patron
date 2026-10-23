@@ -1,6 +1,6 @@
 # ADR-0100: Bundle 6 konektorow MCP + model embeddera do instalatora desktop
 
-**Status**: Zaproponowany 2026-06-03. Domyka rezerwacje 3 i 4 z [ADR-0091](./0091-pakowanie-instalatora-desktop.md) ("Bundle embeddera" + "Bundle konektorow MCP do paczki desktop"). Zweryfikowany na zywej binarce NSIS: 6/6 konektorow wstaje jako dzieci `PATRON.exe`, realne wyroki (SN `I CSK 90/15` przez `saos`, NSA/WSA `I GSK 771/26` przez `nsa`), embedding offline 384 dims, testy mcp+mcp-security+ring-policy zielone, tsc 0. Setup.exe 230 MB -> 525 MB. **NIE merge bez 2x wewnetrznego review (WM)** - patrz bramki na koncu.
+**Status**: Zaproponowany 2026-06-03. Domyka rezerwacje 3 i 4 z [ADR-0091](./0091-pakowanie-instalatora-desktop.md) ("Bundle embeddera" + "Bundle konektorow MCP do paczki desktop"). Zweryfikowany na zywej binarce NSIS: 6/6 konektorow wstaje jako dzieci `PATRON.exe`, realne wyroki (SN `I CSK 90/15` przez `saos`, NSA/WSA `I GSK 771/26` przez `nsa`), embedding offline 384 dims, testy mcp+mcp-security+ring-policy zielone, tsc 0. Setup.exe 230 MB -> 525 MB. **NIE merge bez 2x wewnetrznego review (wlasciciel produktu)** - patrz bramki na koncu.
 
 **Data**: 2026-06-03
 
@@ -42,7 +42,7 @@ Cel: instalator, ktory daje mecenasowi komplet zrodel prawa + retrieval wektorow
 - Testy `mcp` + `mcp-security` + `ring-policy` zielone, `tsc --noEmit` exit 0.
 - Auth bypass w trybie sqlite (`requireAuth -> LOCAL_USER`) - endpointy testowalne curlem bez tokenu. `userData` pod `%APPDATA%/patron-desktop` (klucz `name`, nie `productName`).
 
-Nieweryfikowalne headless (krok build-na-celu, jak w ADR-0091): finalna kompilacja NSIS i instalacja na docelowej maszynie. Status zostaje **Zaproponowany** do 2x review WM.
+Nieweryfikowalne headless (krok build-na-celu, jak w ADR-0091): finalna kompilacja NSIS i instalacja na docelowej maszynie. Status zostaje **Zaproponowany** do 2x review wlasciciela produktu.
 
 ---
 
@@ -141,7 +141,7 @@ Korpus `eu-compliance` (35 MB) jest nieredukowalny - to lokalny dataset regulacj
 - Instalator +295 MB (230->525). Dedupe node_modules (~294 MB) zostaje rezerwacja - akceptujemy rozmiar dla poprawnosci pilota.
 - Build instalatora wymaga 6 zbudowanych repo `mcp-*` obok patron/ (`npm install && npm run build`, plus `npm run fetch-corpus` dla eu-compliance) - udokumentowany warunek build-na-celu (jak rebuild ABI w ADR-0091).
 - Synchronizacja nazw w 3 miejscach (`APPROVED_PATRON_CONNECTORS` / `MCP_SERVERS` / `mcp-servers.example.json`) - rozjazd = cicha blokada wlasnego konektora. Komentarze w kodzie ostrzegaja; brak automatycznego testu spojnosci 3 list (rezerwacja: test, ktory porownuje te trojke).
-- Finalna kompilacja NSIS + instalacja na docelowej maszynie weryfikowalna tylko build-na-celu (ADR-0091). Status Zaproponowany do 2x review WM.
+- Finalna kompilacja NSIS + instalacja na docelowej maszynie weryfikowalna tylko build-na-celu (ADR-0091). Status Zaproponowany do 2x review wlasciciela produktu.
 - NSIS niepodpisany (rezerwacja z ADR-0091 utrzymana).
 
 **Aktualizacja AGENTS.md**: sekcja "Build i test" rozszerzona - bundling konektorow do instalatora desktop odbywa sie przez `prepare-resources.cjs` (`stageMcpConnectors` + `stageEmbedModel`), obok istniejacego `scripts/bundle-mcp.cjs` (ktory celuje w obraz dockera trybu serwerowego). Dopisana zasada: dodajac konektor, zsynchronizuj nazwe w `APPROVED_PATRON_CONNECTORS`, `MCP_SERVERS` (prepare-resources) i `mcp-servers.example.json`. Wpis do listy ADR (0001-0100).
@@ -162,4 +162,4 @@ Korpus `eu-compliance` (35 MB) jest nieredukowalny - to lokalny dataset regulacj
 
 - Headless: `tsc --noEmit` exit 0 (backend), pelny suite vitest zielony (mcp + mcp-security + ring-policy bez regresji), `next build` exit 0 (frontend).
 - Na zywej binarce (spelnione we wczesniejszej sesji): 6/6 konektorow zywych, realne wyroki przez saos/nsa, embedding offline 384 dims. **CAVEAT**: ta weryfikacja live byla na binarce sprzed naprawy env (least-privilege, sekcja Bezpieczenstwo) - konektor odpalal sie z pelnym `process.env`. Po naprawie konektor dostaje tylko bezpieczna baze OS + `ELECTRON_RUN_AS_NODE` (nie potrzebuje sekretow, wiec oczekiwany brak regresji), ale 6/6-live nalezy POWTORZYC na binarce z poprawka przed flipem na Wdrozony - nie ogłaszać post-fix jako live-verified bez tego.
-- **2x wewnetrzny review tresci ADR + zmian (WM) PRZED merge** (AGENTS.md: "wewnetrzny review tresci 2x runda PRZED merge"). Galaz `feat/tier-governance-envelope`, brama private-remote przed push. NIE merge do main bez 2x review.
+- **2x wewnetrzny review tresci ADR + zmian (wlasciciel produktu) PRZED merge** (AGENTS.md: "wewnetrzny review tresci 2x runda PRZED merge"). Galaz `feat/tier-governance-envelope`, brama private-remote przed push. NIE merge do main bez 2x review.

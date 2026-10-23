@@ -1,5 +1,5 @@
 // Gorny pas jest zarezerwowany na ZDARZENIE, nie na stan trwaly (ADR-0149,
-// korekta WM 2026-08-21).
+// korekta wlasciciela produktu 2026-08-21).
 //
 // Kluczowa rzecz, ktorej te testy pilnuja: zdjecie stalego ostrzezenia z gory
 // NIE MOZE oznaczac, ze bramka, ktora cos zablokowala, przestaje krzyczec.
