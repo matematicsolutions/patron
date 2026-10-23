@@ -5,7 +5,7 @@
 > (ADR-0163). Komunikaty commitow tej linii nadal mowia "ADR-0150" - historii nie
 > przepisujemy.
 
-- **Status:** Zaakceptowany (WM 2026-09-09, "zgadzam sie z twoja rekomendacja - lecisz")
+- **Status:** Zaakceptowany (wlasciciel produktu, 2026-09-09)
 - **Data:** 2026-09-09
 - **Galaz:** `feat/design-system-2-0`
 - **Zrodlo:** bramka `backend/src/lib/audit-hash-inputs-have-one-writer.test.ts`, postawiona
@@ -114,7 +114,7 @@ lancuchu jest sygnalem powaznym.
 
 ## Aktualizacja 2026-10-06 - eksport wpisu zerwanego z mocy prawa
 
-Decyzja wlasciciela produktu (punkt 2 decyzji w `docs/NAPRAWY_2026-10-02.md`):
+Decyzja wlasciciela produktu (przeglad 2026-10-02, punkt 2):
 eksport audytu wpisu zanonimizowanego na podstawie RODO art. 17 wychodzi ZE
 ZNACZNIKIEM "zerwanie z mocy prawa", zamiast byc odrzucanym (dotyczy
 `GET /api/audit/export/:eventId` i `GET /api/audit/bundle/:messageId`).

@@ -1,6 +1,6 @@
 # ADR-0163 - Kolizja numeracji migracji miedzy liniami: wydane kroki sa zamrozone, ostatni niesie sume
 
-- **Status:** Proponowany (czeka na dwie rundy przegladu i decyzje WM o scaleniu linii)
+- **Status:** Proponowany (czeka na dwie rundy przegladu i decyzje wlasciciela produktu o scaleniu linii)
 - **Data:** 2026-10-01
 - **Galaz:** scalenie `feat/design-system-2-0` z linia publiczna (`main`), squash na stosie
   PR #8 -> PR #9 -> ADR-0162 -> ADR-0161

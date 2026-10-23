@@ -268,7 +268,7 @@ describe("detectAll - firmy z forma prawna", () => {
     });
 
     // Granica slowa jest OBOWIAZKOWA - krotkie skroty (s.a., s.c.) bez niej
-    // generuja szum. Patrz reference_regex_skroty_prawne_granice_slowa.
+    // generuja szum.
     describe("granice slowa dla krotkich skrotow", () => {
         it("nie lapie S.A. wewnatrz U.S.A. (brak spacji przed forma)", () => {
             expect(firmy("Wyjazd do U.S.A. w marcu.")).toHaveLength(0);

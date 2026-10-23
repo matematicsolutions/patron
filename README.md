@@ -72,7 +72,7 @@ it is better to read them here than to find out in the middle of a case.
   source stays with the lawyer.
 - **Guaranteed anonymisation.** Detectors mask names, companies and identifiers before a cloud model, but
   some forms slip through - for example a bare surname in a later message, with no first name
-  or role next to it (finding A-02 in [the 2026-09 audit](./docs/AUDYT_2026-09.md)). For files
+  or role next to it. For files
   under professional secrecy we recommend a local model: then nothing leaves the machine.
 - **Legacy `.doc` without LibreOffice.** PDF and DOCX work on their own. Older binary `.doc`
   files need LibreOffice, and without it Patron refuses them out loud instead of storing an

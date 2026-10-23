@@ -1,6 +1,6 @@
 # ADR-0135: Jezyk agenta wg locale - granica metoda/substancja w SYSTEM_PROMPT
 
-**Status**: Przyjety (2026-06-25) — WM zatwierdzil zakres "lekkie v1" (przelacznik jezyka odpowiedzi + przewodnik mozliwosci EN; substancja jurysdykcyjna zostaje PL). Zaimplementowane i zweryfikowane (backend tsc=0, 33 testy prompts+messages pass).
+**Status**: Przyjety (2026-06-25) — wlasciciel produktu zatwierdzil zakres "lekkie v1" (przelacznik jezyka odpowiedzi + przewodnik mozliwosci EN; substancja jurysdykcyjna zostaje PL). Zaimplementowane i zweryfikowane (backend tsc=0, 33 testy prompts+messages pass).
 
 Aneks do [ADR-0132](./0132-locale-selection-jeden-jezyk-per-instalacja.md) rozszerzajacy locale z warstwy UI na warstwe agenta (backend prompts).
 
@@ -40,7 +40,7 @@ Granica miedzy nimi to decyzja produktowa pod konstytucja (Art. 2/4), nie mechan
 6. **Wpiecie:** `buildMessages()` (`chat/messages.ts`) wola `buildSystemPrompt(getAgentLocale())`.
    Konstrukcja promptu pozostaje w sciezce audit hash-chain (AI Act art. 12) — bez bypassu.
 
-### Granica (co NIE jest objete - decyzje WM odlozone do iteracji)
+### Granica (co NIE jest objete - decyzje wlasciciela produktu odlozone do iteracji)
 
 - Pelne dwujezyczne bloki substancji (np. EN-owy opis dyscypliny SAOS) — **na pull**,
   nie spekulacyjnie. Light v1 tlumaczy tylko 3 bloki metody/UX.

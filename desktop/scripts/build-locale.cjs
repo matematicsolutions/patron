@@ -74,7 +74,7 @@ run("node", ["scripts/ocr-lang-gate.test.cjs"]);
 run("node", ["scripts/connectors-gate.test.cjs"]);
 
 // 1+2. Zasoby + build z jezykiem NSIS per rynek. --publish=never na sztywno:
-// upload assets do GitHub Releases to akt ludzki WM (bramka "push publiczny").
+// upload assets do GitHub Releases to akt ludzki wlasciciela produktu (bramka "push publiczny").
 run("node", ["scripts/prepare-resources.cjs"]);
 run("npx", [
   "electron-builder",

@@ -85,8 +85,7 @@ Bierzemy **wzor**:
 
 Cherry-pick **wzorca architektonicznego, nie kodu** jest utrwalonym
 patternem w MateMatic (claude-obsidian, codegraph, spec-kit, hermes,
-Hey Jude - patrz `memory/feedback_consolidation_pattern_2026-05-14`
-i `memory/reference_narzedzia_oceny_2026-05-14`).
+Hey Jude).
 
 ## Rozwazane sciezki
 

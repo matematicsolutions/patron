@@ -172,7 +172,7 @@ beforeAll(async () => {
 }, 30_000);
 
 beforeEach(() => {
-    // Domyslne ustawienia instalatora desktop (jak audit-2609/A-01).
+    // Domyslne ustawienia instalatora desktop (scenariusz A-01 audytu 2026-09).
     process.env.ALLOW_US_PROVIDERS = "true";
     process.env.PATRON_ALLOW_PRIVILEGED_CLOUD = "true";
     delete process.env.PATRON_PSEUDONIM_EGRESS;

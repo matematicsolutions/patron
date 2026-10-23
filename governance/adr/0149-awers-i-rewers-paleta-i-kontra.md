@@ -3,7 +3,7 @@
 - **Status:** Zaakceptowany (Owner, 2026-08-21; wdrozone fale D1+D2)
 - **Data:** 2026-08-21
 - **Galaz:** `feat/design-system-2-0` (kontynuacja ADR-0147)
-- **Zrodlo:** propozycja "Awers i rewers" zatwierdzona przez WM 2026-08-21, zbudowana na
+- **Zrodlo:** propozycja "Awers i rewers" zatwierdzona przez wlasciciela produktu 2026-08-21, zbudowana na
   pomiarze 9 konkurencyjnych interfejsow z ADR-0147
 - **Mapuje na:** ADR-0147 (system wizualny 2.0), ADR-0146 (grounding), ADR-0026 (Merkle),
   ADR-0143 (bramka egress), ADR-0148 (Sprawy i Warsztat)
@@ -11,7 +11,7 @@
 ## Kontekst
 
 ADR-0147 dal produktowi kroje dokumentowe, trojstan jako tokeny i pasek perymetru, ale
-zostawil dwie palety: pergamin z bordo w dzien i osobny "cieply grafit" wieczorem. WM
+zostawil dwie palety: pergamin z bordo w dzien i osobny "cieply grafit" wieczorem. Wlasciciel produktu
 zamowil rewizje: mniej kolorow, ciemna strona jako odwrotnosc jasnej, wyrozniki
 architektoniczne na pierwszym planie.
 
@@ -49,7 +49,7 @@ dorobiona z szarosci.
   na trojstan.
 - Rewers dokumentu (podglad Maski jako "druga strona" z przyciskiem Obroc) = faza D3,
   wymaga osobnej wyceny, NIE wchodzi tym ADR-em.
-- Los bordo w materialach marki POZA produktem - osobna decyzja WM.
+- Los bordo w materialach marki POZA produktem - osobna decyzja wlasciciela produktu.
 
 ## Weryfikacja (2026-08-21)
 

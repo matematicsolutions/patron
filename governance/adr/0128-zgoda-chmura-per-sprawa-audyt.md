@@ -1,6 +1,6 @@
 # ADR-0128: Zgoda na model chmurowy per-sprawa (przelacznik w UI + audyt)
 
-- **Status:** Proponowany. Branch `fix/audyt-patron-p1-p3`, NIESCALONY do `main` (bramka: 2x review WM + decyzja Operatora). Domkniecie audytu P2 #6.
+- **Status:** Proponowany. Branch `fix/audyt-patron-p1-p3`, NIESCALONY do `main` (bramka: 2x review wlasciciela produktu + decyzja Operatora). Domkniecie audytu P2 #6.
 - **Data:** 2026-06-14
 - **Kontekst:** Audyt PATRON P2 #6. Zgoda na model chmurowy dla spraw objetych tajemnica byla tylko globalna zmienna srodowiskowa (`PATRON_ALLOW_PRIVILEGED_CLOUD`) - wyglada jak generyczny blad, nie swiadoma blokada; adwokat musi grzebac w env zamiast kliknac zgode per-sprawa; brak sladu w audycie.
 

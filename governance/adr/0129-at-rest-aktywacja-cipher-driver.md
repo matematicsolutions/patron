@@ -38,7 +38,7 @@ Decyzja per pilot (Operator). Default fail-closed: bez `PATRON_DB_ENCRYPTION=on`
 
 ## Dlaczego SCAFFOLD (nie zrobione "na zielono")
 
-Kompilacja natywna (`node-gyp`/`@electron/rebuild`) + weryfikacja w realnym Electronie nie sa wykonalne w tym srodowisku agenta bez ryzyka wypchniecia builda nie do sprawdzenia. Dostarczamy: alias (1 linia) + runbook + odwrocone testy do zastosowania. Aktywacja + weryfikacja end-to-end = na maszynie WM.
+Kompilacja natywna (`node-gyp`/`@electron/rebuild`) + weryfikacja w realnym Electronie nie sa wykonalne w tym srodowisku agenta bez ryzyka wypchniecia builda nie do sprawdzenia. Dostarczamy: alias (1 linia) + runbook + odwrocone testy do zastosowania. Aktywacja + weryfikacja end-to-end = na maszynie wlasciciela produktu.
 
 ## Konsekwencje
 

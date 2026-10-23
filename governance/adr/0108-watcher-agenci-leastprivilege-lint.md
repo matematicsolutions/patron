@@ -1,6 +1,6 @@
 # ADR-0108 — Watcher-agenci PL + least-privilege orchestrator/leaf + statyczny lint zakresu narzędzi
 
-- **Status:** Proponowany (czeka na ratyfikację WM + bramkę merge→main)
+- **Status:** Proponowany (czeka na ratyfikację wlasciciela produktu + bramkę merge→main)
 - **Data:** 2026-06-11
 - **Gałąź:** `feat/watcher-d-lint` (worktree, off `feat/tier-governance-envelope`)
 - **Mapuje na:** ADR-0095 (`enforceEgressGuard`, runtime egress), CLAUDE.md zasada 2 („parytet KOŃCZY się na granicy governance"), spec `patron-desktop-drafts/spec/claude-for-legal-adoption/D-*`
@@ -82,7 +82,7 @@ nigdy samowyzwalająca się autonomia. PHASE_GRANTS (rezerwa) tylko gdy operator
 - [ ] Wzorzec `handoff_request` dla egress/write/send udokumentowany i wymuszony lintem.
 - [ ] termin-watcher (#1) jako pierwsza definicja — draft-nie-wykonuje, flaga default OFF.
 - [ ] Potwierdzenie: żaden watcher nie wykonuje aktu zewnętrznego sam.
-- [ ] 2× review `matematic-patron-pr-review-pl` przed merge→main (bramka WM).
+- [ ] 2× review `matematic-patron-pr-review-pl` przed merge→main (bramka wlasciciela produktu).
 
 ## Uwaga wdrożeniowa
 
@@ -90,4 +90,4 @@ Ten ADR to **decyzja kierunkowa**. Implementacja (skrypt lintu + definicja
 termin-watchera) wymaga uprzedniego rozpoznania formatu definicji agentów w PATRONie
 i jest świadomie odłożona do osobnego, skupionego przebiegu — nie piszemy kodu „w ciemno"
 w repo produktowym. Flagi runtime watcherów: default OFF (zero zmiany zachowania do
-ratyfikacji WM).
+ratyfikacji wlasciciela produktu).

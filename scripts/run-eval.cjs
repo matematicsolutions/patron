@@ -242,7 +242,7 @@ async function main() {
             "```",
         ]),
         "",
-        "> Flip flag pozostaje decyzja WM (bramka B3) - ten raport jest wejsciem, nie wyrokiem.",
+        "> Flip flag pozostaje decyzja wlasciciela produktu (bramka B3) - ten raport jest wejsciem, nie wyrokiem.",
     ].join("\n");
     fs.writeFileSync(path.join(OUT_DIR, "eval-report.md"), md, "utf8");
 

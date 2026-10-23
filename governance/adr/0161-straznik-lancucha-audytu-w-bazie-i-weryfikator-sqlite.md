@@ -1,7 +1,7 @@
 # ADR-0161 - Straznik lancucha audytu w bazie, weryfikator dla SQLite i rozwidlenia juz zapisane
 
-- **Status:** Proponowany - kod, testy, mutanty i E2E dla punktow 1-3. W punkcie 3 WM wybral
-  wariant B (2026-10-01: "lecisz wg wlasnego ROI" po rekomendacji B). Commit i scalenie - WM.
+- **Status:** Proponowany - kod, testy, mutanty i E2E dla punktow 1-3. W punkcie 3 wlasciciel produktu wybral
+  wariant B (2026-10-01, po rekomendacji B). Commit i scalenie - wlasciciel produktu.
 - **Data:** 2026-10-01
 - **Galaz:** nad `9308a21` (kolejka zapisow audytu, ADR-0159 sekcja "Znalezione przy
   weryfikacji"), linia publiczna
@@ -109,7 +109,7 @@ ktore realnie egzekwuje). Dla Supabase PostgREST nie siega `pg_indexes`, wiec pr
 sie flaga; bez niej rozwidlenia ocenia sama sygnatura. Raport podaje pelny mianownik
 (kontrole zdane tez) i same id wierszy, nigdy payloadu.
 
-### 3. Rozwidlenia juz zapisane - wariant B (decyzja WM 2026-10-01)
+### 3. Rozwidlenia juz zapisane - wariant B (decyzja wlasciciela produktu 2026-10-01)
 
 Czego nie robimy w zadnym wariancie: nie przepisujemy historii. Przeliczenie `prev_hash`
 ogniw bocznych zmienia ich hashe, a za nimi hashe wszystkich pozniejszych wpisow

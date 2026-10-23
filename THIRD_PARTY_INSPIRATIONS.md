@@ -510,8 +510,7 @@ usunieto albo przestawiono.
 ## Zasada cherry-pick MateMatic
 
 Patron stosuje wzorzec **cherry-pick wzoru zamiast adopcji narzedzia**
-utrwalony w MateMatic (patrz pamiec dewa: `feedback_consolidation_pattern_2026-05-14`
-i `reference_narzedzia_oceny_2026-05-14`):
+utrwalony w MateMatic:
 
 1. **4 bramki oceny** kazdego znalezionego repo (licencja / anty-OS
    ToS / jakosc / strategia)
@@ -545,7 +544,7 @@ prawa - to wartosc, nie wstyd.
 - **ADR-0025** - MCP Security Gateway, skeleton w `backend/src/lib/mcp-security/` (11 plikow, 25 testow vitest, +0 zaleznosci npm). NIE wpiety w startup (osobny ADR-0028).
 - **ADR-0026** - Merkle audit chain upgrade, 3 moduly w `backend/src/lib/audit-merkle*.ts` (30 testow vitest, +0 zaleznosci npm). Lisce = audit_log.hash, konwencja RFC 6962 (Laurie/Langley/Kasper 2013). Manual trigger; auto-trigger + UI = rezerwacja ADR-0036.
 - **ADR-0027** - Privilege Rings dla wywolan MCP, `backend/src/lib/mcp/ring-policy.ts` (28 testow vitest). Ring 1 trusted + Ring 2 default-deny + audit propagation.
-- Audyt RODO pakietu `agent-governance-claude-code` v3.6.0 = **🟢 ZIELONY** (zero HTTP/telemetrii w hooks+lib+server zweryfikowane grepem, SDK deps czyste `@noble/*` + `js-yaml`, hash-chain audit lokalny w `~/.claude/agt/`, MCP server bundled stdio). Dopuszczony do PATRON dev environment z pinem wersji 3.6.0. NIE dopuszczony do maszyn kancelarii klienckich bez DPA z Microsoft. Pelny raport: `memory/audit_agent_governance_claude_code_2026-05-24.md`.
+- Audyt RODO pakietu `agent-governance-claude-code` v3.6.0 = **🟢 ZIELONY** (zero HTTP/telemetrii w hooks+lib+server zweryfikowane grepem, SDK deps czyste `@noble/*` + `js-yaml`, hash-chain audit lokalny w `~/.claude/agt/`, MCP server bundled stdio). Dopuszczony do PATRON dev environment z pinem wersji 3.6.0. NIE dopuszczony do maszyn kancelarii klienckich bez DPA z Microsoft.
 
 **Co NIE bierzemy (twarda granica)**:
 - Pelne wpiecie `@microsoft/agent-governance-toolkit` jako npm/pip dependency (Public Preview = breaking changes; Patron jest produktem regulowanym).
@@ -675,7 +674,7 @@ prawa - to wartosc, nie wstyd.
 
 **Repo / zrodlo**: PMC11622873 (PubMed Central, artykul open-access o generatywnym NER z dekoderem ograniczonym do spanow zrodla - copy/pointer mechanism).
 **Licencja**: tresc naukowa open-access (Creative Commons typowe dla PMC, do potwierdzenia konkretnego wariantu CC w samym artykule przed cytowaniem doslownym). Bierzemy wzorzec (idea architektoniczna), nie kod ani wagi modelu - clean-room, reimplementacja deterministyczna od zera.
-**Snapshot**: 2026-05-31 (ocena w ramach gleboki zwiad retrievalu, patrz reference_china_patent_recon_2026-05-31).
+**Snapshot**: 2026-05-31 (ocena w ramach glebokiego zwiadu retrievalu).
 **Pattern wzorcowany**: dekoder generatywnego NER, ktory moze tylko kopiowac fragmenty tekstu zrodlowego (pointer/copy mechanism), nigdy generowac nowych znakow. Z definicji zero halucynacji wartosci - model wskazuje span wejscia zamiast go wymyslac.
 
 **Co Patron bierze (wzor)**:
@@ -712,7 +711,7 @@ prawa - to wartosc, nie wstyd.
 
 **Repo / zrodlo**: brak (publikacja patentowa, nie repozytorium OSS). Identyfikator US12001466B2 (rodzina CN+US).
 **Licencja**: dokument patentowy, nie kod OSS. Brak kodu zrodlowego do dziedziczenia. Rodzina CN+US, brak czlonu EP wg zwiadu IP 2026-05-31, wiec wzorzec wolny do stosowania w EU; patent jest zywy w US, wiec NIE kopiujemy kodu - reimplementacja clean-room od zera.
-**Snapshot**: 2026-05-31 (ocena w ramach gleboki zwiad retrievalu, patrz reference_china_patent_recon_2026-05-31).
+**Snapshot**: 2026-05-31 (ocena w ramach glebokiego zwiadu retrievalu).
 **Pattern wzorcowany**: re-ranking wynikow wyszukiwania spraw laczacy dwa podobienstwa - podobienstwo tresci (embedding) z podobienstwem strukturalnym grafu sprawy - tak, by sprawy strukturalnie analogiczne wynosic nad tylko tematycznie podobne.
 
 **Co Patron bierze (wzor)**:
@@ -730,7 +729,7 @@ prawa - to wartosc, nie wstyd.
 
 **Repo / zrodlo**: brak (publikacje patentowe + publikacja naukowa, nie repozytoria OSS). Identyfikatory CN112632223B / CN112632225B (rodzina CN-only); Balanced-TPLinker jako wzorzec one-stage joint extraction z literatury.
 **Licencja**: dokumenty patentowe i publikacja naukowa, nie kod OSS. Brak kodu zrodlowego do dziedziczenia. Rodzina CN-only, brak czlonu EP wg zwiadu IP 2026-05-31, wiec wzorzec wolny do stosowania w EU; reimplementacja clean-room od zera.
-**Snapshot**: 2026-05-31 (ocena w ramach gleboki zwiad retrievalu, patrz reference_china_patent_recon_2026-05-31).
+**Snapshot**: 2026-05-31 (ocena w ramach glebokiego zwiadu retrievalu).
 **Pattern wzorcowany**: reprezentacja zdarzenia jako wezel z typowanymi rolami (event-node + role typing) i dopasowanie spraw przez podobienstwo subgrafowe ramek zdarzen, nie przez plaski worek encji. Balanced-TPLinker: one-stage joint extraction (encje + relacje razem) jako kierunek dla ekstraktora uczonego, anty-kaskada bledow.
 
 **Co Patron bierze (wzor)**:

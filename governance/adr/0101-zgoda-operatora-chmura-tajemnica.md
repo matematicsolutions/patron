@@ -1,6 +1,6 @@
 # ADR-0101: Swiadoma zgoda Operatora na model chmurowy dla spraw objetych tajemnica
 
-**Status**: Zaproponowany 2026-06-03. Konstytucja zaktualizowana do v1.6.0 (Art. 5 - mechanizm zgody Operatora). **NIE merge bez 2x wewnetrznego review (WM) + re-podpisu Konstytucji przez kancelarie**. Zweryfikowany na zywej binarce: sprawa oznaczona `attorney_client_privileged` + model chmurowy odpowiada bez blokady, bez zadnych flag w konsoli (zgoda wbudowana w `main.js`); decyzja egress trafia do audytu z reason `privileged-cloud-by-operator`.
+**Status**: Zaproponowany 2026-06-03. Konstytucja zaktualizowana do v1.6.0 (Art. 5 - mechanizm zgody Operatora). **NIE merge bez 2x wewnetrznego review (wlasciciel produktu) + re-podpisu Konstytucji przez kancelarie**. Zweryfikowany na zywej binarce: sprawa oznaczona `attorney_client_privileged` + model chmurowy odpowiada bez blokady, bez zadnych flag w konsoli (zgoda wbudowana w `main.js`); decyzja egress trafia do audytu z reason `privileged-cloud-by-operator`.
 
 **Data**: 2026-06-03
 
@@ -21,7 +21,7 @@
 
 Twardy blok `decideRoute` (`attorney_client_privileged` -> tylko `no-egress`, kazda chmura = block `privileged-requires-local`, bez wyjatku - flaga `ALLOW_US_PROVIDERS` NIE odblokowywala tajemnicy) okazal sie w praktyce ZA OSTRY:
 
-- Blokowal realna prace. Polscy prawnicy pracuja dzis na modelu chmurowym (Libra = Anthropic to glowne narzedzie), a wybor mecenasa to swiadoma, odpowiedzialna decyzja - nie naruszenie. Decyzja wlasciciela produktu (WM, 2026-06-03): "nie Libra - KAZDY model; Rumpole to odpowiedzialny adwokat, wie co robi; nie badzmy swietsi od papieza".
+- Blokowal realna prace. Polscy prawnicy pracuja dzis na modelu chmurowym (Libra = Anthropic to glowne narzedzie), a wybor mecenasa to swiadoma, odpowiedzialna decyzja - nie naruszenie. Decyzja wlasciciela produktu (2026-06-03): "nie Libra - KAZDY model; Rumpole to odpowiedzialny adwokat, wie co robi; nie badzmy swietsi od papieza".
 - Blokowal nawet demonstracje i testy na realnych sprawach (sprawa pilota domyslnie klasyfikowana `attorney_client_privileged`, fail-closed).
 - Sprzeczny z faktem, ze to instalacja jednoosobowa na maszynie kancelarii: dane i tak sa na sprzecie Operatora, ktory sam decyduje o ich przetwarzaniu.
 
@@ -55,10 +55,10 @@ Reguly desktop single-user: gospodarzem danych jest adwokat-Operator; rola "Admi
 - [x] Weryfikacja na zywej binarce: privileged + chmura bez flag w konsoli = odpowiedz; audyt `privileged-cloud-by-operator`.
 - [x] Doprecyzowanie Konstytucji Art. 5 + changelog (v1.6.0).
 - [x] Pelny `vitest run` backend: 1095 pass / 5 todo / 0 fail (78 plikow).
-- [ ] 2x wewnetrzny review (WM).
+- [ ] 2x wewnetrzny review (wlasciciel produktu).
 - [ ] Re-podpis Konstytucji przez kancelarie (WARUNEK).
 - [ ] `next build` frontend (bez zmian frontendu w tym ADR, ale gate przed merge).
 
 ## Aktualizacja 2026-10-02 (audyt 2026-09, A-01)
 
-Domyslna wartosc w `desktop/main.js` zmieniona na `PATRON_ALLOW_PRIVILEGED_CLOUD='false'`. Zalozenie tego ADR, ze zgoda zdejmuje blokade, ale nie zabezpieczenia ("PII maskowane przed wysylka"), nie trzymalo sie w kodzie: tresc dokumentow trafia do modelu przez wyniki narzedzi, ktore nie byly maskowane, a detektor przepuszczal wiekszosc nazwisk (docs/AUDYT_2026-09.md, A-01, A-02). Zgoda na chmure dla sprawy objetej tajemnica idzie teraz przelacznikiem per-sprawa (ADR-0128) albo swiadomie przez env Operatora. Bramka: `desktop/scripts/egress-defaults-gate.test.cjs` w `prepare:resources` / `build`. Do decyzji WM: aktualizacja Konstytucji Art. 5 (wersja 1.6.0 opisuje domyslnie wlaczona zgode na desktopie).
+Domyslna wartosc w `desktop/main.js` zmieniona na `PATRON_ALLOW_PRIVILEGED_CLOUD='false'`. Zalozenie tego ADR, ze zgoda zdejmuje blokade, ale nie zabezpieczenia ("PII maskowane przed wysylka"), nie trzymalo sie w kodzie: tresc dokumentow trafia do modelu przez wyniki narzedzi, ktore nie byly maskowane, a detektor przepuszczal wiekszosc nazwisk (audyt bezpieczenstwa 2026-09, A-01, A-02). Zgoda na chmure dla sprawy objetej tajemnica idzie teraz przelacznikiem per-sprawa (ADR-0128) albo swiadomie przez env Operatora. Bramka: `desktop/scripts/egress-defaults-gate.test.cjs` w `prepare:resources` / `build`. Do decyzji wlasciciela produktu: aktualizacja Konstytucji Art. 5 (wersja 1.6.0 opisuje domyslnie wlaczona zgode na desktopie).

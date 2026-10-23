@@ -189,7 +189,7 @@ class SkanHistorii(unittest.TestCase):
 
 
 class ListaZnanychTrafien(unittest.TestCase):
-    """2026-09-21, decyzja WM (wariant A): trafienia sprzed czyszczenia zostaja
+    """2026-09-21, decyzja wlasciciela produktu (wariant A): trafienia sprzed czyszczenia zostaja
     w publicznej historii i sa spisane z nazwy commita. Lista ma wyciszac TYLKO
     te commity - kazdy nowy commit z ta sama nazwa w tym samym pliku blokuje."""
 
@@ -581,6 +581,79 @@ class SkanTekstu(_RepoHistorii):
     def test_czysty_tekst_z_ogonkami_przechodzi(self):
         rc, out = self._gate("--text", str(self._plik("Wydanie 1.4.0: poprawki źródeł\n")))
         self.assertEqual(rc, 0, out)
+
+
+def kuchnia(linia: str, cfg: Config | None = None) -> list[str]:
+    return [f.excerpt.split(" ")[0] for f in scan_text("x.md", linia, cfg or cfg_z("kowalsk"))
+            if f.kind == "kuchnia" and f.severity == HARD]
+
+
+class Kuchnia(unittest.TestCase):
+    """2026-10-23: inicjaly wlasciciela produktu (~100 linii) i 16 wskazan na prywatne
+    notatki pamieci agenta przeszly bramke, bo nie sa PII. Test sprawdza obie strony:
+    lapie warsztat i NIE lapie kodu, ktory tylko wyglada podobnie."""
+
+    def test_inicjaly_sa_trafieniem(self):
+        self.assertEqual(kuchnia("Status: czeka na decyzje WM."), ["inicjaly"])  # pubgate:allow
+
+    def test_inicjaly_w_identyfikatorze_to_nie_trafienie(self):
+        self.assertEqual(kuchnia("const WM_SETTEXT = 0x000C; ZWM; wm"), [])
+
+    def test_wskazanie_notatki_pamieci_jest_trafieniem(self):
+        for linia in ("per [feedback_scope_down_atomic_adr]",  # pubgate:allow
+                      "patrz `memory/reference_kglf_lokalizacja.md`",  # pubgate:allow
+                      "(`reference_docxodus_redline_eval_2026-06-11`)",  # pubgate:allow
+                      "project_patron_unsigned_installer_2026-07-01"):  # pubgate:allow
+            self.assertEqual(kuchnia(linia), ["notatka_pamieci"], linia)
+
+    def test_zwykle_identyfikatory_to_nie_notatka(self):
+        self.assertEqual(kuchnia("db.from('project_subfolders'); reference_id; feedback_form"), [])
+
+    def test_profil_uzytkownika_jest_trafieniem_a_placeholder_nie(self):
+        self.assertEqual(kuchnia(r"C:\Users\Ala\.local\bin\uvx.exe"), ["profil_uzytkownika"])  # pubgate:allow
+        self.assertEqual(kuchnia(r"C:\Users\<you>\AppData; %USERPROFILE%; c:/Users/..."), [])
+
+    def test_katalog_sesji_agenta_jest_trafieniem(self):
+        self.assertEqual(kuchnia("~/.claude/projects/x/memory"), ["katalog_sesji_agenta"])  # pubgate:allow
+
+    def test_token_z_kitchen_term_hashes_jest_trafieniem_tylko_w_calosci(self):
+        cfg = Config(deny_term_hashes=[stem_hash("kowalsk")],
+                     kitchen_term_hashes=[stem_hash("zaplecze2099")])
+        self.assertEqual(kuchnia("autor: ala.zaplecze2099@example.com", cfg), ["token"])
+        self.assertEqual(kuchnia("repo: alazaplecze2099-org", cfg), [])
+
+    def test_tresc_commita_z_inicjalami_jest_trafieniem(self):
+        p = Path(self.enterContext(__import__("tempfile").TemporaryDirectory())) / "MSG"
+        p.write_text("fix(x): poprawka\n\nUzgodnione z WM.\n", encoding="utf-8")  # pubgate:allow
+        self.assertIn("kuchnia", [f.kind for f in scan_commit_msg(p, cfg_z("kowalsk"))])
+
+
+class KuchniaWHistorii(_RepoHistorii):
+    """allow_paths wycisza syntetyczne PII, nie warsztat: `.test.ts` na liscie
+    przepuszczal inicjaly w komentarzach testow w calosci."""
+
+    def test_allow_paths_nie_wycisza_kuchni_w_drzewie(self):
+        self._commit("a.test.ts", f"// decyzja WM\nconst nip = '{nip_testowy()}';\n", "test")  # pubgate:allow
+        findings, _ = iter_tree(self.root, self.cfg)
+        self.assertEqual([f.kind for f in findings], ["kuchnia"])
+
+    def test_candidate_blokuje_kuchnie_takze_w_allow_paths(self):
+        self._commit("a.test.ts", "// patrz feedback_scope_down_atomic_adr\n", "test")  # pubgate:allow
+        rc, out = self._candidate()
+        self.assertEqual(rc, 1, out)
+        self.assertIn("kuchnia", out)
+
+    def test_pelna_historia_liczy_opublikowana_kuchnie_osobno_a_nowa_blokuje(self):
+        self._commit("docs/b.md", "decyzja WM\n", "stare")  # pubgate:allow
+        self._commit("docs/b.md", "decyzja wlasciciela produktu\n", "sprzatanie")
+        self._git("update-ref", "refs/public/heads/main", "HEAD")
+        rc, out = self._gate("--history", "--public-ref", "refs/public/*")
+        self.assertEqual(rc, 0, out)
+        self.assertIn("1 kuchnia finding(s) in commits already reachable", out)
+        self._commit("docs/c.md", "uzgodnione z WM\n", "nowe")  # pubgate:allow
+        rc, out = self._gate("--history", "--public-ref", "refs/public/*")
+        self.assertEqual(rc, 1, out)
+        self.assertRegex(out, r"HARD kuchnia +history@[0-9a-f]{7}:docs/c\.md")
 
 
 if __name__ == "__main__":

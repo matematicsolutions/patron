@@ -64,7 +64,7 @@ export const pl = {
     // ---------------------------------------------------------------------
     // Navigation / sidebar
     // ---------------------------------------------------------------------
-    // ADR-0148 (decyzja WM 2026-08-21): "sprawa" zastepuje "projekt",
+    // ADR-0148 (decyzja wlasciciela produktu 2026-08-21): "sprawa" zastepuje "projekt",
     // a czat bez sprawy nazywa sie Warsztat - pelnoprawna przestrzen na
     // pytania bez danych klienta. Zmiana WYLACZNIE w slowniku: klucze,
     // trasy i tabele zostaja przy "project" (rozdzial nazwy widocznej

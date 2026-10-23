@@ -1,6 +1,6 @@
 # ADR-0124: Route B - surowe offsety chunkow dla exact lokatora search-time
 
-**Status**: Proponowany 2026-06-14. Konstytucja v1.5.0. Decyzja Route B (odblokowana przez WM 2026-06-14 po wczesniejszym odlozeniu z ADR-0118). Implementacja ETAPOWA: **9a** `locateChunkSpans` (locator.ts, czysty mapper + testy) ZROBIONE; **9b** kolumny `doc_chunks` (offsety) + populacja w indekserze ZROBIONE; **9c** `search-feed.ts` buduje EXACT lokator ze stored span (RetrievedChunk niesie offsety) ZROBIONE. UWAGA: live'owe wpiecie typed-feedu jako narzedzie `search_corpus` + emisja SSE pozostaje osobna rezerwacja ADR-0118 (nie Route B) - 9c domyka wsparcie offsetow na poziomie modulu feedu. UWAGA: `doc_chunks` jest SQLite/desktop-only (hybrid retrieval sqlite-vec, ADR-0054) - NIE wystepuje w schema.sql/migrations Postgres, wiec 9b nie wymaga migracji serwerowej. Stacked na ADR-0116/0120/0121/0122/0123 (branch feat/oc-locator-loose-match).
+**Status**: Proponowany 2026-06-14. Konstytucja v1.5.0. Decyzja Route B (odblokowana przez wlasciciela produktu 2026-06-14 po wczesniejszym odlozeniu z ADR-0118). Implementacja ETAPOWA: **9a** `locateChunkSpans` (locator.ts, czysty mapper + testy) ZROBIONE; **9b** kolumny `doc_chunks` (offsety) + populacja w indekserze ZROBIONE; **9c** `search-feed.ts` buduje EXACT lokator ze stored span (RetrievedChunk niesie offsety) ZROBIONE. UWAGA: live'owe wpiecie typed-feedu jako narzedzie `search_corpus` + emisja SSE pozostaje osobna rezerwacja ADR-0118 (nie Route B) - 9c domyka wsparcie offsetow na poziomie modulu feedu. UWAGA: `doc_chunks` jest SQLite/desktop-only (hybrid retrieval sqlite-vec, ADR-0054) - NIE wystepuje w schema.sql/migrations Postgres, wiec 9b nie wymaga migracji serwerowej. Stacked na ADR-0116/0120/0121/0122/0123 (branch feat/oc-locator-loose-match).
 
 **Data**: 2026-06-14
 
@@ -31,7 +31,7 @@ Niezmiennik: `collapse(sourceText.slice(start,end)).trim() === collapse(content)
 ### Etap 9b (rezerwacja) - migracja + populacja
 
 - `doc_chunks`: kolumny `source_offset_start INTEGER NULL`, `source_offset_end INTEGER NULL` (nullable - wzorzec `extracted_entities`).
-- **Migracja SQLite (decyzja WM 2026-06-14 "ALTER w bootstrapie")**: `schema.sqlite.ts` create-table z kolumnami dla nowych baz + idempotentny guard `ALTER TABLE ADD COLUMN` przy starcie dla istniejacych baz desktop. Backfill = re-index (stare chunki NULL -> feed fallback).
+- **Migracja SQLite (decyzja wlasciciela produktu 2026-06-14 "ALTER w bootstrapie")**: `schema.sqlite.ts` create-table z kolumnami dla nowych baz + idempotentny guard `ALTER TABLE ADD COLUMN` przy starcie dla istniejacych baz desktop. Backfill = re-index (stare chunki NULL -> feed fallback).
 - **Postgres (server)**: osobny plik `migrations/NNN_doc_chunks_source_offsets.sql`.
 - Indekser: po `locateChunkSpans(text, pieces.map(p=>p.content))` zapisuje offsety obok chunka (ma surowy `text` w reku, zero dodatkowego IO).
 

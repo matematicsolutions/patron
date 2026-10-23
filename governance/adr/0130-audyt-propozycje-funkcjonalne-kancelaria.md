@@ -1,6 +1,6 @@
 # ADR-0130: Audyt PATRON - propozycje funkcjonalne pod kancelarie (workflow / weryfikacja cytatow / preset docx)
 
-- **Status:** Proponowany. Branch `feat/kancelaria-proposals` (off main), NIESCALONY do `main` (bramka: 2x review WM + decyzja Operatora).
+- **Status:** Proponowany. Branch `feat/kancelaria-proposals` (off main), NIESCALONY do `main` (bramka: 2x review wlasciciela produktu + decyzja Operatora).
 - **Data:** 2026-06-14
 - **Kontekst:** Audyt PATRON sekcja "Propozycje funkcjonalnosci" (#6/#7/#8) + Raport CTO sek. D/E/F. To FICZERY (nie usterki), reuzywajace istniejace silniki - dostarczane krok po kroku w tej galezi. Profil uzytkowniczki: adwokatka karnistka (cytat + sygnatura + strona; sprzecznosci/luki; art. 7/410/424/438/5§2/201/249/258 k.p.k.).
 

@@ -312,7 +312,7 @@ function stageBackend() {
 // ── 3b. Staging konektorow MCP (orzecznictwo + legislacja PL/UE) ─────────────
 // Bez tego instalator nie ma dostepu do SAOS/NSA/ISAP/KRS/EUR-Lex/EU-Compliance
 // i mecenas nie ma w czacie zadnego zrodla orzeczen ani aktow prawnych.
-// ADR-0139 (uzupelnienie 2026-07-03, decyzja WM "lean market edition"): wersje
+// ADR-0139 (uzupelnienie 2026-07-03, decyzja wlasciciela produktu "lean market edition"): wersje
 // rynkowe (it/de/es/fr) BUNDLUJA WYLACZNIE konektor macierzysty. Prawo UE i
 // konektory innych jurysdykcji uzytkownik dobiera z Boutique - nie wozimy ich w
 // kazdym instalatorze. PL i EN (wydane 1.0.0) bez zmian: PL = 4 wlasne Node + UE

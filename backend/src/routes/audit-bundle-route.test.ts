@@ -245,7 +245,7 @@ describe("manipulacja w bazie zatrzymuje pakiet (D-01 / C-04)", () => {
 
 // ---------------------------------------------------------------------------
 // RODO art. 17 w pakiecie deliverable (ADR-0164, decyzja 2026-10-06). Prawdziwy
-// scripts/rodo-delete.ts przez shim SQLite (wzor: audit-2609/R-AC-01). Czat nalezy
+// scripts/rodo-delete.ts przez shim SQLite (wzor: scenariusz R-AC-01 przegladu 2026-10). Czat nalezy
 // do LOCAL, ale wpisy w nim zapisala osoba, ktora potem skorzystala z art. 17 -
 // jej wpisy wyciagu sa zanonimizowane, a pakiet ma wyjsc ze znacznikiem.
 // ---------------------------------------------------------------------------

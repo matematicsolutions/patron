@@ -89,7 +89,7 @@ describe("P4 blad narzedzia dla modelu - biala lista pol", () => {
     it("komunikat ze sciezka i nazwa tabeli nie trafia do wyniku", async () => {
         const { bladNarzedziaDlaModelu } = await import("./tool-error");
         const e = Object.assign(
-            new Error("SQLITE_ERROR: no such column: pesel_klienta (C:\\Users\\Jan Testowy\\AppData\\patron.db)"),
+            new Error("SQLITE_ERROR: no such column: pesel_klienta (C:\\Users\\Jan Testowy\\AppData\\patron.db)"), // pubgate:allow - syntetyczny profil
             { code: "SQLITE_ERROR" },
         );
         const w = JSON.stringify(bladNarzedziaDlaModelu("search_corpus", e));

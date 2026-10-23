@@ -1,6 +1,6 @@
 # ADR-0105: Input-security "open mode" - detekcja bez ukrywania, egzekwowanie za flagą
 
-- **Status:** Zaakceptowany (pilot-driven, decyzja Operatora WM). Branch `feat/tier-governance-envelope`, NIESCALONY do `main` (bramka: 2x review WM).
+- **Status:** Zaakceptowany (pilot-driven, decyzja Operatora). Branch `feat/tier-governance-envelope`, NIESCALONY do `main` (bramka: 2x review wlasciciela produktu).
 - **Data:** 2026-06-05
 - **Kontekst pilota:** Pilot-01-Rumpole. Realne akta karne/gospodarcze (sprawa Doe - 626 zeskanowanych stron, sprawa Bloggs - DOCX).
 
@@ -19,7 +19,7 @@ Kluczowa obserwacja modelu zagrozen: PATRON to **desktop single-user**. Operator
 
 ## Decyzja
 
-> Zasada przewodnia (WM): *"Statek najbezpieczniejszy jest w porcie, ale nie po to buduje sie statki."* Zabezpieczenie, ktore unieruchamia produkt, mija sie z celem. Bezpieczenstwo ma sluzyc pracy adwokata, nie ja zastepowac.
+> Zasada przewodnia (wlasciciel produktu): *"Statek najbezpieczniejszy jest w porcie, ale nie po to buduje sie statki."* Zabezpieczenie, ktore unieruchamia produkt, mija sie z celem. Bezpieczenstwo ma sluzyc pracy adwokata, nie ja zastepowac.
 
 **Domyslnie OPEN: detekcja dalej dziala, ale NIC nie jest ukrywane.** Egzekwowanie (gardlowanie) przeniesione za flage `PATRON_INPUT_SECURITY_ENFORCE` (domyslnie OFF).
 
@@ -35,11 +35,11 @@ Kluczowa obserwacja modelu zagrozen: PATRON to **desktop single-user**. Operator
 ## Konsekwencje
 
 - (+) **Uzytecznosc wraca:** wlasne akta Operatora zawsze indeksowane i przeszukiwalne. Doe: 1157 chunkow, PATRON odpowiedzial na pytanie o zarzut (art. 300 § 2 k.k.).
-- (+) **Governance zachowane:** detekcja + audyt + badge - sygnal jest, dowod AI Act jest, tylko nie ukrywamy. "Najpierw otwarte i uzyteczne, rygor pozniej na wniosek praktykow" (decyzja WM).
+- (+) **Governance zachowane:** detekcja + audyt + badge - sygnal jest, dowod AI Act jest, tylko nie ukrywamy. "Najpierw otwarte i uzyteczne, rygor pozniej na wniosek praktykow" (decyzja wlasciciela produktu).
 - (+) **Odwracalne z danymi:** gdy praktyk powie "za luzno", `PATRON_INPUT_SECURITY_ENFORCE=1` przywraca pelny rygor ADR-0020 - bez zmiany kodu, z realnymi przypadkami w rece.
 - (-) **Swiadome obnizenie obrony w glab:** wrogi dokument (genuine injection) tez sie zaindeksuje i trafi do modelu. Ryzyko ograniczone: single-user desktop, egress guard + maskowanie PII + opcja modelu lokalnego. Dla trybu serwerowego/multi-tenant ENFORCE powinno byc domyslnie ON (rezerwacja: wpiecie per-mode w starcie).
 - (-) Badge `securityStatus` musi byc czytelny w UI, by Operator wiedzial, ze skan cos zglosil (pierscien/etykieta - istnieje dla `human_review`).
 
 ## Bramki
 
-ADR przed merge do `main`; 2x review WM (Konstytucja Art. 7). Domyslne OPEN to **zmiana postawy bezpieczenstwa** - wymaga swiadomej akceptacji WM (jest: "zrobmy wszystko otwarte i mozliwe, a potem na sugestie praktykow rygory"). Tryb serwerowy: rozwazyc ENFORCE=ON domyslnie przed jakimkolwiek wdrozeniem multi-tenant.
+ADR przed merge do `main`; 2x review wlasciciela produktu (Konstytucja Art. 7). Domyslne OPEN to **zmiana postawy bezpieczenstwa** - wymaga swiadomej akceptacji wlasciciela produktu (jest: "zrobmy wszystko otwarte i mozliwe, a potem na sugestie praktykow rygory"). Tryb serwerowy: rozwazyc ENFORCE=ON domyslnie przed jakimkolwiek wdrozeniem multi-tenant.

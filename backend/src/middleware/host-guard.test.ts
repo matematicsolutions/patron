@@ -1,5 +1,5 @@
 // Audyt 2026-09, A-22: walidacja Host/Origin przeciw DNS rebinding.
-// Czerwony test audytu (audit-2609/A-22-dns-rebinding-host.test.ts) stawia caly
+// Scenariusz A-22 audytu 2026-09 (DNS rebinding) stawia caly
 // backend; tu pilnujemy logiki bramki, prawdziwych sciezek wywolan (frontend,
 // powloka Electron) i tego, ze index.ts wpina bramke PRZED routerami.
 import fs from "node:fs";
