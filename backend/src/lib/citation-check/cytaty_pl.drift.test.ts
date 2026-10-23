@@ -1,7 +1,9 @@
 // Test dryfu kopii ekstraktora (ADR-0157).
 //
-// `cytaty_pl.ts` ma JEDEN dom - repozytorium Repertorium. PATRON trzyma kopie 1:1,
-// bo wyciaga cytaty lokalnie; dwie kopie jednego kodu rozjezdzaja sie po cichu.
+// `cytaty_pl.ts` ma JEDEN dom - repozytorium Repertorium. PATRON trzyma jego kopie
+// publiczna: ten sam kod bez komentarzy, generowana w domu, ktory sprawdza, ze kod
+// jest rownowazny oryginalowi. PATRON wyciaga cytaty lokalnie; dwie kopie jednego
+// kodu rozjezdzaja sie po cichu.
 // Dwa poziomy:
 //   1. ZAWSZE: sha256 kopii == przypiety `cytaty_pl.sha256` (skopiowany z
 //      `narzedzia/cytaty_pl.sha256` Repertorium razem z plikiem). Edycja kopii
