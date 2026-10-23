@@ -174,7 +174,7 @@ class BramkaPrePush(unittest.TestCase):
         r = push()
         self.assertEqual(r.returncode, 0, r.stderr)
 
-    # --- R-TI-07 (2026-10-02): sondy backend/audit-2609/sondy/ jako testy -------
+    # --- R-TI-07 (2026-10-02): sondy przegladu bezpieczenstwa jako testy --------
 
     def test_a_plik_z_prywatnego_warsztatu_blokuje(self):
         sha = self._commit(".matematic/releases/x/README.md", "plan wydania\n", "docs: notatka")

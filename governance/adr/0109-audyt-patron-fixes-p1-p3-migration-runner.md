@@ -1,6 +1,6 @@
 # ADR-0109: Audyt PATRON - domkniecie usterek P1-P3 + runner migracji SQLite
 
-- **Status:** Proponowany. Branch `fix/audyt-patron-p1-p3` (off `feat/tier-governance-envelope`), NIESCALONY do `main` (bramka: 2x review WM + decyzja Operatora).
+- **Status:** Proponowany. Branch `fix/audyt-patron-p1-p3` (off `feat/tier-governance-envelope`), NIESCALONY do `main` (bramka: 2x review wlasciciela produktu + decyzja Operatora).
 - **Data:** 2026-06-14
 - **Kontekst:** Audyt techniczny builda u pilotki (Rumpole) - `AUDYT_PATRON.md` + `RAPORT_CTO_PATRON.md`. Niniejsze ADR pokrywa podzbior usterek o najlepszym stosunku wartosci do ryzyka; wieksze inicjatywy (at-rest native, maskowanie nazwisk, dyski zewnetrzne) - osobne ADR.
 

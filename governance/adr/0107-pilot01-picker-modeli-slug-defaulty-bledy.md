@@ -1,6 +1,6 @@
 # ADR-0107: Pilot-01 - picker modeli (martwy slug, domyslne modele OpenRouter, dubel etykiet, surfacing bledu)
 
-- **Status:** Zaakceptowany (pilot-driven). Branch `feat/tier-governance-envelope`, NIESCALONY do `main` (bramka: 2x review WM).
+- **Status:** Zaakceptowany (pilot-driven). Branch `feat/tier-governance-envelope`, NIESCALONY do `main` (bramka: 2x review wlasciciela produktu).
 - **Data:** 2026-06-05
 - **Kontekst pilota:** Pilot-01-Rumpole, runda 2. Po reinstalacji picker modeli sypal - klaster bugow "wybieram model a czesc nie dziala".
 
@@ -32,4 +32,4 @@ Kilka defektow pickera modeli wykrytych na zywo (Rumpole na OpenRouter):
 
 ## Bramki
 
-ADR przed merge do `main`; 2x review WM. Zmiany wspolne z OCR/open-mode w jednym commicie rundy pilotowej.
+ADR przed merge do `main`; 2x review wlasciciela produktu. Zmiany wspolne z OCR/open-mode w jednym commicie rundy pilotowej.

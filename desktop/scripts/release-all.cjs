@@ -10,7 +10,7 @@
 //  - buildy SEKWENCYJNIE (rownolegle electron-buildery sie gryza - playbook),
 //  - fail-fast na pierwszym bledzie,
 //  - --draft tworzy wylacznie DRAFT (niewidoczny publicznie); publikacja
-//    releasu = reczny akt WM w UI GitHub (bramka governance),
+//    releasu = reczny akt wlasciciela produktu w UI GitHub (bramka governance),
 //  - wersja NIE jest bumpowana tutaj (decyzja wydawcy przed komenda).
 
 const { spawnSync } = require("node:child_process");
@@ -136,9 +136,9 @@ console.log(`\nOK: ${manifestPath} (${assets.length} artefaktow)`);
 
 if (flag("--draft")) {
     // DRAFT releasu na publicznym mat: niewidoczny publicznie do recznej
-    // publikacji przez WM (bramka governance "push publiczny = czlowiek").
+    // publikacji przez wlasciciela produktu (bramka governance "push publiczny = czlowiek").
     const tag = `v${version}`;
-    console.log(`\nTworze DRAFT releasu ${tag} na ${REPO} (publikacja = WM)...`);
+    console.log(`\nTworze DRAFT releasu ${tag} na ${REPO} (publikacja = wlasciciel produktu)...`);
     run("gh", [
         "release",
         "create",

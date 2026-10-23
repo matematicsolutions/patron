@@ -134,6 +134,26 @@ _SECRETS = [
     ("slack_token", re.compile(r"\bxox[baprs]-[0-9A-Za-z-]{10,}\b")),
 ]
 
+# Kuchnia MateMatic: tresc, ktora nie jest ani PII, ani sekretem, ale niesie nasz
+# warsztat - inicjaly wlasciciela produktu, wskazania na prywatne notatki pamieci
+# agenta, sciezke profilu uzytkownika Windows, katalog sesji agenta. Zmierzone
+# 2026-10-23: drzewo tego repo mialo ~100 linii z inicjalami i 16 wskazan na
+# prywatne notatki, a bramka przepuszczala je wszystkie, bo nie sa PII. Regula
+# "nic z kuchni w repo publicznym" bez detektora nie trzymala.
+# Wzorce sa OGOLNE celowo: lista konkretnych nazw w publicznym pliku sama bylaby
+# wyciekiem. Konkretne tokeny (prywatny adres) ida jako sha256 w
+# `kitchen_term_hashes`, tym samym mechanizmem co `deny_term_hashes`.
+_KUCHNIA = [
+    ("inicjaly", re.compile(r"\bWM\b")),
+    ("notatka_pamieci", re.compile(
+        r"\b(?:memory/)?(?:feedback|reference|session_summary)_[a-z0-9]+(?:_[a-z0-9]+)+\b"
+        r"|\bproject_[a-z0-9_]+_20\d\d(?:-\d\d){0,2}\b|\bmemory/[\w.-]+\.md\b")),
+    ("profil_uzytkownika", re.compile(
+        r"\b[A-Za-z]:[\\/]+Users[\\/]+(?![<%{$]|\.\.\.|(?:USER|YOUR|you|Public|Default)\b)"
+        r"[A-Za-z0-9._-]+", re.IGNORECASE)),
+    ("katalog_sesji_agenta", re.compile(r"\.claude[\\/]+projects\b")),
+]
+
 
 @dataclass
 class Finding:
@@ -154,6 +174,7 @@ class Config:
     deny_term_hashes: list[str] = field(default_factory=list)
     deny_paths: list[str] = field(default_factory=list)
     allow_paths: list[str] = field(default_factory=list)
+    kitchen_term_hashes: list[str] = field(default_factory=list)
 
     @classmethod
     def load(cls, root: Path, explicit: Path | None) -> "Config":
@@ -168,7 +189,8 @@ class Config:
         return cls(deny_terms=[t for t in raw.get("deny_terms", []) if t],
                    deny_term_hashes=[h.lower() for h in raw.get("deny_term_hashes", []) if h],
                    deny_paths=raw.get("deny_paths", []),
-                   allow_paths=raw.get("allow_paths", []))
+                   allow_paths=raw.get("allow_paths", []),
+                   kitchen_term_hashes=[h.lower() for h in raw.get("kitchen_term_hashes", []) if h])
 
 
 # --------------------------------------------------------------------------- #
@@ -272,6 +294,7 @@ def scan_text(path_label: str, text: str, cfg: Config) -> list[Finding]:
     out: list[Finding] = []
     deny_lc = [(t, t.lower()) for t in cfg.deny_terms]
     deny_hashes = set(cfg.deny_term_hashes)
+    kitchen_hashes = set(cfg.kitchen_term_hashes)
     for ln, line in enumerate(text.splitlines(), 1):
         if ALLOW_MARKER in line:        # intentional fixture — suppress this line
             continue
@@ -302,8 +325,30 @@ def scan_text(path_label: str, text: str, cfg: Config) -> list[Finding]:
         for tok in _hash_hits(line, deny_hashes):
             out.append(Finding(HARD, "denylist_hash", path_label, ln,
                                f"token '{_redact(tok)}'"))
+        out.extend(_kitchen_line(path_label, ln, line, kitchen_hashes))
         for m in _SYGN.finditer(line):
             out.append(Finding(WARN, "court_signature?", path_label, ln, m.group(0)))
+    return out
+
+
+def _kitchen_line(path_label: str, ln: int, line: str, kitchen_hashes: set[str]) -> list[Finding]:
+    out = [Finding(HARD, "kuchnia", path_label, ln, f"{name} '{_redact(m.group(0))}'")
+           for name, rx in _KUCHNIA for m in rx.finditer(line)]
+    out += [Finding(HARD, "kuchnia", path_label, ln, f"token '{_redact(tok)}'")
+            for tok in _hash_hits(line, kitchen_hashes)]
+    return out
+
+
+def scan_kitchen(path_label: str, text: str, cfg: Config) -> list[Finding]:
+    """Sam detektor kuchni - dla plikow z `allow_paths`. Te sciezki wyciszaja
+    CELOWE syntetyczne PII (fixtury z poprawna suma kontrolna), nie warsztat:
+    `.test.ts` na liscie oznaczalo, ze inicjaly i wskazania notatek w komentarzach
+    testow przechodzily w calosci (zmierzone 2026-10-23)."""
+    kitchen_hashes = set(cfg.kitchen_term_hashes)
+    out: list[Finding] = []
+    for ln, line in enumerate(text.splitlines(), 1):
+        if ALLOW_MARKER not in line:
+            out.extend(_kitchen_line(path_label, ln, line, kitchen_hashes))
     return out
 
 
@@ -347,8 +392,7 @@ def iter_tree(root: Path, cfg: Config, all_files: bool = False) -> tuple[list[Fi
         findings.extend(denied_path_findings(rel, rel, cfg))
         if p.suffix.lower() in SKIP_EXT:
             continue
-        if any(a in rel for a in cfg.allow_paths):   # allowlisted fixtures
-            continue
+        allowed = any(a in rel for a in cfg.allow_paths)   # allowlisted PII fixtures
         try:
             if p.stat().st_size > MAX_BYTES:
                 continue
@@ -356,7 +400,7 @@ def iter_tree(root: Path, cfg: Config, all_files: bool = False) -> tuple[list[Fi
         except (UnicodeDecodeError, OSError):
             continue  # binary or unreadable -> skip content scan
         scanned += 1
-        findings.extend(scan_text(rel, text, cfg))
+        findings.extend(scan_kitchen(rel, text, cfg) if allowed else scan_text(rel, text, cfg))
     return findings, scanned
 
 
@@ -365,7 +409,7 @@ class HistoryScanError(RuntimeError):
 
 
 # Wspolne opcje `git log` dla skanu historii. Kazda zamyka konkretna dziure
-# (pomiar 2026-10-02, R-TI-07 - sondy w backend/audit-2609/sondy/):
+# (pomiar 2026-10-02, R-TI-07 - sondy przegladu bezpieczenstwa):
 #   --no-renames      rename to D + A z PELNA trescia pliku pod nowa sciezka.
 #                     Z wykrywaniem rename'ow `git mv` + dopisany NIP mial status R
 #                     i `--diff-filter=AM` go pomijal; a czysty rename z
@@ -460,7 +504,7 @@ def iter_history(root: Path, cfg: Config, revs: list[str] | None = None) -> list
     revs = revs or ["--all"]
     findings = _history_paths(root, cfg, revs)
     diff = _git_log(root, "-p", *revs)
-    commit, cur_path, skip, cols = "?", "", False, 0
+    commit, cur_path, skip, allowed, cols = "?", "", False, False, 0
     for raw in diff.splitlines():
         if _COMMIT_MARK.fullmatch(raw):
             commit, cols = raw[7:14], 0
@@ -474,8 +518,8 @@ def iter_history(root: Path, cfg: Config, revs: list[str] | None = None) -> list
             cur_path = sciezka[2:] if sciezka.startswith("b/") else "?"
             parts = Path(cur_path).parts
             skip = (any(p in SKIP_DIRS for p in parts)
-                    or Path(cur_path).suffix.lower() in SKIP_EXT
-                    or any(a in cur_path for a in cfg.allow_paths))
+                    or Path(cur_path).suffix.lower() in SKIP_EXT)
+            allowed = any(a in cur_path for a in cfg.allow_paths)   # kuchnia i tak skanowana
         elif raw.startswith("@@"):
             # "@@ ... @@" zwykly diff (1 kolumna), "@@@ ... @@@" merge z 2
             # rodzicami (2 kolumny prefiksu) itd.
@@ -484,7 +528,9 @@ def iter_history(root: Path, cfg: Config, revs: list[str] | None = None) -> list
             # Tylko linie nowe wzgledem KAZDEGO rodzica. "+ " albo " +" w merge'u
             # to tresc jednego z rodzicow - skanowana w jego wlasnym commicie
             # (albo juz publiczna), wiec liczona drugi raz dalaby falszywe trafienia.
-            findings.extend(scan_text(f"history@{commit}:{cur_path}", raw[cols:], cfg))
+            label = f"history@{commit}:{cur_path}"
+            findings.extend(scan_kitchen(label, raw[cols:], cfg) if allowed
+                            else scan_text(label, raw[cols:], cfg))
     return findings
 
 
@@ -514,7 +560,7 @@ def scan_commit_msg(path: Path, cfg: Config) -> list[Finding]:
 # CLI
 # --------------------------------------------------------------------------- #
 # Lista znanych trafien w historii: commity sprzed czyszczenia, ktorych nie
-# przepisujemy (decyzja WM 2026-09-21, wariant A). Kluczem jest SHA commita,
+# przepisujemy (decyzja wlasciciela produktu 2026-09-21, wariant A). Kluczem jest SHA commita,
 # wiec lista nie wycisza niczego, co powstanie pozniej. Bez nazw - sama lista
 # jest publiczna.
 #
@@ -588,13 +634,19 @@ def split_baseline(findings: list[Finding], baseline: set[tuple[str, str, str]]
     return live, known
 
 
+# Rodzaje trafien, ktore w commicie juz publicznym sa nieodwracalne, a nie sa
+# PII ani sekretem: liczone jawnie, nie blokuja pelnego skanu historii. Kuchnia
+# doszla 2026-10-23 - opublikowana historia ma ja w setkach linii sprzed bramki.
+NIEODWRACALNE_OPUBLIKOWANE = ("denied_path", "kuchnia")
+
+
 def split_published_paths(findings: list[Finding], published: set[str]
                           ) -> tuple[list[Finding], list[Finding]]:
-    """(zywe, juz_opublikowane) dla trafien `denied_path` z historii."""
+    """(zywe, juz_opublikowane) dla trafien NIEODWRACALNE_OPUBLIKOWANE z historii."""
     live: list[Finding] = []
     out: list[Finding] = []
     for f in findings:
-        if (f.kind == "denied_path" and f.path.startswith("history@")
+        if (f.kind in NIEODWRACALNE_OPUBLIKOWANE and f.path.startswith("history@")
                 and f.path[len("history@"):].split(":", 1)[0] in published):
             out.append(f)
         else:
@@ -744,9 +796,11 @@ def main(argv: list[str] | None = None) -> int:
                   f"{scanned} commit(s) to publish.")
         if known:   # mianownik: wyciszone liczymy jawnie, nie znikaja
             print(f"{len(known)} known historical finding(s) acknowledged in {BASELINE_FILE}.")
-        if paths_out:
-            print(f"{len(paths_out)} denied_path finding(s) in commits already reachable "
-                  f"from --public-ref (published, irreversible; not blocking).")
+        for kind in NIEODWRACALNE_OPUBLIKOWANE:
+            n = sum(1 for f in paths_out if f.kind == kind)
+            if n:
+                print(f"{n} {kind} finding(s) in commits already reachable "
+                      f"from --public-ref (published, irreversible; not blocking).")
         if history_scanned and len(honoured) < len(baseline):
             why = ("commit not reachable from --public-ref" if public_tips is not None
                    else "no --public-ref given, so nothing counts as published")

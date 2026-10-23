@@ -49,7 +49,7 @@ const OCZEKIWANE = Object.freeze({
         ],
         opis: "edycja miedzynarodowa EN - komplet w paczce, ON: wszystko poza PL i poza fr-eli (klucz PISTE)",
     },
-    // Edycje rynkowe sa LEAN CELOWO (decyzja WM, ADR-0139): jeden konektor
+    // Edycje rynkowe sa LEAN CELOWO (decyzja wlasciciela produktu, ADR-0139): jeden konektor
     // macierzysty. Reszte zrodel mecenas dobiera z Boutique - i dokladnie tak
     // mowi strona /patron/co-potrafie. Wiecej niz jeden wpis tutaj = albo
     // regresja w stagedPythonConnectors, albo cicha zmiana obietnicy ze strony.

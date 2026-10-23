@@ -1,6 +1,6 @@
 # ADR-0127: Wezly PERSON w grafie cytowan - "pokaz dokumenty wspominajace osobe X"
 
-- **Status:** Proponowany. Branch `fix/audyt-patron-p1-p3`, NIESCALONY do `main` (bramka: 2x review WM + decyzja Operatora). Domkniecie drugiej polowy P2 #11 (audyt).
+- **Status:** Proponowany. Branch `fix/audyt-patron-p1-p3`, NIESCALONY do `main` (bramka: 2x review wlasciciela produktu + decyzja Operatora). Domkniecie drugiej polowy P2 #11 (audyt).
 - **Data:** 2026-06-14
 - **Kontekst:** Audyt PATRON P2 #11: "po wpieciu detektora osob - wezly PERSON w grafie". Dotad `EntityType` mial `OSOBA` i `relationForEntity` mapowal `OSOBA -> wspomina_osobe`, ale `PL_EXTRACTION_RULES` NIE mialo reguly OSOBA -> encje osob nigdy nie powstawaly. Nie dalo sie odpowiedziec "pokaz wszystkie dokumenty wspominajace swiadka X".
 

@@ -3,7 +3,7 @@
 - **Status:** Zaakceptowany (Owner, 2026-08-21, z zakresem "domknac cala planowana architekture informacji"; fala slownikowa PL+EN wdrozona w `db65017` - nav.assistant=Warsztat, nav.projects=Sprawy; pozostale jezyki i polityka egress per zakres = otwarte)
 - **Data:** 2026-08-21
 - **Galaz:** `feat/design-system-2-0` (dokument; kod bez zmian)
-- **Zrodlo:** przeglad architektury informacji 2026-08-21 + korekta WM (mecenas uzywa Patrona
+- **Zrodlo:** przeglad architektury informacji 2026-08-21 + korekta wlasciciela produktu (mecenas uzywa Patrona
   do wielu rzeczy, nie tylko do konkretnych spraw)
 - **Mapuje na:** ADR-0147 (system wizualny 2.0 — odroczyl te decyzje jako osobna),
   ADR-0101 (swiadoma zgoda Operatora), ADR-0143 (bramka egress), ADR-0132 (jeden jezyk
@@ -27,7 +27,7 @@ akta, rozliczenie, konflikt interesow, tajemnica — nazywa sie **sprawa**.
 Pierwsza wersja propozycji brzmiala: jeden korzen, Sprawy, wszystko wisi na sprawie, pytanie
 bez sprawy trafia do brudnopisu proszacego o przypisanie.
 
-WM (2026-08-21): mecenas uzywa Patrona do mnostwa rzeczy, ktore sprawa nie sa — sprawdzenia
+Wlasciciel produktu (2026-08-21): mecenas uzywa Patrona do mnostwa rzeczy, ktore sprawa nie sa — sprawdzenia
 przepisu, przygotowania szkolenia, przejrzenia nowej ustawy, rozmowy o czyms, co dopiero
 **moze** stac sie sprawa.
 
@@ -107,7 +107,7 @@ przemyciloby zmiane regulu przetwarzania.
 
 ## Alternatywy odrzucone
 
-- **Wszystko musi byc w sprawie** (pierwsza wersja propozycji). Odrzucone po korekcie WM:
+- **Wszystko musi byc w sprawie** (pierwsza wersja propozycji). Odrzucone po korekcie wlasciciela produktu:
   wymuszanie kontekstu przy kazdym pytaniu jest biurokracja, ktora wypycha prawnika do
   ogolnego czatu. Produkt przegrywa nie dlatego, ze jest gorszy, tylko dlatego, ze jest
   meczacy.

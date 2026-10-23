@@ -8,7 +8,14 @@
     "internal/",
     ".matematic/",
     ".claude/",
-    ".mcp.json"
+    ".mcp.json",
+    "docs/AUDYT_",
+    "docs/NAPRAWY_",
+    "docs/PRZEGLAD_",
+    "docs/WERYFIKACJA_",
+    "docs/PROJEKT_",
+    "backend/audit-",
+    "frontend/audit-"
   ],
   "allow_paths": [
     "backend/src/lib/pl-entities/",
@@ -29,5 +36,9 @@
     "161f96d6e80ece2ecd2c30b1bc5e7f79976ecb5fe55904d53f7dd1438efe6136",
     "2bdd94c004581aa9f0d47b502c1e4e1bb83a7c2cf245b1b3c5d2670d9ae64ec4"
   ],
-  "_deny_term_hashes_note": "Kandydaci odrzuceni z powodu kolizji: rdzen firmy na 'quanti' jest prefiksem slowa 'Quantization' obecnego w drzewie - falszywe trafienie zjada zaufanie do bramki."
+  "kitchen_term_hashes": [
+    "45f85b5a32837aaf712659a0b1e7671d5f9245ac9dff6833950be11408e2955a"
+  ],
+  "_kitchen_note": "Kuchnia (warsztat MateMatic: inicjaly, notatki pamieci agenta, sciezki profilu, wewnetrzne audyty) nie wchodzi do repo publicznego. Wzorce ogolne siedza w kodzie bramki (_KUCHNIA), konkretne tokeny tu jako sha256 (--hash TERM). Wewnetrzne audyty i ich testy czerwone zyja w prywatnym warsztacie; deny_paths blokuje ich powrot.",
+  "_deny_term_hashes_note":"Kandydaci odrzuceni z powodu kolizji: rdzen firmy na 'quanti' jest prefiksem slowa 'Quantization' obecnego w drzewie - falszywe trafienie zjada zaufanie do bramki."
 }

@@ -1,6 +1,6 @@
 # ADR-0138: Field-level encryption wrazliwych kolumn (per-tenant DEK, envelope)
 
-**Status**: Proponowany (2026-06-29) - wymaga sign-off WM (kierunek krypto: zrodlo KEK na serwerze, zakres pol, strategia migracji) + 2x wewnetrznego review przed implementacja. Dotyka warstwy danych (odczyt/zapis wrazliwych kolumn) i modelu kluczy. Inspiracja architektoniczna: open-mercato (MIT, per-tenant DEK + field-level encryption) - NIE port kodu, wlasna implementacja na prymitywach PATRONa (`userApiKeys.ts` aes-256-gcm).
+**Status**: Proponowany (2026-06-29) - wymaga sign-off wlasciciela produktu (kierunek krypto: zrodlo KEK na serwerze, zakres pol, strategia migracji) + 2x wewnetrznego review przed implementacja. Dotyka warstwy danych (odczyt/zapis wrazliwych kolumn) i modelu kluczy. Inspiracja architektoniczna: open-mercato (MIT, per-tenant DEK + field-level encryption) - NIE port kodu, wlasna implementacja na prymitywach PATRONa (`userApiKeys.ts` aes-256-gcm).
 
 ## Kontekst
 

@@ -3,7 +3,7 @@
 **Status**: Przyjety (2026-07-18) - implementacja zaplanowana w architekturze
 dostarczania MateMatic (legal-pack-factory/docs/architektura-dostarczania.md,
 "Integracja po stronie PATRONA"). Repo prywatne, artefakty produkcyjne bez
-publikacji do wspolnej decyzji WM+agent.
+publikacji do wspolnej decyzji wlasciciela produktu i agenta.
 
 ## Kontekst
 
@@ -56,7 +56,7 @@ katalogowym bez sieci.
 - RODO/tajemnica: ruch wylacznie WYCHODZACY po opublikowane artefakty (GET
   manifestu i chunkow); zadne dane kancelarii nie opuszczaja urzadzenia.
 - Weryfikacja minisign nad manifestem (slot `signing` w manifescie) czeka na
-  wygenerowanie klucza przez WM - nastepny krok, poza zakresem tego ADR.
+  wygenerowanie klucza przez wlasciciela produktu - nastepny krok, poza zakresem tego ADR.
 - Zdarzenie audit hash-chain dla aktualizacji paczki (nowy `event_type` to
   5 mirrorow wg precedensu connector.toggle) - swiadomie odlozone; dzis slad
   operacyjny w logu procesu.

@@ -1,8 +1,7 @@
 # ADR-0165 - Stan lancucha audytu i potwierdzanie rozwidlen w aplikacji
 
-- **Status:** Proponowany - kod, testy, mutanty i E2E w uruchomionej aplikacji. Decyzja WM
-  2026-10-01: zadanie podjete jako nastepny krok po ADR-0161 ("jesli twoim zdaniem to zadanie
-  ma dobre ROI - lecisz").
+- **Status:** Proponowany - kod, testy, mutanty i E2E w uruchomionej aplikacji. Decyzja wlasciciela produktu
+  2026-10-01: zadanie podjete jako nastepny krok po ADR-0161.
 - **Data:** 2026-10-01
 - **Galaz:** nad ADR-0161 (`1546220`), linia publiczna
 - **Rozszerza:** [ADR-0161](./0161-straznik-lancucha-audytu-w-bazie-i-weryfikator-sqlite.md)

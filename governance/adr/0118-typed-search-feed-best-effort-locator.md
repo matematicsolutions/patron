@@ -26,7 +26,7 @@ Inspiracja: Open-Source-Legal/OpenContracts (MIT), narzedzie `search_corpus` jak
 2. **Hit nie nosi kotwicy cytatu** - `RetrievedChunk{chunkId, documentId, chunkIndex, content, score}` nie ma offsetu ani strony; tresc chunka jest dodatkowo ZNORMALIZOWANA whitespace w indekserze (`p.replace(/\s+/g," ")`), wiec nie jest verbatim wycinkiem zrodla.
 3. **Brak jawnej honesty** - tylko `note` przy zupelnie pustym wyniku.
 
-WM (2026-06-14) wybral droge: **typowana koperta teraz + lokator best-effort bez migracji**, dokladnosc kotwiczenia ulepszymy pozniej (Route B: offsety w doc_chunks).
+Wlasciciel produktu (2026-06-14) wybral droge: **typowana koperta teraz + lokator best-effort bez migracji**, dokladnosc kotwiczenia ulepszymy pozniej (Route B: offsety w doc_chunks).
 
 ---
 

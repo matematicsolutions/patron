@@ -1,6 +1,6 @@
 # ADR-0106: OCR pilot-readiness - wstrzykniecie silnika, bundling Tesseract, rekursja folderu, picker
 
-- **Status:** Zaakceptowany (pilot-driven). Branch `feat/tier-governance-envelope`, NIESCALONY do `main` (bramka: 2x review WM).
+- **Status:** Zaakceptowany (pilot-driven). Branch `feat/tier-governance-envelope`, NIESCALONY do `main` (bramka: 2x review wlasciciela produktu).
 - **Data:** 2026-06-05
 - **Kontekst pilota:** Pilot-01-Rumpole. Realne akta = 626 zeskanowanych JPG (sprawa Doe). Rumpole: "PATRON nie czyta dokumentow".
 
@@ -31,4 +31,4 @@ OCR jest w PATRONie engine-agnostic przez env `PATRON_OCR_CMD` (ADR-0074), a sil
 
 ## Bramki
 
-ADR przed merge do `main`; 2x review WM. Bundling licencyjnie czysty (Tesseract Apache 2.0 - bramka licencji Konstytucji OK). Pelny rebuild+reinstalacja u kancelarii pilotazowej przed demo "zdjecia".
+ADR przed merge do `main`; 2x review wlasciciela produktu. Bundling licencyjnie czysty (Tesseract Apache 2.0 - bramka licencji Konstytucji OK). Pelny rebuild+reinstalacja u kancelarii pilotazowej przed demo "zdjecia".

@@ -1,6 +1,6 @@
 # ADR-0132: Wybor jezyka UI (locale) - jeden jezyk per instalacja
 
-**Status**: Przyjety (2026-06-24) — WM zatwierdzil ship EN UI 2026-06-24. Mechanizm zaimplementowany i zweryfikowany (frontend tsc=0, runtime PL/EN OK).
+**Status**: Przyjety (2026-06-24) — wlasciciel produktu zatwierdzil ship EN UI 2026-06-24. Mechanizm zaimplementowany i zweryfikowany (frontend tsc=0, runtime PL/EN OK).
 
 ## Kontekst
 
@@ -24,7 +24,7 @@ EN (klucze fallback)."* PATRON jest aplikacja **single-user, zero-cloud desktop*
    sesja, nie w trakcie rozmowy). Domyslnie `"pl"` — zero regresji dla istniejacych
    instalacji.
 2. **Jedno zrodlo prawdy** = zmienna build-time **`NEXT_PUBLIC_PATRON_LOCALE`**
-   (`"pl"` | `"en"`, domyslnie `pl`) — decyzja WM 2026-06-24. Frontend czyta ja przy
+   (`"pl"` | `"en"`, domyslnie `pl`) — decyzja wlasciciela produktu 2026-06-24. Frontend czyta ja przy
    inicjalizacji modulu `i18n` (stala build-time -> serwer i klient zgodne, brak
    flashu/hydration-mismatch). Backend (jezyk agenta, US2) czyta to samo zrodlo.
    Bez nowej zaleznosci, bez migracji DB. Przelacznik w UI = ewentualny przyszly

@@ -7,7 +7,7 @@
 - **Mapuje na:** ADR-0157 (weryfikator powolan), ADR-0158 (zatwierdzenie `human_review`),
   ADR-0166 (nakladka konfiguracji MCP), ADR-0027 (privilege rings), ADR-0028 (brama przy
   starcie), ADR-0101 (model chmurowy jako decyzja Operatora), ADR-0003 (pseudonimizacja),
-  Konstytucja Art. 5 (projekt zmiany: `docs/PROJEKT_KONSTYTUCJA_ART5_2026-10.md`)
+  Konstytucja Art. 5 (wersja 1.8.0)
 
 ## Kontekst
 

@@ -213,7 +213,7 @@ describe("pola wchodzace do hasha audytu maja jednego pisarza", () => {
     });
 
     it("2. zadne pole hasha nie jest celem kaskady FK w schemacie Postgres", () => {
-        // CZERWONY do czasu decyzji WM. Dzis: actor_user_id / chat_id / document_id
+        // CZERWONY do czasu decyzji wlasciciela produktu. Dzis: actor_user_id / chat_id / document_id
         // maja `on delete set null`, wiec baza jest drugim pisarzem tych pol.
         const cascading = cascadingColumns(createTableBody(PG_SCHEMA, "audit_log"));
         const kolizje = Object.entries(cascading).filter(([col]) =>

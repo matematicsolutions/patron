@@ -1,6 +1,6 @@
 # ADR-0134: Poliglotyczny runtime konektorow MCP (Node + Python) - bundling konektorow nie-Node
 
-**Status**: Proponowany (2026-06-24) — wymaga 2x wewnetrznego review + akceptacji WM. Dotyka bundlingu desktop + warstwy MCP.
+**Status**: Proponowany (2026-06-24) — wymaga 2x wewnetrznego review + akceptacji wlasciciela produktu. Dotyka bundlingu desktop + warstwy MCP.
 
 ## Kontekst
 

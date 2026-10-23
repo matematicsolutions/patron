@@ -1,6 +1,6 @@
 # ADR-0113: Proweniencja strony w chunkach RAG - cytat "str. N"
 
-- **Status:** Proponowany. Branch `fix/audyt-patron-p1-p3`, NIESCALONY do `main` (bramka: 2x review WM + decyzja Operatora).
+- **Status:** Proponowany. Branch `fix/audyt-patron-p1-p3`, NIESCALONY do `main` (bramka: 2x review wlasciciela produktu + decyzja Operatora).
 - **Data:** 2026-06-14
 - **Kontekst:** Audyt PATRON P2 #10. `doc_chunks` trzymal tylko `chunk_index`, bez numeru strony -> RAG nie potrafil wskazac "str. N" przy cytacie (styl pism mecenasa: "cytat + sygnatura + strona"). `documents.structure_tree` to tylko outline/lista stron, BEZ tekstu/offsetow per strona - nie nadaje sie do mapowania chunk->strona.
 

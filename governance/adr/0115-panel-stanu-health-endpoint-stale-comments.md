@@ -1,6 +1,6 @@
 # ADR-0115: Panel "Stan systemu" (/api/status) + czyszczenie nieaktualnych komentarzy
 
-- **Status:** Proponowany. Branch `fix/audyt-patron-p1-p3`, NIESCALONY do `main` (bramka: 2x review WM + decyzja Operatora).
+- **Status:** Proponowany. Branch `fix/audyt-patron-p1-p3`, NIESCALONY do `main` (bramka: 2x review wlasciciela produktu + decyzja Operatora).
 - **Data:** 2026-06-14
 - **Kontekst:** Audyt PATRON P3 #17 (cicha degradacja - wylaczony wektor / pominiety OCR / zablokowana chmura leca tylko do console.warn, UI nie sygnalizuje) + P3 #18 (nieaktualne komentarze "rezerwacja"). Pokrywa tez Propozycje #3 i Raport CTO sek. G ("Panel stanu").
 

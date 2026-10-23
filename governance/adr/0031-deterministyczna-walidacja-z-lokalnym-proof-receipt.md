@@ -23,7 +23,7 @@
 
 ## Decyzja
 
-Patron adoptuje **trzy patterny** ze wzoru ICME Preflight ([icme-preflight-guardrail](https://github.com/ICME-Lab/icme-preflight-guardrail) MIT + [preflight-mike](https://github.com/hshadab/preflight-mike) MIT + dokumentacja [docs.icme.io](https://docs.icme.io)). Wzorzec sklasyfikowany jako TRAFIONE warunkowo - patrz `reference_narzedzia_oceny_2026-05-14.md` poz. #68. Wzorzec, NIE kod, NIE zaleznosc HTTP.
+Patron adoptuje **trzy patterny** ze wzoru ICME Preflight ([icme-preflight-guardrail](https://github.com/ICME-Lab/icme-preflight-guardrail) MIT + [preflight-mike](https://github.com/hshadab/preflight-mike) MIT + dokumentacja [docs.icme.io](https://docs.icme.io)). Wzorzec sklasyfikowany jako TRAFIONE warunkowo w wewnetrznym rejestrze ocen narzedzi. Wzorzec, NIE kod, NIE zaleznosc HTTP.
 
 **Pattern 1 - Plain English -> SMT-LIB compilation -> lokalny solver**
 - Polityki kancelarii (np. "no unauthorized legal advice", "privilege boundary", "PII egress", "citation integrity", "escalation scope") pisane po polsku/angielsku przez Operatora.
