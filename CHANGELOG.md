@@ -7,6 +7,14 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ## [Unreleased]
 
+### Governance
+
+- **Kopia ekstraktora powolan bez komentarzy.** `backend/src/lib/citation-check/cytaty_pl.ts`
+  to teraz kopia publiczna z Repertorium: ten sam kod, bez komentarzy z historia decyzji
+  (ADR-0157). Kopia niesie tez poprawke rozpoznawania przepisu w zapytaniu (artykul idzie do
+  aktu, ktorego skrot stoi tuz przy numerze). Wyciaganie powolan z pisma w PATRONIE dziala
+  bez zmian: pismo jest ciete na okna po jednym artykule.
+
 ## [1.4.0] - 2026-10-10
 
 ### Governance
