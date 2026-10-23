@@ -281,7 +281,8 @@ export function rozpoznajPrzepis(zapytanie: string):
     if (koniec <= art.index && art.index - koniec <= 3) return true;
     if (start >= artKoniec) {
       const luka = q.slice(artKoniec, start);
-      return luka.length <= 30 && /^(?:\s|§|\d|[a-z](?=\)|\s)|ust\.?|pkt|lit\.?|zd\.?|zdanie|[.,()])*$/.test(luka);
+
+      return luka.length <= 30 && /^(?:\s|§|\d|[a-z](?=\)|\s)|ust|pkt|lit|zd|zdanie|[.,()])*$/.test(luka);
     }
     return false;
   };
