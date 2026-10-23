@@ -27,7 +27,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from publication_gate import (  # noqa: E402
     BASELINE_FILE, HARD, Config, Finding, _fold, _hash_hits, iter_history, iter_tree,
-    load_baseline, scan_commit_msg, scan_text, split_baseline, stem_hash,
+    load_baseline, scan_commit_msg, scan_kitchen, scan_text, split_baseline, stem_hash,
 )
 
 NAZWISKO = "Kowalska"          # zastepnik realnej nazwy - test nie potrzebuje prawdziwej
@@ -636,6 +636,24 @@ class KuchniaWHistorii(_RepoHistorii):
         self._commit("a.test.ts", f"// decyzja WM\nconst nip = '{nip_testowy()}';\n", "test")  # pubgate:allow
         findings, _ = iter_tree(self.root, self.cfg)
         self.assertEqual([f.kind for f in findings], ["kuchnia"])
+
+    def test_kitchen_term_hashes_z_pliku_konfiguracji_dziala(self):
+        # Config.load: klucz z .publication-gate.json, nie tylko Config(...) w tescie.
+        import json
+        p = self.root / ".publication-gate.json"
+        raw = json.loads(p.read_text(encoding="utf-8"))
+        raw["kitchen_term_hashes"] = [stem_hash("zaplecze2099").upper()]   # wielkosc liter bez znaczenia
+        p.write_text(json.dumps(raw), encoding="utf-8")
+        self._commit("docs/b.md", "autor: ala.zaplecze2099@example.com\n", "docs")
+        rc, out = self._candidate()
+        self.assertEqual(rc, 1, out)
+        self.assertIn("kuchnia", out)
+        self.assertNotIn("zaplecze2099", out)   # trafienie zredagowane
+
+    def test_scan_kitchen_respektuje_marker_i_pomija_pii(self):
+        tekst = f"decyzja WM  # pubgate:allow\nnip {nip_testowy()}\nuzgodnione z WM\n"  # pubgate:allow
+        self.assertEqual([(f.kind, f.line) for f in scan_kitchen("a.test.ts", tekst, self.cfg)],
+                         [("kuchnia", 3)])
 
     def test_candidate_blokuje_kuchnie_takze_w_allow_paths(self):
         self._commit("a.test.ts", "// patrz feedback_scope_down_atomic_adr\n", "test")  # pubgate:allow
