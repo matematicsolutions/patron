@@ -24,8 +24,10 @@ Tryb listy istnieje wlasnie po to, zeby oprogramowanie kancelarii nie wysylalo p
 ## Decyzja
 
 **1. Ekstrakcja lokalnie, kopia ekstraktora z jednym domem.** `backend/src/lib/citation-check/
-cytaty_pl.ts` to kopia 1:1 pliku `src/cytaty_pl.ts` z Repertorium (plik bez zaleznosci,
-jawny z zalozenia - przewaga to korpus, nie wzorce). Obok przypiety `cytaty_pl.sha256`.
+cytaty_pl.ts` to kopia publiczna pliku `src/cytaty_pl.ts` z Repertorium: ten sam kod bez
+komentarzy, generowany w domu, ktory sprawdza, ze kod jest rownowazny oryginalowi (plik bez
+zaleznosci, jawny z zalozenia - przewaga to korpus, nie wzorce). Komentarze zostaja w domu,
+bo niosa historie decyzji. Obok przypiety `cytaty_pl.sha256`.
 Test dryfu: (a) zawsze - sha kopii (LF) == przypiety; (b) gdy repozytorium Repertorium jest
 obok (albo `REPERTORIUM_DIR`) - przypiety == biezacy w domu. Repertorium jest prywatne, wiec
 w CI poziom (b) jest pomijany z nazwanym powodem. Aktualizacja kopii = swiadomy commit pliku
