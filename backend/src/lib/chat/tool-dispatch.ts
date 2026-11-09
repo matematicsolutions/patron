@@ -812,6 +812,27 @@ function memoryScopes(
     };
 }
 
+/**
+ * Argumenty narzedzia od modelu. Zly JSON nie moze po cichu stac sie `{}`: narzedzie ruszyloby na
+ * wartosciach domyslnych, a model nie dowiedzialby sie o swoim bledzie. Pusty ciag to brak argumentow.
+ * Komunikat nie cytuje tresci, bo w argumentach bywaja dane sprawy.
+ */
+export function parseToolArguments(
+    surowe: string | undefined,
+): { ok: true; args: Record<string, unknown> } | { ok: false; error: string } {
+    const blad = "Argumenty narzedzia to nieprawidlowy JSON albo nie obiekt. Wyslij poprawny obiekt JSON.";
+    let wartosc: unknown;
+    try {
+        wartosc = JSON.parse(surowe || "{}");
+    } catch {
+        return { ok: false, error: blad };
+    }
+    if (wartosc === null || typeof wartosc !== "object" || Array.isArray(wartosc)) {
+        return { ok: false, error: blad };
+    }
+    return { ok: true, args: wartosc as Record<string, unknown> };
+}
+
 export async function runToolCalls(
     toolCalls: ToolCall[],
     docStore: DocStore,
@@ -872,12 +893,16 @@ export async function runToolCalls(
     const turnChatId = turnCtx?.chatId ?? null;
 
     for (const tc of toolCalls) {
-        let args: Record<string, unknown> = {};
-        try {
-            args = JSON.parse(tc.function.arguments || "{}");
-        } catch {
-            /* ignore */
+        const parsed = parseToolArguments(tc.function.arguments);
+        if (!parsed.ok) {
+            toolResults.push({
+                role: "tool",
+                tool_call_id: tc.id,
+                content: JSON.stringify({ error: parsed.error }),
+            });
+            continue;
         }
+        const args = parsed.args;
 
         if (tc.function.name === "remember") {
             // Normalizacja PRZED bramka (ADR-0137, audyt B-04): karta i sciezka
