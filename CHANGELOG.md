@@ -7,6 +7,12 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) +
 
 ## [Unreleased]
 
+### Naprawione
+
+- **Zle argumenty narzedzia nie znikaja po cichu.** Niepoprawny JSON albo argumenty niebedace
+  obiektem nie zamieniaja sie juz w pusty obiekt: wywolanie dostaje wynik z bledem, narzedzie
+  nie rusza, a reszta partii idzie dalej. Komunikat nie cytuje tresci argumentow.
+
 ### Governance
 
 - **Warsztat poza repo publicznym.** Wewnetrzne raporty audytu z `docs/` i ich zestawy
